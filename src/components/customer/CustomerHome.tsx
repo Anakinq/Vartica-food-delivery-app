@@ -11,7 +11,11 @@ interface CartItem extends MenuItem {
   quantity: number;
 }
 
-export const CustomerHome: React.FC = () => {
+interface CustomerHomeProps {
+  onShowProfile?: () => void; // 👈 Added prop
+}
+
+export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => {
   const { profile, signOut } = useAuth();
   const [cafeterias, setCafeterias] = useState<Cafeteria[]>([]);
   const [studentVendors, setStudentVendors] = useState<Vendor[]>([]);
@@ -92,6 +96,15 @@ export const CustomerHome: React.FC = () => {
     setCart([]);
   };
 
+  // Group menu items by your custom categories
+  const groupMenuItemsByCategory = () => {
+    const categories = ['Main Course', 'Drink','Swallow', 'Protein', 'Side', 'Salad', 'Snack', 'Soup'];
+    return categories.map(category => {
+      const items = menuItems.filter(item => item.category === category);
+      return { category, items };
+    }).filter(group => group.items.length > 0);
+  };
+
   const filteredCafeterias = cafeterias.filter(c =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -146,10 +159,14 @@ export const CustomerHome: React.FC = () => {
                 )}
               </button>
 
-              <div className="flex items-center space-x-2 text-gray-700">
+              {/* 👇 Updated: Profile button */}
+              <button
+                onClick={onShowProfile}
+                className="flex items-center space-x-2 text-gray-700 hover:text-blue-600"
+              >
                 <User className="h-5 w-5" />
                 <span className="hidden sm:inline">{profile?.full_name}</span>
-              </div>
+              </button>
 
               <button
                 onClick={signOut}
@@ -246,14 +263,33 @@ export const CustomerHome: React.FC = () => {
               ← Back to vendors
             </button>
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Menu</h2>
-            {filteredMenuItems.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredMenuItems.map(item => (
-                  <MenuItemCard
-                    key={item.id}
-                    item={item}
-                    onAddToCart={handleAddToCart}
-                  />
+            
+            {/* Category Grouping */}
+            {menuItems.length > 0 ? (
+              <div>
+                {groupMenuItemsByCategory().map(({ category, items }) => (
+                  <div key={category} className="mb-8">
+                    <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                      {category === 'Main Course' && '🍽️'}
+                      {category === 'Swallow' && '🥣'}
+                      {category === 'Protein' && '🍗'}
+                      {category === 'Side' && '🥗'}
+                      {category === 'Drink' && '🥤'}
+                      {category === 'Salad' && '🥗'}
+                      {category === 'Snack' && '🍪'}
+                      {category === 'Soup' && '🍜'}
+                      <span className="ml-2">{category}</span>
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {items.map(item => (
+                        <MenuItemCard
+                          key={item.id}
+                          item={item}
+                          onAddToCart={handleAddToCart}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : (

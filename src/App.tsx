@@ -8,14 +8,16 @@ import { CafeteriaDashboard } from './components/cafeteria/CafeteriaDashboard';
 import { VendorDashboard } from './components/vendor/VendorDashboard';
 import { DeliveryDashboard } from './components/delivery/DeliveryDashboard';
 import { AdminDashboard } from './components/admin/AdminDashboard';
+import { ProfileDashboard } from './components/shared/ProfileDashboard';
 
 type Role = 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin';
 type AuthView = 'signin' | 'signup';
 
 function AppContent() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, signOut } = useAuth();
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [authView, setAuthView] = useState<AuthView>('signin');
+  const [showProfile, setShowProfile] = useState(false); // 👈 Added profile state
 
   if (loading) {
     return (
@@ -28,21 +30,31 @@ function AppContent() {
     );
   }
 
+  // Show Profile Dashboard if requested
+  if (showProfile && user && profile) {
+    return (
+      <ProfileDashboard 
+        onBack={() => setShowProfile(false)} 
+        onSignOut={signOut} 
+      />
+    );
+  }
+
   // Authenticated users go to their dashboard
   if (user && profile) {
     switch (profile.role) {
       case 'customer':
-        return <CustomerHome />;
+        return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
       case 'cafeteria':
-        return <CafeteriaDashboard />;
+        return <CafeteriaDashboard onShowProfile={() => setShowProfile(true)} />;
       case 'vendor':
-        return <VendorDashboard />;
+        return <VendorDashboard onShowProfile={() => setShowProfile(true)} />;
       case 'delivery_agent':
-        return <DeliveryDashboard />;
+        return <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />;
       case 'admin':
-        return <AdminDashboard />;
+        return <AdminDashboard onShowProfile={() => setShowProfile(true)} />;
       default:
-        return <CustomerHome />;
+        return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
     }
   }
 

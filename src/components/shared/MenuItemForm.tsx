@@ -91,14 +91,14 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
               >
                 <option value="">Select category</option>
                 <option value="Main Course">Main Course</option>
-                <option value="Appetizer">Appetizer</option>
-                <option value="Dessert">Dessert</option>
-                <option value="Beverage">Beverage</option>
+                <option value="Swallow">Swallow</option>
+                <option value="Protein">Protein</option>
+                <option value="Drink">Drink</option>
                 <option value="Snack">Snack</option>
                 <option value="Salad">Salad</option>
                 <option value="Pizza">Pizza</option>
-                <option value="Sandwich">Sandwich</option>
-                <option value="Other">Other</option>
+                <option value="Side">Side</option>
+                <option value="Soup">Soup</option>
               </select>
             </div>
           </div>

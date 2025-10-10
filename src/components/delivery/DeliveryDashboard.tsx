@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { LogOut, Package, Clock, CheckCircle, MapPin, MessageCircle, Wifi, WifiOff, Wallet } from 'lucide-react';
+import { LogOut, Package, Clock, CheckCircle, MapPin, MessageCircle, Wifi, WifiOff, Wallet, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Order, DeliveryAgent } from '../../lib/supabase';
 import { ChatModal } from '../shared/ChatModal';
 
-export const DeliveryDashboard: React.FC = () => {
+interface DeliveryDashboardProps {
+  onShowProfile?: () => void; // 👈 Added prop
+}
+
+export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProfile }) => {
   const { profile, signOut } = useAuth();
   const [agent, setAgent] = useState<DeliveryAgent | null>(null);
   const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
@@ -177,13 +181,23 @@ export const DeliveryDashboard: React.FC = () => {
               <h1 className="text-2xl font-bold text-gray-900">Delivery Agent</h1>
               <p className="text-sm text-gray-600">{profile?.full_name}</p>
             </div>
-            <button
-              onClick={signOut}
-              className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:text-red-600"
-            >
-              <LogOut className="h-5 w-5" />
-              <span>Sign Out</span>
-            </button>
+            <div className="flex items-center space-x-4">
+              {/* 👇 Added profile button */}
+              <button
+                onClick={onShowProfile}
+                className="flex items-center space-x-2 text-gray-700 hover:text-blue-600"
+              >
+                <User className="h-5 w-5" />
+                <span className="hidden sm:inline">Profile</span>
+              </button>
+              <button
+                onClick={signOut}
+                className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:text-red-600"
+              >
+                <LogOut className="h-5 w-5" />
+                <span>Sign Out</span>
+              </button>
+            </div>
           </div>
         </div>
       </nav>
