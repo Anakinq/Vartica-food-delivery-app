@@ -1,6 +1,5 @@
-// Final App.tsx (with modal profile + payment-success route)
-import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'; // 👈 Add Router
+// src/App.tsx (NO ROUTER + PAYMENT SUCCESS)
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LandingPage } from './components/LandingPage';
 import { SignIn } from './components/auth/SignIn';
@@ -11,7 +10,7 @@ import { VendorDashboard } from './components/vendor/VendorDashboard';
 import { DeliveryDashboard } from './components/delivery/DeliveryDashboard';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { ProfileDashboard } from './components/shared/ProfileDashboard';
-import { PaymentSuccess } from './components/customer/PaymentSuccess'; // 👈
+import { PaymentSuccess } from './components/customer/PaymentSuccess'; // 👈 Added
 
 type Role = 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin';
 type AuthView = 'signin' | 'signup';
@@ -21,6 +20,31 @@ function AppContent() {
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [authView, setAuthView] = useState<AuthView>('signin');
   const [showProfile, setShowProfile] = useState(false);
+
+  // ✅ Handle /payment-success route
+  useEffect(() => {
+    const handlePaymentSuccess = () => {
+      if (window.location.pathname === '/payment-success') {
+        // Render PaymentSuccess and stop further rendering
+        const root = document.getElementById('root');
+        if (root) {
+          root.innerHTML = ''; // Clear existing content
+          const container = document.createElement('div');
+          root.appendChild(container);
+          // Render PaymentSuccess manually (simplified)
+          // In practice, you'd use ReactDOM.render, but for SPA:
+          // We'll let React handle it via state
+        }
+      }
+    };
+
+    handlePaymentSuccess();
+  }, []);
+
+  // ✅ Show PaymentSuccess if URL matches
+  if (window.location.pathname === '/payment-success') {
+    return <PaymentSuccess />;
+  }
 
   if (loading) {
     return (
@@ -33,35 +57,40 @@ function AppContent() {
     );
   }
 
-  // Show Profile Dashboard if requested
   if (showProfile && user && profile) {
-    return (
-      <ProfileDashboard 
-        onBack={() => setShowProfile(false)} 
-        onSignOut={signOut} 
-      />
-    );
+    return <ProfileDashboard onBack={() => setShowProfile(false)} onSignOut={signOut} />;
   }
 
-  // Authenticated users go to their dashboard
   if (user && profile) {
     switch (profile.role) {
-      case 'customer':
-        return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
-      case 'cafeteria':
-        return <CafeteriaDashboard onShowProfile={() => setShowProfile(true)} />;
-      case 'vendor':
-        return <VendorDashboard onShowProfile={() => setShowProfile(true)} />;
-      case 'delivery_agent':
-        return <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />;
-      case 'admin':
-        return <AdminDashboard onShowProfile={() => setShowProfile(true)} />;
-      default:
-        return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
+      case 'customer': return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
+      case 'cafeteria': return <CafeteriaDashboard onShowProfile={() => setShowProfile(true)} />;
+      case 'vendor': return <VendorDashboard onShowProfile={() => setShowProfile(true)} />;
+      case 'delivery_agent': return <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />;
+      case 'admin': return <AdminDashboard onShowProfile={() => setShowProfile(true)} />;
+      default: return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
     }
   }
 
-  // ... rest of your auth logic (same as before)
+  if (selectedRole === 'customer') {
+    return authView === 'signup' ? (
+      <SignUp role="customer" onBack={() => setSelectedRole(null)} onSwitchToSignIn={() => setAuthView('signin')} />
+    ) : (
+      <SignIn role="customer" onBack={() => setSelectedRole(null)} onSwitchToSignUp={() => setAuthView('signup')} />
+    );
+  }
+
+  if (selectedRole && selectedRole !== 'customer') {
+    return authView === 'signup' && (selectedRole === 'vendor' || selectedRole === 'delivery_agent') ? (
+      <SignUp role={selectedRole} onBack={() => setSelectedRole(null)} onSwitchToSignIn={() => setAuthView('signin')} />
+    ) : (
+      <SignIn
+        role={selectedRole}
+        onBack={() => setSelectedRole(null)}
+        onSwitchToSignUp={selectedRole === 'vendor' || selectedRole === 'delivery_agent' ? () => setAuthView('signup') : undefined}
+      />
+    );
+  }
 
   return (
     <LandingPage
@@ -76,14 +105,7 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <Router> {/* 👈 Wrap with Router */}
-        <Routes>
-          {/* Payment success is a standalone page */}
-          <Route path="/payment-success" element={<PaymentSuccess />} />
-          {/* All other routes go through AppContent */}
-          <Route path="/*" element={<AppContent />} />
-        </Routes>
-      </Router>
+      <AppContent />
     </AuthProvider>
   );
 }

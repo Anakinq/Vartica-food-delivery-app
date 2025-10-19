@@ -1,13 +1,10 @@
-// src/pages/customer/PaymentSuccess.tsx
+// src/components/customer/PaymentSuccess.tsx
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Package, CheckCircle } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
 export const PaymentSuccess: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
   const { profile } = useAuth();
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -15,32 +12,29 @@ export const PaymentSuccess: React.FC = () => {
   useEffect(() => {
     const initializeSuccess = async () => {
       // Get order_id from URL query params
-      const urlParams = new URLSearchParams(location.search);
+      const urlParams = new URLSearchParams(window.location.search);
       const orderId = urlParams.get('order_id');
 
       if (!orderId) {
-        navigate('/customer');
+        window.location.href = '/'; // Redirect to home
         return;
       }
 
       try {
-        // Optional: Verify the order exists and belongs to the user
         if (profile) {
           const { data: order } = await supabase
             .from('orders')
-            .select('order_number, payment_status')
+            .select('order_number')
             .eq('id', orderId)
             .eq('customer_id', profile.id)
             .single();
 
           if (order) {
             setOrderNumber(order.order_number);
-            // Optionally update payment_status to 'paid' here
-            // (Better done via webhook, but this works for now)
           }
         }
 
-        // Clear cart (if stored in localStorage or context)
+        // Clear cart
         localStorage.removeItem('cart');
         localStorage.removeItem('selectedSeller');
 
@@ -52,7 +46,15 @@ export const PaymentSuccess: React.FC = () => {
     };
 
     initializeSuccess();
-  }, [location, navigate, profile]);
+  }, [profile]);
+
+  const handleViewOrders = () => {
+    window.location.href = '/'; // Adjust if you have an orders page
+  };
+
+  const handleContinueShopping = () => {
+    window.location.href = '/';
+  };
 
   if (loading) {
     return (
@@ -76,13 +78,13 @@ export const PaymentSuccess: React.FC = () => {
           Your order {orderNumber && `#${orderNumber}`} has been confirmed and is being prepared.
         </p>
         <button
-          onClick={() => navigate('/customer/orders')}
+          onClick={handleViewOrders}
           className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700 transition-colors"
         >
           View My Orders
         </button>
         <button
-          onClick={() => navigate('/customer')}
+          onClick={handleContinueShopping}
           className="mt-3 w-full py-3 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
         >
           Continue Shopping
