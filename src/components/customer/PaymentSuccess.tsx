@@ -11,12 +11,11 @@ export const PaymentSuccess: React.FC = () => {
 
   useEffect(() => {
     const initializeSuccess = async () => {
-      // Get order_id from URL query params
       const urlParams = new URLSearchParams(window.location.search);
       const orderId = urlParams.get('order_id');
 
       if (!orderId) {
-        window.location.href = '/'; // Redirect to home
+        window.location.href = '/';
         return;
       }
 
@@ -34,12 +33,10 @@ export const PaymentSuccess: React.FC = () => {
           }
         }
 
-        // Clear cart
         localStorage.removeItem('cart');
         localStorage.removeItem('selectedSeller');
-
       } catch (error) {
-        console.error('Error in payment success:', error);
+        console.error('Error:', error);
       } finally {
         setLoading(false);
       }
@@ -48,20 +45,12 @@ export const PaymentSuccess: React.FC = () => {
     initializeSuccess();
   }, [profile]);
 
-  const handleViewOrders = () => {
-    window.location.href = '/'; // Adjust if you have an orders page
-  };
-
-  const handleContinueShopping = () => {
-    window.location.href = '/';
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-600 mx-auto"></div>
-          <p className="mt-4 text-gray-700">Processing your order...</p>
+          <p className="mt-4 text-gray-700">Processing...</p>
         </div>
       </div>
     );
@@ -75,17 +64,17 @@ export const PaymentSuccess: React.FC = () => {
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment Successful!</h1>
         <p className="text-gray-600 mb-6">
-          Your order {orderNumber && `#${orderNumber}`} has been confirmed and is being prepared.
+          Your order {orderNumber && `#${orderNumber}`} has been confirmed.
         </p>
         <button
-          onClick={handleViewOrders}
-          className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700 transition-colors"
+          onClick={() => window.location.href = '/'}
+          className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700"
         >
-          View My Orders
+          View Orders
         </button>
         <button
-          onClick={handleContinueShopping}
-          className="mt-3 w-full py-3 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+          onClick={() => window.location.href = '/'}
+          className="mt-3 w-full py-3 text-gray-700 rounded-lg font-semibold hover:bg-gray-100"
         >
           Continue Shopping
         </button>
