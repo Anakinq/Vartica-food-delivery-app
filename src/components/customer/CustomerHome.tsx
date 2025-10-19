@@ -1,9 +1,7 @@
-// src/components/customer/CustomerHome.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Search, ShoppingCart, LogOut, User, Moon, Package } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Cafeteria, Vendor, MenuItem } from '../../lib/supabase';
-import { VendorCard } from './VendorCard';
 import { MenuItemCard } from './MenuItemCard';
 import { Cart } from './Cart';
 import { OrderTracking } from './OrderTracking';
@@ -15,6 +13,22 @@ interface CartItem extends MenuItem {
 interface CustomerHomeProps {
   onShowProfile?: () => void;
 }
+
+// Toast state
+interface Toast {
+  id: number;
+  message: string;
+  isVisible: boolean;
+}
+
+// Skeleton Card Component
+const SkeletonCard = () => (
+  <div className="bg-white rounded-2xl border border-stone-200 p-6 animate-pulse">
+    <div className="w-16 h-16 bg-stone-200 rounded-xl mb-4"></div>
+    <div className="h-5 bg-stone-200 rounded mb-2"></div>
+    <div className="h-4 bg-stone-200 rounded w-3/4"></div>
+  </div>
+);
 
 export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => {
   const { profile, signOut } = useAuth();
@@ -29,10 +43,122 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const [showOrders, setShowOrders] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [pulseCategory, setPulseCategory] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  // ✅ Food Pack state
+  const [cartPackCount, setCartPackCount] = useState(1);
+
+  const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const toastId = useRef(0);
+
+  const showToast = (message: string) => {
+    const id = toastId.current++;
+    const newToast: Toast = { id, message, isVisible: true };
+    setToasts(prev => [...prev, newToast]);
+
+    setTimeout(() => {
+      setToasts(prev => prev.map(t => t.id === id ? { ...t, isVisible: false } : t));
+      setTimeout(() => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+      }, 300);
+    }, 2000);
+  };
+
+  // ✅ NEW: Handle order submission
+  const handleCheckout = async () => {
+    if (cart.length === 0 || !profile) {
+      showToast('Cart is empty');
+      return;
+    }
+
+    if (!selectedSeller) {
+      showToast('No seller selected');
+      return;
+    }
+
+    // Use profile address or fallback
+    const deliveryAddress = profile.address || 'Address not provided';
+
+    // Calculate total
+    const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+    try {
+      // Create the order
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          customer_id: profile.id,
+          seller_id: selectedSeller.id,
+          seller_type: selectedSeller.type,
+          status: 'pending',           // ← critical for delivery dashboard
+          delivery_agent_id: null,     // ← must be null
+          total,
+          delivery_address: deliveryAddress,
+          delivery_notes: '',
+          payment_status: 'unpaid',
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Create order items
+      const orderItems = cart.map(item => ({
+        order_id: orderData.id,
+        menu_item_id: item.id,
+        quantity: item.quantity,
+        price: item.price,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) {
+        // Rollback: delete the order if items fail
+        await supabase.from('orders').delete().eq('id', orderData.id);
+        throw itemsError;
+      }
+
+      // Success
+      setCart([]);
+      setShowCart(false);
+      showToast('Order placed successfully!');
+    } catch (error) {
+      console.error('Checkout error:', error);
+      showToast('Failed to place order. Please try again.');
+    }
+  };
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!selectedSeller) return;
+
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY + 200;
+      const categories = groupMenuItemsByCategory();
+
+      for (let i = categories.length - 1; i >= 0; i--) {
+        const cat = categories[i];
+        const el = categoryRefs.current[cat.category];
+        if (el) {
+          const { offsetTop } = el;
+          if (scrollPosition >= offsetTop) {
+            setActiveCategory(cat.category);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [selectedSeller, menuItems]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -40,6 +166,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       supabase.from('cafeterias').select('*').eq('is_active', true).order('name'),
       supabase.from('vendors').select('*').eq('is_active', true).order('store_name'),
     ]);
+
     if (cafeteriasRes.data) setCafeterias(cafeteriasRes.data);
     if (vendorsRes.data) {
       const students = vendorsRes.data.filter(v => v.vendor_type === 'student');
@@ -58,29 +185,13 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       .eq('seller_type', sellerType)
       .eq('is_available', true)
       .order('name');
+
     if (data) setMenuItems(data);
   };
 
   const handleSellerClick = async (id: string, type: 'cafeteria' | 'vendor', name: string) => {
     setSelectedSeller({ id, type, name });
-    setActiveCategory(null); // Reset filter
     await fetchMenuItems(id, type);
-  };
-
-  const handleAddToCart = (item: MenuItem) => {
-    if (cart.length > 0 && (cart[0].seller_id !== item.seller_id || cart[0].seller_type !== item.seller_type)) {
-      if (!confirm('Adding items from a different vendor will clear your current cart. Continue?')) {
-        return;
-      }
-      setCart([{ ...item, quantity: 1 }]);
-    } else {
-      const existing = cart.find(i => i.id === item.id);
-      if (existing) {
-        setCart(cart.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i));
-      } else {
-        setCart([...cart, { ...item, quantity: 1 }]);
-      }
-    }
   };
 
   const handleUpdateQuantity = (itemId: string, quantity: number) => {
@@ -93,12 +204,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
   const handleClearCart = () => {
     setCart([]);
-  };
-
-  const handleBackToVendors = () => {
-    setSelectedSeller(null);
-    setActiveCategory(null);
-    setMenuItems([]);
   };
 
   const groupMenuItemsByCategory = () => {
@@ -119,44 +224,118 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Filter items by active category
-  const filteredItems = activeCategory
-    ? menuItems.filter(item => item.category === activeCategory)
-    : menuItems;
+  const allSellersInOrder = useMemo(() => {
+    const list: Array<{ id: string; type: 'cafeteria' | 'vendor'; name: string }> = [];
+    filteredCafeterias.forEach(c => list.push({ id: c.id, type: 'cafeteria', name: c.name }));
+    filteredVendors.forEach(v => list.push({ id: v.id, type: 'vendor', name: v.store_name }));
+    if (lateNightVendor) list.push({ id: lateNightVendor.id, type: 'vendor', name: lateNightVendor.store_name });
+    return list;
+  }, [filteredCafeterias, filteredVendors, lateNightVendor]);
+
+  const getImagePath = (sellerId: string, sellerType: 'cafeteria' | 'vendor') => {
+    const index = allSellersInOrder.findIndex(s => s.id === sellerId && s.type === sellerType);
+    return `/images/${index + 1}.jpg`;
+  };
+
+  const handleCategoryClick = (category: string) => {
+    setPulseCategory(category);
+    setTimeout(() => setPulseCategory(null), 300);
+
+    const el = categoryRefs.current[category];
+    if (el) {
+      const offset = 160;
+      const top = el.offsetTop - offset;
+      window.scrollTo({ top, behavior: 'smooth' });
+    }
+  };
+
+  const groupedCategories = groupMenuItemsByCategory();
+
+  const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!selectedSeller) {
+      setItemQuantities({});
+      return;
+    }
+
+    const newQuantities: Record<string, number> = {};
+    cart.forEach(item => {
+      if (item.seller_id === selectedSeller.id && item.seller_type === selectedSeller.type) {
+        newQuantities[item.id] = item.quantity;
+      }
+    });
+    setItemQuantities(newQuantities);
+  }, [selectedSeller, cart]);
+
+  const handleQuantityChange = (itemId: string, newQuantity: number) => {
+    const oldQuantity = itemQuantities[itemId] || 0;
+    setItemQuantities(prev => ({ ...prev, [itemId]: newQuantity }));
+
+    const item = menuItems.find(m => m.id === itemId);
+    if (!item) return;
+
+    if (newQuantity > oldQuantity) {
+      const added = newQuantity - oldQuantity;
+      showToast(`${added} ${added === 1 ? 'item' : 'items'} added`);
+    }
+
+    if (newQuantity === 0) {
+      setCart(prev => prev.filter(i => i.id !== itemId));
+    } else {
+      if (cart.length > 0 && (cart[0].seller_id !== item.seller_id || cart[0].seller_type !== item.seller_type)) {
+        if (!confirm('Adding items from a different vendor will clear your current cart. Continue?')) {
+          setItemQuantities(prev => ({ ...prev, [itemId]: oldQuantity }));
+          return;
+        }
+        setCart([{ ...item, quantity: newQuantity }]);
+      } else {
+        const existing = cart.find(i => i.id === itemId);
+        if (existing) {
+          setCart(cart.map(i => i.id === itemId ? { ...i, quantity: newQuantity } : i));
+        } else {
+          setCart([...cart, { ...item, quantity: newQuantity }]);
+        }
+      }
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-teal-50">
-      <nav className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-40">
+    <div className="min-h-screen bg-stone-50">
+      <nav className="bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
               <button
-                onClick={handleBackToVendors}
-                className="text-2xl font-bold text-gray-900 hover:text-orange-600"
+                onClick={() => setSelectedSeller(null)}
+                className="text-2xl font-bold text-stone-800 hover:text-orange-600 transition-colors duration-200"
+                aria-label="Back to home"
               >
                 Vartica
               </button>
               {selectedSeller && (
-                <span className="text-gray-500">/ {selectedSeller.name}</span>
+                <span className="text-stone-400">/ {selectedSeller.name}</span>
               )}
             </div>
 
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => setShowOrders(true)}
-                className="p-2 text-gray-600 hover:text-orange-600"
+                className="p-2 text-stone-600 hover:text-orange-600 transition-colors duration-200"
                 title="My Orders"
+                aria-label="View orders"
               >
                 <Package className="h-6 w-6" />
               </button>
 
               <button
                 onClick={() => setShowCart(true)}
-                className="relative p-2 text-gray-600 hover:text-orange-600"
+                className="relative p-2 text-stone-600 hover:text-orange-600 transition-colors duration-200"
+                aria-label={`Cart, ${cartCount} items`}
               >
                 <ShoppingCart className="h-6 w-6" />
                 {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
                     {cartCount}
                   </span>
                 )}
@@ -164,7 +343,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
               <button
                 onClick={onShowProfile}
-                className="flex items-center space-x-2 text-gray-700 hover:text-orange-600"
+                className="flex items-center space-x-2 text-stone-700 hover:text-orange-600 transition-colors duration-200"
+                aria-label="View profile"
               >
                 <User className="h-5 w-5" />
                 <span className="hidden sm:inline">{profile?.full_name}</span>
@@ -172,7 +352,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
               <button
                 onClick={signOut}
-                className="p-2 text-gray-600 hover:text-red-600"
+                className="p-2 text-stone-600 hover:text-red-600 transition-colors duration-200"
+                aria-label="Sign out"
               >
                 <LogOut className="h-5 w-5" />
               </button>
@@ -181,85 +362,137 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="mb-6">
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 h-5 w-5" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search for food, vendors, or cafeterias..."
-              className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent shadow-sm"
+              className="w-full pl-12 pr-4 py-4 border border-stone-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
+              aria-label="Search food or vendors"
             />
           </div>
         </div>
 
+        {/* Sticky Horizontal Category Bar */}
+        {selectedSeller && menuItems.length > 0 && (
+          <div className="sticky top-20 z-30 bg-stone-50 py-3 mb-6 -mx-4 px-4 shadow-sm">
+            <div className="flex overflow-x-auto pb-1 space-x-3 hide-scrollbar">
+              {groupedCategories.map(({ category }) => (
+                <button
+                  key={category}
+                  onClick={() => handleCategoryClick(category)}
+                  className={`
+                    whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-all duration-200
+                    ${pulseCategory === category
+                      ? 'bg-orange-600 text-white scale-105'
+                      : activeCategory === category
+                        ? 'bg-orange-500 text-white'
+                        : 'bg-stone-200 text-stone-800 hover:bg-stone-300 active:scale-95'}
+                  `}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {!selectedSeller ? (
           <>
             <section className="mb-12">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Cafeterias</h2>
+              <h2 className="text-2xl font-bold text-stone-800 mb-6">Cafeterias</h2>
               {loading ? (
-                <div className="text-center py-8">Loading...</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
+                </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {filteredCafeterias.map(cafeteria => (
-                    <button
-                      key={cafeteria.id}
-                      onClick={() => handleSellerClick(cafeteria.id, 'cafeteria', cafeteria.name)}
-                      className={`bg-white rounded-xl shadow-md overflow-hidden p-4 text-left transition-all hover:shadow-lg ${
-                        selectedSeller?.id === cafeteria.id ? 'ring-2 ring-orange-500' : ''
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3 mb-3">
-                        <div className="w-12 h-12 bg-blue-100 rounded-md flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
-                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                          </svg>
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-gray-900">{cafeteria.name}</h3>
-                          <p className="text-sm text-gray-600">{cafeteria.description}</p>
-                        </div>
+                  {filteredCafeterias.map(cafeteria => {
+                    const isSelected = selectedSeller !== null && 
+                      selectedSeller.id === cafeteria.id && 
+                      selectedSeller.type === 'cafeteria';
+                    return (
+                      <div
+                        key={cafeteria.id}
+                        onClick={() => handleSellerClick(cafeteria.id, 'cafeteria', cafeteria.name)}
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={isSelected}
+                        aria-label={`Select ${cafeteria.name}`}
+                        className={`
+                          bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer
+                          transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md
+                          focus:outline-none focus:ring-2 focus:ring-orange-500
+                          ${isSelected 
+                            ? 'border-orange-500 bg-orange-50' 
+                            : 'border-stone-200 hover:border-orange-300'}
+                        `}
+                      >
+                        <img
+                          src={getImagePath(cafeteria.id, 'cafeteria')}
+                          alt={cafeteria.name}
+                          className="w-20 h-20 rounded-xl object-cover mb-4"
+                          onError={(e) => (e.currentTarget.src = '/images/placeholder.jpg')}
+                        />
+                        <h3 className="font-bold text-stone-800">{cafeteria.name}</h3>
+                        <p className="text-sm text-stone-600 mt-1 line-clamp-2">{cafeteria.description}</p>
                       </div>
-                    </button>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </section>
 
             <section className="mb-12">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Student Vendors</h2>
+              <h2 className="text-2xl font-bold text-stone-800 mb-6">Student Vendors</h2>
               {loading ? (
-                <div className="text-center py-8">Loading...</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
+                </div>
               ) : filteredVendors.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {filteredVendors.map(vendor => (
-                    <button
-                      key={vendor.id}
-                      onClick={() => handleSellerClick(vendor.id, 'vendor', vendor.store_name)}
-                      className={`bg-white rounded-xl shadow-md overflow-hidden p-4 text-left transition-all hover:shadow-lg ${
-                        selectedSeller?.id === vendor.id ? 'ring-2 ring-orange-500' : ''
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3 mb-3">
-                        <div className="w-12 h-12 bg-blue-100 rounded-md flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
-                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                          </svg>
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-gray-900">{vendor.store_name}</h3>
-                          <p className="text-sm text-gray-600">{vendor.description}</p>
-                        </div>
+                  {filteredVendors.map(vendor => {
+                    const isSelected = selectedSeller !== null && 
+                      selectedSeller.id === vendor.id && 
+                      selectedSeller.type === 'vendor';
+                    return (
+                      <div
+                        key={vendor.id}
+                        onClick={() => handleSellerClick(vendor.id, 'vendor', vendor.store_name)}
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={isSelected}
+                        aria-label={`Select ${vendor.store_name}`}
+                        className={`
+                          bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer relative
+                          transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md
+                          focus:outline-none focus:ring-2 focus:ring-orange-500
+                          ${isSelected 
+                            ? 'border-orange-500 bg-orange-50' 
+                            : 'border-stone-200 hover:border-orange-300'}
+                        `}
+                      >
+                        <span className="absolute top-2 right-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                          Student Run
+                        </span>
+                        <img
+                          src={getImagePath(vendor.id, 'vendor')}
+                          alt={vendor.store_name}
+                          className="w-20 h-20 rounded-xl object-cover mb-4"
+                          onError={(e) => (e.currentTarget.src = '/images/placeholder.jpg')}
+                        />
+                        <h3 className="font-bold text-stone-800">{vendor.store_name}</h3>
+                        <p className="text-sm text-stone-600 mt-1 line-clamp-2">{vendor.description}</p>
                       </div>
-                    </button>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-stone-500">
                   No student vendors available yet
                 </div>
               )}
@@ -268,99 +501,106 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
             {lateNightVendor && (
               <section>
                 <div className="flex items-center space-x-2 mb-6">
-                  <Moon className="h-6 w-6 text-gray-700" />
-                  <h2 className="text-2xl font-bold text-gray-900">Late-Night Vendors</h2>
+                  <Moon className="h-6 w-6 text-stone-700" />
+                  <h2 className="text-2xl font-bold text-stone-800">Late-Night Vendors</h2>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  <button
+                  <div
                     key={lateNightVendor.id}
                     onClick={() => handleSellerClick(lateNightVendor.id, 'vendor', lateNightVendor.store_name)}
-                    className={`bg-white rounded-xl shadow-md overflow-hidden p-4 text-left transition-all hover:shadow-lg ${
-                      selectedSeller?.id === lateNightVendor.id ? 'ring-2 ring-orange-500' : ''
-                    }`}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={selectedSeller !== null && selectedSeller.id === lateNightVendor.id}
+                    aria-label={`Select ${lateNightVendor.store_name}`}
+                    className={`
+                      bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer relative
+                      transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md
+                      focus:outline-none focus:ring-2 focus:ring-orange-500
+                      ${selectedSeller !== null && selectedSeller.id === lateNightVendor.id
+                        ? 'border-orange-500 bg-orange-50'
+                        : 'border-stone-200 hover:border-orange-300'}
+                    `}
                   >
-                    <div className="flex items-center space-x-3 mb-3">
-                      <div className="w-12 h-12 bg-blue-100 rounded-md flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
-                          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                          <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                        </svg>
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-gray-900">{lateNightVendor.store_name}</h3>
-                        <p className="text-sm text-gray-600">{lateNightVendor.description}</p>
-                      </div>
-                    </div>
-                  </button>
+                    <span className="absolute top-2 right-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full flex items-center">
+                      <Moon className="h-3 w-3 mr-1" /> Late Night
+                    </span>
+                    <img
+                      src={getImagePath(lateNightVendor.id, 'vendor')}
+                      alt={lateNightVendor.store_name}
+                      className="w-20 h-20 rounded-xl object-cover mb-4"
+                      onError={(e) => (e.currentTarget.src = '/images/placeholder.jpg')}
+                    />
+                    <h3 className="font-bold text-stone-800">{lateNightVendor.store_name}</h3>
+                    <p className="text-sm text-stone-600 mt-1 line-clamp-2">{lateNightVendor.description}</p>
+                  </div>
                 </div>
               </section>
             )}
           </>
         ) : (
           <section>
-            <div className="flex items-center justify-between mb-6">
-              <button
-                onClick={handleBackToVendors}
-                className="text-orange-600 hover:text-orange-700 font-medium flex items-center"
-              >
-                ← Back to vendors
-              </button>
-              <h2 className="text-2xl font-bold text-gray-900">{selectedSeller.name} Menu</h2>
-            </div>
+            <button
+              onClick={() => setSelectedSeller(null)}
+              className="mb-6 text-orange-600 hover:text-orange-700 font-medium transition-colors duration-200"
+              aria-label="Go back to vendors"
+            >
+              ← Back to vendors
+            </button>
 
-            {/* Category Filter Bar */}
-            <div className="flex space-x-2 overflow-x-auto pb-2 mb-6">
-              {['Main Course', 'Drink','Swallow', 'Protein', 'Side', 'Salad', 'Snack', 'Soup'].map(category => (
-                <button
-                  key={category}
-                  onClick={() => setActiveCategory(category)}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap ${
-                    activeCategory === category
-                      ? 'bg-orange-500 text-white'
-                      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
-
-            {/* Render filtered items */}
-            {filteredItems.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredItems.map(item => (
-                  <MenuItemCard
-                    key={item.id}
-                    item={item}
-                    onAddToCart={handleAddToCart}
-                  />
+            {menuItems.length > 0 ? (
+              <div>
+                {groupedCategories.map(({ category, items }) => (
+                  <div
+                    key={category}
+                    ref={(el) => (categoryRefs.current[category] = el)}
+                    className="mb-10"
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {items.map(item => (
+                        <MenuItemCard
+                          key={item.id}
+                          item={item}
+                          quantity={itemQuantities[item.id] || 0}
+                          onQuantityChange={handleQuantityChange}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12 text-gray-500">
-                No items in this category
+              <div className="text-center py-12 text-stone-500">
+                No menu items available
               </div>
             )}
           </section>
         )}
       </div>
 
-      {/* Floating Cart Button */}
-      {cartCount > 0 && (
-        <button
-          onClick={() => setShowCart(true)}
-          className="fixed bottom-6 right-6 bg-orange-500 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg z-50 hover:bg-orange-600 transition-all"
-        >
-          <span className="font-bold text-lg">{cartCount}</span>
-        </button>
-      )}
+      {/* Toast Notifications */}
+      <div className="fixed bottom-4 right-4 z-50 space-y-2">
+        {toasts.map(toast => (
+          <div
+            key={toast.id}
+            className={`bg-emerald-600 text-white px-4 py-2.5 rounded-xl shadow-lg transform transition-all duration-300 ${
+              toast.isVisible ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
+            }`}
+          >
+            {toast.message}
+          </div>
+        ))}
+      </div>
 
+      {/* ✅ UPDATED: Pass onCheckout to Cart */}
       {showCart && (
         <Cart
           items={cart}
           onUpdateQuantity={handleUpdateQuantity}
           onClear={handleClearCart}
           onClose={() => setShowCart(false)}
+          cartPackCount={cartPackCount}
+          onCartPackChange={setCartPackCount}
+          onCheckout={handleCheckout} // ← this enables order submission
         />
       )}
 

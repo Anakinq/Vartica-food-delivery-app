@@ -4,6 +4,27 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase, MenuItem, Cafeteria } from '../../lib/supabase';
 import { MenuItemForm } from '../shared/MenuItemForm';
 
+// --- NEW: Image upload helper ---
+const uploadImageToSupabase = async (file: File): Promise<string | null> => {
+  if (!file) return null;
+
+  const fileName = `food-${Date.now()}-${file.name}`;
+  const { data, error } = await supabase.storage
+    .from('food-images')
+    .upload(`public/${fileName}`, file, { upsert: false });
+
+  if (error) {
+    console.error('Image upload error:', error);
+    throw new Error('Failed to upload image');
+  }
+
+  const { data: publicUrlData } = supabase.storage
+    .from('food-images')
+    .getPublicUrl(data.path);
+
+  return publicUrlData.publicUrl;
+};
+
 export const CafeteriaDashboard: React.FC = () => {
   const { profile, signOut } = useAuth();
   const [cafeteria, setCafeteria] = useState<Cafeteria | null>(null);
@@ -52,25 +73,42 @@ export const CafeteriaDashboard: React.FC = () => {
     }
   };
 
-  const handleSaveItem = async (itemData: Partial<MenuItem>) => {
+  // --- UPDATED: handleSaveItem now supports image upload ---
+  const handleSaveItem = async (itemData: Partial<MenuItem>, imageFile?: File) => {
     if (!cafeteria) return;
+
+    let finalData = { ...itemData };
+
+    // If a new image file is provided, upload it and replace image_url
+    if (imageFile) {
+      try {
+        const imageUrl = await uploadImageToSupabase(imageFile);
+        finalData = { ...finalData, image_url: imageUrl };
+      } catch (err) {
+        alert('Failed to upload image. Please try again.');
+        return;
+      }
+    }
 
     if (editingItem) {
       const { error } = await supabase
         .from('menu_items')
-        .update(itemData)
+        .update(finalData)
         .eq('id', editingItem.id);
 
       if (!error) {
         await fetchData();
         setShowForm(false);
         setEditingItem(null);
+      } else {
+        console.error('Update error:', error);
+        alert('Failed to update menu item.');
       }
     } else {
       const { error } = await supabase
         .from('menu_items')
         .insert({
-          ...itemData,
+          ...finalData,
           seller_id: cafeteria.id,
           seller_type: 'cafeteria',
         });
@@ -78,6 +116,9 @@ export const CafeteriaDashboard: React.FC = () => {
       if (!error) {
         await fetchData();
         setShowForm(false);
+      } else {
+        console.error('Insert error:', error);
+        alert('Failed to add menu item.');
       }
     }
   };
@@ -145,7 +186,7 @@ export const CafeteriaDashboard: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {menuItems.map(item => (
-              <div key={item.id} className={`bg-white rounded-xl shadow-md p-6 #{!item.is_available ? 'opacity-60' : ''}`}>
+              <div key={item.id} className={`bg-white rounded-xl shadow-md p-6 ${!item.is_available ? 'opacity-60' : ''}`}>
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
                     <h3 className="text-lg font-bold text-gray-900">{item.name}</h3>
@@ -153,7 +194,7 @@ export const CafeteriaDashboard: React.FC = () => {
                   </div>
                   <button
                     onClick={() => handleToggleAvailability(item)}
-                    className={`p-2 rounded-lg #{item.is_available ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`}
+                    className={`p-2 rounded-lg ${item.is_available ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`}
                   >
                     {item.is_available ? <ToggleRight className="h-6 w-6" /> : <ToggleLeft className="h-6 w-6" />}
                   </button>
@@ -169,8 +210,18 @@ export const CafeteriaDashboard: React.FC = () => {
                   </span>
                 )}
 
+                {item.image_url && (
+                  <div className="mt-2 mb-3">
+                    <img
+                      src={item.image_url}
+                      alt={item.name}
+                      className="w-16 h-16 object-cover rounded-md"
+                    />
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-                  <span className={`text-sm font-medium #{item.is_available ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className={`text-sm font-medium ${item.is_available ? 'text-green-600' : 'text-red-600'}`}>
                     {item.is_available ? 'In Stock' : 'Out of Stock'}
                   </span>
                   <button
@@ -193,7 +244,7 @@ export const CafeteriaDashboard: React.FC = () => {
       {showForm && (
         <MenuItemForm
           item={editingItem}
-          onSave={handleSaveItem}
+          onSave={handleSaveItem} // Now passes imageFile as 2nd arg
           onClose={() => {
             setShowForm(false);
             setEditingItem(null);

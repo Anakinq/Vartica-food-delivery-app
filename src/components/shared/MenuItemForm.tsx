@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { MenuItem } from '../../lib/supabase';
 
 interface MenuItemFormProps {
   item: MenuItem | null;
-  onSave: (data: Partial<MenuItem>) => void;
+  onSave: (data: Partial<MenuItem>, imageFile?: File) => void; // ✅ Updated signature
   onClose: () => void;
 }
 
@@ -18,9 +18,37 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
     is_available: item?.is_available ?? true,
   });
 
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(item?.image_url || null);
+
+  // Reset preview when switching items
+  useEffect(() => {
+    setImagePreview(item?.image_url || null);
+    setImageFile(null);
+    setFormData({
+      name: item?.name || '',
+      description: item?.description || '',
+      price: item?.price || 0,
+      category: item?.category || '',
+      image_url: item?.image_url || '',
+      is_available: item?.is_available ?? true,
+    });
+  }, [item]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    // Pass both form data AND the image file (if any)
+    onSave(formData, imageFile);
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setImageFile(file);
+    if (file) {
+      setImagePreview(URL.createObjectURL(file));
+    } else {
+      setImagePreview(item?.image_url || null); // fallback to existing if cleared
+    }
   };
 
   return (
@@ -73,7 +101,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
                 step="0.01"
                 min="0"
                 value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
                 required
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="0.00"
@@ -103,17 +131,26 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
             </div>
           </div>
 
+          {/* ✅ REPLACED: Image URL input → File upload */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Image URL
+              Food Image
             </label>
             <input
-              type="url"
-              value={formData.image_url}
-              onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="https://example.com/image.jpg"
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
+            {imagePreview && (
+              <div className="mt-2">
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="w-24 h-24 object-cover rounded-md border"
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex items-center">

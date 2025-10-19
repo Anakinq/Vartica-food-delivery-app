@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { X, Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
 import { MenuItem } from '../../lib/supabase';
-import { Checkout } from './Checkout';
 
 interface CartItem extends MenuItem {
   quantity: number;
@@ -12,30 +11,24 @@ interface CartProps {
   onUpdateQuantity: (itemId: string, quantity: number) => void;
   onClear: () => void;
   onClose: () => void;
+  cartPackCount?: number;
+  onCartPackChange?: (count: number) => void;
+  onCheckout: () => void; // ✅ Required now
 }
 
-export const Cart: React.FC<CartProps> = ({ items, onUpdateQuantity, onClear, onClose }) => {
-  const [showCheckout, setShowCheckout] = useState(false);
-
+export const Cart: React.FC<CartProps> = ({ 
+  items, 
+  onUpdateQuantity, 
+  onClear, 
+  onClose,
+  cartPackCount = 1,
+  onCartPackChange,
+  onCheckout // ✅ Destructure it
+}) => {
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const deliveryFee = 500.00;
-  const total = subtotal + deliveryFee;
-
-  if (showCheckout) {
-    return (
-      <Checkout
-        items={items}
-        subtotal={subtotal}
-        deliveryFee={deliveryFee}
-        onBack={() => setShowCheckout(false)}
-        onClose={onClose}
-        onSuccess={() => {
-          onClear();
-          onClose();
-        }}
-      />
-    );
-  }
+  const packPrice = 300.00;
+  const total = subtotal + (packPrice * cartPackCount) + deliveryFee;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center">
@@ -66,7 +59,7 @@ export const Cart: React.FC<CartProps> = ({ items, onUpdateQuantity, onClear, on
                 <div key={item.id} className="flex items-center space-x-4 bg-gray-50 rounded-lg p-4">
                   <div className="flex-1">
                     <h3 className="font-semibold text-gray-900">{item.name}</h3>
-                    <p className="text-sm text-gray-600">#{item.price.toFixed(2)} each</p>
+                    <p className="text-sm text-gray-600">₦{item.price.toLocaleString()} each</p>
                   </div>
                   <div className="flex items-center space-x-2">
                     <button
@@ -84,7 +77,7 @@ export const Cart: React.FC<CartProps> = ({ items, onUpdateQuantity, onClear, on
                     </button>
                   </div>
                   <div className="text-right min-w-[4rem]">
-                    <p className="font-bold text-gray-900">#{(item.price * item.quantity).toFixed(2)}</p>
+                    <p className="font-bold text-gray-900">₦{(item.price * item.quantity).toLocaleString()}</p>
                   </div>
                   <button
                     onClick={() => onUpdateQuantity(item.id, 0)}
@@ -100,15 +93,44 @@ export const Cart: React.FC<CartProps> = ({ items, onUpdateQuantity, onClear, on
               <div className="space-y-2">
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal</span>
-                  <span>#{subtotal.toFixed(2)}</span>
+                  <span>₦{subtotal.toLocaleString()}</span>
                 </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Food Pack</span>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => cartPackCount > 1 && onCartPackChange && onCartPackChange(cartPackCount - 1)}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold ${
+                        cartPackCount <= 1
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                      aria-label="Decrease packs"
+                    >
+                      –
+                    </button>
+                    <span className="w-8 text-center font-semibold">{cartPackCount}</span>
+                    <button
+                      onClick={() => onCartPackChange && onCartPackChange(cartPackCount + 1)}
+                      className="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center text-lg font-bold hover:bg-orange-600"
+                      aria-label="Increase packs"
+                    >
+                      +
+                    </button>
+                    <span className="text-gray-900 font-bold">
+                      ₦{(packPrice * cartPackCount).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
                 <div className="flex justify-between text-gray-600">
                   <span>Delivery Fee</span>
-                  <span>#{deliveryFee.toFixed(2)}</span>
+                  <span>₦{deliveryFee.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-xl font-bold text-gray-900 pt-2 border-t border-gray-200">
                   <span>Total</span>
-                  <span>#{total.toFixed(2)}</span>
+                  <span>₦{total.toLocaleString()}</span>
                 </div>
               </div>
 
@@ -119,11 +141,13 @@ export const Cart: React.FC<CartProps> = ({ items, onUpdateQuantity, onClear, on
                 >
                   Clear Cart
                 </button>
+                {/* ✅ DIRECT PLACE ORDER BUTTON */}
                 <button
-                  onClick={() => setShowCheckout(true)}
-                  className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+                  onClick={onCheckout}
+                  disabled={items.length === 0}
+                  className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Checkout
+                  Place Order
                 </button>
               </div>
             </div>
