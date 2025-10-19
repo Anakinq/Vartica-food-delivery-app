@@ -109,5 +109,11 @@ function App() {
     </AuthProvider>
   );
 }
+useEffect(() => {
+  console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+  console.log('Supabase Anon Key (first 8 chars):', 
+    import.meta.env.VITE_SUPABASE_ANON_KEY?.substring(0, 8) + '...'
+  );
+}, []);
 
 export default App;
