@@ -10,7 +10,7 @@ import { VendorDashboard } from './components/vendor/VendorDashboard';
 import { DeliveryDashboard } from './components/delivery/DeliveryDashboard';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { ProfileDashboard } from './components/shared/ProfileDashboard';
-import { PaymentSuccess } from './components/customer/PaymentSuccess'; // 👈 Added
+import { PaymentSuccess } from './components/customer/PaymentSuccess';
 
 type Role = 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin';
 type AuthView = 'signin' | 'signup';
@@ -21,27 +21,7 @@ function AppContent() {
   const [authView, setAuthView] = useState<AuthView>('signin');
   const [showProfile, setShowProfile] = useState(false);
 
-  // ✅ Handle /payment-success route
-  useEffect(() => {
-    const handlePaymentSuccess = () => {
-      if (window.location.pathname === '/payment-success') {
-        // Render PaymentSuccess and stop further rendering
-        const root = document.getElementById('root');
-        if (root) {
-          root.innerHTML = ''; // Clear existing content
-          const container = document.createElement('div');
-          root.appendChild(container);
-          // Render PaymentSuccess manually (simplified)
-          // In practice, you'd use ReactDOM.render, but for SPA:
-          // We'll let React handle it via state
-        }
-      }
-    };
-
-    handlePaymentSuccess();
-  }, []);
-
-  // ✅ Show PaymentSuccess if URL matches
+  // Handle /payment-success route
   if (window.location.pathname === '/payment-success') {
     return <PaymentSuccess />;
   }
@@ -63,31 +43,53 @@ function AppContent() {
 
   if (user && profile) {
     switch (profile.role) {
-      case 'customer': return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
-      case 'cafeteria': return <CafeteriaDashboard onShowProfile={() => setShowProfile(true)} />;
-      case 'vendor': return <VendorDashboard onShowProfile={() => setShowProfile(true)} />;
-      case 'delivery_agent': return <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />;
-      case 'admin': return <AdminDashboard onShowProfile={() => setShowProfile(true)} />;
-      default: return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
+      case 'customer':
+        return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
+      case 'cafeteria':
+        return <CafeteriaDashboard onShowProfile={() => setShowProfile(true)} />;
+      case 'vendor':
+        return <VendorDashboard onShowProfile={() => setShowProfile(true)} />;
+      case 'delivery_agent':
+        return <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />;
+      case 'admin':
+        return <AdminDashboard onShowProfile={() => setShowProfile(true)} />;
+      default:
+        return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
     }
   }
 
   if (selectedRole === 'customer') {
     return authView === 'signup' ? (
-      <SignUp role="customer" onBack={() => setSelectedRole(null)} onSwitchToSignIn={() => setAuthView('signin')} />
+      <SignUp
+        role="customer"
+        onBack={() => setSelectedRole(null)}
+        onSwitchToSignIn={() => setAuthView('signin')}
+      />
     ) : (
-      <SignIn role="customer" onBack={() => setSelectedRole(null)} onSwitchToSignUp={() => setAuthView('signup')} />
+      <SignIn
+        role="customer"
+        onBack={() => setSelectedRole(null)}
+        onSwitchToSignUp={() => setAuthView('signup')}
+      />
     );
   }
 
   if (selectedRole && selectedRole !== 'customer') {
     return authView === 'signup' && (selectedRole === 'vendor' || selectedRole === 'delivery_agent') ? (
-      <SignUp role={selectedRole} onBack={() => setSelectedRole(null)} onSwitchToSignIn={() => setAuthView('signin')} />
+      <SignUp
+        role={selectedRole}
+        onBack={() => setSelectedRole(null)}
+        onSwitchToSignIn={() => setAuthView('signin')}
+      />
     ) : (
       <SignIn
         role={selectedRole}
         onBack={() => setSelectedRole(null)}
-        onSwitchToSignUp={selectedRole === 'vendor' || selectedRole === 'delivery_agent' ? () => setAuthView('signup') : undefined}
+        onSwitchToSignUp={
+          selectedRole === 'vendor' || selectedRole === 'delivery_agent'
+            ? () => setAuthView('signup')
+            : undefined
+        }
       />
     );
   }
@@ -103,17 +105,20 @@ function AppContent() {
 }
 
 function App() {
+  // ✅ useEffect now correctly inside the App component
+  useEffect(() => {
+    console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+    console.log(
+      'Supabase Anon Key (first 8 chars):',
+      import.meta.env.VITE_SUPABASE_ANON_KEY?.substring(0, 8) + '...'
+    );
+  }, []);
+
   return (
     <AuthProvider>
       <AppContent />
     </AuthProvider>
   );
 }
-useEffect(() => {
-  console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
-  console.log('Supabase Anon Key (first 8 chars):', 
-    import.meta.env.VITE_SUPABASE_ANON_KEY?.substring(0, 8) + '...'
-  );
-}, []);
 
 export default App;
