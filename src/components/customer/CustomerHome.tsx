@@ -65,7 +65,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     }, 2000);
   };
 
-  // ✅ NEW: Handle order submission
+  // ✅ UPDATED: Handle order submission WITH PAYSTACK
   const handleCheckout = async () => {
     if (cart.length === 0 || !profile) {
       showToast('Cart is empty');
@@ -77,22 +77,24 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       return;
     }
 
-    // Use profile address or fallback
     const deliveryAddress = profile.address || 'Address not provided';
-
-    // Calculate total
     const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
+    if (isNaN(total) || total <= 0) {
+      showToast('Invalid total amount');
+      return;
+    }
+
     try {
-      // Create the order
+      // 1. Create the order
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
           customer_id: profile.id,
           seller_id: selectedSeller.id,
           seller_type: selectedSeller.type,
-          status: 'pending',           // ← critical for delivery dashboard
-          delivery_agent_id: null,     // ← must be null
+          status: 'pending',
+          delivery_agent_id: null,
           total,
           delivery_address: deliveryAddress,
           delivery_notes: '',
@@ -103,7 +105,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
       if (orderError) throw orderError;
 
-      // Create order items
+      // 2. Create order items
       const orderItems = cart.map(item => ({
         order_id: orderData.id,
         menu_item_id: item.id,
@@ -116,15 +118,31 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         .insert(orderItems);
 
       if (itemsError) {
-        // Rollback: delete the order if items fail
         await supabase.from('orders').delete().eq('id', orderData.id);
         throw itemsError;
       }
 
-      // Success
-      setCart([]);
-      setShowCart(false);
-      showToast('Order placed successfully!');
+      // 3. ✅ Initialize Paystack payment
+      const { data: paymentData, error: paymentError } = await supabase.functions.invoke('init-payment', {
+        body: {
+          order_id: orderData.id,
+          email: profile.email || 'user@example.com',
+          amount: Math.round(total * 100), // Convert ₦ to kobo
+          callback_url: `https://vartica-nine.vercel.app/payment-success?order_id=${orderData.id}`,
+        },
+      });
+
+      if (paymentError) {
+        console.error('Payment init failed:', paymentError);
+        await supabase.from('orders').delete().eq('id', orderData.id);
+        showToast('Unable to start payment. Please try again.');
+        return;
+      }
+
+      // 4. ✅ Redirect to Paystack
+      window.location.href = paymentData.authorization_url;
+
+      // Note: Cart will be cleared on /payment-success page after confirmation
     } catch (error) {
       console.error('Checkout error:', error);
       showToast('Failed to place order. Please try again.');
@@ -591,7 +609,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         ))}
       </div>
 
-      {/* ✅ UPDATED: Pass onCheckout to Cart */}
+      {/* ✅ Pass onCheckout to Cart */}
       {showCart && (
         <Cart
           items={cart}
@@ -600,7 +618,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
           onClose={() => setShowCart(false)}
           cartPackCount={cartPackCount}
           onCartPackChange={setCartPackCount}
-          onCheckout={handleCheckout} // ← this enables order submission
+          onCheckout={handleCheckout}
         />
       )}
 
