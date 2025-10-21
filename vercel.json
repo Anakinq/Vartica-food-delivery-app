@@ -6,7 +6,10 @@
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://*.supabase.co https://*.paystack.co; connect-src 'self' https://*.supabase.co https://*.paystack.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self';" }
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://jbqhbuogmxqzotlorahn.supabase.co https://api.paystack.co; connect-src 'self' https://jbqhbuogmxqzotlorahn.supabase.co https://api.paystack.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self';"
+        }
       ]
     }
   ]

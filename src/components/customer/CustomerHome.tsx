@@ -65,7 +65,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     }, 2000);
   };
 
-  // ✅ UPDATED: Handle order submission WITH PAYSTACK
+  // ✅ UPDATED: Handle order submission WITH DETAILED ERROR LOGGING
   const handleCheckout = async () => {
     if (cart.length === 0 || !profile) {
       showToast('Cart is empty');
@@ -103,7 +103,17 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         .select()
         .single();
 
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error('❌ Order creation failed:', {
+          message: orderError.message,
+          details: orderError.details,
+          hint: orderError.hint,
+          code: orderError.code,
+          raw: orderError
+        });
+        showToast('Failed to create order. Check console for details.');
+        return;
+      }
 
       // 2. Create order items
       const orderItems = cart.map(item => ({
@@ -118,11 +128,19 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         .insert(orderItems);
 
       if (itemsError) {
+        console.error('❌ Order items insertion failed:', {
+          message: itemsError.message,
+          details: itemsError.details,
+          code: itemsError.code,
+          raw: itemsError
+        });
+        // Clean up orphaned order
         await supabase.from('orders').delete().eq('id', orderData.id);
-        throw itemsError;
+        showToast('Failed to add items to order.');
+        return;
       }
 
-      // 3. ✅ Initialize Paystack payment
+      // 3. Initialize Paystack payment
       const { data: paymentData, error: paymentError } = await supabase.functions.invoke('init-payment', {
         body: {
           order_id: orderData.id,
@@ -133,19 +151,21 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       });
 
       if (paymentError) {
-        console.error('Payment init failed:', paymentError);
+        console.error('❌ Payment initialization failed:', {
+          message: paymentError.message,
+          raw: paymentError
+        });
         await supabase.from('orders').delete().eq('id', orderData.id);
         showToast('Unable to start payment. Please try again.');
         return;
       }
 
-      // 4. ✅ Redirect to Paystack
+      // 4. Redirect to Paystack
       window.location.href = paymentData.authorization_url;
 
-      // Note: Cart will be cleared on /payment-success page after confirmation
-    } catch (error) {
-      console.error('Checkout error:', error);
-      showToast('Failed to place order. Please try again.');
+    } catch (unexpectedError) {
+      console.error('💥 Unexpected error during checkout:', unexpectedError);
+      showToast('Something went wrong. Please try again.');
     }
   };
 
