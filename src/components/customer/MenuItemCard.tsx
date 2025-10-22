@@ -9,7 +9,7 @@ interface MenuItemCardProps {
 
 export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, quantity, onQuantityChange }) => {
   // Fix: remove extra space in fallback URL
-  const imageUrl = item.image_url || 'https://placehold.co/400x300/e2e8f0/64748b?text=No+Image';
+const imageUrl = item.image_url || '/images/food-placeholder.png';
 
   const handleIncrement = () => {
     onQuantityChange(item.id, quantity + 1);

@@ -32,8 +32,8 @@ export const MenuItemCardSimple: React.FC<MenuItemCardSimpleProps> = ({
           alt={item.name}
           className="absolute inset-0 w-full h-full object-cover rounded-t-xl"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = 'https://placehold.co/400x400/e2e8f0/64748b?text=Image+Error';
-          }}
+  (e.target as HTMLImageElement).src = '/images/food-placeholder.png';
+}}
         />
         <button
           onClick={toggleFavorite}
