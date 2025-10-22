@@ -3,19 +3,30 @@
 
 <head>
   <meta charset="UTF-8" />
-  <!-- Primary favicon (for browser tabs) -->
+
+  <!-- Primary favicon -->
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <!-- Fallback SVG (optional) -->
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description"
     content="Vartica - University campus food delivery connecting students with cafeterias, vendors, and late-night food options" />
   <meta name="theme-color" content="#2563eb" />
 
+  <!-- ✅ FIX: Allow Supabase + Unsplash + Bing + images -->
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="
+      default-src 'self';
+      connect-src 'self' https://jbqhbuogmxqzotlorahn.supabase.co https://*.unsplash.com https://*.bing.com;
+      img-src 'self' data: blob: https://jbqhbuogmxqzotlorahn.supabase.co https://images.unsplash.com https://*.bing.com https:;
+      script-src 'self' 'unsafe-inline' 'unsafe-eval';
+      style-src 'self' 'unsafe-inline';
+      font-src 'self' data:;
+    "
+  />
+
   <!-- PWA Manifest -->
   <link rel="manifest" href="/manifest.json" />
-
-  <!-- Apple Touch Icon (for iOS home screen) -->
   <link rel="apple-touch-icon" href="/icon-192.png" />
 
   <title>Vartica Campus Food Delivery PWA</title>
@@ -24,6 +35,7 @@
 <body>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
+
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
