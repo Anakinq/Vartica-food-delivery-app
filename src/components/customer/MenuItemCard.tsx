@@ -9,7 +9,7 @@ interface MenuItemCardProps {
 
 export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, quantity, onQuantityChange }) => {
   // Fix: remove extra space in fallback URL
-const imageUrl = item.image_url || '/images/food-placeholder.png';
+  const imageUrl = item.image_url || '/images/food-placeholder.png';
 
   const handleIncrement = () => {
     onQuantityChange(item.id, quantity + 1);
@@ -31,14 +31,14 @@ const imageUrl = item.image_url || '/images/food-placeholder.png';
           alt={item.name}
           className="w-full h-full object-cover"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = 'https://placehold.co/400x300/e2e8f0/64748b?text=Image+Error';
+            (e.target as HTMLImageElement).src = '/images/food-placeholder.png';
           }}
         />
       </div>
 
       <div className="p-4">
         <h3 className="font-bold text-stone-800 text-lg leading-tight line-clamp-1">{item.name}</h3>
-        
+
         {/* Unit price */}
         <p className="text-emerald-600 font-semibold mt-1">₦{item.price.toLocaleString()}</p>
 
@@ -47,11 +47,10 @@ const imageUrl = item.image_url || '/images/food-placeholder.png';
           <button
             onClick={handleDecrement}
             disabled={quantity === 0}
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold transition-all duration-200 ${
-              quantity === 0
+            className={`w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold transition-all duration-200 ${quantity === 0
                 ? 'bg-stone-100 text-stone-400 cursor-not-allowed opacity-60'
                 : 'bg-stone-200 text-stone-700 hover:bg-stone-300 active:scale-95'
-            }`}
+              }`}
             aria-label="Decrease quantity"
           >
             –
