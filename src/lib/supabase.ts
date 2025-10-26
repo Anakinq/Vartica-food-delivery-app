@@ -22,7 +22,7 @@ export interface Profile {
 
 export interface Cafeteria {
   id: string;
-  user_id: string;
+  customer_id: string;
   name: string;
   description?: string;
   image_url?: string;
