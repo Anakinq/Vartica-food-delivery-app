@@ -11,7 +11,7 @@ const uploadImageToSupabase = async (file: File): Promise<string | null> => {
   const fileName = `food-${Date.now()}-${file.name}`;
   const { data, error } = await supabase.storage
     .from('food-images')
-    .upload(`public/${fileName}`, file, { upsert: false });
+    .upload(fileName, file, { upsert: false });
 
   if (error) {
     console.error('Image upload error:', error);

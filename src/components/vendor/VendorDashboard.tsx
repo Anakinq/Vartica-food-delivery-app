@@ -52,33 +52,62 @@ export const VendorDashboard: React.FC = () => {
     }
   };
 
-  const handleSaveItem = async (itemData: Partial<MenuItem>) => {
+  const handleSaveItem = async (itemData: Partial<MenuItem>, imageFile?: File) => {
     if (!vendor) return;
 
+    let finalImageUrl = itemData.image_url || '';
+
+    // Upload new image if provided
+    if (imageFile) {
+      const fileName = `food-${Date.now()}-${imageFile.name}`;
+
+      const { data: uploadData, error: uploadError } = await supabase
+        .storage
+        .from('food-images')
+        .upload(fileName, imageFile);
+
+      if (uploadError) {
+        console.error('Image upload failed:', uploadError);
+        alert('Failed to upload image. Please try again.');
+        return;
+      }
+
+      // Get public URL
+      const { data: publicUrlData } = supabase
+        .storage
+        .from('food-images')
+        .getPublicUrl(fileName);
+
+      finalImageUrl = publicUrlData.publicUrl;
+    }
+
+    const fullItemData = {
+      ...itemData,
+      image_url: finalImageUrl,
+      seller_id: vendor.id,
+      seller_type: 'vendor',
+    };
+
+    let query;
     if (editingItem) {
-      const { error } = await supabase
+      query = supabase
         .from('menu_items')
-        .update(itemData)
+        .update(fullItemData)
         .eq('id', editingItem.id);
-
-      if (!error) {
-        await fetchData();
-        setShowForm(false);
-        setEditingItem(null);
-      }
     } else {
-      const { error } = await supabase
+      query = supabase
         .from('menu_items')
-        .insert({
-          ...itemData,
-          seller_id: vendor.id,
-          seller_type: 'vendor',
-        });
+        .insert([fullItemData]);
+    }
 
-      if (!error) {
-        await fetchData();
-        setShowForm(false);
-      }
+    const { error } = await query;
+    if (error) {
+      console.error('Save failed:', error);
+      alert('Failed to save menu item. Please try again.');
+    } else {
+      await fetchData();
+      setShowForm(false);
+      setEditingItem(null);
     }
   };
 
@@ -145,15 +174,15 @@ export const VendorDashboard: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {menuItems.map(item => (
-              <div key={item.id} className={`bg-white rounded-xl shadow-md p-6 #{!item.is_available ? 'opacity-60' : ''}`}>
+              <div key={item.id} className={`bg-white rounded-xl shadow-md p-6 ${!item.is_available ? 'opacity-60' : ''}`}>
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
                     <h3 className="text-lg font-bold text-gray-900">{item.name}</h3>
-                    <p className="text-xl font-bold text-blue-600 mt-1">#{item.price.toFixed(2)}</p>
+                    <p className="text-xl font-bold text-blue-600 mt-1">₦{item.price.toFixed(2)}</p>
                   </div>
                   <button
                     onClick={() => handleToggleAvailability(item)}
-                    className={`p-2 rounded-lg #{item.is_available ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`}
+                    className={`p-2 rounded-lg ${item.is_available ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`}
                   >
                     {item.is_available ? <ToggleRight className="h-6 w-6" /> : <ToggleLeft className="h-6 w-6" />}
                   </button>
@@ -170,7 +199,7 @@ export const VendorDashboard: React.FC = () => {
                 )}
 
                 <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-                  <span className={`text-sm font-medium #{item.is_available ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className={`text-sm font-medium ${item.is_available ? 'text-green-600' : 'text-red-600'}`}>
                     {item.is_available ? 'In Stock' : 'Out of Stock'}
                   </span>
                   <button
