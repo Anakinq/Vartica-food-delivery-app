@@ -90,7 +90,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
-          customer_id: profile.id,
+          user_id: profile.id,
           seller_id: selectedSeller.id,
           seller_type: selectedSeller.type,
           status: 'pending',

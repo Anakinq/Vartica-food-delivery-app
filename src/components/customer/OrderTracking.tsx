@@ -23,7 +23,7 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
         () => {
           fetchOrders();
         },
-        { customer_id: user.id }
+        { user_id: user.id }
       );
 
       return () => subscription.unsubscribe();
@@ -35,7 +35,7 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
 
     const { data } = await databaseService.select<Order>({
       table: 'orders',
-      match: { customer_id: user.id },
+      match: { user: user.id },
       order: { column: 'created_at', ascending: false },
       limit: 10,
     });
