@@ -107,7 +107,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
         .from('orders')
         .insert({
           order_number: orderNumber,
-          customer_id: user.id,
+          user_id: user.id,
           seller_id: sellerId,
           seller_type: sellerType,
           status: 'pending',
