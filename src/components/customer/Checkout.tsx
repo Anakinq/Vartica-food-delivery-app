@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, Check } from 'lucide-react';
 import { supabase, MenuItem } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { PaystackButton } from 'react-paystack'; // 👈 NEW
+import { PaystackButton } from 'react-paystack';
 
 interface CartItem extends MenuItem {
   quantity: number;
@@ -25,7 +25,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const { user, profile } = useAuth(); // 👈 Added profile for email
+  const { user, profile } = useAuth();
   const [formData, setFormData] = useState({
     deliveryAddress: '',
     deliveryNotes: '',
@@ -39,9 +39,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const [success, setSuccess] = useState(false);
 
   const total = subtotal + deliveryFee - discount;
-  const totalInKobo = Math.round(total * 100); // Paystack uses kobo (smallest currency unit)
+  const totalInKobo = Math.round(total * 100);
 
-  // Paystack config
   const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '';
   const paystackConfig = {
     reference: `ORD-${Date.now()}`,
@@ -103,48 +102,49 @@ export const Checkout: React.FC<CheckoutProps> = ({
     const sellerType = items[0].seller_type;
     if (!sellerId || !sellerType) throw new Error('Invalid seller info');
 
-    const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
-    if (!orderNumber || orderNumber.length < 15) {
-      throw new Error('Failed to generate valid order number');
+    // 🔥 BULLETPROOF ORDER NUMBER GENERATION
+    const timestamp = Date.now();
+    const randomPart = Math.random().toString(36).substring(2, 12).padEnd(9, 'X').toUpperCase();
+    const orderNumber = `ORD-${timestamp}-${randomPart}`;
+
+    // 🔥 ENSURE NUMERIC VALUES ARE VALID
+    const safeSubtotal = typeof subtotal === 'number' ? subtotal : 0;
+    const safeDeliveryFee = typeof deliveryFee === 'number' ? deliveryFee : 0;
+    const safeDiscount = typeof discount === 'number' ? discount : 0;
+    const safeTotal = safeSubtotal + safeDeliveryFee - safeDiscount;
+
+    console.log('📤 Sending order with order_number:', orderNumber);
+
+    // 🔥 INSERT WITHOUT CHAINING .select()
+    const { error: insertError } = await supabase
+      .from('orders')
+      .insert({
+        order_number: orderNumber,
+        user_id: user.id,
+        seller_id: sellerId,
+        seller_type: sellerType,
+        status: 'pending',
+        subtotal: safeSubtotal,
+        delivery_fee: safeDeliveryFee,
+        discount: safeDiscount,
+        total: safeTotal,
+        payment_method: formData.paymentMethod,
+        payment_status: formData.paymentMethod === 'cash' ? 'pending' : 'paid',
+        payment_reference: paymentReference || null,
+        promo_code: formData.promoCode || null,
+        delivery_address: formData.deliveryAddress.trim() || 'Address not provided',
+        delivery_notes: formData.deliveryNotes || null,
+        scheduled_for: formData.scheduledFor || null,
+      });
+
+    if (insertError) {
+      console.error('❌ Insert error:', insertError);
+      throw insertError;
     }
 
-    console.log('📤 Sending order with order_number:', orderNumber); // 🔍 DEBUG
-
-    // Replace the insert block with:
-const { error: insertError } = await supabase
-  .from('orders')
-  .insert({
-    order_number: orderNumber,
-    user_id: user.id,
-    seller_id: sellerId,
-    seller_type: sellerType,
-    status: 'pending',
-    subtotal,
-    delivery_fee: deliveryFee,
-    discount,
-    total,
-    payment_method: formData.paymentMethod,
-    payment_status: formData.paymentMethod === 'cash' ? 'pending' : 'paid',
-    payment_reference: paymentReference || null,
-    promo_code: formData.promoCode || null,
-    delivery_address: formData.deliveryAddress.trim() || 'Address not provided',
-    delivery_notes: formData.deliveryNotes || null,
-    scheduled_for: formData.scheduledFor || null,
-  });
-
-if (insertError) throw insertError;
-
-// Then fetch the order separately
-const { data: orderData, error: selectError } = await supabase
-  .from('orders')
-  .select()
-  .eq('order_number', orderNumber)
-  .single();
-
-if (selectError) throw selectError;
-
-return orderData;
-  };
+    // Return minimal success object
+    return { order_number: orderNumber };
+  }; // 👈 THIS CLOSING BRACE WAS MISSING!
 
   // Handle Paystack success
   const handlePaystackSuccess = async (reference: any) => {
@@ -170,11 +170,9 @@ return orderData;
     if (!user) return;
 
     if (formData.paymentMethod === 'online') {
-      // Paystack will handle submission via its button
       return;
     }
 
-    // Cash payment: create order immediately
     setLoading(true);
     try {
       await createOrder();
@@ -342,7 +340,6 @@ return orderData;
             </div>
 
             {formData.paymentMethod === 'online' ? (
-              // Paystack Button
               <PaystackButton
                 className="w-full bg-blue-600 text-white py-4 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 {...paystackConfig}
@@ -352,7 +349,6 @@ return orderData;
                 Pay Now (#{total.toFixed(2)})
               </PaystackButton>
             ) : (
-              // Cash Payment Button
               <button
                 type="submit"
                 disabled={loading}
