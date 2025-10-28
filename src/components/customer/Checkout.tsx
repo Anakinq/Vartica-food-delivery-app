@@ -96,17 +96,31 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
   // Create order AFTER successful payment
   const createOrder = async (paymentReference?: string) => {
-    if (!user) return;
+    if (!user || items.length === 0) {
+      throw new Error('No user or items');
+    }
 
     try {
-      const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+      // ✅ Ensure orderNumber is a valid non-empty string
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(2, 11).toUpperCase();
+      const orderNumber = `ORD-${timestamp}-${randomStr}`;
+
+      if (!orderNumber || orderNumber.length < 10) {
+        throw new Error('Failed to generate order number');
+      }
+
       const sellerId = items[0].seller_id;
       const sellerType = items[0].seller_type;
 
-      const { data: order, error: orderError } = await supabase
+      if (!sellerId || !sellerType) {
+        throw new Error('Missing seller info');
+      }
+
+      const { order, error: orderError } = await supabase
         .from('orders')
         .insert({
-          order_number: orderNumber,
+          order_number: orderNumber,   // ✅ now guaranteed valid
           user_id: user.id,
           seller_id: sellerId,
           seller_type: sellerType,
@@ -116,10 +130,10 @@ export const Checkout: React.FC<CheckoutProps> = ({
           discount,
           total,
           payment_method: formData.paymentMethod,
-          payment_status: formData.paymentMethod === 'cash' ? 'pending' : 'paid', // ✅ Paid if online
-          payment_reference: paymentReference || null, // 👈 Store Paystack reference
+          payment_status: formData.paymentMethod === 'cash' ? 'pending' : 'paid',
+          payment_reference: paymentReference || null,
           promo_code: formData.promoCode || null,
-          delivery_address: formData.deliveryAddress,
+          delivery_address: formData.deliveryAddress.trim() || 'Address not provided',
           delivery_notes: formData.deliveryNotes || null,
           scheduled_for: formData.scheduledFor || null,
         })
@@ -128,25 +142,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
       if (orderError) throw orderError;
 
-      const orderItems = items.map(item => ({
-        order_id: order.id,
-        menu_item_id: item.id,
-        quantity: item.quantity,
-        price: item.price,
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
-
-      if (itemsError) throw itemsError;
-
-      if (formData.promoCode && discount > 0) {
-        await supabase
-          .from('promo_codes')
-          .update({ used_count: supabase.raw('used_count + 1') })
-          .eq('code', formData.promoCode.toUpperCase());
-      }
+      // ... rest of your code (order_items, promo update)
 
       return order;
     } catch (error) {
