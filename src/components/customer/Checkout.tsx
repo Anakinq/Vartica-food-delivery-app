@@ -110,31 +110,40 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
     console.log('📤 Sending order with order_number:', orderNumber); // 🔍 DEBUG
 
-    const { order, error } = await supabase
-      .from('orders')
-      .insert({
-        order_number: orderNumber,
-        user_id: user.id,
-        seller_id: sellerId,
-        seller_type: sellerType,
-        status: 'pending',
-        subtotal,
-        delivery_fee: deliveryFee,
-        discount,
-        total,
-        payment_method: formData.paymentMethod,
-        payment_status: formData.paymentMethod === 'cash' ? 'pending' : 'paid',
-        payment_reference: paymentReference || null,
-        promo_code: formData.promoCode || null,
-        delivery_address: formData.deliveryAddress.trim() || 'Address not provided',
-        delivery_notes: formData.deliveryNotes || null,
-        scheduled_for: formData.scheduledFor || null,
-      })
-      .select()
-      .single();
+    // Replace the insert block with:
+const { error: insertError } = await supabase
+  .from('orders')
+  .insert({
+    order_number: orderNumber,
+    user_id: user.id,
+    seller_id: sellerId,
+    seller_type: sellerType,
+    status: 'pending',
+    subtotal,
+    delivery_fee: deliveryFee,
+    discount,
+    total,
+    payment_method: formData.paymentMethod,
+    payment_status: formData.paymentMethod === 'cash' ? 'pending' : 'paid',
+    payment_reference: paymentReference || null,
+    promo_code: formData.promoCode || null,
+    delivery_address: formData.deliveryAddress.trim() || 'Address not provided',
+    delivery_notes: formData.deliveryNotes || null,
+    scheduled_for: formData.scheduledFor || null,
+  });
 
-    if (error) throw error;
-    return order;
+if (insertError) throw insertError;
+
+// Then fetch the order separately
+const { data: orderData, error: selectError } = await supabase
+  .from('orders')
+  .select()
+  .eq('order_number', orderNumber)
+  .single();
+
+if (selectError) throw selectError;
+
+return orderData;
   };
 
   // Handle Paystack success
