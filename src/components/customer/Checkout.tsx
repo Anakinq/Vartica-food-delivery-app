@@ -96,59 +96,45 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
   // Create order AFTER successful payment
   const createOrder = async (paymentReference?: string) => {
-    if (!user || items.length === 0) {
-      throw new Error('No user or items');
+    if (!user) throw new Error('User not logged in');
+    if (items.length === 0) throw new Error('Cart is empty');
+
+    const sellerId = items[0].seller_id;
+    const sellerType = items[0].seller_type;
+    if (!sellerId || !sellerType) throw new Error('Invalid seller info');
+
+    const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
+    if (!orderNumber || orderNumber.length < 15) {
+      throw new Error('Failed to generate valid order number');
     }
 
-    try {
-      // ✅ Ensure orderNumber is a valid non-empty string
-      const timestamp = Date.now();
-      const randomStr = Math.random().toString(36).substring(2, 11).toUpperCase();
-      const orderNumber = `ORD-${timestamp}-${randomStr}`;
+    console.log('📤 Sending order with order_number:', orderNumber); // 🔍 DEBUG
 
-      if (!orderNumber || orderNumber.length < 10) {
-        throw new Error('Failed to generate order number');
-      }
+    const { order, error } = await supabase
+      .from('orders')
+      .insert({
+        order_number: orderNumber,
+        user_id: user.id,
+        seller_id: sellerId,
+        seller_type: sellerType,
+        status: 'pending',
+        subtotal,
+        delivery_fee: deliveryFee,
+        discount,
+        total,
+        payment_method: formData.paymentMethod,
+        payment_status: formData.paymentMethod === 'cash' ? 'pending' : 'paid',
+        payment_reference: paymentReference || null,
+        promo_code: formData.promoCode || null,
+        delivery_address: formData.deliveryAddress.trim() || 'Address not provided',
+        delivery_notes: formData.deliveryNotes || null,
+        scheduled_for: formData.scheduledFor || null,
+      })
+      .select()
+      .single();
 
-      const sellerId = items[0].seller_id;
-      const sellerType = items[0].seller_type;
-
-      if (!sellerId || !sellerType) {
-        throw new Error('Missing seller info');
-      }
-
-      const { order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          order_number: orderNumber,   // ✅ now guaranteed valid
-          user_id: user.id,
-          seller_id: sellerId,
-          seller_type: sellerType,
-          status: 'pending',
-          subtotal,
-          delivery_fee: deliveryFee,
-          discount,
-          total,
-          payment_method: formData.paymentMethod,
-          payment_status: formData.paymentMethod === 'cash' ? 'pending' : 'paid',
-          payment_reference: paymentReference || null,
-          promo_code: formData.promoCode || null,
-          delivery_address: formData.deliveryAddress.trim() || 'Address not provided',
-          delivery_notes: formData.deliveryNotes || null,
-          scheduled_for: formData.scheduledFor || null,
-        })
-        .select()
-        .single();
-
-      if (orderError) throw orderError;
-
-      // ... rest of your code (order_items, promo update)
-
-      return order;
-    } catch (error) {
-      console.error('Order creation error:', error);
-      throw error;
-    }
+    if (error) throw error;
+    return order;
   };
 
   // Handle Paystack success
