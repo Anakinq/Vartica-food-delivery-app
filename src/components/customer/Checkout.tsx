@@ -48,7 +48,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const [success, setSuccess] = useState(false);
   const [paystackScriptLoaded, setPaystackScriptLoaded] = useState(false);
 
-  // 💳 Dynamically load Paystack script (essential for App Router)
+  // 💳 Load Paystack script — NO TRAILING SPACES!
   useEffect(() => {
     const scriptId = 'paystack-inline-js';
     if (document.getElementById(scriptId)) {
@@ -58,7 +58,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
     const script = document.createElement('script');
     script.id = scriptId;
-    script.src = 'https://js.paystack.co/v1/inline.js';
+    script.src = 'https://js.paystack.co/v1/inline.js'; // ✅ Fixed: no extra spaces
     script.async = true;
     script.onload = () => setPaystackScriptLoaded(true);
     script.onerror = () => console.error('Failed to load Paystack script');
@@ -70,11 +70,10 @@ export const Checkout: React.FC<CheckoutProps> = ({
     };
   }, []);
 
-  // ✅ Enforce minimum ₦100 for Paystack
   const MIN_NGN = 100;
   const total = subtotal + deliveryFee - discount;
   const effectiveTotal = Math.max(total, MIN_NGN);
-  const totalInKobo = Math.round(effectiveTotal * 100); // Must be integer
+  const totalInKobo = Math.round(effectiveTotal * 100);
 
   const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
 
@@ -233,7 +232,17 @@ export const Checkout: React.FC<CheckoutProps> = ({
             <h2 className="text-2xl font-bold text-gray-900 ml-4">Checkout</h2>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          {/* ✅ Critical Fix: Block form submit for online payments */}
+          <form
+            onSubmit={(e) => {
+              if (formData.paymentMethod === 'online') {
+                e.preventDefault(); // Prevent accidental order creation
+                return;
+              }
+              handleSubmit(e);
+            }}
+            className="space-y-6"
+          >
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Delivery Address *
