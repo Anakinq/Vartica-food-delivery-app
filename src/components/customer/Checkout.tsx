@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Check } from 'lucide-react';
 import { supabase, MenuItem } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -10,7 +10,7 @@ interface CartItem extends MenuItem {
 
 interface CheckoutProps {
   items: CartItem[];
-  subtotal: number; // Must be a valid number
+  subtotal: number;
   deliveryFee: number;
   onBack: () => void;
   onClose: () => void;
@@ -25,13 +25,12 @@ export const Checkout: React.FC<CheckoutProps> = ({
   onClose,
   onSuccess,
 }) => {
-  // 🔴 CRITICAL: Validate props immediately
   if (typeof subtotal !== 'number' || isNaN(subtotal)) {
-    console.error('Invalid subtotal passed to Checkout:', subtotal);
+    console.error('Invalid subtotal:', subtotal);
     throw new Error('Invalid subtotal value');
   }
   if (typeof deliveryFee !== 'number' || isNaN(deliveryFee)) {
-    console.error('Invalid deliveryFee passed to Checkout:', deliveryFee);
+    console.error('Invalid deliveryFee:', deliveryFee);
     throw new Error('Invalid delivery fee value');
   }
 
@@ -47,16 +46,44 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const [promoError, setPromoError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [paystackScriptLoaded, setPaystackScriptLoaded] = useState(false);
 
+  // 💳 Dynamically load Paystack script (essential for App Router)
+  useEffect(() => {
+    const scriptId = 'paystack-inline-js';
+    if (document.getElementById(scriptId)) {
+      setPaystackScriptLoaded(true);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = scriptId;
+    script.src = 'https://js.paystack.co/v1/inline.js';
+    script.async = true;
+    script.onload = () => setPaystackScriptLoaded(true);
+    script.onerror = () => console.error('Failed to load Paystack script');
+    document.head.appendChild(script);
+
+    return () => {
+      const existing = document.getElementById(scriptId);
+      if (existing) existing.remove();
+    };
+  }, []);
+
+  // ✅ Enforce minimum ₦100 for Paystack
+  const MIN_NGN = 100;
   const total = subtotal + deliveryFee - discount;
-  const totalInKobo = Math.round(total * 100);
+  const effectiveTotal = Math.max(total, MIN_NGN);
+  const totalInKobo = Math.round(effectiveTotal * 100); // Must be integer
 
-  const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '';
+  const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
+
   const paystackConfig = {
     reference: `REF-${Date.now()}`,
     email: profile?.email || user?.email || 'customer@example.com',
     amount: totalInKobo,
-    publicKey,
+    publicKey: publicKey || '',
+    currency: 'NGN',
   };
 
   const handleApplyPromo = async () => {
@@ -111,19 +138,15 @@ export const Checkout: React.FC<CheckoutProps> = ({
     const sellerType = items[0].seller_type;
     if (!sellerId || !sellerType) throw new Error('Invalid seller info');
 
-    // ✅ Now guaranteed to be valid due to prop validation above
-    const platformCommission = 300.0;
-    const agentEarnings = 200.0;
-
     const orderPayload = {
       user_id: user.id,
       seller_id: sellerId,
       seller_type: sellerType,
       status: 'pending',
-      subtotal: subtotal, // ✅ Safe now
+      subtotal: subtotal,
       delivery_fee: deliveryFee,
       discount: discount,
-      total: Math.max(0, subtotal + deliveryFee - discount),
+      total: effectiveTotal,
       payment_method: formData.paymentMethod,
       payment_status: formData.paymentMethod === 'cash' ? 'pending' : 'paid',
       payment_reference: paymentReference || null,
@@ -131,19 +154,16 @@ export const Checkout: React.FC<CheckoutProps> = ({
       delivery_address: formData.deliveryAddress.trim() || 'Address not provided',
       delivery_notes: formData.deliveryNotes || null,
       scheduled_for: formData.scheduledFor || null,
-      platform_commission: platformCommission,
-      agent_earnings: agentEarnings,
+      platform_commission: 300.0,
+      agent_earnings: 200.0,
     };
 
     console.log('📤 Sending order to Supabase:', orderPayload);
-
     const { error: insertError } = await supabase.from('orders').insert(orderPayload);
-
     if (insertError) {
       console.error('❌ Order insert failed:', insertError);
       throw insertError;
     }
-
     return { success: true };
   };
 
@@ -331,19 +351,33 @@ export const Checkout: React.FC<CheckoutProps> = ({
               )}
               <div className="flex justify-between text-xl font-bold text-gray-900 pt-2 border-t border-gray-300">
                 <span>Total</span>
-                <span>₦{total.toFixed(2)}</span>
+                <span>₦{effectiveTotal.toFixed(2)}</span>
               </div>
             </div>
 
             {formData.paymentMethod === 'online' ? (
-              <PaystackButton
-                className="w-full bg-blue-600 text-white py-4 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                {...paystackConfig}
-                onSuccess={handlePaystackSuccess}
-                onClose={handlePaystackClose}
-              >
-                Pay Now (₦{total.toFixed(2)})
-              </PaystackButton>
+              !publicKey ? (
+                <div className="w-full bg-red-100 text-red-700 py-4 rounded-lg text-center font-medium">
+                  Payment system not configured
+                </div>
+              ) : !paystackScriptLoaded ? (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full bg-blue-600 text-white py-4 rounded-lg font-semibold opacity-75"
+                >
+                  Loading payment gateway...
+                </button>
+              ) : (
+                <PaystackButton
+                  className="w-full bg-blue-600 text-white py-4 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  {...paystackConfig}
+                  onSuccess={handlePaystackSuccess}
+                  onClose={handlePaystackClose}
+                >
+                  Pay Now (₦{effectiveTotal.toFixed(2)})
+                </PaystackButton>
+              )
             ) : (
               <button
                 type="submit"
