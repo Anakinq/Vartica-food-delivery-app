@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Cafeteria, Vendor, MenuItem } from '../../lib/supabase';
 import { MenuItemCard } from './MenuItemCard';
 import { Cart } from './Cart';
+import { Checkout } from './Checkout'; // ✅ Import Checkout
 import { OrderTracking } from './OrderTracking';
 
 interface CartItem extends MenuItem {
@@ -48,6 +49,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
   // ✅ Food Pack state
   const [cartPackCount, setCartPackCount] = useState(1);
+  // ✅ Checkout visibility
+  const [showCheckout, setShowCheckout] = useState(false); // ← NEW
 
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const toastId = useRef(0);
@@ -65,109 +68,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     }, 2000);
   };
 
-  // ✅ UPDATED: Handle order submission WITH DETAILED ERROR LOGGING
-  const handleCheckout = async () => {
-    if (cart.length === 0 || !profile) {
-      showToast('Cart is empty');
-      return;
-    }
-
-    if (!selectedSeller) {
-      showToast('No seller selected');
-      return;
-    }
-
-    const deliveryAddress = profile.address || 'Address not provided';
-    const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-
-    if (isNaN(total) || total <= 0) {
-      showToast('Invalid total amount');
-      return;
-    }
-
-    try {
-      // 1. Create the order
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          user_id: profile.id,
-          seller_id: selectedSeller.id,
-          seller_type: selectedSeller.type,
-          status: 'pending',
-          delivery_agent_id: null,
-          total,
-          delivery_address: deliveryAddress,
-          delivery_notes: '',
-          payment_status: 'unpaid',
-        })
-        .select()
-        .single();
-
-      if (orderError) {
-        console.error('❌ Order creation failed:', {
-          message: orderError.message,
-          details: orderError.details,
-          hint: orderError.hint,
-          code: orderError.code,
-          raw: orderError
-        });
-        showToast('Failed to create order. Check console for details.');
-        return;
-      }
-
-      // 2. Create order items
-      const orderItems = cart.map(item => ({
-        order_id: orderData.id,
-        menu_item_id: item.id,
-        quantity: item.quantity,
-        price: item.price,
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
-
-      if (itemsError) {
-        console.error('❌ Order items insertion failed:', {
-          message: itemsError.message,
-          details: itemsError.details,
-          code: itemsError.code,
-          raw: itemsError
-        });
-        // Clean up orphaned order
-        await supabase.from('orders').delete().eq('id', orderData.id);
-        showToast('Failed to add items to order.');
-        return;
-      }
-
-      // 3. Initialize Paystack payment
-      const { data: paymentData, error: paymentError } = await supabase.functions.invoke('init-payment', {
-        body: {
-          order_id: orderData.id,
-          email: profile.email || 'user@example.com',
-          amount: Math.round(total * 100), // Convert ₦ to kobo
-          callback_url: `https://vartica-nine.vercel.app/payment-success?order_id=${orderData.id}`,
-        },
-      });
-
-      if (paymentError) {
-        console.error('❌ Payment initialization failed:', {
-          message: paymentError.message,
-          raw: paymentError
-        });
-        await supabase.from('orders').delete().eq('id', orderData.id);
-        showToast('Unable to start payment. Please try again.');
-        return;
-      }
-
-      // 4. Redirect to Paystack
-      window.location.href = paymentData.authorization_url;
-
-    } catch (unexpectedError) {
-      console.error('💥 Unexpected error during checkout:', unexpectedError);
-      showToast('Something went wrong. Please try again.');
-    }
-  };
+  // ✅ REMOVED: handleCheckout function — now handled by Checkout.tsx
 
   useEffect(() => {
     fetchData();
@@ -245,7 +146,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   };
 
   const groupMenuItemsByCategory = () => {
-    const categories = ['Main Course', 'Drink','Swallow', 'Protein', 'Side', 'Salad', 'Snack', 'Soup'];
+    const categories = ['Main Course', 'Drink', 'Swallow', 'Protein', 'Side', 'Salad', 'Snack', 'Soup'];
     return categories.map(category => {
       const items = menuItems.filter(item => item.category === category);
       return { category, items };
@@ -261,6 +162,10 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   );
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  // ✅ Calculate subtotal (food items only)
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const deliveryFee = 500; // Fixed delivery fee
 
   const allSellersInOrder = useMemo(() => {
     const list: Array<{ id: string; type: 'cafeteria' | 'vendor'; name: string }> = [];
@@ -450,8 +355,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {filteredCafeterias.map(cafeteria => {
-                    const isSelected = selectedSeller !== null && 
-                      selectedSeller.id === cafeteria.id && 
+                    const isSelected = selectedSeller !== null &&
+                      selectedSeller.id === cafeteria.id &&
                       selectedSeller.type === 'cafeteria';
                     return (
                       <div
@@ -461,14 +366,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                         tabIndex={0}
                         aria-pressed={isSelected}
                         aria-label={`Select ${cafeteria.name}`}
-                        className={`
-                          bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer
-                          transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md
-                          focus:outline-none focus:ring-2 focus:ring-orange-500
-                          ${isSelected 
-                            ? 'border-orange-500 bg-orange-50' 
-                            : 'border-stone-200 hover:border-orange-300'}
-                        `}
+                        className={`bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 ${isSelected ? 'border-orange-500 bg-orange-50' : 'border-stone-200 hover:border-orange-300'}`}
                       >
                         <img
                           src={getImagePath(cafeteria.id, 'cafeteria')}
@@ -494,8 +392,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
               ) : filteredVendors.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {filteredVendors.map(vendor => {
-                    const isSelected = selectedSeller !== null && 
-                      selectedSeller.id === vendor.id && 
+                    const isSelected = selectedSeller !== null &&
+                      selectedSeller.id === vendor.id &&
                       selectedSeller.type === 'vendor';
                     return (
                       <div
@@ -505,14 +403,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                         tabIndex={0}
                         aria-pressed={isSelected}
                         aria-label={`Select ${vendor.store_name}`}
-                        className={`
-                          bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer relative
-                          transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md
-                          focus:outline-none focus:ring-2 focus:ring-orange-500
-                          ${isSelected 
-                            ? 'border-orange-500 bg-orange-50' 
-                            : 'border-stone-200 hover:border-orange-300'}
-                        `}
+                        className={`bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer relative transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 ${isSelected ? 'border-orange-500 bg-orange-50' : 'border-stone-200 hover:border-orange-300'}`}
                       >
                         <span className="absolute top-2 right-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
                           Student Run
@@ -550,14 +441,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                     tabIndex={0}
                     aria-pressed={selectedSeller !== null && selectedSeller.id === lateNightVendor.id}
                     aria-label={`Select ${lateNightVendor.store_name}`}
-                    className={`
-                      bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer relative
-                      transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md
-                      focus:outline-none focus:ring-2 focus:ring-orange-500
-                      ${selectedSeller !== null && selectedSeller.id === lateNightVendor.id
-                        ? 'border-orange-500 bg-orange-50'
-                        : 'border-stone-200 hover:border-orange-300'}
-                    `}
+                    className={`bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer relative transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 ${selectedSeller !== null && selectedSeller.id === lateNightVendor.id ? 'border-orange-500 bg-orange-50' : 'border-stone-200 hover:border-orange-300'}`}
                   >
                     <span className="absolute top-2 right-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full flex items-center">
                       <Moon className="h-3 w-3 mr-1" /> Late Night
@@ -620,16 +504,14 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`bg-emerald-600 text-white px-4 py-2.5 rounded-xl shadow-lg transform transition-all duration-300 ${
-              toast.isVisible ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
-            }`}
+            className={`bg-emerald-600 text-white px-4 py-2.5 rounded-xl shadow-lg transform transition-all duration-300 ${toast.isVisible ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}
           >
             {toast.message}
           </div>
         ))}
       </div>
 
-      {/* ✅ Pass onCheckout to Cart */}
+      {/* ✅ Cart */}
       {showCart && (
         <Cart
           items={cart}
@@ -638,7 +520,24 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
           onClose={() => setShowCart(false)}
           cartPackCount={cartPackCount}
           onCartPackChange={setCartPackCount}
-          onCheckout={handleCheckout}
+          onCheckout={() => setShowCheckout(true)} // ✅ Just open checkout
+        />
+      )}
+
+      {/* ✅ Checkout Modal */}
+      {showCheckout && (
+        <Checkout
+          items={cart}
+          subtotal={subtotal}
+          deliveryFee={deliveryFee}
+          onBack={() => setShowCheckout(false)}
+          onClose={() => setShowCheckout(false)}
+          onSuccess={() => {
+            setCart([]);
+            setCartPackCount(1);
+            setShowCheckout(false);
+            showToast('Order placed successfully!');
+          }}
         />
       )}
 

@@ -70,7 +70,7 @@ export interface DeliveryAgent {
 
 export interface Order {
   id: string;
-  order_number: string;
+
   customer_id: string;
   seller_id: string;
   seller_type: 'cafeteria' | 'vendor';

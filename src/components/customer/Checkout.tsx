@@ -10,7 +10,7 @@ interface CartItem extends MenuItem {
 
 interface CheckoutProps {
   items: CartItem[];
-  subtotal: number;
+  subtotal: number; // Must be a valid number
   deliveryFee: number;
   onBack: () => void;
   onClose: () => void;
@@ -25,6 +25,16 @@ export const Checkout: React.FC<CheckoutProps> = ({
   onClose,
   onSuccess,
 }) => {
+  // 🔴 CRITICAL: Validate props immediately
+  if (typeof subtotal !== 'number' || isNaN(subtotal)) {
+    console.error('Invalid subtotal passed to Checkout:', subtotal);
+    throw new Error('Invalid subtotal value');
+  }
+  if (typeof deliveryFee !== 'number' || isNaN(deliveryFee)) {
+    console.error('Invalid deliveryFee passed to Checkout:', deliveryFee);
+    throw new Error('Invalid delivery fee value');
+  }
+
   const { user, profile } = useAuth();
   const [formData, setFormData] = useState({
     deliveryAddress: '',
@@ -43,7 +53,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
   const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '';
   const paystackConfig = {
-    reference: `ORD-${Date.now()}`,
+    reference: `REF-${Date.now()}`,
     email: profile?.email || user?.email || 'customer@example.com',
     amount: totalInKobo,
     publicKey,
@@ -76,7 +86,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
     }
 
     if (subtotal < data.min_order_value) {
-      setPromoError(`Minimum order value is #${data.min_order_value}`);
+      setPromoError(`Minimum order value is ₦${data.min_order_value}`);
       return;
     }
 
@@ -93,7 +103,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
     setDiscount(calculatedDiscount);
   };
 
-  // Create order AFTER successful payment
   const createOrder = async (paymentReference?: string) => {
     if (!user) throw new Error('User not logged in');
     if (items.length === 0) throw new Error('Cart is empty');
@@ -102,51 +111,42 @@ export const Checkout: React.FC<CheckoutProps> = ({
     const sellerType = items[0].seller_type;
     if (!sellerId || !sellerType) throw new Error('Invalid seller info');
 
-    // 🔥 BULLETPROOF ORDER NUMBER GENERATION
-    const timestamp = Date.now();
-    const randomPart = Math.random().toString(36).substring(2, 12).padEnd(9, 'X').toUpperCase();
-    const orderNumber = `ORD-${timestamp}-${randomPart}`;
+    // ✅ Now guaranteed to be valid due to prop validation above
+    const platformCommission = 300.0;
+    const agentEarnings = 200.0;
 
-    // 🔥 ENSURE NUMERIC VALUES ARE VALID
-    const safeSubtotal = typeof subtotal === 'number' ? subtotal : 0;
-    const safeDeliveryFee = typeof deliveryFee === 'number' ? deliveryFee : 0;
-    const safeDiscount = typeof discount === 'number' ? discount : 0;
-    const safeTotal = safeSubtotal + safeDeliveryFee - safeDiscount;
+    const orderPayload = {
+      user_id: user.id,
+      seller_id: sellerId,
+      seller_type: sellerType,
+      status: 'pending',
+      subtotal: subtotal, // ✅ Safe now
+      delivery_fee: deliveryFee,
+      discount: discount,
+      total: Math.max(0, subtotal + deliveryFee - discount),
+      payment_method: formData.paymentMethod,
+      payment_status: formData.paymentMethod === 'cash' ? 'pending' : 'paid',
+      payment_reference: paymentReference || null,
+      promo_code: formData.promoCode || null,
+      delivery_address: formData.deliveryAddress.trim() || 'Address not provided',
+      delivery_notes: formData.deliveryNotes || null,
+      scheduled_for: formData.scheduledFor || null,
+      platform_commission: platformCommission,
+      agent_earnings: agentEarnings,
+    };
 
-    console.log('📤 Sending order with order_number:', orderNumber);
+    console.log('📤 Sending order to Supabase:', orderPayload);
 
-    // 🔥 INSERT WITHOUT CHAINING .select()
-    const { error: insertError } = await supabase
-      .from('orders')
-      .insert({
-        order_number: orderNumber,
-        user_id: user.id,
-        seller_id: sellerId,
-        seller_type: sellerType,
-        status: 'pending',
-        subtotal: safeSubtotal,
-        delivery_fee: safeDeliveryFee,
-        discount: safeDiscount,
-        total: safeTotal,
-        payment_method: formData.paymentMethod,
-        payment_status: formData.paymentMethod === 'cash' ? 'pending' : 'paid',
-        payment_reference: paymentReference || null,
-        promo_code: formData.promoCode || null,
-        delivery_address: formData.deliveryAddress.trim() || 'Address not provided',
-        delivery_notes: formData.deliveryNotes || null,
-        scheduled_for: formData.scheduledFor || null,
-      });
+    const { error: insertError } = await supabase.from('orders').insert(orderPayload);
 
     if (insertError) {
-      console.error('❌ Insert error:', insertError);
+      console.error('❌ Order insert failed:', insertError);
       throw insertError;
     }
 
-    // Return minimal success object
-    return { order_number: orderNumber };
-  }; // 👈 THIS CLOSING BRACE WAS MISSING!
+    return { success: true };
+  };
 
-  // Handle Paystack success
   const handlePaystackSuccess = async (reference: any) => {
     try {
       setLoading(true);
@@ -168,10 +168,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-
-    if (formData.paymentMethod === 'online') {
-      return;
-    }
 
     setLoading(true);
     try {
@@ -285,7 +281,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
               )}
               {discount > 0 && (
                 <p className="text-sm text-green-600 mt-1">
-                  Discount applied: -#{discount.toFixed(2)}
+                  Discount applied: -₦{discount.toFixed(2)}
                 </p>
               )}
             </div>
@@ -321,21 +317,21 @@ export const Checkout: React.FC<CheckoutProps> = ({
             <div className="bg-gray-50 rounded-lg p-4 space-y-2">
               <div className="flex justify-between text-gray-600">
                 <span>Subtotal</span>
-                <span>#{subtotal.toFixed(2)}</span>
+                <span>₦{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>Delivery Fee</span>
-                <span>#{deliveryFee.toFixed(2)}</span>
+                <span>₦{deliveryFee.toFixed(2)}</span>
               </div>
               {discount > 0 && (
                 <div className="flex justify-between text-green-600">
                   <span>Discount</span>
-                  <span>-#{discount.toFixed(2)}</span>
+                  <span>-₦{discount.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between text-xl font-bold text-gray-900 pt-2 border-t border-gray-300">
                 <span>Total</span>
-                <span>#{total.toFixed(2)}</span>
+                <span>₦{total.toFixed(2)}</span>
               </div>
             </div>
 
@@ -346,7 +342,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 onSuccess={handlePaystackSuccess}
                 onClose={handlePaystackClose}
               >
-                Pay Now (#{total.toFixed(2)})
+                Pay Now (₦{total.toFixed(2)})
               </PaystackButton>
             ) : (
               <button
