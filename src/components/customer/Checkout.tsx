@@ -1,8 +1,8 @@
+// src/components/customer/Checkout.tsx
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Check } from 'lucide-react';
 import { supabase, MenuItem } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { PaystackButton } from 'react-paystack';
 
 interface CartItem extends MenuItem {
   quantity: number;
@@ -58,7 +58,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
     const script = document.createElement('script');
     script.id = scriptId;
-    script.src = 'https://js.paystack.co/v1/inline.js'; // ✅ Fixed: no extra spaces
+    script.src = 'https://js.paystack.co/v1/inline.js'; // ✅ FIXED: no extra spaces
     script.async = true;
     script.onload = () => setPaystackScriptLoaded(true);
     script.onerror = () => console.error('Failed to load Paystack script');
@@ -75,13 +75,14 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const effectiveTotal = Math.max(total, MIN_NGN);
   const totalInKobo = Math.round(effectiveTotal * 100);
 
-  const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
+  // ✅ HARD-CODED LIVE PUBLIC KEY (since you're going live NOW)
+  const publicKey = 'pk_live_ca2ed0ce730330e603e79901574f930abee50ec6';
 
   const paystackConfig = {
     reference: `REF-${Date.now()}`,
     email: profile?.email || user?.email || 'customer@example.com',
     amount: totalInKobo,
-    publicKey: publicKey || '',
+    publicKey: publicKey,
     currency: 'NGN',
   };
 
@@ -232,11 +233,10 @@ export const Checkout: React.FC<CheckoutProps> = ({
             <h2 className="text-2xl font-bold text-gray-900 ml-4">Checkout</h2>
           </div>
 
-          {/* ✅ Critical Fix: Block form submit for online payments */}
           <form
             onSubmit={(e) => {
               if (formData.paymentMethod === 'online') {
-                e.preventDefault(); // Prevent accidental order creation
+                e.preventDefault();
                 return;
               }
               handleSubmit(e);
@@ -378,14 +378,20 @@ export const Checkout: React.FC<CheckoutProps> = ({
                   Loading payment gateway...
                 </button>
               ) : (
-                <PaystackButton
+                <button
+                  type="button"
+                  onClick={() => {
+                    const handler = (window as any).PaystackPop.setup({
+                      ...paystackConfig,
+                      onSuccess: handlePaystackSuccess,
+                      onCancel: handlePaystackClose,
+                    });
+                    handler.openIframe();
+                  }}
                   className="w-full bg-blue-600 text-white py-4 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  {...paystackConfig}
-                  onSuccess={handlePaystackSuccess}
-                  onClose={handlePaystackClose}
                 >
                   Pay Now (₦{effectiveTotal.toFixed(2)})
-                </PaystackButton>
+                </button>
               )
             ) : (
               <button

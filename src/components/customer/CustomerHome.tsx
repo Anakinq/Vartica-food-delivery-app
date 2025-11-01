@@ -1,10 +1,11 @@
+// src/components/customer/CustomerHome.tsx
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Search, ShoppingCart, LogOut, User, Moon, Package } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Cafeteria, Vendor, MenuItem } from '../../lib/supabase';
 import { MenuItemCard } from './MenuItemCard';
 import { Cart } from './Cart';
-import { Checkout } from './Checkout'; // ✅ Import Checkout
+import { Checkout } from './Checkout';
 import { OrderTracking } from './OrderTracking';
 
 interface CartItem extends MenuItem {
@@ -15,14 +16,12 @@ interface CustomerHomeProps {
   onShowProfile?: () => void;
 }
 
-// Toast state
 interface Toast {
   id: number;
   message: string;
   isVisible: boolean;
 }
 
-// Skeleton Card Component
 const SkeletonCard = () => (
   <div className="bg-white rounded-2xl border border-stone-200 p-6 animate-pulse">
     <div className="w-16 h-16 bg-stone-200 rounded-xl mb-4"></div>
@@ -46,11 +45,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [pulseCategory, setPulseCategory] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
-
-  // ✅ Food Pack state
   const [cartPackCount, setCartPackCount] = useState(1);
-  // ✅ Checkout visibility
-  const [showCheckout, setShowCheckout] = useState(false); // ← NEW
+  const [showCheckout, setShowCheckout] = useState(false);
 
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const toastId = useRef(0);
@@ -67,8 +63,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       }, 300);
     }, 2000);
   };
-
-  // ✅ REMOVED: handleCheckout function — now handled by Checkout.tsx
 
   useEffect(() => {
     fetchData();
@@ -162,10 +156,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   );
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-
-  // ✅ Calculate subtotal (food items only)
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const deliveryFee = 500; // Fixed delivery fee
+  const deliveryFee = 500;
 
   const allSellersInOrder = useMemo(() => {
     const list: Array<{ id: string; type: 'cafeteria' | 'vendor'; name: string }> = [];
@@ -320,7 +312,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
           </div>
         </div>
 
-        {/* Sticky Horizontal Category Bar */}
         {selectedSeller && menuItems.length > 0 && (
           <div className="sticky top-20 z-30 bg-stone-50 py-3 mb-6 -mx-4 px-4 shadow-sm">
             <div className="flex overflow-x-auto pb-1 space-x-3 hide-scrollbar">
@@ -499,7 +490,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         )}
       </div>
 
-      {/* Toast Notifications */}
       <div className="fixed bottom-4 right-4 z-50 space-y-2">
         {toasts.map(toast => (
           <div
@@ -511,7 +501,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         ))}
       </div>
 
-      {/* ✅ Cart */}
       {showCart && (
         <Cart
           items={cart}
@@ -520,11 +509,10 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
           onClose={() => setShowCart(false)}
           cartPackCount={cartPackCount}
           onCartPackChange={setCartPackCount}
-          onCheckout={() => setShowCheckout(true)} // ✅ Just open checkout
+          onCheckout={() => setShowCheckout(true)}
         />
       )}
 
-      {/* ✅ Checkout Modal */}
       {showCheckout && (
         <Checkout
           items={cart}
