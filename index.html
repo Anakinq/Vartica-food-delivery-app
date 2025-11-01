@@ -12,11 +12,9 @@
     content="Vartica - University campus food delivery connecting students with cafeterias, vendors, and late-night food options" />
   <meta name="theme-color" content="#2563eb" />
 
-  <!-- ✅ FULLY CORRECTED CSP: No spaces, all Paystack domains included -->
-  <meta
-    http-equiv="Content-Security-Policy"
-    content="default-src 'self'; connect-src 'self' https://jbqhbuogmxqzotlorahn.supabase.co; img-src 'self' data: blob: https://jbqhbuogmxqzotlorahn.supabase.co; script-src 'self' 'unsafe-inline' https://js.paystack.co; style-src 'self' 'unsafe-inline' https://paystack.com; font-src 'self'; frame-src https://checkout.paystack.com;"
-  />
+  <!-- ✅ FINAL CORRECTED CSP: NO TRAILING SPACES, ALL PAYSTACK DOMAINS -->
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; connect-src 'self' https://jbqhbuogmxqzotlorahn.supabase.co; img-src 'self'  blob: https://jbqhbuogmxqzotlorahn.supabase.co; script-src 'self' 'unsafe-inline' https://js.paystack.co; style-src 'self' 'unsafe-inline' https://paystack.com; font-src 'self'; frame-src https://checkout.paystack.com;" />
 
   <!-- PWA Manifest -->
   <link rel="manifest" href="/manifest.json" />

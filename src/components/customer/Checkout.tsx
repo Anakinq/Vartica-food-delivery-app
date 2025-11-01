@@ -75,17 +75,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const effectiveTotal = Math.max(total, MIN_NGN);
   const totalInKobo = Math.round(effectiveTotal * 100);
 
-  // ✅ HARD-CODED LIVE PUBLIC KEY (since you're going live NOW)
-  const publicKey = 'pk_live_ca2ed0ce730330e603e79901574f930abee50ec6';
-
-  const paystackConfig = {
-    reference: `REF-${Date.now()}`,
-    email: profile?.email || user?.email || 'customer@example.com',
-    amount: totalInKobo,
-    publicKey:'pk_live_ca2ed0ce730330e603e79901574f930abee50ec6',
-    currency: 'NGN',
-  };
-
   const handleApplyPromo = async () => {
     setPromoError('');
     if (!formData.promoCode.trim()) return;
@@ -365,11 +354,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
             </div>
 
             {formData.paymentMethod === 'online' ? (
-              !publicKey ? (
-                <div className="w-full bg-red-100 text-red-700 py-4 rounded-lg text-center font-medium">
-                  Payment system not configured
-                </div>
-              ) : !paystackScriptLoaded ? (
+              !paystackScriptLoaded ? (
                 <button
                   type="button"
                   disabled
@@ -381,14 +366,19 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 <button
                   type="button"
                   onClick={() => {
+                    const email = profile?.email || user?.email || 'customer@example.com';
+                    // ✅ CORRECT: use 'key', not 'publicKey'
                     const handler = (window as any).PaystackPop.setup({
-                      ...paystackConfig,
+                      key: 'pk_live_ca2ed0ce730330e603e79901574f930abee50ec6',
+                      email: email,
+                      amount: totalInKobo,
+                      currency: 'NGN',
                       onSuccess: handlePaystackSuccess,
                       onCancel: handlePaystackClose,
                     });
                     handler.openIframe();
                   }}
-                  className="w-full bg-blue-600 text-white py-4 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-blue-600 text-white py-4 rounded-lg font-semibold hover:bg-blue-700"
                 >
                   Pay Now (₦{effectiveTotal.toFixed(2)})
                 </button>
