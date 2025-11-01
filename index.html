@@ -12,18 +12,18 @@
     content="Vartica - University campus food delivery connecting students with cafeterias, vendors, and late-night food options" />
   <meta name="theme-color" content="#2563eb" />
 
-  <!-- ✅ FIX: Allow Supabase + Unsplash + Bing + images -->
- <meta
-  http-equiv="Content-Security-Policy"
-  content="
-    default-src 'self';
-    connect-src 'self' https://jbqhbuogmxqzotlorahn.supabase.co;
-    img-src 'self' data: blob: https://jbqhbuogmxqzotlorahn.supabase.co;
-    script-src 'self' 'unsafe-inline';
-    style-src 'self' 'unsafe-inline';
-    font-src 'self' data:;
-  "
-/>
+  <!-- ✅ Updated CSP: Allow Supabase, Paystack, images, and inline scripts -->
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="
+      default-src 'self';
+      connect-src 'self' https://jbqhbuogmxqzotlorahn.supabase.co;
+      img-src 'self' data: blob: https://jbqhbuogmxqzotlorahn.supabase.co;
+      script-src 'self' 'unsafe-inline' https://js.paystack.co;
+      style-src 'self' 'unsafe-inline';
+      font-src 'self' data:;
+    "
+  />
 
   <!-- PWA Manifest -->
   <link rel="manifest" href="/manifest.json" />
