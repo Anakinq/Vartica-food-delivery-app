@@ -82,7 +82,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
     reference: `REF-${Date.now()}`,
     email: profile?.email || user?.email || 'customer@example.com',
     amount: totalInKobo,
-    publicKey: publicKey,
+    publicKey:'pk_live_ca2ed0ce730330e603e79901574f930abee50ec6',
     currency: 'NGN',
   };
 
