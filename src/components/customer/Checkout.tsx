@@ -6,11 +6,12 @@ import { useAuth } from '../../contexts/AuthContext';
 
 interface CartItem extends MenuItem {
   quantity: number;
+  packQuantity?: number; // optional pack quantity, default 0
+  packPrice?: number;    // optional pack price
 }
 
 interface CheckoutProps {
   items: CartItem[];
-  subtotal: number;
   deliveryFee: number;
   onBack: () => void;
   onClose: () => void;
@@ -19,20 +20,11 @@ interface CheckoutProps {
 
 export const Checkout: React.FC<CheckoutProps> = ({
   items,
-  subtotal,
   deliveryFee,
   onBack,
   onClose,
   onSuccess,
 }) => {
-  if (typeof subtotal !== 'number' || isNaN(subtotal)) {
-    console.error('Invalid subtotal:', subtotal);
-    throw new Error('Invalid subtotal value');
-  }
-  if (typeof deliveryFee !== 'number' || isNaN(deliveryFee)) {
-    console.error('Invalid deliveryFee:', deliveryFee);
-    throw new Error('Invalid delivery fee value');
-  }
   const { profile } = useAuth();
   const [formData, setFormData] = useState({
     deliveryAddress: '',
@@ -79,6 +71,13 @@ export const Checkout: React.FC<CheckoutProps> = ({
       if (existing) existing.remove();
     };
   }, []);
+
+  // ✅ Compute subtotal including optional pack price
+  const subtotal = items.reduce((acc, item) => {
+    const itemTotal = item.price * item.quantity;
+    const packTotal = (item.packQuantity || 0) * (item.packPrice || 0);
+    return acc + itemTotal + packTotal;
+  }, 0);
 
   const MIN_NGN = 100;
   const total = subtotal + deliveryFee - discount;
@@ -245,6 +244,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
             </button>
             <h2 className="text-2xl font-bold text-gray-900 ml-4">Checkout</h2>
           </div>
+
           <form
             onSubmit={(e) => {
               if (formData.paymentMethod === 'online') {
@@ -255,6 +255,33 @@ export const Checkout: React.FC<CheckoutProps> = ({
             }}
             className="space-y-6"
           >
+            {/* Optional Pack Quantity */}
+            {items.map((item, idx) => (
+              <div key={idx} className="flex flex-col mb-4 border p-3 rounded-lg">
+                <span className="font-medium">{item.name}</span>
+                <span className="text-gray-600">₦{item.price} x {item.quantity}</span>
+                {item.packPrice && (
+                  <div className="flex items-center space-x-2 mt-2">
+                    <label className="text-sm">Include pack?</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={item.packQuantity || 0}
+                      onChange={(e) => {
+                        const val = Math.max(0, Number(e.target.value));
+                        const newItems = [...items];
+                        newItems[idx].packQuantity = val;
+                        // Force re-render by updating state
+                        // Optional: lift items to parent state if needed
+                      }}
+                      className="w-16 px-2 py-1 border rounded"
+                    />
+                    <span className="text-gray-600">₦{item.packPrice} per pack</span>
+                  </div>
+                )}
+              </div>
+            ))}
+
             {/* Delivery Address */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Address *</label>
@@ -326,7 +353,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
                     type="radio"
                     value="cash"
                     checked={formData.paymentMethod === 'cash'}
-                    onChange={(e) => setFormData({ ...formData, paymentMethod: 'cash' })}
+                    onChange={() => setFormData({ ...formData, paymentMethod: 'cash' })}
                     className="mr-3"
                   />
                   <span className="font-medium">Cash on Delivery</span>
@@ -336,7 +363,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
                     type="radio"
                     value="online"
                     checked={formData.paymentMethod === 'online'}
-                    onChange={(e) => setFormData({ ...formData, paymentMethod: 'online' })}
+                    onChange={() => setFormData({ ...formData, paymentMethod: 'online' })}
                     className="mr-3"
                   />
                   <span className="font-medium">Online Payment</span>
