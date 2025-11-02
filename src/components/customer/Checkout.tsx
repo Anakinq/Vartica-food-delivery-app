@@ -47,20 +47,33 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const [success, setSuccess] = useState(false);
   const [paystackScriptLoaded, setPaystackScriptLoaded] = useState(false);
 
-  // 💳 Load Paystack script — NO TRAILING SPACES!
+  // 💳 Load Paystack script + CSS safely
   useEffect(() => {
+    // Load CSS
+    const cssId = 'paystack-css';
+    if (!document.getElementById(cssId)) {
+      const link = document.createElement('link');
+      link.id = cssId;
+      link.rel = 'stylesheet';
+      link.href = 'https://paystack.com/public/css/button.min.css';
+      document.head.appendChild(link);
+    }
+
+    // Load JS
     const scriptId = 'paystack-inline-js';
     if (document.getElementById(scriptId)) {
       setPaystackScriptLoaded(true);
       return;
     }
+
     const script = document.createElement('script');
     script.id = scriptId;
-    script.src = 'https://js.paystack.co/v1/inline.js'; // ✅ NO TRAILING SPACES
+    script.src = 'https://js.paystack.co/v1/inline.js';
     script.async = true;
     script.onload = () => setPaystackScriptLoaded(true);
     script.onerror = () => console.error('Failed to load Paystack script');
     document.head.appendChild(script);
+
     return () => {
       const existing = document.getElementById(scriptId);
       if (existing) existing.remove();
@@ -109,15 +122,15 @@ export const Checkout: React.FC<CheckoutProps> = ({
     setDiscount(calculatedDiscount);
   };
 
-  // 🧾 Create order — fetch FRESH user to avoid stale session
   const createOrder = async (paymentReference?: string) => {
-    // ✅ FIXED: correct destructuring
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
     if (items.length === 0) throw new Error('Cart is empty');
+
     const sellerId = items[0].seller_id;
     const sellerType = items[0].seller_type;
     if (!sellerId || !sellerType) throw new Error('Invalid seller info');
+
     const orderPayload = {
       user_id: user.id,
       seller_id: sellerId,
@@ -137,16 +150,11 @@ export const Checkout: React.FC<CheckoutProps> = ({
       platform_commission: 300.0,
       agent_earnings: 200.0,
     };
-    console.log('📤 Sending order to Supabase:', orderPayload);
     const { error: insertError } = await supabase.from('orders').insert(orderPayload);
-    if (insertError) {
-      console.error('❌ Order insert failed:', insertError);
-      throw insertError;
-    }
+    if (insertError) throw insertError;
     return { success: true };
   };
 
-  // ✅ NEW: Send verified payment to webhook
   const sendToWebhook = async (reference: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
@@ -168,29 +176,21 @@ export const Checkout: React.FC<CheckoutProps> = ({
     const webhookRes = await fetch('/api/paystack-webhook', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        reference,
-        order: orderData,
-      }),
+      body: JSON.stringify({ reference, order: orderData }),
     });
 
-    if (!webhookRes.ok) {
-      throw new Error('Webhook verification failed');
-    }
+    if (!webhookRes.ok) throw new Error('Webhook verification failed');
   };
 
   const handlePaystackSuccess = async (response: any) => {
     try {
       setLoading(true);
-      // ✅ First: verify via webhook (secure)
       await sendToWebhook(response.reference);
-      // ✅ Optional: also insert client-side as fallback (remove if using webhook only)
-      // await createOrder(response.reference);
       setSuccess(true);
       setTimeout(() => onSuccess(), 2000);
     } catch (error) {
-      console.error('🔥 Order creation failed after payment:', error);
-      alert(`Payment succeeded but order failed. Contact support with ref: ${response.reference}`);
+      console.error('Order creation failed after payment:', error);
+      alert(`Payment succeeded but order failed. Reference: ${response.reference}`);
     } finally {
       setLoading(false);
     }
@@ -255,10 +255,9 @@ export const Checkout: React.FC<CheckoutProps> = ({
             }}
             className="space-y-6"
           >
+            {/* Delivery Address */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Delivery Address *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Address *</label>
               <textarea
                 value={formData.deliveryAddress}
                 onChange={(e) => setFormData({ ...formData, deliveryAddress: e.target.value })}
@@ -268,10 +267,10 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 placeholder="Building name, room number, etc."
               />
             </div>
+
+            {/* Delivery Notes */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Delivery Notes (Optional)
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Notes (Optional)</label>
               <textarea
                 value={formData.deliveryNotes}
                 onChange={(e) => setFormData({ ...formData, deliveryNotes: e.target.value })}
@@ -280,10 +279,10 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 placeholder="Special instructions for delivery"
               />
             </div>
+
+            {/* Schedule */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Schedule Delivery (Optional)
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Schedule Delivery (Optional)</label>
               <input
                 type="datetime-local"
                 value={formData.scheduledFor}
@@ -291,10 +290,10 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
+
+            {/* Promo */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Promo Code
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Promo Code</label>
               <div className="flex space-x-2">
                 <input
                   type="text"
@@ -314,26 +313,20 @@ export const Checkout: React.FC<CheckoutProps> = ({
                   Apply
                 </button>
               </div>
-              {promoError && (
-                <p className="text-sm text-red-600 mt-1">{promoError}</p>
-              )}
-              {discount > 0 && (
-                <p className="text-sm text-green-600 mt-1">
-                  Discount applied: -₦{discount.toFixed(2)}
-                </p>
-              )}
+              {promoError && <p className="text-sm text-red-600 mt-1">{promoError}</p>}
+              {discount > 0 && <p className="text-sm text-green-600 mt-1">Discount applied: -₦{discount.toFixed(2)}</p>}
             </div>
+
+            {/* Payment Method */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Payment Method *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method *</label>
               <div className="space-y-2">
                 <label className="flex items-center p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
                   <input
                     type="radio"
                     value="cash"
                     checked={formData.paymentMethod === 'cash'}
-                    onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value as 'cash' })}
+                    onChange={(e) => setFormData({ ...formData, paymentMethod: 'cash' })}
                     className="mr-3"
                   />
                   <span className="font-medium">Cash on Delivery</span>
@@ -343,56 +336,46 @@ export const Checkout: React.FC<CheckoutProps> = ({
                     type="radio"
                     value="online"
                     checked={formData.paymentMethod === 'online'}
-                    onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value as 'online' })}
+                    onChange={(e) => setFormData({ ...formData, paymentMethod: 'online' })}
                     className="mr-3"
                   />
                   <span className="font-medium">Online Payment</span>
                 </label>
               </div>
             </div>
+
+            {/* Summary */}
             <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-              <div className="flex justify-between text-gray-600">
-                <span>Subtotal</span>
-                <span>₦{subtotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-gray-600">
-                <span>Delivery Fee</span>
-                <span>₦{deliveryFee.toFixed(2)}</span>
-              </div>
-              {discount > 0 && (
-                <div className="flex justify-between text-green-600">
-                  <span>Discount</span>
-                  <span>-₦{discount.toFixed(2)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-xl font-bold text-gray-900 pt-2 border-t border-gray-300">
-                <span>Total</span>
-                <span>₦{effectiveTotal.toFixed(2)}</span>
-              </div>
+              <div className="flex justify-between text-gray-600"><span>Subtotal</span><span>₦{subtotal.toFixed(2)}</span></div>
+              <div className="flex justify-between text-gray-600"><span>Delivery Fee</span><span>₦{deliveryFee.toFixed(2)}</span></div>
+              {discount > 0 && <div className="flex justify-between text-green-600"><span>Discount</span><span>-₦{discount.toFixed(2)}</span></div>}
+              <div className="flex justify-between text-xl font-bold text-gray-900 pt-2 border-t border-gray-300"><span>Total</span><span>₦{effectiveTotal.toFixed(2)}</span></div>
             </div>
+
+            {/* Buttons */}
             {formData.paymentMethod === 'online' ? (
               !paystackScriptLoaded ? (
-                <button
-                  type="button"
-                  disabled
-                  className="w-full bg-blue-600 text-white py-4 rounded-lg font-semibold opacity-75"
-                >
+                <button type="button" disabled className="w-full bg-blue-600 text-white py-4 rounded-lg font-semibold opacity-75">
                   Loading payment gateway...
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={() => {
+                    if (!(window as any).PaystackPop) {
+                      alert('Payment gateway not loaded. Refresh and try again.');
+                      return;
+                    }
                     const email = profile?.email || 'customer@example.com';
                     const ref = `VARTICA_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
                     const handler = (window as any).PaystackPop.setup({
-                      key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_live_ca2ed0ce730330e603e79901574f930abee50ec6',
+                      key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY?.trim() || 'pk_live_ca2ed0ce730330e603e79901574f930abee50ec6',
                       email,
                       amount: totalInKobo,
                       currency: 'NGN',
                       ref,
-                      callback: handlePaystackSuccess,
-                      onClose: handlePaystackClose,
+                      callback: (response: any) => handlePaystackSuccess(response),
+                      onClose: () => handlePaystackClose(),
                     });
                     handler.openIframe();
                   }}
