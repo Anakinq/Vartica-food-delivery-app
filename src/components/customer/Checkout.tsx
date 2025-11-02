@@ -33,8 +33,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
     console.error('Invalid deliveryFee:', deliveryFee);
     throw new Error('Invalid delivery fee value');
   }
-
-  const { profile } = useAuth(); // Note: we'll fetch user fresh in createOrder
+  const { profile } = useAuth();
   const [formData, setFormData] = useState({
     deliveryAddress: '',
     deliveryNotes: '',
@@ -55,15 +54,13 @@ export const Checkout: React.FC<CheckoutProps> = ({
       setPaystackScriptLoaded(true);
       return;
     }
-
     const script = document.createElement('script');
     script.id = scriptId;
-    script.src = 'https://js.paystack.co/v1/inline.js'; // ✅ FIXED
+    script.src = 'https://js.paystack.co/v1/inline.js'; // ✅ NO TRAILING SPACES
     script.async = true;
     script.onload = () => setPaystackScriptLoaded(true);
     script.onerror = () => console.error('Failed to load Paystack script');
     document.head.appendChild(script);
-
     return () => {
       const existing = document.getElementById(scriptId);
       if (existing) existing.remove();
@@ -78,34 +75,28 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const handleApplyPromo = async () => {
     setPromoError('');
     if (!formData.promoCode.trim()) return;
-
     const { data, error } = await supabase
       .from('promo_codes')
       .select('*')
       .eq('code', formData.promoCode.toUpperCase())
       .eq('is_active', true)
       .maybeSingle();
-
     if (error || !data) {
       setPromoError('Invalid promo code');
       return;
     }
-
     if (new Date(data.valid_until) < new Date()) {
       setPromoError('Promo code has expired');
       return;
     }
-
     if (data.usage_limit && data.used_count >= data.usage_limit) {
       setPromoError('Promo code usage limit reached');
       return;
     }
-
     if (subtotal < data.min_order_value) {
       setPromoError(`Minimum order value is ₦${data.min_order_value}`);
       return;
     }
-
     let calculatedDiscount = 0;
     if (data.discount_type === 'percentage') {
       calculatedDiscount = (subtotal * data.discount_value) / 100;
@@ -115,20 +106,18 @@ export const Checkout: React.FC<CheckoutProps> = ({
     } else {
       calculatedDiscount = data.discount_value;
     }
-
     setDiscount(calculatedDiscount);
   };
 
   // 🧾 Create order — fetch FRESH user to avoid stale session
   const createOrder = async (paymentReference?: string) => {
-    const {  { user } } = await supabase.auth.getUser(); // ✅ Fresh user
+    // ✅ FIXED: correct destructuring
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
     if (items.length === 0) throw new Error('Cart is empty');
-
     const sellerId = items[0].seller_id;
     const sellerType = items[0].seller_type;
     if (!sellerId || !sellerType) throw new Error('Invalid seller info');
-
     const orderPayload = {
       user_id: user.id,
       seller_id: sellerId,
@@ -148,7 +137,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
       platform_commission: 300.0,
       agent_earnings: 200.0,
     };
-
     console.log('📤 Sending order to Supabase:', orderPayload);
     const { error: insertError } = await supabase.from('orders').insert(orderPayload);
     if (insertError) {
@@ -158,15 +146,51 @@ export const Checkout: React.FC<CheckoutProps> = ({
     return { success: true };
   };
 
-  const handlePaystackSuccess = async (reference: any) => {
+  // ✅ NEW: Send verified payment to webhook
+  const sendToWebhook = async (reference: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const orderData = {
+      user_id: user.id,
+      seller_id: items[0].seller_id,
+      seller_type: items[0].seller_type,
+      subtotal,
+      delivery_fee: deliveryFee,
+      discount,
+      total: effectiveTotal,
+      promo_code: formData.promoCode || null,
+      delivery_address: formData.deliveryAddress.trim() || 'Address not provided',
+      delivery_notes: formData.deliveryNotes || null,
+      scheduled_for: formData.scheduledFor || null,
+    };
+
+    const webhookRes = await fetch('/api/paystack-webhook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        reference,
+        order: orderData,
+      }),
+    });
+
+    if (!webhookRes.ok) {
+      throw new Error('Webhook verification failed');
+    }
+  };
+
+  const handlePaystackSuccess = async (response: any) => {
     try {
       setLoading(true);
-      await createOrder(reference.reference);
+      // ✅ First: verify via webhook (secure)
+      await sendToWebhook(response.reference);
+      // ✅ Optional: also insert client-side as fallback (remove if using webhook only)
+      // await createOrder(response.reference);
       setSuccess(true);
       setTimeout(() => onSuccess(), 2000);
     } catch (error) {
       console.error('🔥 Order creation failed after payment:', error);
-      alert(`Payment succeeded but order failed. Contact support with ref: ${reference.reference}`);
+      alert(`Payment succeeded but order failed. Contact support with ref: ${response.reference}`);
     } finally {
       setLoading(false);
     }
@@ -221,7 +245,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
             </button>
             <h2 className="text-2xl font-bold text-gray-900 ml-4">Checkout</h2>
           </div>
-
           <form
             onSubmit={(e) => {
               if (formData.paymentMethod === 'online') {
@@ -245,7 +268,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 placeholder="Building name, room number, etc."
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Delivery Notes (Optional)
@@ -258,7 +280,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 placeholder="Special instructions for delivery"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Schedule Delivery (Optional)
@@ -270,7 +291,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Promo Code
@@ -303,7 +323,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 </p>
               )}
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Payment Method *
@@ -331,7 +350,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 </label>
               </div>
             </div>
-
             <div className="bg-gray-50 rounded-lg p-4 space-y-2">
               <div className="flex justify-between text-gray-600">
                 <span>Subtotal</span>
@@ -352,7 +370,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 <span>₦{effectiveTotal.toFixed(2)}</span>
               </div>
             </div>
-
             {formData.paymentMethod === 'online' ? (
               !paystackScriptLoaded ? (
                 <button
@@ -368,15 +385,14 @@ export const Checkout: React.FC<CheckoutProps> = ({
                   onClick={() => {
                     const email = profile?.email || 'customer@example.com';
                     const ref = `VARTICA_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
                     const handler = (window as any).PaystackPop.setup({
-                      key: 'pk_live_ca2ed0ce730330e603e79901574f930abee50ec6',
+                      key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_live_ca2ed0ce730330e603e79901574f930abee50ec6',
                       email,
                       amount: totalInKobo,
                       currency: 'NGN',
-                      ref, // ✅ Unique reference
-                      callback: handlePaystackSuccess, // ✅ Correct prop name
-                      onClose: handlePaystackClose,   // ✅ Correct prop name
+                      ref,
+                      callback: handlePaystackSuccess,
+                      onClose: handlePaystackClose,
                     });
                     handler.openIframe();
                   }}
