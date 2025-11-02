@@ -34,7 +34,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
     throw new Error('Invalid delivery fee value');
   }
 
-  const { user, profile } = useAuth();
+  const { profile } = useAuth(); // Note: we'll fetch user fresh in createOrder
   const [formData, setFormData] = useState({
     deliveryAddress: '',
     deliveryNotes: '',
@@ -48,7 +48,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const [success, setSuccess] = useState(false);
   const [paystackScriptLoaded, setPaystackScriptLoaded] = useState(false);
 
-  // 💳 Load Paystack script
+  // 💳 Load Paystack script — NO TRAILING SPACES!
   useEffect(() => {
     const scriptId = 'paystack-inline-js';
     if (document.getElementById(scriptId)) {
@@ -58,11 +58,16 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
     const script = document.createElement('script');
     script.id = scriptId;
-    script.src = 'https://js.paystack.co/v1/inline.js';
+    script.src = 'https://js.paystack.co/v1/inline.js'; // ✅ FIXED
     script.async = true;
     script.onload = () => setPaystackScriptLoaded(true);
     script.onerror = () => console.error('Failed to load Paystack script');
     document.head.appendChild(script);
+
+    return () => {
+      const existing = document.getElementById(scriptId);
+      if (existing) existing.remove();
+    };
   }, []);
 
   const MIN_NGN = 100;
@@ -70,7 +75,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const effectiveTotal = Math.max(total, MIN_NGN);
   const totalInKobo = Math.round(effectiveTotal * 100);
 
-  // 🎟️ Apply promo logic
   const handleApplyPromo = async () => {
     setPromoError('');
     if (!formData.promoCode.trim()) return;
@@ -115,9 +119,10 @@ export const Checkout: React.FC<CheckoutProps> = ({
     setDiscount(calculatedDiscount);
   };
 
-  // 🧾 Create order in Supabase
+  // 🧾 Create order — fetch FRESH user to avoid stale session
   const createOrder = async (paymentReference?: string) => {
-    if (!user) throw new Error('User not logged in');
+    const {  { user } } = await supabase.auth.getUser(); // ✅ Fresh user
+    if (!user) throw new Error('User not authenticated');
     if (items.length === 0) throw new Error('Cart is empty');
 
     const sellerId = items[0].seller_id;
@@ -153,7 +158,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
     return { success: true };
   };
 
-  // ✅ Correct Paystack success handler
   const handlePaystackSuccess = async (reference: any) => {
     try {
       setLoading(true);
@@ -161,8 +165,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
       setSuccess(true);
       setTimeout(() => onSuccess(), 2000);
     } catch (error) {
-      alert('Payment succeeded but order failed. Contact support.');
-      console.error('Post-payment error:', error);
+      console.error('🔥 Order creation failed after payment:', error);
+      alert(`Payment succeeded but order failed. Contact support with ref: ${reference.reference}`);
     } finally {
       setLoading(false);
     }
@@ -172,10 +176,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
     alert('Payment cancelled');
   };
 
-  // 🧠 Fixed handleSubmit for cash orders
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
     setLoading(true);
     try {
       await createOrder();
@@ -209,7 +211,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
     );
   }
 
-  // 🧾 UI section
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -231,9 +232,78 @@ export const Checkout: React.FC<CheckoutProps> = ({
             }}
             className="space-y-6"
           >
-            {/* address, notes, schedule, promo ... */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Delivery Address *
+              </label>
+              <textarea
+                value={formData.deliveryAddress}
+                onChange={(e) => setFormData({ ...formData, deliveryAddress: e.target.value })}
+                required
+                rows={3}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Building name, room number, etc."
+              />
+            </div>
 
-            {/* Payment section */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Delivery Notes (Optional)
+              </label>
+              <textarea
+                value={formData.deliveryNotes}
+                onChange={(e) => setFormData({ ...formData, deliveryNotes: e.target.value })}
+                rows={2}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Special instructions for delivery"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Schedule Delivery (Optional)
+              </label>
+              <input
+                type="datetime-local"
+                value={formData.scheduledFor}
+                onChange={(e) => setFormData({ ...formData, scheduledFor: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Promo Code
+              </label>
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={formData.promoCode}
+                  onChange={(e) => {
+                    setFormData({ ...formData, promoCode: e.target.value.toUpperCase() });
+                    setPromoError('');
+                  }}
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter code"
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyPromo}
+                  className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200"
+                >
+                  Apply
+                </button>
+              </div>
+              {promoError && (
+                <p className="text-sm text-red-600 mt-1">{promoError}</p>
+              )}
+              {discount > 0 && (
+                <p className="text-sm text-green-600 mt-1">
+                  Discount applied: -₦{discount.toFixed(2)}
+                </p>
+              )}
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Payment Method *
@@ -244,9 +314,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
                     type="radio"
                     value="cash"
                     checked={formData.paymentMethod === 'cash'}
-                    onChange={(e) =>
-                      setFormData({ ...formData, paymentMethod: e.target.value as 'cash' })
-                    }
+                    onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value as 'cash' })}
                     className="mr-3"
                   />
                   <span className="font-medium">Cash on Delivery</span>
@@ -256,9 +324,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
                     type="radio"
                     value="online"
                     checked={formData.paymentMethod === 'online'}
-                    onChange={(e) =>
-                      setFormData({ ...formData, paymentMethod: e.target.value as 'online' })
-                    }
+                    onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value as 'online' })}
                     className="mr-3"
                   />
                   <span className="font-medium">Online Payment</span>
@@ -287,7 +353,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
               </div>
             </div>
 
-            {/* ✅ Corrected Paystack integration */}
             {formData.paymentMethod === 'online' ? (
               !paystackScriptLoaded ? (
                 <button
@@ -301,19 +366,18 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    const email = profile?.email || user?.email || 'customer@example.com';
-                    const ref = 'VARTICA_' + Math.floor(Math.random() * 1000000000);
+                    const email = profile?.email || 'customer@example.com';
+                    const ref = `VARTICA_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
                     const handler = (window as any).PaystackPop.setup({
                       key: 'pk_live_ca2ed0ce730330e603e79901574f930abee50ec6',
                       email,
                       amount: totalInKobo,
                       currency: 'NGN',
-                      ref,
-                      callback: handlePaystackSuccess,
-                      onClose: handlePaystackClose,
+                      ref, // ✅ Unique reference
+                      callback: handlePaystackSuccess, // ✅ Correct prop name
+                      onClose: handlePaystackClose,   // ✅ Correct prop name
                     });
-
                     handler.openIframe();
                   }}
                   className="w-full bg-blue-600 text-white py-4 rounded-lg font-semibold hover:bg-blue-700"
