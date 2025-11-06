@@ -34,6 +34,12 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   const [dashboardKey, setDashboardKey] = useState(0);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
+  // Bank details state
+  const [bankAccount, setBankAccount] = useState('');
+  const [bankCode, setBankCode] = useState('');
+  const [savingBank, setSavingBank] = useState(false);
+  const [savedBank, setSavedBank] = useState(false);
+
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -64,6 +70,18 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     if (agentData) {
       setAgent(agentData);
       setIsOnline(agentData.is_available);
+
+      // Fetch bank info
+      const { data: bankData } = await supabase
+        .from('agent_payout_profiles')
+        .select('account_number, bank_code')
+        .eq('agent_id', agentData.id)
+        .maybeSingle();
+      if (bankData) {
+        setBankAccount(bankData.account_number);
+        setBankCode(bankData.bank_code);
+        setSavedBank(true);
+      }
 
       // Fetch my orders (basic info)
       const { data: myOrdersData } = await supabase
@@ -175,6 +193,31 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     setLoading(false);
   };
 
+  const saveBankDetails = async () => {
+    if (!agent?.id || !bankAccount || !bankCode) return;
+    setSavingBank(true);
+    
+    const { error } = await supabase
+      .from('agent_payout_profiles')
+      .upsert(
+        {
+          agent_id: agent.id,
+          account_number: bankAccount,
+          bank_code: bankCode,
+        },
+        { onConflict: 'agent_id' }
+      );
+
+    if (!error) {
+      setSavedBank(true);
+      alert('Bank details saved!');
+    } else {
+      alert('Failed to save bank details');
+      console.error(error);
+    }
+    setSavingBank(false);
+  };
+
   const toggleOnlineStatus = async () => {
     if (!agent) return;
     const newStatus = !isOnline;
@@ -231,10 +274,56 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       return;
     }
 
-    if (type === 'customer_funds') {
-      alert(`Withdrawing #${amount.toFixed(2)} to buy food.`);
-    } else {
-      alert(`Withdrawing #${amount.toFixed(2)} earnings.`);
+    if (!agent?.id) {
+      alert('Agent profile not found');
+      return;
+    }
+
+    // Check if bank is saved
+    const { data: bankData } = await supabase
+      .from('agent_payout_profiles')
+      .select('account_number, bank_code')
+      .eq('agent_id', agent.id)
+      .maybeSingle();
+
+    if (!bankData) {
+      alert('Please save your bank account details first!');
+      return;
+    }
+
+    const confirmed = confirm(
+      `Withdraw ₦${amount.toFixed(2)} to your bank account ending ${bankData.account_number.slice(-4)}?`
+    );
+    if (!confirmed) return;
+
+    try {
+      // Get Supabase auth token
+      const session = (await supabase.auth.getSession()).data.session;
+      if (!session) throw new Error('Not authenticated');
+
+      const response = await fetch('/functions/v1/withdraw-agent-funds', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          agent_id: agent.id,
+          amount_kobo: Math.round(amount * 100), // Convert to kobo
+          type,
+        }),
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        alert(`Withdrawal initiated! Reference: ${result.transfer_code}`);
+        await fetchData(); // Refresh balances
+      } else {
+        alert(`Failed: ${result.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Withdrawal failed. Please try again.');
     }
   };
 
@@ -364,7 +453,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                 </div>
                 <div>
                   <p className="text-xs text-gray-600">Customer Funds</p>
-                  <p className="text-lg font-bold text-gray-900">#{customerFunds.toFixed(2)}</p>
+                  <p className="text-lg font-bold text-gray-900">₦{customerFunds.toFixed(2)}</p>
                 </div>
               </div>
               <button
@@ -385,7 +474,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                 </div>
                 <div>
                   <p className="text-xs text-gray-600">Delivery Earnings</p>
-                  <p className="text-lg font-bold text-gray-900">#{deliveryEarnings.toFixed(2)}</p>
+                  <p className="text-lg font-bold text-gray-900">₦{deliveryEarnings.toFixed(2)}</p>
                 </div>
               </div>
               <button
@@ -422,6 +511,56 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
             </div>
           </div>
 
+          {/* Payout Settings */}
+          <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-3">Payout Settings</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bank Account Number</label>
+                <input
+                  type="text"
+                  value={bankAccount}
+                  onChange={(e) => setBankAccount(e.target.value.replace(/\D/g, ''))}
+                  placeholder="e.g. 0123456789"
+                  className="w-full p-2 border border-gray-300 rounded-lg"
+                  maxLength={10}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bank</label>
+                <select
+                  value={bankCode}
+                  onChange={(e) => setBankCode(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="">Select Bank</option>
+                  <option value="044">Access Bank</option>
+                  <option value="023">Citibank</option>
+                  <option value="063">Diamond Bank</option>
+                  <option value="050">Ecobank</option>
+                  <option value="011">First Bank</option>
+                  <option value="214">First City Monument Bank</option>
+                  <option value="058">Guaranty Trust Bank</option>
+                  <option value="030">Heritage Bank</option>
+                  <option value="082">Keystone Bank</option>
+                  <option value="070">Fidelity Bank</option>
+                  <option value="032">Union Bank</option>
+                  <option value="033">United Bank for Africa</option>
+                  <option value="215">Unity Bank</option>
+                  <option value="035">Wema Bank</option>
+                  <option value="057">Zenith Bank</option>
+                </select>
+              </div>
+              <button
+                onClick={saveBankDetails}
+                disabled={savingBank || !bankAccount || !bankCode}
+                className="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {savingBank ? 'Saving...' : savedBank ? 'Update Bank' : 'Save Bank Details'}
+              </button>
+            </div>
+          </div>
+
           <div className="space-y-6">
             {/* My Active Orders */}
             <div>
@@ -439,7 +578,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                         <div className="flex justify-between items-start mb-2">
                           <div>
                             <h3 className="text-base font-bold text-gray-900">{order.order_number}</h3>
-                            <p className="text-sm text-gray-600 font-medium">#{order.total.toFixed(2)}</p>
+                            <p className="text-sm text-gray-600 font-medium">₦{order.total.toFixed(2)}</p>
                           </div>
                           <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${getStatusColor(order.status)}`}>
                             {order.status.replace('_', ' ')}
@@ -530,7 +669,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <h3 className="text-base font-bold text-gray-900">{order.order_number}</h3>
-                          <p className="text-sm text-gray-600 font-medium">#{order.total.toFixed(2)}</p>
+                          <p className="text-sm text-gray-600 font-medium">₦{order.total.toFixed(2)}</p>
                         </div>
                       </div>
 

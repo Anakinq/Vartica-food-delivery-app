@@ -1,0 +1,9 @@
+{
+  "tasks": {
+    "dev": "supabase functions serve"
+  },
+  "compilerOptions": {
+    "lib": ["es2021", "dom"],
+    "types": ["https://deno.land/x/types@v0.168.0/http.d.ts"]
+  }
+}
