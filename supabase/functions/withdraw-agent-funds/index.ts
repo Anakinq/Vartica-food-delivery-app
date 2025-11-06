@@ -1,134 +1,132 @@
-/// <reference no-default-lib="true"/>
-/// <reference lib="esnext" />
-/// <reference lib="dom" />
-
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.205.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { corsHeaders } from '../_shared/cors.ts';
 
-console.log("Withdraw Agent Funds function loaded");
+// Enable CORS
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, content-type',
+};
 
 interface WithdrawRequest {
-  agent_id: string;
+  user_id: string;
   amount_kobo: number;
   type: 'customer_funds' | 'delivery_earnings';
 }
 
-interface OrderWithTotal {
-  total: number;
-}
-
-interface OrderWithEarnings {
-  agent_earnings?: number;
-}
-
 serve(async (req: Request) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const json: WithdrawRequest = await req.json();
-    const { agent_id, amount_kobo, type } = json;
+    // Parse request body
+    const { user_id, amount_kobo, type }: WithdrawRequest = await req.json();
     const amount_naira = amount_kobo / 100;
 
-    if (!agent_id || !amount_kobo || !type) {
-      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+    // Validate input
+    if (!user_id || !amount_kobo || !type) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required fields: user_id, amount_kobo, type' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     if (amount_kobo <= 0) {
-      return new Response(JSON.stringify({ error: 'Invalid amount' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({ error: 'Amount must be positive' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
+    // Init Supabase client
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
+    // Authenticate user
     const authHeader = req.headers.get('Authorization')?.replace('Bearer ', '');
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Missing Authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    const {  { user }, error: authError } = await supabase.auth.getUser(authHeader);
+    const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader);
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Invalid token' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({ error: 'Invalid or expired token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    const { data: agent, error: agentError } = await supabase
-      .from('delivery_agents')
-      .select('id, user_id')
-      .eq('id', agent_id)
-      .maybeSingle();
-
-    if (agentError || !agent || agent.user_id !== user.id) {
-      return new Response(JSON.stringify({ error: 'Agent not found or unauthorized' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+    // Ensure requester owns this user_id
+    if (user.id !== user_id) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: user_id mismatch' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    const {  bankProfile, error: bankError } = await supabase
+    // Get bank info
+    const { data: bankProfile, error: bankError } = await supabase
       .from('agent_payout_profiles')
       .select('account_number, bank_code')
-      .eq('agent_id', agent_id)
-      .maybeSingle();
+      .eq('user_id', user_id)
+      .single();
 
     if (bankError || !bankProfile) {
-      return new Response(JSON.stringify({ error: 'Bank details not found' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({ 
+          error: 'Bank details not found. Please save your account info first.',
+          details: bankError?.message
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    let availableBalanceKobo = 0;
+    // Calculate available balance (same logic as frontend)
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setUTCHours(0, 0, 0, 0); // Use UTC for consistency
+
+    let availableBalanceKobo = 0;
 
     if (type === 'customer_funds') {
-      const {  paidOrders } = await supabase
+      const { data: paidOrders } = await supabase
         .from('orders')
         .select('total')
-        .eq('delivery_agent_id', agent_id)
+        .eq('delivery_agent_id', user_id)
         .eq('payment_status', 'paid')
         .gte('created_at', today.toISOString());
       
-      const total = (paidOrders as OrderWithTotal[] | null)
-        ?.reduce((sum: number, o: OrderWithTotal) => sum + o.total, 0) || 0;
+      const total = paidOrders?.reduce((sum: number, o: any) => sum + (o.total || 0), 0) || 0;
       availableBalanceKobo = Math.round(total * 100);
     } else {
-      const {  deliveredOrders } = await supabase
+      const { data: deliveredOrders } = await supabase
         .from('orders')
         .select('agent_earnings')
-        .eq('delivery_agent_id', agent_id)
+        .eq('delivery_agent_id', user_id)
         .eq('status', 'delivered')
         .gte('created_at', today.toISOString());
       
-      const earnings = (deliveredOrders as OrderWithEarnings[] | null)
-        ?.reduce((sum: number, o: OrderWithEarnings) => sum + (o.agent_earnings || 200), 0) || 0;
+      const earnings = deliveredOrders?.reduce((sum: number, o: any) => sum + (o.agent_earnings || 200), 0) || 0;
       availableBalanceKobo = Math.round(earnings * 100);
     }
 
     if (amount_kobo > availableBalanceKobo) {
-      return new Response(JSON.stringify({ error: 'Insufficient funds' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({ 
+          error: 'Insufficient funds',
+          available: availableBalanceKobo / 100,
+          requested: amount_naira
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Call Paystack
+    // ✅ Call Paystack Transfer
     const paystackRes = await fetch('https://api.paystack.co/transfer', {
       method: 'POST',
       headers: {
@@ -137,11 +135,13 @@ serve(async (req: Request) => {
       },
       body: JSON.stringify({
         source: 'balance',
-        reason: type === 'customer_funds' ? 'Food purchase funds' : 'Delivery earnings',
+        reason: type === 'customer_funds' 
+          ? 'Food purchase funds' 
+          : 'Delivery earnings payout',
         amount: amount_kobo,
         recipient: {
           type: 'nuban',
-          name: `Agent ${agent_id.slice(0, 8)}`,
+          name: `Agent ${user_id.slice(0, 8)}`,
           account_number: bankProfile.account_number,
           bank_code: bankProfile.bank_code,
           currency: 'NGN'
@@ -153,28 +153,35 @@ serve(async (req: Request) => {
 
     if (!paystackRes.ok || !paystackData.status) {
       console.error('Paystack error:', paystackData);
-      return new Response(JSON.stringify({ 
-        error: 'Payout failed',
-        details: paystackData.message || 'Unknown error'
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({ 
+          error: 'Payout failed',
+          details: paystackData.message || 'Unknown Paystack error'
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    return new Response(JSON.stringify({
-      success: true,
-      transfer_code: paystackData.data?.transfer_code,
-      amount_withdrawn: amount_naira
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    // ✅ Success
+    return new Response(
+      JSON.stringify({
+        success: true,
+        transfer_code: paystackData.data?.transfer_code,
+        amount_withdrawn: amount_naira
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
 
-  } catch (error) {
-    console.error('Unexpected error:', error);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+  } catch (error: any) {
+    console.error('Edge Function error:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: 'Internal server error',
+        message: error.message 
+      }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 });

@@ -2,8 +2,16 @@
   "tasks": {
     "dev": "supabase functions serve"
   },
-  "compilerOptions": {
-    "lib": ["es2021", "dom"],
-    "types": ["https://deno.land/x/types@v0.168.0/http.d.ts"]
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  },
+  "fmt": {
+    "options": {
+      "useTabs": false,
+      "lineWidth": 80,
+      "indentWidth": 2
+    }
   }
 }

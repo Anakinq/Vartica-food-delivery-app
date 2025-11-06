@@ -71,11 +71,11 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       setAgent(agentData);
       setIsOnline(agentData.is_available);
 
-      // Fetch bank info
+      // ✅ Fetch bank info using profile.id (user_id)
       const { data: bankData } = await supabase
         .from('agent_payout_profiles')
         .select('account_number, bank_code')
-        .eq('agent_id', agentData.id)
+        .eq('user_id', profile.id)  // ← CHANGED: was agent.id
         .maybeSingle();
       if (bankData) {
         setBankAccount(bankData.account_number);
@@ -194,18 +194,19 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   };
 
   const saveBankDetails = async () => {
-    if (!agent?.id || !bankAccount || !bankCode) return;
+    if (!profile?.id || !bankAccount || !bankCode) return; // ← use profile.id
     setSavingBank(true);
     
+    // ✅ Upsert using user_id (profile.id)
     const { error } = await supabase
       .from('agent_payout_profiles')
       .upsert(
         {
-          agent_id: agent.id,
+          user_id: profile.id,  // ← CHANGED: was agent.id
           account_number: bankAccount,
           bank_code: bankCode,
         },
-        { onConflict: 'agent_id' }
+        { onConflict: 'user_id' }  // ← CHANGED
       );
 
     if (!error) {
@@ -274,16 +275,16 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       return;
     }
 
-    if (!agent?.id) {
-      alert('Agent profile not found');
+    if (!profile?.id) {
+      alert('Profile not found');
       return;
     }
 
-    // Check if bank is saved
+    // ✅ Check bank using profile.id (user_id)
     const { data: bankData } = await supabase
       .from('agent_payout_profiles')
       .select('account_number, bank_code')
-      .eq('agent_id', agent.id)
+      .eq('user_id', profile.id)  // ← CHANGED
       .maybeSingle();
 
     if (!bankData) {
@@ -308,7 +309,8 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          agent_id: agent.id,
+          // ✅ Send user_id instead of agent_id (more reliable)
+          user_id: profile.id,
           amount_kobo: Math.round(amount * 100), // Convert to kobo
           type,
         }),
