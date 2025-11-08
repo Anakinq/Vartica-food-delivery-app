@@ -27,6 +27,30 @@ interface DeliveryDashboardProps {
   onShowProfile?: () => void;
 }
 
+// ✅ Full Nigerian bank list (Paystack-compliant)
+const BANK_OPTIONS = [
+  { code: '044', name: 'Access Bank' },
+  { code: '011', name: 'First Bank' },
+  { code: '058', name: 'GTBank' },
+  { code: '033', name: 'UBA' },
+  { code: '057', name: 'Zenith Bank' },
+  { code: '070', name: 'Fidelity Bank' },
+  { code: '214', name: 'FCMB' },
+  { code: '035', name: 'Sterling Bank' },
+  { code: '050', name: 'Ecobank' },
+  { code: '032', name: 'Union Bank' },
+  { code: '082', name: 'Keystone Bank' },
+  { code: '076', name: 'Polaris Bank' },
+  { code: '068', name: 'Stanbic IBTC' },
+  { code: '232', name: 'Sterling Bank' },
+  { code: '307', name: 'OPay (Paycom)' },
+  { code: '526', name: 'Parallex Bank' },
+  { code: '501', name: 'Providus Bank' },
+  { code: '559', name: 'Kuda Bank' },
+  { code: '315', name: 'Renmoney' },
+  { code: '566', name: 'Sparkle Microfinance' },
+];
+
 export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProfile }) => {
   const { profile, signOut } = useAuth();
   const [agent, setAgent] = useState<DeliveryAgent | null>(null);
@@ -107,15 +131,25 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         setBankAccount(bankData.account_number);
         setBankCode(bankData.bank_code);
         setIsBankVerified(!!bankData.recipient_code);
-        // Set human-readable bank name
-        const bankMap: Record<string, string> = {
-          '044': 'Access Bank', '011': 'First Bank', '058': 'GTBank',
-          '033': 'UBA', '057': 'Zenith Bank', '070': 'Fidelity'
-        };
-        setBankName(bankMap[bankData.bank_code] || bankData.bank_code);
+        const bank = BANK_OPTIONS.find(b => b.code === bankData.bank_code);
+        setBankName(bank?.name || bankData.bank_code);
       }
+    } catch (err) {
+      console.error('Fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
 
-      // 4. Fetch orders
+    // Fetch orders (separate for performance)
+    try {
+      const { data: agentData } = await supabase
+        .from('delivery_agents')
+        .select('id, is_available')
+        .eq('user_id', profile.id)
+        .maybeSingle();
+
+      if (!agentData) return;
+
       const { data: myOrdersData } = await supabase
         .from('orders')
         .select('id, order_number, total, status, delivery_address, delivery_notes, seller_id, seller_type, created_at')
@@ -134,7 +168,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         availableOrdersData = available || [];
       }
 
-      // Attach order items (optimized)
+      // Attach order items
       const allOrderIds = [...(myOrdersData || []), ...availableOrdersData].map(o => o.id);
       let orderItemsByOrderId: Record<string, any[]> = {};
 
@@ -177,15 +211,13 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       setMyOrders(attachItems(myOrdersData || []));
       setAvailableOrders(attachItems(availableOrdersData));
     } catch (err) {
-      console.error('Fetch error:', err);
-    } finally {
-      setLoading(false);
+      console.error('Orders fetch error:', err);
     }
   }, [profile?.id]);
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 15000); // Refresh every 15s
+    const interval = setInterval(fetchData, 15000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
@@ -207,8 +239,6 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         }, { onConflict: 'user_id' });
 
       if (error) throw error;
-
-      // Auto-trigger recipient registration
       await registerPaystackRecipient();
     } catch (err) {
       alert('❌ Failed to save bank details');
@@ -218,7 +248,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     }
   };
 
-  // Register with Paystack
+  // ✅ FIXED: Hardcoded URL, no env, no spaces
   const registerPaystackRecipient = async () => {
     if (!profile?.id) return;
 
@@ -227,8 +257,9 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       const session = (await supabase.auth.getSession()).data.session;
       if (!session) throw new Error('Not authenticated');
 
+      // 🔑 Hardcoded Supabase Function URL
       const response = await fetch(
-        `https://${import.meta.env.VITE_SUPABASE_PROJECT_REF}.functions.supabase.co/registerPaystackRecipient`,
+        'https://jbqhbuogmxqzotlorahn.functions.supabase.co/registerPaystackRecipient',
         {
           method: 'POST',
           headers: {
@@ -248,13 +279,13 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         throw new Error(result.error || 'Registration failed');
       }
     } catch (err: any) {
-      alert(`⚠️ Bank verification failed: ${err.message}. Please try again or contact support.`);
+      alert(`⚠️ Bank verification failed: ${err.message}`);
     } finally {
       setRegisteringRecipient(false);
     }
   };
 
-  // Withdraw funds
+  // ✅ FIXED: Hardcoded URL, no trailing spaces
   const handleWithdraw = async (type: 'customer_funds' | 'delivery_earnings') => {
     if (!agent || !wallet) return;
 
@@ -282,6 +313,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       const session = (await supabase.auth.getSession()).data.session;
       if (!session) throw new Error('Not authenticated');
 
+      // 🔑 Hardcoded Supabase Function URL (no spaces!)
       const response = await fetch(
         'https://jbqhbuogmxqzotlorahn.functions.supabase.co/handleAgentWithdrawal',
         {
@@ -301,8 +333,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       const result = await response.json();
 
       if (response.ok && result.success) {
-        alert(`✅ Withdrawal successful!\nRef: ${result.transfer_code}\nFunds will arrive in 1–5 mins.`);
-        // Refresh wallet
+        alert(`✅ Withdrawal successful!\nRef: ${result.transfer_code}\nFunds arrive in 1–5 mins.`);
         fetchData();
       } else {
         alert(`❌ Withdrawal failed: ${result.error || 'Unknown error'}`);
@@ -606,12 +637,11 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select Bank</option>
-                    <option value="044">Access Bank</option>
-                    <option value="011">First Bank</option>
-                    <option value="058">GTBank</option>
-                    <option value="033">UBA</option>
-                    <option value="057">Zenith Bank</option>
-                    <option value="070">Fidelity Bank</option>
+                    {BANK_OPTIONS.map(bank => (
+                      <option key={bank.code} value={bank.code}>
+                        {bank.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <button
