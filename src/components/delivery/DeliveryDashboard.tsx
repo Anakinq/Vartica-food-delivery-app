@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { 
-  LogOut, Package, MapPin, MessageCircle, Wifi, WifiOff, 
-  Wallet, User, Menu, CheckCircle, AlertCircle, Banknote 
+import {
+  LogOut, Package, MapPin, MessageCircle, Wifi, WifiOff,
+  Wallet, User, Menu, CheckCircle, AlertCircle, Banknote
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Order, DeliveryAgent } from '../../lib/supabase';
@@ -283,7 +283,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       if (!session) throw new Error('Not authenticated');
 
       const response = await fetch(
-        `https://${import.meta.env.VITE_SUPABASE_PROJECT_REF}.functions.supabase.co/handleAgentWithdrawal`,
+        'https://jbqhbuogmxqzotlorahn.functions.supabase.co/handleAgentWithdrawal',
         {
           method: 'POST',
           headers: {
@@ -342,8 +342,8 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
     const { error } = await supabase
       .from('orders')
-      .update({ 
-        delivery_agent_id: agent.id, 
+      .update({
+        delivery_agent_id: agent.id,
         status: 'accepted',
         updated_at: new Date().toISOString()
       })
