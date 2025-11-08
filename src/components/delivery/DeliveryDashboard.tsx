@@ -1,5 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { LogOut, Package, MapPin, MessageCircle, Wifi, WifiOff, Wallet, User, Menu, CheckCircle } from 'lucide-react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { 
+  LogOut, Package, MapPin, MessageCircle, Wifi, WifiOff, 
+  Wallet, User, Menu, CheckCircle, AlertCircle, Banknote 
+} from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Order, DeliveryAgent } from '../../lib/supabase';
 import { ChatModal } from '../shared/ChatModal';
@@ -14,6 +17,12 @@ interface FullOrder extends Order {
   }>;
 }
 
+interface AgentWallet {
+  customer_funds: number;
+  delivery_earnings: number;
+  total_balance: number;
+}
+
 interface DeliveryDashboardProps {
   onShowProfile?: () => void;
 }
@@ -21,24 +30,24 @@ interface DeliveryDashboardProps {
 export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProfile }) => {
   const { profile, signOut } = useAuth();
   const [agent, setAgent] = useState<DeliveryAgent | null>(null);
+  const [wallet, setWallet] = useState<AgentWallet | null>(null);
   const [availableOrders, setAvailableOrders] = useState<FullOrder[]>([]);
   const [myOrders, setMyOrders] = useState<FullOrder[]>([]);
   const [selectedOrderForChat, setSelectedOrderForChat] = useState<FullOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
-  const [customerFunds, setCustomerFunds] = useState(0);
-  const [deliveryEarnings, setDeliveryEarnings] = useState(0);
   const [dashboardKey, setDashboardKey] = useState(0);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-
-  // Bank details
   const [bankAccount, setBankAccount] = useState('');
   const [bankCode, setBankCode] = useState('');
+  const [bankName, setBankName] = useState('');
   const [savingBank, setSavingBank] = useState(false);
-  const [savedBank, setSavedBank] = useState(false);
+  const [registeringRecipient, setRegisteringRecipient] = useState(false);
+  const [isBankVerified, setIsBankVerified] = useState(false);
 
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Close mobile menu on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -49,169 +58,262 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
-  }, [profile]);
+  // Fetch all data
+  const fetchData = useCallback(async () => {
+    if (!profile?.id) return;
 
-  const fetchData = async () => {
-    if (!profile) return;
+    try {
+      // 1. Fetch agent
+      const { data: agentData, error: agentError } = await supabase
+        .from('delivery_agents')
+        .select('*')
+        .eq('user_id', profile.id)
+        .maybeSingle();
 
-    // 🔑 Critical fix: Lookup agent by delivery_agents.user_id = profiles.id
-    const { data: agentData, error: agentError } = await supabase
-      .from('delivery_agents')
-      .select('*')
-      .eq('user_id', profile.id)
-      .maybeSingle();
+      if (agentError) throw agentError;
+      if (!agentData) {
+        setLoading(false);
+        return;
+      }
 
-    if (agentError) {
-      console.error('Error fetching agent:', agentError);
-      setLoading(false);
-      return;
-    }
+      setAgent(agentData);
+      setIsOnline(agentData.is_available);
 
-    if (!agentData) {
-      setLoading(false);
-      return;
-    }
+      // 2. Fetch wallet (REAL wallet balance — not recalculated)
+      const { data: walletData } = await supabase
+        .from('agent_wallets')
+        .select('customer_funds, delivery_earnings, total_balance')
+        .eq('agent_id', agentData.id)
+        .maybeSingle();
 
-    setAgent(agentData);
-    setIsOnline(agentData.is_available);
+      if (walletData) {
+        setWallet({
+          customer_funds: Number(walletData.customer_funds) || 0,
+          delivery_earnings: Number(walletData.delivery_earnings) || 0,
+          total_balance: Number(walletData.total_balance) || 0,
+        });
+      } else {
+        setWallet({ customer_funds: 0, delivery_earnings: 0, total_balance: 0 });
+      }
 
-    // Fetch bank (using profile.id = user_id)
-    const { data: bankData } = await supabase
-      .from('agent_payout_profiles')
-      .select('account_number, bank_code')
-      .eq('user_id', profile.id)
-      .maybeSingle();
-    if (bankData) {
-      setBankAccount(bankData.account_number);
-      setBankCode(bankData.bank_code);
-      setSavedBank(true);
-    }
+      // 3. Fetch bank & verification status
+      const { data: bankData } = await supabase
+        .from('agent_payout_profiles')
+        .select('account_number, bank_code, recipient_code')
+        .eq('user_id', profile.id)
+        .maybeSingle();
 
-    // Fetch orders assigned to agent (using delivery_agents.id)
-    const { data: myOrdersData } = await supabase
-      .from('orders')
-      .select('id, order_number, total, status, delivery_address, delivery_notes, seller_id, seller_type, created_at')
-      .eq('delivery_agent_id', agentData.id)
-      .neq('status', 'cancelled')
-      .order('created_at', { ascending: false });
+      if (bankData) {
+        setBankAccount(bankData.account_number);
+        setBankCode(bankData.bank_code);
+        setIsBankVerified(!!bankData.recipient_code);
+        // Set human-readable bank name
+        const bankMap: Record<string, string> = {
+          '044': 'Access Bank', '011': 'First Bank', '058': 'GTBank',
+          '033': 'UBA', '057': 'Zenith Bank', '070': 'Fidelity'
+        };
+        setBankName(bankMap[bankData.bank_code] || bankData.bank_code);
+      }
 
-    let availableOrdersData: FullOrder[] = [];
-    if (agentData.is_available) {
-      const { data: available } = await supabase
+      // 4. Fetch orders
+      const { data: myOrdersData } = await supabase
         .from('orders')
         .select('id, order_number, total, status, delivery_address, delivery_notes, seller_id, seller_type, created_at')
-        .is('delivery_agent_id', null)
-        .eq('status', 'pending')
+        .eq('delivery_agent_id', agentData.id)
+        .neq('status', 'cancelled')
         .order('created_at', { ascending: false });
-      availableOrdersData = available || [];
+
+      let availableOrdersData: FullOrder[] = [];
+      if (agentData.is_available) {
+        const { data: available } = await supabase
+          .from('orders')
+          .select('id, order_number, total, status, delivery_address, delivery_notes, seller_id, seller_type, created_at')
+          .is('delivery_agent_id', null)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false });
+        availableOrdersData = available || [];
+      }
+
+      // Attach order items (optimized)
+      const allOrderIds = [...(myOrdersData || []), ...availableOrdersData].map(o => o.id);
+      let orderItemsByOrderId: Record<string, any[]> = {};
+
+      if (allOrderIds.length > 0) {
+        const { data: orderItemsData } = await supabase
+          .from('order_items')
+          .select('id, order_id, quantity, price, menu_item_id')
+          .in('order_id', allOrderIds);
+
+        orderItemsByOrderId = (orderItemsData || []).reduce((acc, item) => {
+          if (!acc[item.order_id]) acc[item.order_id] = [];
+          acc[item.order_id].push(item);
+          return acc;
+        }, {} as Record<string, any[]>);
+      }
+
+      const menuItemIds = Object.values(orderItemsByOrderId).flat().map(item => item.menu_item_id).filter(Boolean);
+      let menuItemMap: Record<string, { name: string }> = {};
+      if (menuItemIds.length > 0) {
+        const { data: menuItemsData } = await supabase
+          .from('menu_items')
+          .select('id, name')
+          .in('id', menuItemIds);
+
+        menuItemMap = (menuItemsData || []).reduce((acc, item) => {
+          acc[item.id] = item;
+          return acc;
+        }, {} as Record<string, { name: string }>);
+      }
+
+      const attachItems = (orders: FullOrder[]) =>
+        orders.map(order => ({
+          ...order,
+          order_items: (orderItemsByOrderId[order.id] || []).map(item => ({
+            ...item,
+            menu_item: menuItemMap[item.menu_item_id] || { name: 'Unknown Item' }
+          }))
+        }));
+
+      setMyOrders(attachItems(myOrdersData || []));
+      setAvailableOrders(attachItems(availableOrdersData));
+    } catch (err) {
+      console.error('Fetch error:', err);
+    } finally {
+      setLoading(false);
     }
+  }, [profile?.id]);
 
-    // Fetch order items (optimized)
-    const allOrderIds = [...(myOrdersData || []), ...availableOrdersData].map(o => o.id);
-    let orderItemsByOrderId: Record<string, any[]> = {};
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 15000); // Refresh every 15s
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
-    if (allOrderIds.length > 0) {
-      const { data: orderItemsData } = await supabase
-        .from('order_items')
-        .select('id, order_id, quantity, price, menu_item_id')
-        .in('order_id', allOrderIds);
-
-      orderItemsByOrderId = (orderItemsData || []).reduce((acc, item) => {
-        if (!acc[item.order_id]) acc[item.order_id] = [];
-        acc[item.order_id].push(item);
-        return acc;
-      }, {} as Record<string, any[]>);
-    }
-
-    // Fetch menu items
-    const menuItemIds = Object.values(orderItemsByOrderId).flat().map(item => item.menu_item_id).filter(Boolean);
-    let menuItemMap: Record<string, { name: string }> = {};
-    if (menuItemIds.length > 0) {
-      const { data: menuItemsData } = await supabase
-        .from('menu_items')
-        .select('id, name')
-        .in('id', menuItemIds);
-
-      menuItemMap = (menuItemsData || []).reduce((acc, item) => {
-        acc[item.id] = item;
-        return acc;
-      }, {} as Record<string, { name: string }>);
-    }
-
-    // Attach items
-    const myOrdersWithItems = (myOrdersData || []).map(order => ({
-      ...order,
-      order_items: (orderItemsByOrderId[order.id] || []).map(item => ({
-        ...item,
-        menu_item: menuItemMap[item.menu_item_id] || { name: 'Unknown Item' }
-      }))
-    }));
-
-    const availableOrdersWithItems = availableOrdersData.map(order => ({
-      ...order,
-      order_items: (orderItemsByOrderId[order.id] || []).map(item => ({
-        ...item,
-        menu_item: menuItemMap[item.menu_item_id] || { name: 'Unknown Item' }
-      }))
-    }));
-
-    setMyOrders(myOrdersWithItems);
-    setAvailableOrders(availableOrdersWithItems);
-
-    // Calculate balances using TODAY's data
-    const today = new Date().toISOString().split('T')[0];
-
-    // Customer Funds = sum of 'total' from paid orders
-    const { data: paidOrders } = await supabase
-      .from('orders')
-      .select('total')
-      .eq('delivery_agent_id', agentData.id)
-      .eq('payment_status', 'paid')
-      .gte('created_at', today);
-    const funds = paidOrders?.reduce((sum, o) => sum + o.total, 0) || 0;
-    setCustomerFunds(funds);
-
-    // Delivery Earnings = sum of 'agent_earnings' from delivered orders
-    const { data: deliveredOrders } = await supabase
-      .from('orders')
-      .select('agent_earnings')
-      .eq('delivery_agent_id', agentData.id)
-      .eq('status', 'delivered')
-      .gte('created_at', today);
-    const earnings = deliveredOrders?.reduce((sum, o) => sum + (o.agent_earnings || 200), 0) || 0;
-    setDeliveryEarnings(earnings);
-
-    setLoading(false);
-  };
-
+  // Save bank details
   const saveBankDetails = async () => {
-    if (!profile?.id || !bankAccount || !bankCode) return;
-    setSavingBank(true);
+    if (!profile?.id || !bankAccount || !bankCode || bankAccount.length !== 10) {
+      alert('Please enter a valid 10-digit account number and select a bank.');
+      return;
+    }
 
-    const { error } = await supabase
-      .from('agent_payout_profiles')
-      .upsert(
-        {
+    setSavingBank(true);
+    try {
+      const { error } = await supabase
+        .from('agent_payout_profiles')
+        .upsert({
           user_id: profile.id,
           account_number: bankAccount,
           bank_code: bankCode,
-        },
-        { onConflict: 'user_id' }
-      );
+        }, { onConflict: 'user_id' });
 
-    if (!error) {
-      setSavedBank(true);
-    } else {
+      if (error) throw error;
+
+      // Auto-trigger recipient registration
+      await registerPaystackRecipient();
+    } catch (err) {
       alert('❌ Failed to save bank details');
-      console.error(error);
+      console.error(err);
+    } finally {
+      setSavingBank(false);
     }
-    setSavingBank(false);
   };
 
+  // Register with Paystack
+  const registerPaystackRecipient = async () => {
+    if (!profile?.id) return;
+
+    setRegisteringRecipient(true);
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+      if (!session) throw new Error('Not authenticated');
+
+      const response = await fetch(
+        `https://${import.meta.env.VITE_SUPABASE_PROJECT_REF}.functions.supabase.co/registerPaystackRecipient`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ agent_user_id: profile.id }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setIsBankVerified(true);
+        alert('✅ Bank verified! You can now withdraw funds.');
+      } else {
+        throw new Error(result.error || 'Registration failed');
+      }
+    } catch (err: any) {
+      alert(`⚠️ Bank verification failed: ${err.message}. Please try again or contact support.`);
+    } finally {
+      setRegisteringRecipient(false);
+    }
+  };
+
+  // Withdraw funds
+  const handleWithdraw = async (type: 'customer_funds' | 'delivery_earnings') => {
+    if (!agent || !wallet) return;
+
+    const amount = type === 'customer_funds' ? wallet.customer_funds : wallet.delivery_earnings;
+    if (amount <= 0) {
+      alert(`No ${type.replace('_', ' ')} available to withdraw.`);
+      return;
+    }
+
+    if (!isBankVerified) {
+      const confirmed = confirm('Your bank is not verified. Would you like to verify now?');
+      if (confirmed) {
+        await registerPaystackRecipient();
+      }
+      return;
+    }
+
+    const confirmed = confirm(
+      `Withdraw ₦${amount.toFixed(2)} to your ${bankName || 'bank'} ending ${bankAccount.slice(-4)}?\n` +
+      `This is for: ${type === 'customer_funds' ? 'buying food' : 'your earnings'}.`
+    );
+    if (!confirmed) return;
+
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+      if (!session) throw new Error('Not authenticated');
+
+      const response = await fetch(
+        `https://${import.meta.env.VITE_SUPABASE_PROJECT_REF}.functions.supabase.co/handleAgentWithdrawal`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            agent_id: agent.id,
+            amount_kobo: Math.round(amount * 100),
+            type,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        alert(`✅ Withdrawal successful!\nRef: ${result.transfer_code}\nFunds will arrive in 1–5 mins.`);
+        // Refresh wallet
+        fetchData();
+      } else {
+        alert(`❌ Withdrawal failed: ${result.error || 'Unknown error'}`);
+      }
+    } catch (err: any) {
+      console.error('Withdraw error:', err);
+      alert(`❌ Withdrawal failed: ${err.message}`);
+    }
+  };
+
+  // Toggle online status
   const toggleOnlineStatus = async () => {
     if (!agent) return;
     const newStatus = !isOnline;
@@ -219,107 +321,79 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       .from('delivery_agents')
       .update({ is_available: newStatus })
       .eq('id', agent.id);
+
     if (!error) {
       setIsOnline(newStatus);
-      await fetchData();
+      fetchData();
+    } else {
+      alert('Failed to update status');
     }
   };
 
-  const canAcceptOrder = (order: FullOrder) => {
-    if (!agent || !isOnline) return false;
-    const active = myOrders.filter(o => !['delivered', 'cancelled'].includes(o.status));
-    if (active.length >= 2) return false;
-    if (active.length > 0) {
-      const existing = active[0];
-      return order.seller_id === existing.seller_id && order.seller_type === existing.seller_type;
-    }
-    return true;
-  };
-
+  // Accept order
   const handleAcceptOrder = async (order: FullOrder) => {
-    if (!agent || !canAcceptOrder(order)) return;
+    if (!agent || !agent.is_available) return;
+
+    const activeOrders = myOrders.filter(o => !['delivered', 'cancelled'].includes(o.status));
+    if (activeOrders.length >= 2) {
+      alert('You can only have 2 active orders at a time.');
+      return;
+    }
 
     const { error } = await supabase
       .from('orders')
-      .update({ delivery_agent_id: agent.id, status: 'accepted' })
+      .update({ 
+        delivery_agent_id: agent.id, 
+        status: 'accepted',
+        updated_at: new Date().toISOString()
+      })
       .eq('id', order.id);
 
     if (!error) {
-      await fetchData();
+      fetchData();
       setDashboardKey(prev => prev + 1);
+    } else {
+      alert('Failed to accept order');
     }
   };
 
+  // Update order status
   const handleUpdateStatus = async (orderId: string, newStatus: Order['status']) => {
     const { error } = await supabase
       .from('orders')
-      .update({ status: newStatus })
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
       .eq('id', orderId);
+
     if (!error) {
-      await fetchData();
+      fetchData();
       setDashboardKey(prev => prev + 1);
+    } else {
+      alert('Failed to update status');
     }
   };
 
-  const handleWithdraw = async (type: 'customer_funds' | 'delivery_earnings') => {
-    const amount = type === 'customer_funds' ? customerFunds : deliveryEarnings;
-    if (amount <= 0) {
-      alert('No funds to withdraw');
-      return;
-    }
-
-    if (!profile?.id) {
-      alert('Profile not found');
-      return;
-    }
-
-    const { data: bankData } = await supabase
-      .from('agent_payout_profiles')
-      .select('account_number, bank_code')
-      .eq('user_id', profile.id)
-      .maybeSingle();
-
-    if (!bankData) {
-      alert('⚠️ Please save your bank account first!');
-      return;
-    }
-
-    const confirmed = confirm(`Withdraw ₦${amount.toFixed(2)} to your bank ending ${bankData.account_number.slice(-4)}?`);
-    if (!confirmed) return;
-
-    try {
-      const session = (await supabase.auth.getSession()).data.session;
-      if (!session) throw new Error('Not authenticated');
-
-      // 🔑 Critical: Send agent_id (delivery_agents.id) not user_id
-      const response = await fetch('/functions/v1/withdraw-agent-funds', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          agent_id: agent?.id, // 👈 Must be delivery_agents.id for order lookup
-          amount_kobo: Math.round(amount * 100),
-          type,
-        }),
-      });
-
-      const result = await response.json();
-      if (response.ok) {
-        alert(`✅ Withdrawal initiated!\nRef: ${result.transfer_code}`);
-        await fetchData();
-      } else {
-        alert(`❌ Failed: ${result.error || 'Unknown error'}`);
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Withdrawal failed. Please try again.');
-    }
+  // Status badge colors
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      accepted: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      preparing: 'bg-blue-100 text-blue-800 border-blue-200',
+      ready: 'bg-orange-100 text-orange-800 border-orange-200',
+      picked_up: 'bg-purple-100 text-purple-800 border-purple-200',
+      delivered: 'bg-green-100 text-green-800 border-green-200',
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
+  // Loading & agent not found states
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!agent) {
@@ -329,9 +403,9 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <User className="h-8 w-8 text-red-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Profile Not Found</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Not a Delivery Agent</h2>
           <p className="text-gray-600 mb-4">
-            Your account isn't set up as a delivery agent. Contact admin to get approved.
+            Your account isn’t approved as a delivery agent. Contact admin for onboarding.
           </p>
           <button
             onClick={signOut}
@@ -344,20 +418,9 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     );
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'accepted': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'preparing': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'ready': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'picked_up': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'delivered': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Mobile Hamburger Menu */}
+      {/* Mobile Header */}
       <div className="md:hidden bg-white shadow-sm sticky top-0 z-50">
         <div className="flex justify-between items-center h-16 px-4">
           <div>
@@ -367,7 +430,6 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
           <button
             onClick={() => setShowMobileMenu(true)}
             className="p-2 text-gray-700"
-            aria-label="Open menu"
           >
             <Menu className="h-6 w-6" />
           </button>
@@ -382,7 +444,6 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
               <button
                 onClick={() => setShowMobileMenu(false)}
                 className="float-right p-2 text-gray-500 text-2xl"
-                aria-label="Close menu"
               >
                 &times;
               </button>
@@ -413,6 +474,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         )}
       </div>
 
+      {/* Desktop Nav */}
       <nav className="hidden md:block bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -442,89 +504,97 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
       <div key={dashboardKey} className="pb-24 md:pb-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          {/* BALANCES - Modern Cards */}
+          {/* BALANCE CARDS */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6 mb-6">
+            {/* Customer Funds */}
             <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-blue-500">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Customer Funds</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">₦{customerFunds.toFixed(2)}</p>
+                  <p className="text-xs text-gray-500 uppercase font-semibold">Customer Funds</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">
+                    ₦{wallet?.customer_funds?.toFixed(2) ?? '0.00'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">For buying food</p>
                 </div>
                 <div className="p-2 bg-blue-100 rounded-lg">
-                  <Wallet className="h-5 w-5 text-blue-600" />
+                  <Banknote className="h-5 w-5 text-blue-600" />
                 </div>
               </div>
               <button
                 onClick={() => handleWithdraw('customer_funds')}
-                disabled={customerFunds <= 0}
-                className="mt-3 w-full py-2.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 transition"
+                disabled={!wallet || wallet.customer_funds <= 0}
+                className="mt-3 w-full py-2.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 Withdraw to Buy Food
               </button>
             </div>
 
+            {/* Delivery Earnings */}
             <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-green-500">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Delivery Earnings</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">₦{deliveryEarnings.toFixed(2)}</p>
+                  <p className="text-xs text-gray-500 uppercase font-semibold">Delivery Earnings</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">
+                    ₦{wallet?.delivery_earnings?.toFixed(2) ?? '0.00'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Your profit</p>
                 </div>
                 <div className="p-2 bg-green-100 rounded-lg">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <Wallet className="h-5 w-5 text-green-600" />
                 </div>
               </div>
               <button
                 onClick={() => handleWithdraw('delivery_earnings')}
-                disabled={deliveryEarnings <= 0}
-                className="mt-3 w-full py-2.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50 transition"
+                disabled={!wallet || wallet.delivery_earnings <= 0}
+                className="mt-3 w-full py-2.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 Withdraw Earnings
               </button>
             </div>
 
+            {/* Status */}
             <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-gray-500">
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Status</p>
+                  <p className="text-xs text-gray-500 uppercase font-semibold">Status</p>
                   <p className={`text-xl font-bold ${isOnline ? 'text-green-600' : 'text-red-600'}`}>
                     {isOnline ? 'Online' : 'Offline'}
                   </p>
                 </div>
                 <button
                   onClick={toggleOnlineStatus}
-                  className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${isOnline ? 'bg-green-500' : 'bg-gray-300'
-                    }`}
+                  className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${isOnline ? 'bg-green-500' : 'bg-gray-300'}`}
                   aria-label={isOnline ? 'Go offline' : 'Go online'}
                 >
                   <div
-                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isOnline ? 'translate-x-6' : ''
-                      }`}
+                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isOnline ? 'translate-x-6' : ''}`}
                   />
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Payout Settings — Auto-Hide After Save */}
-          {!savedBank ? (
+          {/* BANK SETUP */}
+          {!isBankVerified ? (
             <div className="bg-white rounded-xl shadow-sm p-5 mb-6 border border-gray-200">
-              <h3 className="text-lg font-bold text-gray-900 mb-3">💳 Set Up Payout</h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Enter your bank details to receive payments directly.
+              <div className="flex items-start space-x-3 mb-3">
+                <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                <h3 className="text-lg font-bold text-yellow-800">⚠️ Bank Not Verified</h3>
+              </div>
+              <p className="text-gray-600 mb-4">
+                To withdraw funds automatically, please save and verify your bank account.
               </p>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Bank Account Number
+                    Account Number
                   </label>
                   <input
                     type="text"
                     value={bankAccount}
-                    onChange={(e) => setBankAccount(e.target.value.replace(/\D/g, ''))}
-                    placeholder="e.g. 0123456789"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    onChange={(e) => setBankAccount(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="10-digit number"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     maxLength={10}
                   />
                 </div>
@@ -533,7 +603,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                   <select
                     value={bankCode}
                     onChange={(e) => setBankCode(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select Bank</option>
                     <option value="044">Access Bank</option>
@@ -541,15 +611,23 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                     <option value="058">GTBank</option>
                     <option value="033">UBA</option>
                     <option value="057">Zenith Bank</option>
-                    <option value="070">Fidelity</option>
+                    <option value="070">Fidelity Bank</option>
                   </select>
                 </div>
                 <button
                   onClick={saveBankDetails}
-                  disabled={savingBank || !bankAccount || !bankCode}
-                  className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium transition"
+                  disabled={savingBank || registeringRecipient || !bankAccount || !bankCode || bankAccount.length !== 10}
+                  className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium"
                 >
-                  {savingBank ? 'Saving...' : '✅ Save Bank Details'}
+                  {registeringRecipient ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Verifying Bank...
+                    </span>
+                  ) : savingBank ? 'Saving...' : '✅ Save & Verify Bank'}
                 </button>
               </div>
             </div>
@@ -560,21 +638,16 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                   <CheckCircle className="h-5 w-5 text-green-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-green-800">Bank Successfully Saved!</h3>
+                  <h3 className="font-semibold text-green-800">✅ Bank Verified!</h3>
                   <p className="text-green-700 mt-1">
-                    You can now withdraw funds. To update your bank details, visit your{' '}
-                    <button
-                      onClick={() => onShowProfile?.()}
-                      className="inline text-blue-600 hover:text-blue-800 font-medium underline"
-                    >
-                      Profile
-                    </button>.
+                    {bankName} •••• {bankAccount.slice(-4)} — ready for instant withdrawals.
                   </p>
                 </div>
               </div>
             </div>
           )}
 
+          {/* Orders Sections */}
           <div className="space-y-6">
             {/* My Active Orders */}
             <div>
@@ -592,7 +665,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                         <div className="flex justify-between items-start mb-2">
                           <div>
                             <h3 className="text-base font-bold text-gray-900">{order.order_number}</h3>
-                            <p className="text-sm text-gray-600 font-medium">₦{order.total.toFixed(2)}</p>
+                            <p className="text-sm text-gray-600 font-medium">₦{Number(order.total).toFixed(2)}</p>
                           </div>
                           <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${getStatusColor(order.status)}`}>
                             {order.status.replace('_', ' ')}
@@ -680,7 +753,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <h3 className="text-base font-bold text-gray-900">{order.order_number}</h3>
-                          <p className="text-sm text-gray-600 font-medium">₦{order.total.toFixed(2)}</p>
+                          <p className="text-sm text-gray-600 font-medium">₦{Number(order.total).toFixed(2)}</p>
                         </div>
                       </div>
 
@@ -700,7 +773,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                         <p className="text-sm text-gray-800">{order.delivery_address}</p>
                       </div>
 
-                      {canAcceptOrder(order) ? (
+                      {agent?.is_available ? (
                         <button
                           onClick={() => handleAcceptOrder(order)}
                           className="w-full py-2.5 bg-blue-600 text-white rounded-lg font-semibold text-sm hover:bg-blue-700"
@@ -709,9 +782,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                         </button>
                       ) : (
                         <div className="text-center py-2 text-xs text-gray-600 bg-gray-50 rounded-lg">
-                          {myOrders.filter(o => !['delivered', 'cancelled'].includes(o.status)).length >= 2
-                            ? 'Max 2 orders allowed'
-                            : 'Must match current vendor'}
+                          Go online to accept orders
                         </div>
                       )}
                     </div>
@@ -723,6 +794,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         </div>
       </div>
 
+      {/* Chat Modal */}
       {selectedOrderForChat && (
         <ChatModal
           orderId={selectedOrderForChat.id}
