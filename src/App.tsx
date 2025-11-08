@@ -6,7 +6,6 @@ import { SignIn } from './components/auth/SignIn';
 import { SignUp } from './components/auth/SignUp';
 import { CustomerHome } from './components/customer/CustomerHome';
 import { CafeteriaDashboard } from './components/cafeteria/CafeteriaDashboard';
-import { VendorDashboard } from './components/vendor/VendorDashboard';
 import { DeliveryDashboard } from './components/delivery/DeliveryDashboard';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { ProfileDashboard } from './components/shared/ProfileDashboard';
@@ -48,7 +47,21 @@ function AppContent() {
       case 'cafeteria':
         return <CafeteriaDashboard onShowProfile={() => setShowProfile(true)} />;
       case 'vendor':
-        return <VendorDashboard onShowProfile={() => setShowProfile(true)} />;
+        // TODO: Create VendorDashboard component
+        return (
+          <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold mb-2">Vendor Dashboard</h1>
+              <p className="text-gray-600 mb-4">Coming soon...</p>
+              <button
+                onClick={signOut}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        );
       case 'delivery_agent':
         return <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />;
       case 'admin':
