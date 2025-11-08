@@ -118,13 +118,26 @@ function AppContent() {
 }
 
 function App() {
-  // ✅ useEffect now correctly inside the App component
   useEffect(() => {
-    console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+    // Clear console spam from browser extensions
+    const originalError = console.error;
+    console.error = (...args) => {
+      // Filter out browser extension errors
+      if (args[0]?.toString().includes('Extension context invalidated')) {
+        return;
+      }
+      originalError.apply(console, args);
+    };
+
+    console.log('✅ Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
     console.log(
-      'Supabase Anon Key (first 8 chars):',
+      '✅ Supabase Anon Key (first 8 chars):',
       import.meta.env.VITE_SUPABASE_ANON_KEY?.substring(0, 8) + '...'
     );
+
+    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+      console.error('❌ MISSING ENVIRONMENT VARIABLES! Check your .env file');
+    }
   }, []);
 
   return (

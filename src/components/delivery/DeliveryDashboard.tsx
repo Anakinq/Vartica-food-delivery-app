@@ -59,11 +59,17 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     if (!profile) return;
 
     // 🔑 Critical fix: Lookup agent by delivery_agents.user_id = profiles.id
-    const {  agentData } = await supabase
+    const { data: agentData, error: agentError } = await supabase
       .from('delivery_agents')
       .select('*')
       .eq('user_id', profile.id)
       .maybeSingle();
+
+    if (agentError) {
+      console.error('Error fetching agent:', agentError);
+      setLoading(false);
+      return;
+    }
 
     if (!agentData) {
       setLoading(false);
@@ -74,7 +80,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     setIsOnline(agentData.is_available);
 
     // Fetch bank (using profile.id = user_id)
-    const {  bankData } = await supabase
+    const { data: bankData } = await supabase
       .from('agent_payout_profiles')
       .select('account_number, bank_code')
       .eq('user_id', profile.id)
@@ -86,7 +92,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     }
 
     // Fetch orders assigned to agent (using delivery_agents.id)
-    const {  myOrdersData } = await supabase
+    const { data: myOrdersData } = await supabase
       .from('orders')
       .select('id, order_number, total, status, delivery_address, delivery_notes, seller_id, seller_type, created_at')
       .eq('delivery_agent_id', agentData.id)
@@ -95,7 +101,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
     let availableOrdersData: FullOrder[] = [];
     if (agentData.is_available) {
-      const {  available } = await supabase
+      const { data: available } = await supabase
         .from('orders')
         .select('id, order_number, total, status, delivery_address, delivery_notes, seller_id, seller_type, created_at')
         .is('delivery_agent_id', null)
@@ -109,7 +115,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     let orderItemsByOrderId: Record<string, any[]> = {};
 
     if (allOrderIds.length > 0) {
-      const {  orderItemsData } = await supabase
+      const { data: orderItemsData } = await supabase
         .from('order_items')
         .select('id, order_id, quantity, price, menu_item_id')
         .in('order_id', allOrderIds);
@@ -125,7 +131,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     const menuItemIds = Object.values(orderItemsByOrderId).flat().map(item => item.menu_item_id).filter(Boolean);
     let menuItemMap: Record<string, { name: string }> = {};
     if (menuItemIds.length > 0) {
-      const {  menuItemsData } = await supabase
+      const { data: menuItemsData } = await supabase
         .from('menu_items')
         .select('id, name')
         .in('id', menuItemIds);
@@ -160,7 +166,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     const today = new Date().toISOString().split('T')[0];
 
     // Customer Funds = sum of 'total' from paid orders
-    const {  paidOrders } = await supabase
+    const { data: paidOrders } = await supabase
       .from('orders')
       .select('total')
       .eq('delivery_agent_id', agentData.id)
@@ -170,7 +176,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     setCustomerFunds(funds);
 
     // Delivery Earnings = sum of 'agent_earnings' from delivered orders
-    const {  deliveredOrders } = await supabase
+    const { data: deliveredOrders } = await supabase
       .from('orders')
       .select('agent_earnings')
       .eq('delivery_agent_id', agentData.id)
@@ -185,7 +191,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   const saveBankDetails = async () => {
     if (!profile?.id || !bankAccount || !bankCode) return;
     setSavingBank(true);
-    
+
     const { error } = await supabase
       .from('agent_payout_profiles')
       .upsert(
@@ -267,7 +273,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       return;
     }
 
-    const {  bankData } = await supabase
+    const { data: bankData } = await supabase
       .from('agent_payout_profiles')
       .select('account_number, bank_code')
       .eq('user_id', profile.id)
@@ -488,15 +494,13 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                 </div>
                 <button
                   onClick={toggleOnlineStatus}
-                  className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${
-                    isOnline ? 'bg-green-500' : 'bg-gray-300'
-                  }`}
+                  className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${isOnline ? 'bg-green-500' : 'bg-gray-300'
+                    }`}
                   aria-label={isOnline ? 'Go offline' : 'Go online'}
                 >
                   <div
-                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-                      isOnline ? 'translate-x-6' : ''
-                    }`}
+                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isOnline ? 'translate-x-6' : ''
+                      }`}
                   />
                 </button>
               </div>
