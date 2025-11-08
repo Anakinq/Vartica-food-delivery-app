@@ -5,22 +5,20 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Vartica - University campus food delivery connecting students with cafeterias, vendors, and late-night food options" />
+  <meta name="description"
+    content="Vartica - University campus food delivery connecting students with cafeterias, vendors, and late-night food options" />
   <meta name="theme-color" content="#2563eb" />
 
   <!-- ✅ Fixed CSP -->
-  <meta
-    http-equiv="Content-Security-Policy"
-    content="
+  <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
-      connect-src 'self' https://jbqhbuogmxqzotlorahn.supabase.co https://api.paystack.co;
+      connect-src 'self' https://jbqhbuogmxqzotlorahn.supabase.co https://jbqhbuogmxqzotlorahn.functions.supabase.co https://api.paystack.co;
       img-src 'self' blob: data: https://jbqhbuogmxqzotlorahn.supabase.co;
       script-src 'self' 'unsafe-inline' https://js.paystack.co;
       style-src 'self' 'unsafe-inline' https://paystack.com https://*.paystack.com;
       font-src 'self' data:;
       frame-src https://checkout.paystack.com https://*.paystack.com;
-    "
-  >
+    ">
 
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -49,10 +47,10 @@
         amount: 5000 * 100, // ₦5000
         currency: 'NGN',
         ref: 'REF_' + Math.floor(Math.random() * 1000000000),
-        callback: function(response) {
+        callback: function (response) {
           console.log('Payment successful!', response);
         },
-        onClose: function() {
+        onClose: function () {
           alert('Payment window closed.');
         }
       });
