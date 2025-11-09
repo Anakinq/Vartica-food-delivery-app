@@ -8,13 +8,26 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
-    base: './', // ✅ Important: fixes 404 errors on Vercel by using relative asset paths
+    base: './', // ✅ fixes 404 errors on Vercel by using relative asset paths
     optimizeDeps: {
       exclude: ['lucide-react'],
     },
     define: {
       // Make process.env available in the browser
       'process.env': env,
+    },
+
+    // ✅ Add security headers to allow Supabase Functions & Paystack
+    server: {
+      headers: {
+        'Content-Security-Policy': `
+          default-src 'self';
+          connect-src 'self'
+            https://jbqhbuogmxqzotlorahn.supabase.co
+            https://jbqhbuogmxqzotlorahn.functions.supabase.co
+            https://api.paystack.co;
+        `.replace(/\n/g, ' '),
+      },
     },
   };
 });
