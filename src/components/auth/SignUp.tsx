@@ -1,9 +1,7 @@
-update the signupimport React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
 
-// 👇 Added 'customer' to role type
 interface SignUpProps {
   role: 'customer' | 'vendor' | 'delivery_agent';
   onBack: () => void;
@@ -11,7 +9,7 @@ interface SignUpProps {
 }
 
 export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }) => {
-  const { signUp } = useAuth();
+  const { signUp: authSignUp, user, profile, loading: authLoading } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -24,12 +22,18 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
     vendorType: 'student' as 'student' | 'late_night',
   });
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  // 👇 Updated roleTitle to include customer
   const roleTitle =
     role === 'customer' ? 'Customer' :
-      role === 'vendor' ? 'Student Vendor' : 'Delivery Agent';
+    role === 'vendor' ? 'Student Vendor' : 'Delivery Agent';
+
+  // ✅ Auto-redirect on successful auth
+  useEffect(() => {
+    if (user && profile && profile.role === role) {
+      // Success! App.tsx will render the correct dashboard
+    }
+  }, [user, profile, role]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,50 +43,32 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
       setError('Passwords do not match');
       return;
     }
-
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters');
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
 
     try {
-      await signUp(formData.email, formData.password, formData.fullName, role, formData.phone);
+      // ✅ Let AuthProvider handle: user + profile + sign-in
+      await authSignUp(
+        formData.email,
+        formData.password,
+        formData.fullName,
+        role,
+        formData.phone
+      );
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not found after signup');
-
-      // 👇 Only create extra records for vendor/delivery — skip for customer
-      if (role === 'vendor') {
-        const { error: vendorError } = await supabase
-          .from('vendors')
-          .insert({
-            user_id: user.id,
-            store_name: formData.storeName,
-            description: formData.storeDescription,
-            vendor_type: formData.vendorType,
-            is_active: true,
-          });
-
-        if (vendorError) throw vendorError;
-      } else if (role === 'delivery_agent') {
-        const { error: agentError } = await supabase
-          .from('delivery_agents')
-          .insert({
-            user_id: user.id,
-            vehicle_type: formData.vehicleType,
-            is_available: true,
-          });
-
-        if (agentError) throw agentError;
-      }
-      // ✅ For 'customer', nothing extra is needed — profile is created by AuthContext
+      // ✅ No manual profile/vendor/agent creation here — move to DB trigger (see note below)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to sign up');
-      setLoading(false);
+    } finally {
+      setSubmitting(false);
     }
   };
+
+  const isLoading = submitting || authLoading;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center px-4 py-8">
@@ -119,6 +105,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
                 value={formData.fullName}
                 onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                 required
+                disabled={isLoading}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="John Doe"
               />
@@ -133,6 +120,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
+                disabled={isLoading}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="you@university.edu"
               />
@@ -146,12 +134,12 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                disabled={isLoading}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="+1 (555) 000-0000"
               />
             </div>
 
-            {/* 👇 Only show extra fields for vendor/delivery */}
             {role === 'vendor' && (
               <>
                 <div>
@@ -163,6 +151,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
                     value={formData.storeName}
                     onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
                     required
+                    disabled={isLoading}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="My Food Store"
                   />
@@ -176,6 +165,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
                     value={formData.storeDescription}
                     onChange={(e) => setFormData({ ...formData, storeDescription: e.target.value })}
                     rows={3}
+                    disabled={isLoading}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Tell customers about your store"
                   />
@@ -191,6 +181,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
                 <select
                   value={formData.vehicleType}
                   onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value })}
+                  disabled={isLoading}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Select vehicle</option>
@@ -211,6 +202,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
+                disabled={isLoading}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="••••••••"
               />
@@ -225,6 +217,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                 required
+                disabled={isLoading}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="••••••••"
               />
@@ -232,10 +225,10 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={isLoading}
               className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-6"
             >
-              {loading ? 'Creating account...' : 'Sign Up'}
+              {isLoading ? 'Creating account...' : 'Sign Up'}
             </button>
           </form>
 
