@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase'; // ✅ add this import
+import { supabase } from '../../lib/supabase';
 
 interface SignInProps {
   role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin';
@@ -15,7 +15,16 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [forgotPasswordMode, setForgotPasswordMode] = useState(false); // ✅ toggle state
+  const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
+
+  // ✅ Define roleTitle early — fixes "roleTitle is not defined"
+  const roleTitle = {
+    customer: 'Customer',
+    cafeteria: 'Cafeteria',
+    vendor: 'Student Vendor',
+    delivery_agent: 'Delivery Agent',
+    admin: 'Admin',
+  }[role];
 
   // ✅ Redirect on auth success
   useEffect(() => {
@@ -40,7 +49,7 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
     }
   };
 
-  // ✅ NEW: Forgot Password Handler
+  // ✅ Forgot Password Handler
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -59,7 +68,6 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
 
       if (error) throw error;
 
-      // ✅ Success message
       alert('✅ Password reset email sent! Check your inbox (and spam folder).');
       setForgotPasswordMode(false);
     } catch (err: unknown) {
