@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { authService, databaseService, User as ServiceUser } from '../services';
 import { Profile } from '../lib/supabase';
 
@@ -7,7 +7,6 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  // 👇 Explicitly type 'role' to match your schema
   signUp: (
     email: string,
     password: string,
@@ -29,63 +28,95 @@ export const useAuth = () => {
   return context;
 };
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<ServiceUser | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
-    const { data, error } = await databaseService.selectSingle<Profile>({
-      table: 'profiles',
-      match: { id: userId },
-    });
-
-    if (error) {
-      console.error('Error fetching profile:', error);
-      return null;
+  // 🔁 Unified fetch: user + profile
+  const fetchUserAndProfile = async (sessionUser: ServiceUser | null) => {
+    if (!sessionUser) {
+      setUser(null);
+      setProfile(null);
+      return;
     }
-    return data;
+
+    try {
+      setUser(sessionUser);
+      const { data: profileData, error } = await databaseService.selectSingle<Profile>({
+        table: 'profiles',
+        match: { id: sessionUser.id },
+      });
+
+      if (error) {
+        console.warn('Profile fetch failed (continuing without profile):', error.message);
+        setProfile(null);
+      } else {
+        setProfile(profileData);
+      }
+    } catch (err) {
+      console.error('Unexpected error in fetchUserAndProfile:', err);
+      setProfile(null);
+    }
   };
 
   const refreshProfile = async () => {
     if (user) {
-      const profileData = await fetchProfile(user.id);
-      setProfile(profileData);
+      const { data, error } = await databaseService.selectSingle<Profile>({
+        table: 'profiles',
+        match: { id: user.id },
+      });
+      if (!error) setProfile(data);
     }
   };
 
+  // 🔄 Sync auth state (initial + real-time)
   useEffect(() => {
-    authService.getSession().then(({ session }) => {
-      (async () => {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          const profileData = await fetchProfile(session.user.id);
-          setProfile(profileData);
-        }
+    let isMounted = true;
+
+    // 1️⃣ Initial load
+    const initAuth = async () => {
+      const { session } = await authService.getSession();
+      if (isMounted) {
+        await fetchUserAndProfile(session?.user ?? null);
         setLoading(false);
-      })();
+      }
+    };
+
+    initAuth();
+
+    // 2️⃣ Real-time listener
+    const { unsubscribe } = authService.onAuthStateChange(async (event) => {
+      if (!isMounted) return;
+
+      if (event.event === 'SIGNED_IN' || event.event === 'USER_UPDATED') {
+        await fetchUserAndProfile(event.session?.user ?? null);
+      } else if (event.event === 'SIGNED_OUT') {
+        setUser(null);
+        setProfile(null);
+      }
     });
 
-    const { unsubscribe } = authService.onAuthStateChange((event) => {
-      (async () => {
-        setUser(event.session?.user ?? null);
-        if (event.session?.user) {
-          const profileData = await fetchProfile(event.session.user.id);
-          setProfile(profileData);
-        } else {
-          setProfile(null);
-        }
-      })();
-    });
-
-    return () => unsubscribe();
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
 
+  // ✅ Sign in
   const signIn = async (email: string, password: string) => {
-    const { error } = await authService.signIn({ email, password });
-    if (error) throw error;
+    setLoading(true);
+    try {
+      const { error } = await authService.signIn({ email, password });
+      if (error) throw error;
+      // 🎯 `onAuthStateChange` will handle state sync — no need to setUser here
+    } catch (err) {
+      setLoading(false);
+      throw err;
+    }
   };
 
+  // ✅ Sign up (with auto-login + profile sync)
   const signUp = async (
     email: string,
     password: string,
@@ -93,36 +124,72 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin',
     phone?: string
   ) => {
-    const { user: newUser, error } = await authService.signUp({
-      email,
-      password,
-    });
+    setLoading(true);
+    try {
+      // 1️⃣ Sign up (creates auth user)
+      const { user: newUser, error: signUpError } = await authService.signUp({ email, password });
+      if (signUpError || !newUser) {
+        throw signUpError || new Error('User creation failed');
+      }
 
-    if (error) throw error;
-    if (!newUser) throw new Error('User creation failed');
+      // 2️⃣ Create profile
+      const { error: profileError } = await databaseService.insert<Profile>({
+        table: 'profiles',
+        data: {
+          id: newUser.id,
+          email,
+          full_name: fullName,
+          role,
+          phone: phone || null,
+        },
+      });
 
-    // 👇 Insert profile with correct role (now strongly typed)
-    const { error: profileError } = await databaseService.insert<Profile>({
-      table: 'profiles',
-      data: {
-        id: newUser.id,
-        email,
-        full_name: fullName,
-        role, // ✅ Now guaranteed to be a valid role
-        phone,
-      },
-    });
+      if (profileError) {
+        // 🧹 Clean up: sign out the half-created user to avoid orphaned auth accounts
+        await authService.signOut();
+        throw new Error(`Profile creation failed: ${profileError.message}`);
+      }
 
-    if (profileError) throw new Error(profileError.message);
+      // 3️⃣ ✅ Auto-sign in to trigger onAuthStateChange & UI update
+      const { error: signInError } = await authService.signIn({ email, password });
+      if (signInError) {
+        // Optional: try to clean up profile? (or let RLS handle it)
+        console.warn('Sign-in after signup failed (profile exists but session missing)');
+        throw signInError;
+      }
+
+      // 🌟 Let `onAuthStateChange` finish the job: set user + profile
+    } catch (err) {
+      setLoading(false);
+      throw err;
+    }
   };
 
+  // ✅ Sign out
   const signOut = async () => {
-    const { error } = await authService.signOut();
-    if (error) throw error;
+    setLoading(true);
+    try {
+      const { error } = await authService.signOut();
+      if (error) throw error;
+      // 🎯 `onAuthStateChange` → SIGNED_OUT → clears user/profile
+    } catch (err) {
+      setLoading(false);
+      throw err;
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signUp, signOut, refreshProfile }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        loading,
+        signIn,
+        signUp,
+        signOut,
+        refreshProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

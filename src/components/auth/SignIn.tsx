@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // ✅ added useEffect
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
-// 👇 Added 'customer' to the role type
 interface SignInProps {
   role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin';
   onBack: () => void;
@@ -10,13 +9,12 @@ interface SignInProps {
 }
 
 export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }) => {
-  const { signIn } = useAuth();
+  const { signIn, user, profile, loading: authLoading } = useAuth(); // ✅ pull user/profile/authLoading
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false); // renamed to avoid conflict
 
-  // 👇 Added 'customer' to the roleTitle map
   const roleTitle = {
     customer: 'Customer',
     cafeteria: 'Cafeteria',
@@ -25,19 +23,40 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
     admin: 'Admin',
   }[role];
 
+  // ✅ NEW: Redirect on successful sign-in
+  useEffect(() => {
+    if (user && profile) {
+      // Optional: verify role matches (extra safety)
+      if (profile.role === role) {
+        // 👇 Replace this with your actual navigation logic:
+        // - React Router: navigate('/dashboard')
+        // - Window redirect: window.location.href = '/dashboard'
+        console.log('✅ Auth success — redirecting...');
+        window.location.reload(); // quick fix: reload to let App.tsx render protected view
+        // OR better: use your router
+      } else {
+        setError(`This account is registered as a ${profile.role}, not a ${role}.`);
+      }
+    }
+  }, [user, profile, role]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
+    setSubmitting(true);
 
     try {
       await signIn(email, password);
+      // ✅ Success → handled by useEffect above
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to sign in');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
+
+  // ✅ Show loading from AuthContext (more accurate than local submitting)
+  const isLoading = submitting || authLoading;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center px-4">
@@ -74,6 +93,7 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={isLoading}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="you@university.edu"
               />
@@ -88,6 +108,7 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={isLoading}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="••••••••"
               />
@@ -95,14 +116,13 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={isLoading}
               className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {isLoading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 
-          {/* 👇 This already works for 'customer' — no change needed */}
           {onSwitchToSignUp && role !== 'cafeteria' && role !== 'admin' && (
             <div className="mt-6 text-center">
               <p className="text-gray-600">
