@@ -3,22 +3,26 @@
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description"
     content="Vartica - University campus food delivery connecting students with cafeterias, vendors, and late-night food options" />
   <meta name="theme-color" content="#2563eb" />
 
-  <!-- ✅ Fixed CSP -->
+  <!-- ✅ Fixed & Validated Content Security Policy -->
   <meta http-equiv="Content-Security-Policy" content="
-      default-src 'self';
-      connect-src 'self' https://jbqhbuogmxqzotlorahn.supabase.co https://jbqhbuogmxqzotlorahn.functions.supabase.co https://api.paystack.co;
-      img-src 'self' blob: data: https://jbqhbuogmxqzotlorahn.supabase.co;
-      script-src 'self' 'unsafe-inline' https://js.paystack.co;
-      style-src 'self' 'unsafe-inline' https://paystack.com https://*.paystack.com;
-      font-src 'self' data:;
-      frame-src https://checkout.paystack.com https://*.paystack.com;
-    ">
+    default-src 'self';
+    connect-src 'self'
+      https://jbqhbuogmxqzotlorahn.supabase.co
+      https://jbqhbuogmxqzotlorahn.functions.supabase.co
+      https://api.paystack.co;
+    img-src 'self' blob: data: https://jbqhbuogmxqzotlorahn.supabase.co;
+    script-src 'self' 'unsafe-inline' https://js.paystack.co;
+    style-src 'self' 'unsafe-inline' https://paystack.com https://*.paystack.com;
+    font-src 'self' data:;
+    frame-src https://checkout.paystack.com https://*.paystack.com;
+    object-src 'none';
+  ">
 
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -28,37 +32,44 @@
 <body>
   <div id="root"></div>
 
-  <!-- Main app -->
+  <!-- Main React/TypeScript entry -->
   <script type="module" src="/src/main.tsx"></script>
 
-  <!-- Paystack Inline -->
+  <!-- Paystack Inline Script -->
   <script src="https://js.paystack.co/v1/inline.js"></script>
 
-  <!-- Optional test trigger button -->
+  <!-- Optional Demo Payment Trigger (for testing only) -->
   <script>
     function payWithPaystack() {
       if (!window.PaystackPop) {
         alert('Paystack not loaded');
         return;
       }
+
       const handler = PaystackPop.setup({
-        key: 'pk_live_xxxxxxxxxxxxxxxxxxxxxx', // replace with your LIVE key
+        key: 'pk_live_xxxxxxxxxxxxxxxxxxxxxx', // 🔑 Replace with your LIVE or TEST public key
         email: 'user@example.com',
-        amount: 5000 * 100, // ₦5000
+        amount: 5000 * 100, // ₦5000 in kobo
         currency: 'NGN',
         ref: 'REF_' + Math.floor(Math.random() * 1000000000),
         callback: function (response) {
-          console.log('Payment successful!', response);
+          console.log('✅ Payment successful!', response);
+          alert('Payment Successful! Reference: ' + response.reference);
         },
         onClose: function () {
           alert('Payment window closed.');
         }
       });
+
       handler.openIframe();
     }
 
+    // Add a temporary button for testing payments locally
     window.onload = () => {
-      document.body.insertAdjacentHTML('beforeend', '<button onclick="payWithPaystack()">Pay ₦5000</button>');
+      document.body.insertAdjacentHTML(
+        'beforeend',
+        '<button onclick="payWithPaystack()" style="position:fixed;bottom:20px;right:20px;padding:10px 20px;background:#2563eb;color:white;border:none;border-radius:8px;cursor:pointer;">Test Pay ₦5000</button>'
+      );
     };
   </script>
 </body>
