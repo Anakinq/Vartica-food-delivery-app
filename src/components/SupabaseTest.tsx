@@ -27,10 +27,8 @@ export function SupabaseTest() {
 
         if (fetchError) {
             setError(fetchError.message);
-            console.error('❌ Error:', fetchError);
         } else {
             setProfile(data);
-            console.log('✅ Profile:', data);
         }
 
         setLoading(false);

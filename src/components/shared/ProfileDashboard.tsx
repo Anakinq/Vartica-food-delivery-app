@@ -43,8 +43,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2000);
     } catch (err) {
-      alert('Failed to update profile. Please try again.');
-      console.error('Profile update error:', err);
+      alert('Failed to update profile');
     } finally {
       setLoading(false);
     }

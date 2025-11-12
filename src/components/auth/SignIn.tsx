@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react'; // ✅ added useEffect
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase'; // ✅ add this import
 
 interface SignInProps {
   role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin';
@@ -9,45 +10,29 @@ interface SignInProps {
 }
 
 export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }) => {
-  const { signIn, user, profile, loading: authLoading } = useAuth(); // ✅ pull user/profile/authLoading
+  const { signIn, user, profile, loading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false); // renamed to avoid conflict
+  const [submitting, setSubmitting] = useState(false);
+  const [forgotPasswordMode, setForgotPasswordMode] = useState(false); // ✅ toggle state
 
-  const roleTitle = {
-    customer: 'Customer',
-    cafeteria: 'Cafeteria',
-    vendor: 'Student Vendor',
-    delivery_agent: 'Delivery Agent',
-    admin: 'Admin',
-  }[role];
-
-  // ✅ NEW: Redirect on successful sign-in
+  // ✅ Redirect on auth success
   useEffect(() => {
-    if (user && profile) {
-      // Optional: verify role matches (extra safety)
-      if (profile.role === role) {
-        // 👇 Replace this with your actual navigation logic:
-        // - React Router: navigate('/dashboard')
-        // - Window redirect: window.location.href = '/dashboard'
-        console.log('✅ Auth success — redirecting...');
-        window.location.reload(); // quick fix: reload to let App.tsx render protected view
-        // OR better: use your router
-      } else {
-        setError(`This account is registered as a ${profile.role}, not a ${role}.`);
-      }
+    if (user && profile && profile.role === role) {
+      window.location.reload();
+    } else if (user && profile && profile.role !== role) {
+      setError(`This account is registered as a ${profile.role}, not a ${role}.`);
     }
   }, [user, profile, role]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSubmitting(true);
 
     try {
       await signIn(email, password);
-      // ✅ Success → handled by useEffect above
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to sign in');
     } finally {
@@ -55,7 +40,35 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
     }
   };
 
-  // ✅ Show loading from AuthContext (more accurate than local submitting)
+  // ✅ NEW: Forgot Password Handler
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSubmitting(true);
+
+    if (!email) {
+      setError('Please enter your email');
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/update-password`,
+      });
+
+      if (error) throw error;
+
+      // ✅ Success message
+      alert('✅ Password reset email sent! Check your inbox (and spam folder).');
+      setForgotPasswordMode(false);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to send reset email');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const isLoading = submitting || authLoading;
 
   return (
@@ -63,7 +76,7 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
       <div className="max-w-md w-full">
         <button
           onClick={onBack}
-          className="flex items-center text-gray-600 hover:text-gray-900 mb-8"
+          className="flex items-center text-gray-600 hover:text-gray-900 mb-6"
         >
           <ArrowLeft className="h-5 w-5 mr-2" />
           Back
@@ -71,10 +84,12 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
 
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            {roleTitle} Sign In
+            {forgotPasswordMode ? 'Reset Password' : `${roleTitle} Sign In`}
           </h2>
-          <p className="text-gray-600 mb-8">
-            Enter your credentials to continue
+          <p className="text-gray-600 mb-6">
+            {forgotPasswordMode
+              ? 'Enter your email to receive a password reset link'
+              : 'Enter your credentials to continue'}
           </p>
 
           {error && (
@@ -83,7 +98,10 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form 
+            onSubmit={forgotPasswordMode ? handleForgotPassword : handleSignIn} 
+            className="space-y-6"
+          >
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Email
@@ -99,43 +117,69 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={isLoading}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="••••••••"
-              />
-            </div>
+            {!forgotPasswordMode && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="••••••••"
+                />
+              </div>
+            )}
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50"
             >
-              {isLoading ? 'Signing in...' : 'Sign In'}
+              {isLoading 
+                ? (forgotPasswordMode ? 'Sending...' : 'Signing in...') 
+                : (forgotPasswordMode ? 'Send Reset Link' : 'Sign In')}
             </button>
           </form>
 
-          {onSwitchToSignUp && role !== 'cafeteria' && role !== 'admin' && (
-            <div className="mt-6 text-center">
-              <p className="text-gray-600">
-                Don't have an account?{' '}
+          {/* ✅ Toggle between sign-in and forgot-password */}
+          <div className="mt-6 text-center space-y-3">
+            {!forgotPasswordMode ? (
+              <>
                 <button
-                  onClick={onSwitchToSignUp}
-                  className="text-blue-600 hover:text-blue-700 font-semibold"
+                  type="button"
+                  onClick={() => setForgotPasswordMode(true)}
+                  className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                  disabled={isLoading}
                 >
-                  Sign Up
+                  Forgot password?
                 </button>
-              </p>
-            </div>
-          )}
+
+                {onSwitchToSignUp && role !== 'cafeteria' && role !== 'admin' && (
+                  <p className="text-gray-600">
+                    Don't have an account?{' '}
+                    <button
+                      onClick={onSwitchToSignUp}
+                      className="text-blue-600 hover:text-blue-700 font-semibold"
+                    >
+                      Sign Up
+                    </button>
+                  </p>
+                )}
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setForgotPasswordMode(false)}
+                className="text-sm text-gray-600 hover:text-gray-900 font-medium"
+              >
+                ← Back to Sign In
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

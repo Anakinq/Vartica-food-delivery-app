@@ -71,7 +71,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
     script.src = 'https://js.paystack.co/v1/inline.js';
     script.async = true;
     script.onload = () => setPaystackScriptLoaded(true);
-    script.onerror = () => console.error('Failed to load Paystack script');
+    script.onerror = () => alert('Failed to load payment system');
     document.head.appendChild(script);
 
     return () => {
@@ -189,8 +189,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
       setSuccess(true);
       setTimeout(() => onSuccess(), 2000);
     } catch (error) {
-      console.error('Order creation failed after payment:', error);
-      alert(`Payment succeeded but order failed. Reference: ${response.reference}`);
+      alert('Payment successful but order creation failed. Contact support with payment reference.');
     } finally {
       setLoading(false);
     }
@@ -208,8 +207,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
       setSuccess(true);
       setTimeout(() => onSuccess(), 2000);
     } catch (error) {
-      console.error('Order error:', error);
-      alert('Failed to place order. Please try again.');
+      alert(`Failed to create order: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }

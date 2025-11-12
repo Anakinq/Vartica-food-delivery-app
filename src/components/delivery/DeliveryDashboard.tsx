@@ -135,7 +135,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         setBankName(bank?.name || bankData.bank_code);
       }
     } catch (err) {
-      console.error('Fetch error:', err);
+      // Fetch error handled silently
     } finally {
       setLoading(false);
     }
@@ -211,7 +211,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       setMyOrders(attachItems(myOrdersData || []));
       setAvailableOrders(attachItems(availableOrdersData));
     } catch (err) {
-      console.error('Orders fetch error:', err);
+      // Orders fetch error handled silently
     }
   }, [profile?.id]);
 
@@ -242,9 +242,8 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       await registerPaystackRecipient();
     } catch (err) {
       alert('❌ Failed to save bank details');
-      console.error(err);
     } finally {
-      setSavingBank(false);
+
     }
   };
 
@@ -339,7 +338,6 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         alert(`❌ Withdrawal failed: ${result.error || 'Unknown error'}`);
       }
     } catch (err: any) {
-      console.error('Withdraw error:', err);
       alert(`❌ Withdrawal failed: ${err.message}`);
     }
   };

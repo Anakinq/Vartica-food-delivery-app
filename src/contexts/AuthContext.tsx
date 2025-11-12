@@ -55,8 +55,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setProfile(profileData);
       }
     } catch (err) {
-      console.error('Unexpected error in fetchUserAndProfile:', err);
-      setProfile(null);
+      // Error fetching user and profile
+      setLoading(false);
     }
   };
 

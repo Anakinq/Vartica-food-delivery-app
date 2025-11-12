@@ -20,10 +20,10 @@ function AppContent() {
   const [authView, setAuthView] = useState<AuthView>('signin');
   const [showProfile, setShowProfile] = useState(false);
 
-  // 🔍 Optional: Debug — remove in production
-  useEffect(() => {
-    console.log('🔍 AppContent re-rendered | user:', !!user, 'profile:', !!profile, 'loading:', loading);
-  }, [user, profile, loading]);
+  // Debug logging removed for production
+  // useEffect(() => {
+  //   console.log('🔍 AppContent re-rendered | user:', !!user, 'profile:', !!profile, 'loading:', loading);
+  // }, [user, profile, loading]);
 
   // ✅ Handle /payment-success route FIRST
   if (window.location.pathname === '/payment-success') {
@@ -52,7 +52,7 @@ function AppContent() {
     // 🔐 Extra safety: ensure profile.role is valid
     const role = profile.role as Role | undefined;
     if (!role || !['customer', 'cafeteria', 'vendor', 'delivery_agent', 'admin'].includes(role)) {
-      console.error('⚠️ Invalid role in profile:', profile.role);
+      // Invalid role - redirect to customer home
       return (
         <div className="min-h-screen flex items-center justify-center bg-red-50">
           <div className="text-center p-6">
@@ -160,22 +160,16 @@ function AppContent() {
 
 function App() {
   useEffect(() => {
-    // 🔧 Console hygiene
+    // Filter out browser extension errors
     const originalError = console.error;
     console.error = (...args) => {
       if (args[0]?.toString().includes('Extension context invalidated')) return;
       originalError.apply(console, args);
     };
 
-    // 🔍 Env check
-    console.log('✅ Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
-    console.log(
-      '✅ Supabase Anon Key (first 8 chars):',
-      import.meta.env.VITE_SUPABASE_ANON_KEY?.substring(0, 8) + '...'
-    );
-
+    // Validate environment variables (silent check)
     if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-      console.error('❌ MISSING ENV VARS! Check .env.local');
+      alert('Configuration error: Missing Supabase credentials. Check your .env file.');
     }
   }, []);
 

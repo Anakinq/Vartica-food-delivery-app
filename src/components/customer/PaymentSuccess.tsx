@@ -36,7 +36,7 @@ export const PaymentSuccess: React.FC = () => {
         localStorage.removeItem('cart');
         localStorage.removeItem('selectedSeller');
       } catch (error) {
-        console.error('Error:', error);
+        // Error fetching order details
       } finally {
         setLoading(false);
       }

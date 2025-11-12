@@ -74,7 +74,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ orderId, orderNumber, reci
     setSending(true);
 
     try {
-      await databaseService.insert<ChatMessage>({
+      const { error } = await databaseService.insert<ChatMessage>({
         table: 'chat_messages',
         data: {
           order_id: orderId,
@@ -83,6 +83,11 @@ export const ChatModal: React.FC<ChatModalProps> = ({ orderId, orderNumber, reci
           is_read: false,
         },
       });
+
+      if (error) {
+        alert('Failed to send message');
+        return;
+      }
 
       setNewMessage('');
     } catch (error) {
@@ -116,17 +121,15 @@ export const ChatModal: React.FC<ChatModalProps> = ({ orderId, orderNumber, reci
               return (
                 <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
                   <div
-                    className={`max-w-[70%] px-4 py-2 rounded-lg ${
-                      isOwn
+                    className={`max-w-[70%] px-4 py-2 rounded-lg ${isOwn
                         ? 'bg-blue-600 text-white'
                         : 'bg-white text-gray-900 border border-gray-200'
-                    }`}
+                      }`}
                   >
                     <p className="text-sm">{msg.message}</p>
                     <p
-                      className={`text-xs mt-1 ${
-                        isOwn ? 'text-blue-100' : 'text-gray-500'
-                      }`}
+                      className={`text-xs mt-1 ${isOwn ? 'text-blue-100' : 'text-gray-500'
+                        }`}
                     >
                       {new Date(msg.created_at).toLocaleTimeString([], {
                         hour: '2-digit',

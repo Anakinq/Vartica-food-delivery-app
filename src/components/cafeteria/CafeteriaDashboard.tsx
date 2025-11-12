@@ -4,25 +4,18 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase, MenuItem, Cafeteria } from '../../lib/supabase';
 import { MenuItemForm } from '../shared/MenuItemForm';
 
-// --- NEW: Image upload helper ---
-const uploadImageToSupabase = async (file: File): Promise<string | null> => {
-  if (!file) return null;
-
-  const fileName = `food-${Date.now()}-${file.name}`;
+const uploadImage = async (file: File): Promise<string | null> => {
   const { data, error } = await supabase.storage
-    .from('food-images')
-    .upload(fileName, file, { upsert: false });
+    .from('menu-images')
+    .upload(`${Date.now()}-${file.name}`, file);
 
-  if (error) {
-    console.error('Image upload error:', error);
-    throw new Error('Failed to upload image');
-  }
+  if (error) return null;
 
-  const { data: publicUrlData } = supabase.storage
-    .from('food-images')
-    .getPublicUrl(data.path);
+  const { publicUrl } = supabase.storage
+    .from('menu-images')
+    .getPublicUrl(data?.path ?? '');
 
-  return publicUrlData.publicUrl;
+  return publicUrl;
 };
 
 export const CafeteriaDashboard: React.FC = () => {
@@ -73,39 +66,33 @@ export const CafeteriaDashboard: React.FC = () => {
     }
   };
 
-  // --- UPDATED: handleSaveItem now supports image upload ---
-  const handleSaveItem = async (itemData: Partial<MenuItem>, imageFile?: File) => {
+  const handleSaveItem = async (itemData: Partial<MenuItem>, file?: File) => {
     if (!cafeteria) return;
 
     let finalData = { ...itemData };
 
-    // If a new image file is provided, upload it and replace image_url
-    if (imageFile) {
-      try {
-        const imageUrl = await uploadImageToSupabase(imageFile);
+    if (file) {
+      const imageUrl = await uploadImage(file);
+      if (imageUrl) {
         finalData = { ...finalData, image_url: imageUrl };
-      } catch (err) {
-        alert('Failed to upload image. Please try again.');
-        return;
       }
     }
 
     if (editingItem) {
-      const { error } = await supabase
+      const { error: menuItemError } = await supabase
         .from('menu_items')
         .update(finalData)
         .eq('id', editingItem.id);
 
-      if (!error) {
-        await fetchData();
-        setShowForm(false);
-        setEditingItem(null);
-      } else {
-        console.error('Update error:', error);
-        alert('Failed to update menu item.');
+      if (menuItemError) {
+        return;
       }
+
+      await fetchData();
+      setShowForm(false);
+      setEditingItem(null);
     } else {
-      const { error } = await supabase
+      const { error: insertError } = await supabase
         .from('menu_items')
         .insert({
           ...finalData,
@@ -113,13 +100,12 @@ export const CafeteriaDashboard: React.FC = () => {
           seller_type: 'cafeteria',
         });
 
-      if (!error) {
-        await fetchData();
-        setShowForm(false);
-      } else {
-        console.error('Insert error:', error);
-        alert('Failed to add menu item.');
+      if (insertError) {
+        return;
       }
+
+      await fetchData();
+      setShowForm(false);
     }
   };
 
