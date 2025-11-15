@@ -3,22 +3,15 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // ✅ CORS headers (required for local testing & cross-origin)
 const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": "https://varticadelivery.vercel.app",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 // 🔑 Get secrets — MUST be set in Supabase Functions Env Vars
 const PAYSTACK_SECRET = Deno.env.get("PAYSTACK_SECRET_KEY");
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-if (!PAYSTACK_SECRET || !SUPABASE_SERVICE_ROLE) {
-    throw new Error("Missing required env vars");
-}
-
-// ✅ Use Service Role key for DB writes (bypasses RLS)
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SUPABASE_SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
 serve(async (req) => {
     // Handle CORS preflight
@@ -27,6 +20,13 @@ serve(async (req) => {
     }
 
     try {
+        // Validate environment variables
+        if (!PAYSTACK_SECRET || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE) {
+            throw new Error("Missing required environment variables");
+        }
+
+        // ✅ Use Service Role key for DB writes (bypasses RLS)
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
         // 🔐 Authenticate user
         const authHeader = req.headers.get("Authorization") || "";
         const token = authHeader.replace("Bearer ", "");
