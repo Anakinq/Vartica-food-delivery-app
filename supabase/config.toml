@@ -15,3 +15,9 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/handleAgentWithdrawal/deno.json"
 entrypoint = "./functions/handleAgentWithdrawal/index.ts"
+
+[functions.registerPaystackRecipient]
+enabled = true
+verify_jwt = true
+import_map = "./functions/registerPaystackRecipient/deno.json"
+entrypoint = "./functions/registerPaystackRecipient/index.ts"
