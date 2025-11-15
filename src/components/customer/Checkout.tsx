@@ -364,10 +364,20 @@ export const Checkout: React.FC<CheckoutProps> = ({
                       alert('Payment gateway not loaded. Refresh and try again.');
                       return;
                     }
-                    const email = profile?.email || 'customer@example.com';
+                    if (!profile?.email) {
+                      alert('Email is required for payment. Please update your profile.');
+                      return;
+                    }
+                    const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY?.trim();
+                    if (!paystackKey) {
+                      alert('Payment system not configured. Please contact support.');
+                      console.error('VITE_PAYSTACK_PUBLIC_KEY not set');
+                      return;
+                    }
+                    const email = profile.email;
                     const ref = `VARTICA_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
                     const handler = (window as any).PaystackPop.setup({
-                      key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY?.trim() || 'pk_live_ca2ed0ce730330e603e79901574f930abee50ec6',
+                      key: paystackKey,
                       email,
                       amount: totalInKobo,
                       currency: 'NGN',
