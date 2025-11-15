@@ -19,9 +19,21 @@ interface FullOrder extends Order {
 }
 
 interface AgentWallet {
-  customer_funds: number;
-  delivery_earnings: number;
-  total_balance: number;
+  total_earnings: number;
+  current_balance: number;
+  pending_withdrawal: number;
+  total_withdrawals: number;
+}
+
+interface WithdrawalRequest {
+  id: string;
+  amount: number;
+  bank_name: string;
+  account_number: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  approved_at?: string;
+  rejection_reason?: string;
 }
 
 interface DeliveryDashboardProps {
@@ -75,7 +87,9 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
   // Core state
   const [agent, setAgent] = useState<DeliveryAgent | null>(null);
+  // Wallet state
   const [wallet, setWallet] = useState<AgentWallet | null>(null);
+  const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
   const [availableOrders, setAvailableOrders] = useState<FullOrder[]>([]);
   const [myOrders, setMyOrders] = useState<FullOrder[]>([]);
   const [selectedOrderForChat, setSelectedOrderForChat] = useState<FullOrder | null>(null);
@@ -98,7 +112,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   const [processingWithdrawal, setProcessingWithdrawal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [message, setMessage] = useState<{ type: 'error' | 'success' | 'info'; text: string } | null>(null);
-  const [withdrawHistory, setWithdrawHistory] = useState<any[]>([]);
+
 
   const menuRef = useRef<HTMLDivElement>(null);
   const withdrawCooldownRef = useRef<number | null>(null);
@@ -142,32 +156,42 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       // 2. Wallet
       const { data: walletData } = await supabase
         .from('agent_wallets')
-        .select('customer_funds, delivery_earnings, total_balance')
+        .select('total_earnings, current_balance, pending_withdrawal, total_withdrawals')
         .eq('agent_id', agentData.id)
         .maybeSingle();
 
       setWallet({
-        customer_funds: Number(walletData?.customer_funds) || 0,
-        delivery_earnings: Number(walletData?.delivery_earnings) || 0,
-        total_balance: Number(walletData?.total_balance) || 0,
+        total_earnings: Number(walletData?.total_earnings) || 0,
+        current_balance: Number(walletData?.current_balance) || 0,
+        pending_withdrawal: Number(walletData?.pending_withdrawal) || 0,
+        total_withdrawals: Number(walletData?.total_withdrawals) || 0,
       });
 
-      // 3. Bank profile — 🔑 THIS IS KEY FOR PERSISTENT VERIFICATION
+      // 3. Withdrawal Requests History
+      const { data: withdrawals } = await supabase
+        .from('withdrawal_requests')
+        .select('id, amount, bank_name, account_number, status, created_at, approved_at, rejection_reason')
+        .eq('agent_id', agentData.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      setWithdrawalRequests(withdrawals || []);
+
+      // 4. Bank profile (optional for manual withdrawals)
       const { data: bankData } = await supabase
         .from('agent_payout_profiles')
-        .select('account_number, bank_code, recipient_code')
+        .select('account_number, bank_code')
         .eq('user_id', profile.id)
         .maybeSingle();
 
       if (bankData) {
         setBankAccount(bankData.account_number);
         setBankCode(bankData.bank_code);
-        setIsBankVerified(!!bankData.recipient_code); // ✅ persists across logins
         const bank = BANK_OPTIONS.find(b => b.code === bankData.bank_code);
-        setBankName(bank?.name || bankData.bank_code);
+        setBankName(bank?.name || 'Unknown Bank');
+        setIsBankVerified(true); // Bank saved = verified for manual system
       }
 
-      // 4. Orders
+      // 5. Orders
       const { data: myOrdersData } = await supabase
         .from('orders')
         .select('id, order_number, total, status, delivery_address, delivery_notes, seller_id, seller_type, created_at')
@@ -228,15 +252,6 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
       setMyOrders(attachItems(myOrdersData || []));
       setAvailableOrders(attachItems(availableOrdersData));
-
-      // 5. Withdrawal history (NEW)
-      const { data: hist } = await supabase
-        .from('agent_withdrawals')
-        .select('id, amount, status, transfer_code, created_at, type')
-        .eq('agent_id', agentData.id)
-        .order('created_at', { ascending: false })
-        .limit(20);
-      setWithdrawHistory(hist || []);
     } catch (err) {
       console.error('fetchData error', err);
     } finally {
@@ -251,9 +266,9 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // ✅ FIXED: Save bank + verify in one flow, and refresh after success
+  // Save bank details (simplified - no Paystack verification)
   const saveBankDetails = async () => {
-    if (!profile?.id || bankAccount.length !== 10 || !bankCode) {
+    if (!profile?.id || !agent || bankAccount.length !== 10 || !bankCode) {
       setMessage({ type: 'error', text: 'Please enter a valid 10-digit account number and select a bank.' });
       return;
     }
@@ -262,7 +277,8 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     setMessage(null);
 
     try {
-      // 1. Save bank details
+      const selectedBank = BANK_OPTIONS.find(b => b.code === bankCode);
+
       const { error: upsertError } = await supabase
         .from('agent_payout_profiles')
         .upsert(
@@ -270,116 +286,81 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
             user_id: profile.id,
             account_number: bankAccount,
             bank_code: bankCode,
+            bank_name: selectedBank?.name || 'Unknown Bank',
           },
           { onConflict: 'user_id' }
         );
 
       if (upsertError) throw upsertError;
 
-      // 2. Register with Paystack (server-side)
-      const session = (await supabase.auth.getSession()).data.session;
-      const res = await fetch(
-        'https://jbqhbuogmxqzotlorahn.functions.supabase.co/registerPaystackRecipient',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ agent_user_id: profile.id }),
-        }
-      );
-
-      const result = await res.json();
-
-      if (!res.ok || !result.success) {
-        throw new Error(result.error || 'Verification failed');
-      }
-
-      // ✅ CRITICAL: Refresh data so `recipient_code` is loaded → `isBankVerified = true`
-      await fetchData(); // ← This ensures UI stays verified after login
-
-      setMessage({ type: 'success', text: '✅ Bank verified! You can now withdraw funds.' });
+      await fetchData();
+      setMessage({ type: 'success', text: '✅ Bank details saved successfully!' });
     } catch (err: any) {
-      console.error('Verification error:', err);
-      setMessage({ type: 'error', text: `Bank verification failed: ${err.message}` });
+      console.error('Save bank error:', err);
+      setMessage({ type: 'error', text: `Failed to save bank details: ${err.message}` });
     } finally {
       setSavingBank(false);
     }
   };
 
-  // Open withdrawal modal with pre-filled amount
-  const openWithdrawModal = (type: 'customer_funds' | 'delivery_earnings') => {
-    if (!wallet) return;
-    const max = type === 'customer_funds' ? wallet.customer_funds : wallet.delivery_earnings;
-    setWithdrawType(type);
-    setWithdrawAmount(max > 0 ? Number(max.toFixed(2)) : 0);
+  // Open withdrawal modal
+  const openWithdrawModal = () => {
+    if (!wallet || wallet.current_balance <= 0) {
+      setMessage({ type: 'error', text: 'Insufficient balance.' });
+      return;
+    }
+    setWithdrawAmount(wallet.current_balance);
     setShowWithdrawModal(true);
     setMessage(null);
   };
 
-  // Handle withdrawal submission
-  const handleWithdraw = async () => {
-    if (!agent || !wallet || withdrawAmount == null) return;
+  // Submit withdrawal request (manual - admin will approve)
+  const handleWithdrawRequest = async () => {
+    if (!agent || !wallet || !profile || withdrawAmount == null) return;
 
-    if (!isBankVerified) {
-      setMessage({ type: 'error', text: 'Bank not verified. Please verify your bank first.' });
+    if (!isBankVerified || !bankAccount || !bankCode) {
+      setMessage({ type: 'error', text: 'Please save your bank details first.' });
       return;
     }
 
-    const max = withdrawType === 'customer_funds' ? wallet.customer_funds : wallet.delivery_earnings;
-    if (withdrawAmount <= 0 || withdrawAmount > max) {
-      setMessage({ type: 'error', text: `Amount must be between ₦0.01 and ${formatCurrency(max)}.` });
+    if (withdrawAmount <= 0 || withdrawAmount > wallet.current_balance) {
+      setMessage({ type: 'error', text: `Amount must be between ₦0.01 and ${formatCurrency(wallet.current_balance)}.` });
       return;
     }
-
-    // Frontend cooldown (UX only)
-    if (withdrawCooldownRef.current && Date.now() - withdrawCooldownRef.current < 5000) {
-      setMessage({ type: 'info', text: 'Please wait a few seconds before trying again.' });
-      return;
-    }
-    withdrawCooldownRef.current = Date.now();
 
     setProcessingWithdrawal(true);
     setMessage(null);
 
     try {
-      const session = (await supabase.auth.getSession()).data.session;
-      if (!session) throw new Error('Not authenticated');
+      // Create withdrawal request
+      const { error } = await supabase
+        .from('withdrawal_requests')
+        .insert({
+          agent_id: agent.id,
+          rider_name: profile.full_name,
+          amount: withdrawAmount,
+          bank_name: bankName,
+          account_number: bankAccount,
+          status: 'pending',
+        });
 
-      const payload = {
-        agent_id: agent.id,
-        amount_kobo: Math.round(withdrawAmount * 100),
-        type: withdrawType,
-      };
+      if (error) throw error;
 
-      const resp = await fetch(
-        'https://jbqhbuogmxqzotlorahn.functions.supabase.co/handleAgentWithdrawal',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      const result = await resp.json();
-
-      if (!resp.ok || !result.success) {
-        throw new Error(result.error || 'Withdrawal failed');
-      }
+      // Update wallet pending_withdrawal
+      await supabase
+        .from('agent_wallets')
+        .update({ pending_withdrawal: wallet.pending_withdrawal + withdrawAmount })
+        .eq('agent_id', agent.id);
 
       setMessage({
         type: 'success',
-        text: `✅ Withdrawal initiated! Ref: ${result.transfer_code || 'N/A'}`,
+        text: `✅ Withdrawal request submitted! Admin will process it manually.`,
       });
       setShowWithdrawModal(false);
-      await fetchData(); // refresh balance & history
+      await fetchData(); // refresh
     } catch (err: any) {
-      console.error('Withdrawal error:', err);
-      setMessage({ type: 'error', text: `❌ Withdrawal failed: ${err.message}` });
+      console.error('Withdrawal request error:', err);
+      setMessage({ type: 'error', text: `❌ Failed: ${err.message}` });
     } finally {
       setProcessingWithdrawal(false);
     }
@@ -483,10 +464,10 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         {message && (
           <div
             className={`p-3 rounded mb-4 border ${message.type === 'error'
-                ? 'bg-red-50 border-red-200 text-red-700'
-                : message.type === 'success'
-                  ? 'bg-green-50 border-green-200 text-green-700'
-                  : 'bg-blue-50 border-blue-200 text-blue-700'
+              ? 'bg-red-50 border-red-200 text-red-700'
+              : message.type === 'success'
+                ? 'bg-green-50 border-green-200 text-green-700'
+                : 'bg-blue-50 border-blue-200 text-blue-700'
               }`}
           >
             {message.text}
@@ -649,10 +630,10 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                     </div>
                     <span
                       className={`px-2 py-1 rounded text-xs font-medium ${w.status === 'completed'
-                          ? 'bg-green-100 text-green-800'
-                          : w.status === 'failed'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-yellow-100 text-yellow-800'
+                        ? 'bg-green-100 text-green-800'
+                        : w.status === 'failed'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-yellow-100 text-yellow-800'
                         }`}
                     >
                       {w.status}
