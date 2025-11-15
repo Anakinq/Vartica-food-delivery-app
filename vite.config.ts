@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
   // Load all env variables (including those without VITE_ prefix)
   const env = loadEnv(mode, process.cwd(), '');
+  const isProduction = mode === 'production';
 
   return {
     plugins: [react()],
@@ -15,6 +16,17 @@ export default defineConfig(({ mode }) => {
     define: {
       // Make process.env available in the browser
       'process.env': env,
+    },
+    build: {
+      minify: 'terser',
+      terserOptions: isProduction
+        ? {
+          compress: {
+            drop_console: true, // Remove console.* in production
+            drop_debugger: true,
+          },
+        }
+        : undefined,
     },
 
     // ✅ Add security headers to allow Supabase Functions & Paystack
