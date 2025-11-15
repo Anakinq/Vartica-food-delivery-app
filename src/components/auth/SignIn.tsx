@@ -28,11 +28,10 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
 
   // ✅ Redirect on auth success
   useEffect(() => {
-    if (user && profile && profile.role === role) {
-      window.location.reload();
-    } else if (user && profile && profile.role !== role) {
+    if (user && profile && profile.role !== role) {
       setError(`This account is registered as a ${profile.role}, not a ${role}.`);
     }
+    // Note: No need to reload - AuthContext + App.tsx handle routing automatically
   }, [user, profile, role]);
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -106,8 +105,8 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
             </div>
           )}
 
-          <form 
-            onSubmit={forgotPasswordMode ? handleForgotPassword : handleSignIn} 
+          <form
+            onSubmit={forgotPasswordMode ? handleForgotPassword : handleSignIn}
             className="space-y-6"
           >
             <div>
@@ -147,8 +146,8 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
               disabled={isLoading}
               className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50"
             >
-              {isLoading 
-                ? (forgotPasswordMode ? 'Sending...' : 'Signing in...') 
+              {isLoading
+                ? (forgotPasswordMode ? 'Sending...' : 'Signing in...')
                 : (forgotPasswordMode ? 'Send Reset Link' : 'Sign In')}
             </button>
           </form>
