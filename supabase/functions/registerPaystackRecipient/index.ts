@@ -4,7 +4,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // ✅ CORS headers (required for local testing & cross-origin)
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "authorization, content-type",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 // 🔑 Get secrets — MUST be set in Supabase Functions Env Vars
@@ -20,8 +21,9 @@ if (!PAYSTACK_SECRET || !SUPABASE_SERVICE_ROLE) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
 
 serve(async (req) => {
+    // Handle CORS preflight
     if (req.method === "OPTIONS") {
-        return new Response(null, { headers: corsHeaders });
+        return new Response("ok", { headers: corsHeaders, status: 200 });
     }
 
     try {
@@ -102,7 +104,7 @@ serve(async (req) => {
         console.error("Edge function error:", error);
         return new Response(
             JSON.stringify({ success: false, error: error.message || "Internal error" }),
-            { status: 400, headers: corsHeaders }
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
     }
 });
