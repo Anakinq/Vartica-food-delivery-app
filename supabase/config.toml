@@ -18,6 +18,6 @@ entrypoint = "./functions/handleAgentWithdrawal/index.ts"
 
 [functions.registerPaystackRecipient]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/registerPaystackRecipient/deno.json"
 entrypoint = "./functions/registerPaystackRecipient/index.ts"
