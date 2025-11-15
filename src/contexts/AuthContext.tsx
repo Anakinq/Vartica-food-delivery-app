@@ -91,9 +91,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (event.event === 'SIGNED_IN' || event.event === 'USER_UPDATED') {
         await fetchUserAndProfile(event.session?.user ?? null);
+        setLoading(false); // ✅ Set loading to false after sign-in completes
       } else if (event.event === 'SIGNED_OUT') {
         setUser(null);
         setProfile(null);
+        setLoading(false); // ✅ Set loading to false after sign-out completes
       }
     });
 
