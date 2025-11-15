@@ -28,27 +28,44 @@ interface DeliveryDashboardProps {
   onShowProfile?: () => void;
 }
 
-// ✅ Full Nigerian bank list (Paystack-compliant)
+// ✅ Full Nigerian bank list (Paystack-compliant bank codes)
 const BANK_OPTIONS = [
   { code: '044', name: 'Access Bank' },
-  { code: '011', name: 'First Bank' },
-  { code: '058', name: 'GTBank' },
-  { code: '033', name: 'UBA' },
-  { code: '057', name: 'Zenith Bank' },
+  { code: '063', name: 'Access Bank (Diamond)' },
+  { code: '035A', name: 'ALAT by WEMA' },
+  { code: '401', name: 'ASO Savings and Loans' },
+  { code: '023', name: 'Citibank Nigeria' },
+  { code: '050', name: 'Ecobank Nigeria' },
+  { code: '562', name: 'Ekondo Microfinance Bank' },
   { code: '070', name: 'Fidelity Bank' },
-  { code: '214', name: 'FCMB' },
-  { code: '035', name: 'Sterling Bank' },
-  { code: '050', name: 'Ecobank' },
-  { code: '032', name: 'Union Bank' },
+  { code: '011', name: 'First Bank of Nigeria' },
+  { code: '214', name: 'First City Monument Bank' },
+  { code: '901', name: 'FSDH Merchant Bank Limited' },
+  { code: '00103', name: 'Globus Bank' },
+  { code: '100022', name: 'GoMoney' },
+  { code: '058', name: 'Guaranty Trust Bank' },
+  { code: '030', name: 'Heritage Bank' },
+  { code: '301', name: 'Jaiz Bank' },
   { code: '082', name: 'Keystone Bank' },
-  { code: '076', name: 'Polaris Bank' },
-  { code: '068', name: 'Stanbic IBTC' },
-  { code: '307', name: 'OPay (Paycom)' },
-  { code: '526', name: 'Parallex Bank' },
-  { code: '501', name: 'Providus Bank' },
   { code: '559', name: 'Kuda Bank' },
-  { code: '315', name: 'Renmoney' },
-  { code: '566', name: 'Sparkle Microfinance' },
+  { code: '50211', name: 'Kuda Microfinance Bank' },
+  { code: '526', name: 'Parallex Bank' },
+  { code: '076', name: 'Polaris Bank' },
+  { code: '101', name: 'Providus Bank' },
+  { code: '125', name: 'Rubies MFB' },
+  { code: '51310', name: 'Sparkle Microfinance Bank' },
+  { code: '221', name: 'Stanbic IBTC Bank' },
+  { code: '068', name: 'Standard Chartered Bank' },
+  { code: '232', name: 'Sterling Bank' },
+  { code: '100', name: 'Suntrust Bank' },
+  { code: '302', name: 'TAJ Bank' },
+  { code: '102', name: 'Titan Bank' },
+  { code: '032', name: 'Union Bank of Nigeria' },
+  { code: '033', name: 'United Bank For Africa' },
+  { code: '215', name: 'Unity Bank' },
+  { code: '566', name: 'VFD Microfinance Bank' },
+  { code: '035', name: 'Wema Bank' },
+  { code: '057', name: 'Zenith Bank' },
 ];
 
 export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProfile }) => {
@@ -463,13 +480,12 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         {/* Messages */}
         {message && (
           <div
-            className={`p-3 rounded mb-4 border ${
-              message.type === 'error'
+            className={`p-3 rounded mb-4 border ${message.type === 'error'
                 ? 'bg-red-50 border-red-200 text-red-700'
                 : message.type === 'success'
-                ? 'bg-green-50 border-green-200 text-green-700'
-                : 'bg-blue-50 border-blue-200 text-blue-700'
-            }`}
+                  ? 'bg-green-50 border-green-200 text-green-700'
+                  : 'bg-blue-50 border-blue-200 text-blue-700'
+              }`}
           >
             {message.text}
           </div>
@@ -534,15 +550,13 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
               </div>
               <button
                 onClick={toggleOnlineStatus}
-                className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${
-                  isOnline ? 'bg-green-500' : 'bg-gray-300'
-                }`}
+                className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${isOnline ? 'bg-green-500' : 'bg-gray-300'
+                  }`}
                 aria-label={isOnline ? 'Go offline' : 'Go online'}
               >
                 <div
-                  className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-                    isOnline ? 'translate-x-6' : ''
-                  }`}
+                  className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isOnline ? 'translate-x-6' : ''
+                    }`}
                 />
               </button>
             </div>
@@ -632,13 +646,12 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                       </div>
                     </div>
                     <span
-                      className={`px-2 py-1 rounded text-xs font-medium ${
-                        w.status === 'completed'
+                      className={`px-2 py-1 rounded text-xs font-medium ${w.status === 'completed'
                           ? 'bg-green-100 text-green-800'
                           : w.status === 'failed'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}
                     >
                       {w.status}
                     </span>
