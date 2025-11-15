@@ -4,20 +4,26 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
-
-const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-);
 
 serve(async (req: Request) => {
     // Handle CORS preflight
     if (req.method === 'OPTIONS') {
-        return new Response('ok', { headers: corsHeaders });
+        return new Response('ok', { headers: corsHeaders, status: 200 });
     }
 
     try {
+        // Get environment variables inside handler
+        const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+        const SUPABASE_SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+        const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
+
+        if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE || !PAYSTACK_SECRET_KEY) {
+            throw new Error("Missing required environment variables");
+        }
+
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
         // Verify JWT token
         const authHeader = req.headers.get('Authorization');
         if (!authHeader) {
@@ -89,7 +95,7 @@ serve(async (req: Request) => {
         const paystackRes = await fetch("https://api.paystack.co/transfer", {
             method: "POST",
             headers: {
-                Authorization: `Bearer ${Deno.env.get("PAYSTACK_SECRET_KEY")}`,
+                Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
