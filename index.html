@@ -37,41 +37,6 @@
 
   <!-- Paystack Inline Script -->
   <script src="https://js.paystack.co/v1/inline.js"></script>
-
-  <!-- Optional Demo Payment Trigger (for testing only) -->
-  <script>
-    function payWithPaystack() {
-      if (!window.PaystackPop) {
-        alert('Paystack not loaded');
-        return;
-      }
-
-      const handler = PaystackPop.setup({
-        key: 'pk_live_xxxxxxxxxxxxxxxxxxxxxx', // 🔑 Replace with your LIVE or TEST public key
-        email: 'user@example.com',
-        amount: 5000 * 100, // ₦5000 in kobo
-        currency: 'NGN',
-        ref: 'REF_' + Math.floor(Math.random() * 1000000000),
-        callback: function (response) {
-          console.log('✅ Payment successful!', response);
-          alert('Payment Successful! Reference: ' + response.reference);
-        },
-        onClose: function () {
-          alert('Payment window closed.');
-        }
-      });
-
-      handler.openIframe();
-    }
-
-    // Add a temporary button for testing payments locally
-    window.onload = () => {
-      document.body.insertAdjacentHTML(
-        'beforeend',
-        '<button onclick="payWithPaystack()" style="position:fixed;bottom:20px;right:20px;padding:10px 20px;background:#2563eb;color:white;border:none;border-radius:8px;cursor:pointer;">Test Pay ₦5000</button>'
-      );
-    };
-  </script>
 </body>
 
 </html>
