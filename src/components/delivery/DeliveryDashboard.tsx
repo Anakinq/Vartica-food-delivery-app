@@ -273,20 +273,30 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       return;
     }
 
+    // Validate account number is numeric
+    if (!/^\d{10}$/.test(bankAccount)) {
+      setMessage({ type: 'error', text: 'Account number must be exactly 10 digits.' });
+      return;
+    }
+
     setSavingBank(true);
     setMessage(null);
 
     try {
       const selectedBank = BANK_OPTIONS.find(b => b.code === bankCode);
 
+      if (!selectedBank) {
+        throw new Error('Invalid bank selected.');
+      }
+
       const { error: upsertError } = await supabase
         .from('agent_payout_profiles')
         .upsert(
           {
             user_id: profile.id,
-            account_number: bankAccount,
+            account_number: bankAccount.trim(),
             bank_code: bankCode,
-            bank_name: selectedBank?.name || 'Unknown Bank',
+            bank_name: selectedBank.name,
           },
           { onConflict: 'user_id' }
         );
@@ -323,24 +333,43 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       return;
     }
 
+    // Validate amount
     if (withdrawAmount <= 0 || withdrawAmount > wallet.current_balance) {
       setMessage({ type: 'error', text: `Amount must be between ₦0.01 and ${formatCurrency(wallet.current_balance)}.` });
       return;
     }
 
+    // Minimum withdrawal amount
+    if (withdrawAmount < 100) {
+      setMessage({ type: 'error', text: 'Minimum withdrawal amount is ₦100.' });
+      return;
+    }
+
+    // Rate limiting check (max 1 request per 30 seconds)
+    const now = Date.now();
+    if (withdrawCooldownRef.current && now - withdrawCooldownRef.current < 30000) {
+      const waitTime = Math.ceil((30000 - (now - withdrawCooldownRef.current)) / 1000);
+      setMessage({ type: 'error', text: `Please wait ${waitTime} seconds before submitting another request.` });
+      return;
+    }
+    withdrawCooldownRef.current = now;
+
     setProcessingWithdrawal(true);
     setMessage(null);
 
     try {
+      // Sanitize inputs
+      const sanitizedAmount = Math.round(withdrawAmount * 100) / 100; // Round to 2 decimals
+
       // Create withdrawal request
       const { error } = await supabase
         .from('withdrawal_requests')
         .insert({
           agent_id: agent.id,
-          rider_name: profile.full_name,
-          amount: withdrawAmount,
-          bank_name: bankName,
-          account_number: bankAccount,
+          rider_name: profile.full_name.trim(),
+          amount: sanitizedAmount,
+          bank_name: bankName.trim(),
+          account_number: bankAccount.trim(),
           status: 'pending',
         });
 
@@ -349,7 +378,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       // Update wallet pending_withdrawal
       await supabase
         .from('agent_wallets')
-        .update({ pending_withdrawal: wallet.pending_withdrawal + withdrawAmount })
+        .update({ pending_withdrawal: wallet.pending_withdrawal + sanitizedAmount })
         .eq('agent_id', agent.id);
 
       setMessage({
@@ -654,10 +683,10 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                         <td className="py-3 px-3">
                           <span
                             className={`px-2 py-1 rounded text-xs font-medium ${req.status === 'approved'
-                                ? 'bg-green-100 text-green-800'
-                                : req.status === 'rejected'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-yellow-100 text-yellow-800'
+                              ? 'bg-green-100 text-green-800'
+                              : req.status === 'rejected'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-yellow-100 text-yellow-800'
                               }`}
                           >
                             {req.status === 'approved' && '✅ '}

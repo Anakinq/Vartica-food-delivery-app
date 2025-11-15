@@ -167,6 +167,15 @@ BEGIN
   FROM agent_wallets
   WHERE agent_id = v_withdrawal.agent_id;
 
+  IF NOT FOUND THEN
+    RETURN json_build_object('success', false, 'error', 'Agent wallet not found');
+  END IF;
+
+  -- Validate amount is positive
+  IF v_withdrawal.amount <= 0 THEN
+    RETURN json_build_object('success', false, 'error', 'Invalid withdrawal amount');
+  END IF;
+
   -- Check if balance is sufficient
   IF v_wallet.current_balance < v_withdrawal.amount THEN
     RETURN json_build_object('success', false, 'error', 'Insufficient balance');
@@ -184,7 +193,7 @@ BEGIN
   UPDATE agent_wallets
   SET
     current_balance = current_balance - v_withdrawal.amount,
-    pending_withdrawal = pending_withdrawal - v_withdrawal.amount,
+    pending_withdrawal = GREATEST(0, pending_withdrawal - v_withdrawal.amount),
     total_withdrawals = total_withdrawals + v_withdrawal.amount,
     updated_at = now()
   WHERE agent_id = v_withdrawal.agent_id;

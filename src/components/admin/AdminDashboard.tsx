@@ -81,6 +81,13 @@ export const AdminDashboard: React.FC = () => {
 
   const handleApproveWithdrawal = async (withdrawalId: string) => {
     if (!user?.id) return;
+
+    // Confirm action
+    const confirmed = window.confirm(
+      '⚠️ IMPORTANT: Have you manually sent the money to the rider\'s bank account?\n\nOnly click OK if payment is completed.'
+    );
+    if (!confirmed) return;
+
     setProcessingWithdrawal(withdrawalId);
 
     try {
@@ -92,7 +99,7 @@ export const AdminDashboard: React.FC = () => {
       if (error) throw error;
       if (!data.success) throw new Error(data.error);
 
-      alert('✅ Withdrawal approved! Please send the money manually to the rider\'s bank.');
+      alert('✅ Withdrawal approved! Rider will see updated balance.');
       await fetchData(); // Refresh
     } catch (err: any) {
       alert(`❌ Error: ${err.message}`);
@@ -102,7 +109,15 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const handleRejectWithdrawal = async (withdrawalId: string) => {
-    const reason = prompt('Enter rejection reason (optional):');
+    const reason = prompt('Enter rejection reason:');
+    if (!reason || reason.trim().length === 0) {
+      alert('Rejection reason is required.');
+      return;
+    }
+
+    // Sanitize input
+    const sanitizedReason = reason.trim().slice(0, 200);
+
     setProcessingWithdrawal(withdrawalId);
 
     try {
@@ -110,7 +125,7 @@ export const AdminDashboard: React.FC = () => {
         .from('withdrawal_requests')
         .update({
           status: 'rejected',
-          rejection_reason: reason || 'Rejected by admin',
+          rejection_reason: sanitizedReason,
         })
         .eq('id', withdrawalId);
 
@@ -290,10 +305,10 @@ export const AdminDashboard: React.FC = () => {
                             <td className="py-3 px-4">
                               <span
                                 className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${req.status === 'approved'
-                                    ? 'bg-green-100 text-green-700'
-                                    : req.status === 'rejected'
-                                      ? 'bg-red-100 text-red-700'
-                                      : 'bg-yellow-100 text-yellow-700'
+                                  ? 'bg-green-100 text-green-700'
+                                  : req.status === 'rejected'
+                                    ? 'bg-red-100 text-red-700'
+                                    : 'bg-yellow-100 text-yellow-700'
                                   }`}
                               >
                                 {req.status === 'approved' && '✅ '}
@@ -393,8 +408,8 @@ export const AdminDashboard: React.FC = () => {
                         <td className="py-3 px-4 text-sm font-bold text-gray-900">₦{order.total.toFixed(2)}</td>
                         <td className="py-3 px-4">
                           <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${order.status === 'delivered' ? 'bg-green-100 text-green-700' :
-                              order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                                'bg-yellow-100 text-yellow-700'
+                            order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                              'bg-yellow-100 text-yellow-700'
                             }`}>
                             {order.status}
                           </span>
@@ -402,8 +417,8 @@ export const AdminDashboard: React.FC = () => {
                         <td className="py-3 px-4 text-sm text-gray-600">{order.payment_method}</td>
                         <td className="py-3 px-4">
                           <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${order.payment_status === 'paid' ? 'bg-green-100 text-green-700' :
-                              order.payment_status === 'failed' ? 'bg-red-100 text-red-700' :
-                                'bg-gray-100 text-gray-700'
+                            order.payment_status === 'failed' ? 'bg-red-100 text-red-700' :
+                              'bg-gray-100 text-gray-700'
                             }`}>
                             {order.payment_status === 'paid' && '✅ '}
                             {order.payment_status === 'failed' && '❌ '}
