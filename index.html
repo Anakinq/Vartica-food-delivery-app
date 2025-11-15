@@ -18,7 +18,8 @@
       https://api.paystack.co;
     img-src 'self' blob: data: https://jbqhbuogmxqzotlorahn.supabase.co;
     script-src 'self' 'unsafe-inline' https://js.paystack.co;
-    style-src 'self' 'unsafe-inline' https://paystack.com https://*.paystack.com;
+    style-src 'self' 'unsafe-inline';
+    style-src-elem 'self' 'unsafe-inline' https://paystack.com https://*.paystack.com;
     font-src 'self' data:;
     frame-src https://checkout.paystack.com https://*.paystack.com;
     object-src 'none';
