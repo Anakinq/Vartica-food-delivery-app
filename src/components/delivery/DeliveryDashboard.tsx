@@ -475,50 +475,55 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         )}
 
         {/* Balance Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          {/* Customer Funds */}
-          <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-blue-500">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          {/* Total Earnings */}
+          <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-purple-500">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-xs text-gray-500 uppercase font-semibold">Customer Funds</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(wallet?.customer_funds)}</p>
-                <p className="text-xs text-gray-500 mt-1">For buying food</p>
+                <p className="text-xs text-gray-500 uppercase font-semibold">Total Earnings</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(wallet?.total_earnings)}</p>
+                <p className="text-xs text-gray-500 mt-1">All time</p>
               </div>
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Banknote className="h-5 w-5 text-blue-600" />
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Wallet className="h-5 w-5 text-purple-600" />
               </div>
             </div>
-            <div className="mt-3 flex gap-2">
+          </div>
+
+          {/* Current Balance */}
+          <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-green-500">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-xs text-gray-500 uppercase font-semibold">Current Balance</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(wallet?.current_balance)}</p>
+                <p className="text-xs text-gray-500 mt-1">Available</p>
+              </div>
+              <div className="p-2 bg-green-100 rounded-lg">
+                <Banknote className="h-5 w-5 text-green-600" />
+              </div>
+            </div>
+            <div className="mt-3">
               <button
-                onClick={() => openWithdrawModal('customer_funds')}
-                disabled={!wallet || wallet.customer_funds <= 0}
-                className="flex-1 py-2.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                onClick={openWithdrawModal}
+                disabled={!wallet || wallet.current_balance <= 0}
+                className="w-full py-2.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
               >
-                Withdraw
+                Request Withdrawal
               </button>
             </div>
           </div>
 
-          {/* Delivery Earnings */}
-          <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-green-500">
+          {/* Pending Withdrawal */}
+          <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-yellow-500">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-xs text-gray-500 uppercase font-semibold">Delivery Earnings</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(wallet?.delivery_earnings)}</p>
-                <p className="text-xs text-gray-500 mt-1">Your profit</p>
+                <p className="text-xs text-gray-500 uppercase font-semibold">Pending</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(wallet?.pending_withdrawal)}</p>
+                <p className="text-xs text-gray-500 mt-1">Awaiting admin</p>
               </div>
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Wallet className="h-5 w-5 text-green-600" />
+              <div className="p-2 bg-yellow-100 rounded-lg">
+                <AlertCircle className="h-5 w-5 text-yellow-600" />
               </div>
-            </div>
-            <div className="mt-3 flex gap-2">
-              <button
-                onClick={() => openWithdrawModal('delivery_earnings')}
-                disabled={!wallet || wallet.delivery_earnings <= 0}
-                className="flex-1 py-2.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-              >
-                Withdraw
-              </button>
             </div>
           </div>
 
@@ -551,10 +556,10 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
           <div className="bg-white rounded-xl shadow-sm p-5 mb-6 border border-gray-200">
             <div className="flex items-start space-x-3 mb-3">
               <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-              <h3 className="text-lg font-bold text-yellow-800">⚠️ Bank Not Verified</h3>
+              <h3 className="text-lg font-bold text-yellow-800">⚠️ Bank Details Required</h3>
             </div>
             <p className="text-gray-600 mb-4">
-              To withdraw funds automatically, please save and verify your bank account.
+              Please save your bank account details. Admin will use this for manual withdrawals.
             </p>
             <div className="space-y-4">
               <div>
@@ -588,7 +593,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                 disabled={savingBank || !bankAccount || !bankCode || bankAccount.length !== 10}
                 className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium"
               >
-                {savingBank ? 'Saving...' : '✅ Save & Verify Bank'}
+                {savingBank ? 'Saving...' : '✅ Save Bank Details'}
               </button>
             </div>
           </div>
@@ -599,9 +604,9 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                 <CheckCircle className="h-5 w-5 text-green-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-green-800">✅ Bank Verified!</h3>
+                <h3 className="font-semibold text-green-800">✅ Bank Details Saved!</h3>
                 <p className="text-green-700 mt-1">
-                  {bankName} •••• {bankAccount.slice(-4)} — ready for withdrawals.
+                  {bankName} •••• {bankAccount.slice(-4)} — Admin will use this for manual withdrawals.
                 </p>
               </div>
             </div>
@@ -613,34 +618,67 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
         {/* Withdrawal History Section */}
         <div className="mt-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-3">Withdrawal History</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-3">Withdrawal Requests</h2>
           <div className="bg-white rounded-xl p-4 border border-gray-200">
-            {withdrawHistory.length === 0 ? (
-              <p className="text-gray-600">No withdrawal activity yet.</p>
+            {withdrawalRequests.length === 0 ? (
+              <p className="text-gray-600">No withdrawal requests yet.</p>
             ) : (
-              <ul className="space-y-2">
-                {withdrawHistory.map((w) => (
-                  <li key={w.id} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-                    <div>
-                      <div className="font-medium">{formatCurrency(Number(w.amount) / 100)}</div>
-                      <div className="text-xs text-gray-500">
-                        {w.type === 'customer_funds' ? '🛒 Buy Food' : '💰 Earnings'} •{' '}
-                        {new Date(w.created_at).toLocaleString()}
-                      </div>
-                    </div>
-                    <span
-                      className={`px-2 py-1 rounded text-xs font-medium ${w.status === 'completed'
-                        ? 'bg-green-100 text-green-800'
-                        : w.status === 'failed'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                        }`}
-                    >
-                      {w.status}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Date</th>
+                      <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Amount</th>
+                      <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Bank</th>
+                      <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {withdrawalRequests.map((req) => (
+                      <tr key={req.id} className="border-b border-gray-100 last:border-0">
+                        <td className="py-3 px-3 text-sm text-gray-600">
+                          {new Date(req.created_at).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </td>
+                        <td className="py-3 px-3 text-sm font-medium text-gray-900">
+                          {formatCurrency(Number(req.amount))}
+                        </td>
+                        <td className="py-3 px-3 text-sm text-gray-600">
+                          {req.bank_name}<br />
+                          <span className="text-xs text-gray-500">•••• {req.account_number.slice(-4)}</span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-medium ${req.status === 'approved'
+                                ? 'bg-green-100 text-green-800'
+                                : req.status === 'rejected'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-yellow-100 text-yellow-800'
+                              }`}
+                          >
+                            {req.status === 'approved' && '✅ '}
+                            {req.status === 'rejected' && '❌ '}
+                            {req.status === 'pending' && '⏳ '}
+                            {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                          </span>
+                          {req.approved_at && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              {new Date(req.approved_at).toLocaleDateString()}
+                            </div>
+                          )}
+                          {req.rejection_reason && (
+                            <div className="text-xs text-red-600 mt-1">{req.rejection_reason}</div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
@@ -656,26 +694,33 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         />
       )}
 
-      {/* Withdraw Modal */}
+      {/* Withdrawal Request Modal */}
       {showWithdrawModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-white rounded-lg p-6">
-            <h3 className="text-lg font-semibold mb-3">
-              Withdraw —{' '}
-              {withdrawType === 'customer_funds' ? 'Customer Funds' : 'Delivery Earnings'}
-            </h3>
+            <h3 className="text-lg font-semibold mb-3">Request Withdrawal</h3>
             <p className="text-sm text-gray-600 mb-3">
-              Available: {formatCurrency(withdrawType === 'customer_funds' ? wallet?.customer_funds : wallet?.delivery_earnings)}
+              Available Balance: <span className="font-bold text-green-600">{formatCurrency(wallet?.current_balance)}</span>
             </p>
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                📌 <strong>Note:</strong> Your request will be reviewed by admin. Payment will be sent manually to your bank account.
+              </p>
+            </div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₦)</label>
             <input
               type="number"
               step="0.01"
               min="0.01"
+              max={wallet?.current_balance}
               value={withdrawAmount ?? ''}
               onChange={(e) => setWithdrawAmount(e.target.value ? parseFloat(e.target.value) : null)}
               className="w-full p-3 border border-gray-300 rounded mb-3 focus:ring-2 focus:ring-blue-500"
             />
+            <div className="mb-4 text-sm text-gray-600">
+              <p><strong>Bank:</strong> {bankName}</p>
+              <p><strong>Account:</strong> •••• {bankAccount.slice(-4)}</p>
+            </div>
             {message?.type === 'error' && (
               <p className="text-red-600 text-sm mb-3">{message.text}</p>
             )}
@@ -690,11 +735,11 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                 Cancel
               </button>
               <button
-                onClick={handleWithdraw}
-                disabled={processingWithdrawal || withdrawAmount == null}
+                onClick={handleWithdrawRequest}
+                disabled={processingWithdrawal || withdrawAmount == null || withdrawAmount <= 0}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {processingWithdrawal ? 'Processing...' : 'Confirm Withdraw'}
+                {processingWithdrawal ? 'Submitting...' : 'Submit Request'}
               </button>
             </div>
           </div>
