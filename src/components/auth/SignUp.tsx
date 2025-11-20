@@ -46,8 +46,16 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  // ✅ Auto-redirect on successful auth
+  useEffect(() => {
+    console.log('SignUp useEffect triggered', { user, profile, role, showEmailConfirmation }); // Debug log
+    if (user && profile && profile.role === role && !showEmailConfirmation) {
+      // Success! App.tsx will render the correct dashboard
+      console.log('User authenticated and profile loaded, but not showing email confirmation'); // Debug log
+    }
+  }, [user, profile, role, showEmailConfirmation]);
+
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // ... [your existing logo logic - unchanged]
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) {
@@ -76,31 +84,43 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
     e.preventDefault();
     e.stopPropagation();
 
+    console.log('Signup form submitted with data:', formData); // Debug log
     setError('');
 
-    // ✅ VALIDATION (unchanged)
     if (formData.password !== formData.confirmPassword) {
+      console.log('Validation failed: Passwords do not match');
       setError('Passwords do not match');
       return;
     }
     if (formData.password.length < 6) {
+      console.log('Validation failed: Password too short');
       setError('Password must be at least 6 characters');
       return;
     }
-    if ((role === 'vendor' || role === 'late_night_vendor') && !formData.storeName.trim()) {
-      setError('Store name is required');
-      return;
+
+    // Validate vendor fields
+    if ((role === 'vendor' || role === 'late_night_vendor')) {
+      if (!formData.storeName.trim()) {
+        console.log('Validation failed: Store name required');
+        setError('Store name is required');
+        return;
+      }
+      if (!logoFile) {
+        console.log('Validation failed: Logo required');
+        setError('Please upload your business logo');
+        return;
+      }
     }
-    if ((role === 'vendor' || role === 'late_night_vendor') && !logoFile) {
-      setError('Please upload your business logo');
-      return;
-    }
+
+    console.log('All validations passed, proceeding with signup');
 
     setSubmitting(true);
 
     // ✅ Show confirmation screen immediately to prevent user confusion
+    console.log('Showing confirmation screen immediately');
     setShowEmailConfirmation(true);
-    window.history.pushState({}, '', '#email-pending'); // URL hint for back button
+
+    // Notify parent component that user just signed up
     window.dispatchEvent(new CustomEvent('userSignedUp'));
 
     // Optional: Browser notification (non-blocking)
@@ -117,7 +137,14 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
     // 🔑 Run signup in background
     try {
-      console.log('Calling authSignUp...');
+      // First, sign up the user
+      console.log('Calling authSignUp with params:', {
+        email: formData.email,
+        password: formData.password,
+        fullName: formData.fullName,
+        role: role === 'late_night_vendor' ? 'vendor' : role,
+        phone: formData.phone
+      }); // Debug log
       const result = await authSignUp(
         formData.email,
         formData.password,
@@ -125,6 +152,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
         role === 'late_night_vendor' ? 'vendor' : role,
         formData.phone
       );
+      console.log('authSignUp result:', result); // Debug log
 
       if (result.error) {
         console.error('Background signup error:', result.error);
@@ -132,24 +160,27 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
         return;
       }
 
-      // 🔁 Background: Upload logo & create vendor profile (safe to ignore errors)
+      // If vendor, upload logo and create vendor profile
       if ((role === 'vendor' || role === 'late_night_vendor') && logoFile) {
         try {
           const { data: { user } } = await supabase.auth.getUser();
-          if (!user) throw new Error('User missing');
+          if (!user) throw new Error('User not found after signup');
 
+          // Upload logo to Supabase storage
           const fileExt = logoFile.name.split('.').pop();
           const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-          const { error: uploadError } = await supabase.storage
+          const { error: uploadError, data: uploadData } = await supabase.storage
             .from('vendor-logos')
             .upload(fileName, logoFile);
 
           if (uploadError) throw uploadError;
 
+          // Get public URL
           const { data: { publicUrl } } = supabase.storage
             .from('vendor-logos')
             .getPublicUrl(fileName);
 
+          // Create vendor profile
           const vendorData: any = {
             user_id: user.id,
             store_name: formData.storeName,
@@ -169,12 +200,12 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
             .insert([vendorData]);
 
           if (vendorError) throw vendorError;
-        } catch (err) {
-          console.warn('Non-critical vendor setup failed:', err);
+        } catch (vendorErr) {
+          console.error('Vendor profile creation error (ignored):', vendorErr);
         }
       }
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Background signup error:', err);
       // Don't show error to user since confirmation screen is already displayed
     } finally {
@@ -198,7 +229,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
   const isLoading = submitting || authLoading;
 
-  // ✅ EMAIL CONFIRMATION SCREEN (improved)
+  // Show email confirmation screen
   if (showEmailConfirmation) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center px-4 py-8">
@@ -226,7 +257,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
               onClick={handleResendEmail}
               className="w-full mb-4 py-3 text-blue-600 font-medium border border-blue-200 rounded-lg hover:bg-blue-50 transition"
             >
-              🔄 Didn’t get it? Resend email
+              🔄 Didn't get it? Resend email
             </button>
 
             <button
@@ -241,13 +272,12 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
     );
   }
 
-  // ✅ MAIN SIGNUP FORM (enhanced email hint)
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center px-4 py-8">
       <div className="max-w-md w-full">
         <button
           onClick={onBack}
-          className="flex items-center text-gray-600 hover:text-gray-900 mb-6"
+          className="flex items-center text-gray-600 hover:text-gray-900 mb-8"
         >
           <ArrowLeft className="h-5 w-5 mr-2" />
           Back
@@ -282,8 +312,200 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
           )}
 
           <form onSubmit={handleSubmit}>
-            {/* ... [all your form fields - unchanged] ... */}
-            {/* (keep all inputs exactly as you have them) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Full Name
+              </label>
+              <input
+                type="text"
+                value={formData.fullName}
+                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                required
+                disabled={isLoading}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="John Doe"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email
+              </label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                required
+                disabled={isLoading}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="you@university.edu"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Phone
+              </label>
+              <input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                disabled={isLoading}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="+1 (555) 000-0000"
+              />
+            </div>
+
+            {(role === 'vendor' || role === 'late_night_vendor') && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Store Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.storeName}
+                    onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
+                    required
+                    disabled={isLoading}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="My Food Store"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Store Description
+                  </label>
+                  <textarea
+                    value={formData.storeDescription}
+                    onChange={(e) => setFormData({ ...formData, storeDescription: e.target.value })}
+                    rows={3}
+                    disabled={isLoading}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Tell customers about your store"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Business Logo *
+                  </label>
+                  <div className="mt-1">
+                    {logoPreview ? (
+                      <div className="relative inline-block">
+                        <img
+                          src={logoPreview}
+                          alt="Logo preview"
+                          className="h-32 w-32 object-cover rounded-lg border-2 border-gray-300"
+                        />
+                        <button
+                          type="button"
+                          onClick={removeLogo}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                          <p className="text-sm text-gray-600 font-medium">Upload Logo</p>
+                          <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 2MB</p>
+                        </div>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/*"
+                          onChange={handleLogoChange}
+                          disabled={isLoading}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                {role === 'late_night_vendor' && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Available From
+                      </label>
+                      <input
+                        type="time"
+                        value={formData.availableFrom}
+                        onChange={(e) => setFormData({ ...formData, availableFrom: e.target.value })}
+                        disabled={isLoading}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Available Until
+                      </label>
+                      <input
+                        type="time"
+                        value={formData.availableUntil}
+                        onChange={(e) => setFormData({ ...formData, availableUntil: e.target.value })}
+                        disabled={isLoading}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {role === 'delivery_agent' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Vehicle Type
+                </label>
+                <select
+                  value={formData.vehicleType}
+                  onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value })}
+                  disabled={isLoading}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select vehicle</option>
+                  <option value="bike">Bike</option>
+                  <option value="scooter">Scooter</option>
+                  <option value="motorcycle">Motorcycle</option>
+                  <option value="car">Car</option>
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
+              <input
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                required
+                disabled={isLoading}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="••••••••"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Confirm Password
+              </label>
+              <input
+                type="password"
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                required
+                disabled={isLoading}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="••••••••"
+              />
+            </div>
 
             <button
               type="submit"
