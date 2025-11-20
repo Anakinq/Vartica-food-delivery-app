@@ -72,6 +72,13 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    // Additional prevention of default behavior
+    if (e.nativeEvent instanceof SubmitEvent) {
+      e.nativeEvent.preventDefault();
+      e.nativeEvent.stopImmediatePropagation();
+    }
+
     console.log('Signup form submitted with data:', formData); // Debug log
     setError('');
 
@@ -97,6 +104,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
     }
 
     setSubmitting(true);
+    let signupSuccessful = false;
 
     try {
       // First, sign up the user
@@ -112,11 +120,22 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
       // Check if there was an error in the result
       if (result.error) {
-        throw result.error;
+        // For email confirmation errors, we still want to show the confirmation screen
+        if (result.error.message.includes('check your email')) {
+          // This is expected for email confirmation - show the confirmation screen
+          console.log('Email confirmation required, showing confirmation screen');
+          signupSuccessful = true;
+        } else {
+          // For other errors, show the error message
+          throw result.error;
+        }
+      } else {
+        // No error means signup was successful
+        signupSuccessful = true;
       }
 
       // If vendor, upload logo and create vendor profile
-      if ((role === 'vendor' || role === 'late_night_vendor') && logoFile) {
+      if ((role === 'vendor' || role === 'late_night_vendor') && logoFile && signupSuccessful) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('User not found after signup');
 
@@ -155,19 +174,26 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
         if (vendorError) throw vendorError;
       }
-
-      // Show email confirmation message
-      console.log('Setting showEmailConfirmation to true'); // Debug log
-      setShowEmailConfirmation(true);
-
-      // Notify parent component that user just signed up
-      // This is a workaround since we can't directly access the AppContent state
-      window.dispatchEvent(new CustomEvent('userSignedUp'));
     } catch (err: unknown) {
       console.error('Signup error:', err); // Log the error for debugging
       setError(err instanceof Error ? err.message : 'Failed to sign up. Please check your information and try again.');
+      // Even if there's an error, we might still want to show the confirmation screen
+      // depending on the type of error
+      if (err instanceof Error && err.message.includes('check your email')) {
+        signupSuccessful = true;
+      }
     } finally {
       setSubmitting(false);
+
+      // Show email confirmation message if signup was successful
+      if (signupSuccessful) {
+        console.log('Setting showEmailConfirmation to true'); // Debug log
+        setShowEmailConfirmation(true);
+
+        // Notify parent component that user just signed up
+        // This is a workaround since we can't directly access the AppContent state
+        window.dispatchEvent(new CustomEvent('userSignedUp'));
+      }
     }
   };
 
@@ -226,7 +252,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Full Name

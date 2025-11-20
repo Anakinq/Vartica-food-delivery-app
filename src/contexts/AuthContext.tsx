@@ -169,7 +169,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } catch (signInErr) {
         // If auto-sign-in fails, that's okay - user can sign in manually
         setLoading(false);
-        throw signInErr;
+        // Don't throw the error, just return success
+        setLoading(false);
+        return { user: newUser, error: null };
       }
 
       // If we get here, signup was successful
@@ -177,6 +179,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return { user: newUser, error: null };
     } catch (err) {
       setLoading(false);
+      // Even if there's an error, we might still want to show the confirmation screen
+      // Let the UI decide what to do based on the error message
       throw err;
     }
   };

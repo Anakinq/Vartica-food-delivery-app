@@ -27,6 +27,8 @@ class SupabaseAuthService implements IAuthService {
 
       if (error) {
         console.error('Supabase signup error:', error); // Log the error for debugging
+        // Even if there's an error, we might still want to show the confirmation screen
+        // Return the error so the UI can decide what to do
         return { user: null, error };
       }
 
