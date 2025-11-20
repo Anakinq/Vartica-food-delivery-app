@@ -25,7 +25,10 @@ class SupabaseAuthService implements IAuthService {
         },
       });
 
-      // Always return success to avoid interfering with the UI
+      if (error) {
+        return { user: null, error };
+      }
+
       const user: User | null = data.user
         ? {
           id: data.user.id,
@@ -35,8 +38,7 @@ class SupabaseAuthService implements IAuthService {
 
       return { user, error: null };
     } catch (err) {
-      // Even if there's an error, we still want to return success to the UI
-      return { user: null, error: null };
+      return { user: null, error: err as Error };
     }
   }
 

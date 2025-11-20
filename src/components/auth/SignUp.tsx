@@ -170,6 +170,9 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
           console.error('Vendor profile creation error (ignored):', vendorErr);
         }
       }
+
+      // Notify parent component that user just signed up
+      window.dispatchEvent(new CustomEvent('userSignedUp'));
     } catch (err: unknown) {
       console.error('Background signup error (ignored):', err);
     } finally {

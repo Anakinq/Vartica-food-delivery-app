@@ -143,14 +143,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         phone,
       });
 
-      // Always return success to avoid interfering with the UI
-      // The UI will handle showing the confirmation message
+      // Return the result to let the UI handle success or error states
       setLoading(false);
-      return { user: newUser, error: null };
+      return { user: newUser, error: signUpError };
     } catch (err) {
-      // Even if there's an error, we still want to show success to the UI
+      // Return the error to let the UI handle it
       setLoading(false);
-      return { user: null, error: null };
+      return { user: null, error: err as Error };
     }
   };
 
