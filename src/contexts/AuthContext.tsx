@@ -132,6 +132,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin',
     phone?: string
   ) => {
+    console.log('AuthContext signUp called with params:', { email, password, fullName, role, phone });
     setLoading(true);
     try {
       // 1️⃣ Sign up with metadata (database trigger will create profile after email confirmation)
@@ -143,10 +144,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         phone,
       });
 
+      console.log('AuthContext signUp result:', { user: newUser, error: signUpError });
       // Return the result to let the UI handle success or error states
       setLoading(false);
       return { user: newUser, error: signUpError };
     } catch (err) {
+      console.log('AuthContext signUp error:', err);
       // Return the error to let the UI handle it
       setLoading(false);
       return { user: null, error: err as Error };

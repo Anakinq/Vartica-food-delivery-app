@@ -77,10 +77,12 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
     setError('');
 
     if (formData.password !== formData.confirmPassword) {
+      console.log('Validation failed: Passwords do not match');
       setError('Passwords do not match');
       return;
     }
     if (formData.password.length < 6) {
+      console.log('Validation failed: Password too short');
       setError('Password must be at least 6 characters');
       return;
     }
@@ -88,30 +90,39 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
     // Validate vendor fields
     if ((role === 'vendor' || role === 'late_night_vendor')) {
       if (!formData.storeName.trim()) {
+        console.log('Validation failed: Store name required');
         setError('Store name is required');
         return;
       }
       if (!logoFile) {
+        console.log('Validation failed: Logo required');
         setError('Please upload your business logo');
         return;
       }
     }
 
+    console.log('All validations passed, proceeding with signup');
+
     setSubmitting(true);
 
     // Immediately show the confirmation screen
     // Run the actual signup process in the background
-    setTimeout(() => {
-      setShowEmailConfirmation(true);
+    console.log('Showing confirmation screen immediately');
+    setShowEmailConfirmation(true);
 
-      // Notify parent component that user just signed up
-      window.dispatchEvent(new CustomEvent('userSignedUp'));
-    }, 100);
+    // Notify parent component that user just signed up
+    window.dispatchEvent(new CustomEvent('userSignedUp'));
 
     // Run the actual signup process in the background
     try {
       // First, sign up the user
-      console.log('Calling authSignUp'); // Debug log
+      console.log('Calling authSignUp with params:', {
+        email: formData.email,
+        password: formData.password,
+        fullName: formData.fullName,
+        role: role === 'late_night_vendor' ? 'vendor' : role,
+        phone: formData.phone
+      }); // Debug log
       const result = await authSignUp(
         formData.email,
         formData.password,
@@ -190,14 +201,21 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
           <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
+            <div className="mb-6">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                Signup Successful!
+              </span>
+            </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Check Your Email</h2>
-            <p className="text-gray-600 mb-6">
-              We've sent a confirmation email to <strong>{formData.email}</strong>.
-              Please check your inbox and click the confirmation link to activate your account.
-            </p>
+            <div className="text-gray-600 mb-6 space-y-2">
+              <p>We've sent a confirmation email to:</p>
+              <p className="font-semibold text-lg">{formData.email}</p>
+              <p>Please check your inbox and click the confirmation link to activate your account.</p>
+              <p className="text-sm text-gray-500 mt-4">You can close this page while waiting for the email.</p>
+            </div>
             <button
               onClick={onSwitchToSignIn}
               className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition-all"
@@ -225,7 +243,11 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
             {roleTitle} Sign Up
           </h2>
-          <p className="text-gray-600 mb-8">
+          <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg mb-6">
+            <p className="font-medium">After signup, you'll receive a confirmation email.</p>
+            <p className="text-sm mt-1">Please check your inbox to complete the registration process.</p>
+          </div>
+          <p className="text-gray-600 mb-4">
             Create your account to get started
           </p>
 
@@ -436,7 +458,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
               disabled={isLoading}
               className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-6"
             >
-              {isLoading ? 'Creating account...' : 'Sign Up'}
+              {isLoading ? 'Creating account...' : 'Sign Up & Send Confirmation Email'}
             </button>
           </form>
 

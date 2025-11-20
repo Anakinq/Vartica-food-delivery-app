@@ -11,6 +11,7 @@ import {
 class SupabaseAuthService implements IAuthService {
   // ✅ Sign up with user metadata (trigger will auto-create profile)
   async signUp(params: SignUpParams) {
+    console.log('AuthService signUp called with params:', params);
     try {
       // 1️⃣ Sign up user with metadata
       const { data, error } = await supabase.auth.signUp({
@@ -25,6 +26,7 @@ class SupabaseAuthService implements IAuthService {
         },
       });
 
+      console.log('Supabase signUp result:', { data, error });
       if (error) {
         return { user: null, error };
       }
@@ -38,6 +40,7 @@ class SupabaseAuthService implements IAuthService {
 
       return { user, error: null };
     } catch (err) {
+      console.log('AuthService signUp error:', err);
       return { user: null, error: err as Error };
     }
   }
