@@ -98,8 +98,25 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
     setSubmitting(true);
 
+    // ✅ Show confirmation screen immediately to prevent user confusion
+    setShowEmailConfirmation(true);
+    window.history.pushState({}, '', '#email-pending'); // URL hint for back button
+    window.dispatchEvent(new CustomEvent('userSignedUp'));
+
+    // Optional: Browser notification (non-blocking)
+    if ('Notification' in window && Notification.permission !== 'denied') {
+      Notification.requestPermission().then(perm => {
+        if (perm === 'granted') {
+          new Notification('✅ Check your email!', {
+            body: `Confirmation link sent to ${formData.email}`,
+            icon: '/logo192.png',
+          });
+        }
+      });
+    }
+
+    // 🔑 Run signup in background
     try {
-      // 🔑 CRITICAL CHANGE: Only show confirmation AFTER auth succeeds
       console.log('Calling authSignUp...');
       const result = await authSignUp(
         formData.email,
@@ -110,24 +127,9 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
       );
 
       if (result.error) {
-        throw new Error(result.error.message || 'Signup failed. Please try a different email.');
-      }
-
-      // ✅ Auth succeeded → show confirmation + persist state
-      setShowEmailConfirmation(true);
-      window.history.pushState({}, '', '#email-pending'); // URL hint for back button
-      window.dispatchEvent(new CustomEvent('userSignedUp'));
-
-      // Optional: Browser notification (non-blocking)
-      if ('Notification' in window && Notification.permission !== 'denied') {
-        Notification.requestPermission().then(perm => {
-          if (perm === 'granted') {
-            new Notification('✅ Check your email!', {
-              body: `Confirmation link sent to ${formData.email}`,
-              icon: '/logo192.png',
-            });
-          }
-        });
+        console.error('Background signup error:', result.error);
+        // Don't show error to user since confirmation screen is already displayed
+        return;
       }
 
       // 🔁 Background: Upload logo & create vendor profile (safe to ignore errors)
@@ -173,9 +175,8 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
       }
 
     } catch (err: any) {
-      console.error('Signup failed:', err);
-      setError(err.message || 'An unexpected error occurred. Please try again.');
-      setShowEmailConfirmation(false);
+      console.error('Background signup error:', err);
+      // Don't show error to user since confirmation screen is already displayed
     } finally {
       setSubmitting(false);
     }
