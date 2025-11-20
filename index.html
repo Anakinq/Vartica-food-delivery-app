@@ -9,28 +9,7 @@
     content="Vartica - University campus food delivery connecting students with cafeterias, vendors, and late-night food options" />
   <meta name="theme-color" content="#2563eb" />
 
-  <!-- ✅ Updated Content Security Policy -->
-  <meta http-equiv="Content-Security-Policy" content="
-    default-src 'self';
-    script-src 'self' 'unsafe-inline' https://js.paystack.co https://checkout.paystack.com;
-    connect-src 'self'
-      https://jbqhbuogmxqzotlorahn.supabase.co
-      https://jbqhbuogmxqzotlorahn.functions.supabase.co
-      https://api.paystack.co
-      https://checkout.paystack.com
-      https://images.unsplash.com
-      https://via.placeholder.com
-      https://res.cloudinary.com;
-    frame-src https://checkout.paystack.com https://*.paystack.com;
-    style-src 'self' 'unsafe-inline' https://paystack.com https://*.paystack.com;
-    style-src-elem 'self' 'unsafe-inline' https://paystack.com https://*.paystack.com;
-    img-src * blob: data: https://*;
-    font-src 'self' data:;
-    object-src 'none';
-    base-uri 'self';
-    form-action 'self';
-    upgrade-insecure-requests;
-  ">
+  <!-- ✅ Content Security Policy now managed by server (vercel.json) -->
 
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icon-192.png" />
