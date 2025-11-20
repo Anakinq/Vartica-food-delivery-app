@@ -24,7 +24,6 @@ function AppContent() {
   // Listen for user signup event
   useEffect(() => {
     const handleUserSignedUp = () => {
-      console.log('User signed up event received');
       setJustSignedUp(true);
     };
 
@@ -34,16 +33,6 @@ function AppContent() {
       window.removeEventListener('userSignedUp', handleUserSignedUp);
     };
   }, []);
-
-  // Debug logging
-  useEffect(() => {
-    console.log('AppContent state:', { user: !!user, profile: !!profile, loading, justSignedUp });
-  }, [user, profile, loading, justSignedUp]);
-
-  // Debug logging removed for production
-  // useEffect(() => {
-  //   console.log('🔍 AppContent re-rendered | user:', !!user, 'profile:', !!profile, 'loading:', loading);
-  // }, [user, profile, loading]);
 
   // ✅ Handle /payment-success route FIRST
   if (window.location.pathname === '/payment-success') {

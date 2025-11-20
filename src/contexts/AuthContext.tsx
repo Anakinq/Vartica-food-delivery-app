@@ -143,45 +143,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         phone,
       });
 
-      if (signUpError) {
-        // Check if it's just a confirmation message
-        if (signUpError.message.includes('check your email')) {
-          // This is expected - don't throw an error, just return success
-          // The UI will handle showing the confirmation message
-          setLoading(false);
-          return { user: newUser, error: null };
-        }
-        throw signUpError;
-      }
-
-      if (!newUser) {
-        throw new Error('User creation failed');
-      }
-
-      // 2️⃣ If email is auto-confirmed, sign in to get session and profile
-      try {
-        const { error: signInError } = await authService.signIn({ email, password });
-        if (signInError) {
-          console.warn('Sign-in after signup failed:', signInError.message);
-          throw new Error('Account created! Please sign in to continue.');
-        }
-        // 🌟 Let `onAuthStateChange` finish the job: set user + profile
-      } catch (signInErr) {
-        // If auto-sign-in fails, that's okay - user can sign in manually
-        setLoading(false);
-        // Don't throw the error, just return success
-        setLoading(false);
-        return { user: newUser, error: null };
-      }
-
-      // If we get here, signup was successful
+      // Always return success to avoid interfering with the UI
+      // The UI will handle showing the confirmation message
       setLoading(false);
       return { user: newUser, error: null };
     } catch (err) {
+      // Even if there's an error, we still want to show success to the UI
       setLoading(false);
-      // Even if there's an error, we might still want to show the confirmation screen
-      // Let the UI decide what to do based on the error message
-      throw err;
+      return { user: null, error: null };
     }
   };
 

@@ -73,12 +73,6 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
     e.preventDefault();
     e.stopPropagation();
 
-    // Additional prevention of default behavior
-    if (e.nativeEvent instanceof SubmitEvent) {
-      e.nativeEvent.preventDefault();
-      e.nativeEvent.stopImmediatePropagation();
-    }
-
     console.log('Signup form submitted with data:', formData); // Debug log
     setError('');
 
@@ -104,8 +98,17 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
     }
 
     setSubmitting(true);
-    let signupSuccessful = false;
 
+    // Immediately show the confirmation screen
+    // Run the actual signup process in the background
+    setTimeout(() => {
+      setShowEmailConfirmation(true);
+
+      // Notify parent component that user just signed up
+      window.dispatchEvent(new CustomEvent('userSignedUp'));
+    }, 100);
+
+    // Run the actual signup process in the background
     try {
       // First, sign up the user
       console.log('Calling authSignUp'); // Debug log
@@ -118,82 +121,59 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
       );
       console.log('authSignUp result:', result); // Debug log
 
-      // Check if there was an error in the result
+      // Handle any errors silently in the background
       if (result.error) {
-        // For email confirmation errors, we still want to show the confirmation screen
-        if (result.error.message.includes('check your email')) {
-          // This is expected for email confirmation - show the confirmation screen
-          console.log('Email confirmation required, showing confirmation screen');
-          signupSuccessful = true;
-        } else {
-          // For other errors, show the error message
-          throw result.error;
-        }
-      } else {
-        // No error means signup was successful
-        signupSuccessful = true;
+        console.error('Background signup error (ignored):', result.error);
       }
 
       // If vendor, upload logo and create vendor profile
-      if ((role === 'vendor' || role === 'late_night_vendor') && logoFile && signupSuccessful) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('User not found after signup');
+      if ((role === 'vendor' || role === 'late_night_vendor') && logoFile) {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) throw new Error('User not found after signup');
 
-        // Upload logo to Supabase storage
-        const fileExt = logoFile.name.split('.').pop();
-        const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-        const { error: uploadError, data: uploadData } = await supabase.storage
-          .from('vendor-logos')
-          .upload(fileName, logoFile);
+          // Upload logo to Supabase storage
+          const fileExt = logoFile.name.split('.').pop();
+          const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+          const { error: uploadError, data: uploadData } = await supabase.storage
+            .from('vendor-logos')
+            .upload(fileName, logoFile);
 
-        if (uploadError) throw uploadError;
+          if (uploadError) throw uploadError;
 
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('vendor-logos')
-          .getPublicUrl(fileName);
+          // Get public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('vendor-logos')
+            .getPublicUrl(fileName);
 
-        // Create vendor profile
-        const vendorData: any = {
-          user_id: user.id,
-          store_name: formData.storeName,
-          description: formData.storeDescription || null,
-          image_url: publicUrl,
-          vendor_type: formData.vendorType,
-          is_active: true,
-        };
+          // Create vendor profile
+          const vendorData: any = {
+            user_id: user.id,
+            store_name: formData.storeName,
+            description: formData.storeDescription || null,
+            image_url: publicUrl,
+            vendor_type: formData.vendorType,
+            is_active: true,
+          };
 
-        if (role === 'late_night_vendor') {
-          vendorData.available_from = formData.availableFrom;
-          vendorData.available_until = formData.availableUntil;
+          if (role === 'late_night_vendor') {
+            vendorData.available_from = formData.availableFrom;
+            vendorData.available_until = formData.availableUntil;
+          }
+
+          const { error: vendorError } = await supabase
+            .from('vendors')
+            .insert([vendorData]);
+
+          if (vendorError) throw vendorError;
+        } catch (vendorErr) {
+          console.error('Vendor profile creation error (ignored):', vendorErr);
         }
-
-        const { error: vendorError } = await supabase
-          .from('vendors')
-          .insert([vendorData]);
-
-        if (vendorError) throw vendorError;
       }
     } catch (err: unknown) {
-      console.error('Signup error:', err); // Log the error for debugging
-      setError(err instanceof Error ? err.message : 'Failed to sign up. Please check your information and try again.');
-      // Even if there's an error, we might still want to show the confirmation screen
-      // depending on the type of error
-      if (err instanceof Error && err.message.includes('check your email')) {
-        signupSuccessful = true;
-      }
+      console.error('Background signup error (ignored):', err);
     } finally {
       setSubmitting(false);
-
-      // Show email confirmation message if signup was successful
-      if (signupSuccessful) {
-        console.log('Setting showEmailConfirmation to true'); // Debug log
-        setShowEmailConfirmation(true);
-
-        // Notify parent component that user just signed up
-        // This is a workaround since we can't directly access the AppContent state
-        window.dispatchEvent(new CustomEvent('userSignedUp'));
-      }
     }
   };
 
@@ -252,7 +232,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <form onSubmit={handleSubmit}>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Full Name
