@@ -51,6 +51,9 @@ self.addEventListener('fetch', (event) => {
     // Skip chrome extensions and non-http(s) requests
     if (!url.protocol.startsWith('http')) return;
 
+    // Skip Paystack resources - let browser handle them directly (avoids CSP/CORS issues)
+    if (url.hostname === 'js.paystack.co' || url.hostname === 'paystack.com') return;
+
     // Network-first for API calls
     if (
         url.hostname.includes('supabase.co') ||
@@ -63,11 +66,13 @@ self.addEventListener('fetch', (event) => {
                     if (!response || response.status !== 200) {
                         return response;
                     }
-                    // Clone and cache successful API responses
-                    const responseClone = response.clone();
-                    caches.open(DYNAMIC_CACHE).then((cache) => {
-                        cache.put(request, responseClone);
-                    });
+                    // Only cache GET requests (POST/PUT/DELETE cannot be cached)
+                    if (request.method === 'GET') {
+                        const responseClone = response.clone();
+                        caches.open(DYNAMIC_CACHE).then((cache) => {
+                            cache.put(request, responseClone);
+                        });
+                    }
                     return response;
                 })
                 .catch(() => {
@@ -91,11 +96,13 @@ self.addEventListener('fetch', (event) => {
                     return response;
                 }
 
-                // Clone and cache
-                const responseClone = response.clone();
-                caches.open(DYNAMIC_CACHE).then((cache) => {
-                    cache.put(request, responseClone);
-                });
+                // Only cache GET requests
+                if (request.method === 'GET') {
+                    const responseClone = response.clone();
+                    caches.open(DYNAMIC_CACHE).then((cache) => {
+                        cache.put(request, responseClone);
+                    });
+                }
 
                 return response;
             });

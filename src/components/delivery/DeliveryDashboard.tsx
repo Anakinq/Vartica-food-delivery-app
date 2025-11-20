@@ -486,7 +486,44 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24 md:pb-0">
-      {/* Nav (mobile & desktop) omitted for brevity — keep yours */}
+      {/* Header Navigation */}
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                <MapPin className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-gray-900">Delivery Dashboard</h1>
+                <p className="text-xs text-gray-500">{profile?.full_name}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              {/* Desktop Profile Button */}
+              {onShowProfile && (
+                <button
+                  onClick={onShowProfile}
+                  className="hidden md:flex items-center space-x-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <User className="h-5 w-5" />
+                  <span className="text-sm font-medium">Profile</span>
+                </button>
+              )}
+
+              {/* Sign Out Button */}
+              <button
+                onClick={signOut}
+                className="flex items-center space-x-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors font-medium"
+              >
+                <LogOut className="h-5 w-5" />
+                <span className="text-sm">Sign Out</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
 
       <div key={dashboardKey} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {/* Messages */}

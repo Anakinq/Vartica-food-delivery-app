@@ -9,11 +9,11 @@ interface MenuItemCardSimpleProps {
   onRemove: () => void;
 }
 
-export const MenuItemCardSimple: React.FC<MenuItemCardSimpleProps> = ({ 
-  item, 
-  quantityInCart, 
-  onAdd, 
-  onRemove 
+export const MenuItemCardSimple: React.FC<MenuItemCardSimpleProps> = ({
+  item,
+  quantityInCart,
+  onAdd,
+  onRemove
 }) => {
   const [isFavorite, setIsFavorite] = useState(false);
 
@@ -26,14 +26,14 @@ export const MenuItemCardSimple: React.FC<MenuItemCardSimpleProps> = ({
 
   return (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-      <div className="relative w-full pt-[100%]">
+      <div className="relative w-full pt-[100%] overflow-hidden">
         <img
           src={imageUrl}
           alt={item.name}
-          className="absolute inset-0 w-full h-full object-cover rounded-t-xl"
+          className="absolute inset-0 w-full h-full object-cover"
           onError={(e) => {
-  (e.target as HTMLImageElement).src = '/images/food-placeholder.png';
-}}
+            (e.target as HTMLImageElement).src = '/images/food-placeholder.png';
+          }}
         />
         <button
           onClick={toggleFavorite}

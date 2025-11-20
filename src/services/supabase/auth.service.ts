@@ -9,13 +9,20 @@ import {
 } from '../auth.interface';
 
 class SupabaseAuthService implements IAuthService {
-  // ✅ Sign up and create profile row
+  // ✅ Sign up with user metadata (trigger will auto-create profile)
   async signUp(params: SignUpParams) {
     try {
-      // 1️⃣ Sign up user
+      // 1️⃣ Sign up user with metadata
       const { data, error } = await supabase.auth.signUp({
         email: params.email,
         password: params.password,
+        options: {
+          data: {
+            full_name: params.fullName || 'User',
+            role: params.role || 'customer',
+            phone: params.phone || null,
+          },
+        },
       });
 
       if (error) {
@@ -33,31 +40,18 @@ class SupabaseAuthService implements IAuthService {
         return { user: null, error: new Error('Signup failed: no user returned') };
       }
 
-      // 2️⃣ Automatically sign in user to get a session
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: params.email,
-        password: params.password,
-      });
-
-      if (signInError) {
-        return { user, error: new Error(`Signup succeeded, but sign-in failed: ${signInError.message}`) };
+      // 2️⃣ Check if email confirmation is required
+      if (data.user?.email_confirmed_at) {
+        // Email is already confirmed (auto-confirm is enabled)
+        // The database trigger will have created the profile automatically
+        return { user, error: null };
+      } else {
+        // Email confirmation required - inform user
+        return {
+          user,
+          error: new Error('Please check your email to confirm your account. Profile will be created after confirmation.'),
+        };
       }
-
-      // 3️⃣ Create profile row in 'profiles' table
-      const { error: profileError } = await supabase.from('profiles').insert([
-        {
-          id: user.id, // same as auth user id
-          email: user.email,
-          created_at: new Date().toISOString(),
-          // Add other default fields here if needed
-        },
-      ]);
-
-      if (profileError) {
-        return { user, error: new Error(`Signup succeeded, but profile creation failed: ${profileError.message}`) };
-      }
-
-      return { user, error: null };
     } catch (err) {
       return { user: null, error: err as Error };
     }

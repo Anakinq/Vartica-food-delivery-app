@@ -3,7 +3,7 @@ import { Menu, X, ChefHat, Users, Bike, ShieldCheck, UtensilsCrossed } from 'luc
 import { motion } from 'framer-motion';
 
 interface LandingPageProps {
-  onRoleSelect: (role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin') => void;
+  onRoleSelect: (role: 'customer' | 'cafeteria' | 'vendor' | 'late_night_vendor' | 'delivery_agent' | 'admin') => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
@@ -23,6 +23,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
       icon: Users,
       description: 'Sign up or sign in to start selling',
       color: 'bg-emerald-500',
+    },
+    {
+      id: 'late_night_vendor' as const,
+      title: 'Late Night Vendors',
+      icon: UtensilsCrossed,
+      description: 'Sign up or sign in for late-night food',
+      color: 'bg-purple-600',
     },
     {
       id: 'delivery_agent' as const,
@@ -57,7 +64,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
   };
 
   return (
-    <div 
+    <div
       className="min-h-screen bg-cover bg-center relative"
       style={{ backgroundImage: 'url("/premium_photo-1694141251686-16828ed92b3f.jpeg")' }}
     >
@@ -119,7 +126,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
         {/* Main Content */}
         <div className="pt-28 pb-16 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
-            <motion.div 
+            <motion.div
               className="text-center mb-12"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -150,8 +157,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
             </motion.div>
 
             {/* Role Cards */}
-            <motion.div 
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6 mb-16"
+            <motion.div
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 sm:gap-6 mb-16"
               variants={container}
               initial="hidden"
               whileInView="show"

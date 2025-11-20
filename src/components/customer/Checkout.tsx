@@ -12,6 +12,7 @@ interface CheckoutProps {
   items: CartItem[];
   subtotal: number;
   deliveryFee: number;
+  packCount?: number;
   onBack: () => void;
   onClose: () => void;
   onSuccess: () => void;
@@ -21,6 +22,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
   items,
   subtotal,
   deliveryFee,
+  packCount = 0,
   onBack,
   onClose,
   onSuccess,
@@ -37,7 +39,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const [formData, setFormData] = useState({
     deliveryAddress: '',
     deliveryNotes: '',
-    paymentMethod: 'cash' as 'cash' | 'online',
     promoCode: '',
     scheduledFor: '',
   });
@@ -81,7 +82,9 @@ export const Checkout: React.FC<CheckoutProps> = ({
   }, []);
 
   const MIN_NGN = 100;
-  const total = subtotal + deliveryFee - discount;
+  const packPrice = 300.00;
+  const packTotal = packPrice * packCount;
+  const total = subtotal + packTotal + deliveryFee - discount;
   const effectiveTotal = Math.max(total, MIN_NGN);
   const totalInKobo = Math.round(effectiveTotal * 100);
 
@@ -140,8 +143,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
       delivery_fee: deliveryFee,
       discount,
       total: effectiveTotal,
-      payment_method: formData.paymentMethod,
-      payment_status: formData.paymentMethod === 'cash' ? 'pending' : 'paid',
+      payment_method: 'online',
+      payment_status: 'paid',
       payment_reference: paymentReference || null,
       promo_code: formData.promoCode || null,
       delivery_address: formData.deliveryAddress.trim() || 'Address not provided',
@@ -199,11 +202,10 @@ export const Checkout: React.FC<CheckoutProps> = ({
     alert('Payment cancelled');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (reference: string) => {
     setLoading(true);
     try {
-      await createOrder();
+      await createOrder(reference);
       setSuccess(true);
       setTimeout(() => onSuccess(), 2000);
     } catch (error) {
@@ -217,16 +219,12 @@ export const Checkout: React.FC<CheckoutProps> = ({
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Check className="h-8 w-8 text-green-600" />
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Check className="h-10 w-10 text-green-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            {formData.paymentMethod === 'online' ? 'Payment Successful!' : 'Order Placed!'}
-          </h2>
+          <h2 className="text-2xl font-bold text-black mb-2">Payment Successful!</h2>
           <p className="text-gray-600">
-            {formData.paymentMethod === 'online'
-              ? 'Your payment was successful. Order is being processed.'
-              : 'Your order has been successfully placed. A delivery agent will accept it shortly.'}
+            Your payment was successful. Order is being processed.
           </p>
         </div>
       </div>
@@ -241,57 +239,48 @@ export const Checkout: React.FC<CheckoutProps> = ({
             <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full">
               <ArrowLeft className="h-6 w-6" />
             </button>
-            <h2 className="text-2xl font-bold text-gray-900 ml-4">Checkout</h2>
+            <h2 className="text-2xl font-bold text-black ml-4">Checkout</h2>
           </div>
-          <form
-            onSubmit={(e) => {
-              if (formData.paymentMethod === 'online') {
-                e.preventDefault();
-                return;
-              }
-              handleSubmit(e);
-            }}
-            className="space-y-6"
-          >
+          <form className="space-y-6">
             {/* Delivery Address */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Address *</label>
+              <label className="block text-sm font-semibold text-black mb-2">Delivery Address *</label>
               <textarea
                 value={formData.deliveryAddress}
                 onChange={(e) => setFormData({ ...formData, deliveryAddress: e.target.value })}
                 required
                 rows={3}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
                 placeholder="Building name, room number, etc."
               />
             </div>
 
             {/* Delivery Notes */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Notes (Optional)</label>
+              <label className="block text-sm font-semibold text-black mb-2">Delivery Notes (Optional)</label>
               <textarea
                 value={formData.deliveryNotes}
                 onChange={(e) => setFormData({ ...formData, deliveryNotes: e.target.value })}
                 rows={2}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
                 placeholder="Special instructions for delivery"
               />
             </div>
 
             {/* Schedule */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Schedule Delivery (Optional)</label>
+              <label className="block text-sm font-semibold text-black mb-2">Schedule Delivery (Optional)</label>
               <input
                 type="datetime-local"
                 value={formData.scheduledFor}
                 onChange={(e) => setFormData({ ...formData, scheduledFor: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
               />
             </div>
 
             {/* Promo */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Promo Code</label>
+              <label className="block text-sm font-semibold text-black mb-2">Promo Code</label>
               <div className="flex space-x-2">
                 <input
                   type="text"
@@ -300,13 +289,13 @@ export const Checkout: React.FC<CheckoutProps> = ({
                     setFormData({ ...formData, promoCode: e.target.value.toUpperCase() });
                     setPromoError('');
                   }}
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="flex-1 px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
                   placeholder="Enter code"
                 />
                 <button
                   type="button"
                   onClick={handleApplyPromo}
-                  className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200"
+                  className="px-6 py-3 bg-black text-white rounded-xl font-semibold hover:bg-gray-800 transition-colors"
                 >
                   Apply
                 </button>
@@ -315,90 +304,54 @@ export const Checkout: React.FC<CheckoutProps> = ({
               {discount > 0 && <p className="text-sm text-green-600 mt-1">Discount applied: -₦{discount.toFixed(2)}</p>}
             </div>
 
-            {/* Payment Method */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method *</label>
-              <div className="space-y-2">
-                <label className="flex items-center p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
-                  <input
-                    type="radio"
-                    value="cash"
-                    checked={formData.paymentMethod === 'cash'}
-                    onChange={(e) => setFormData({ ...formData, paymentMethod: 'cash' })}
-                    className="mr-3"
-                  />
-                  <span className="font-medium">Cash on Delivery</span>
-                </label>
-                <label className="flex items-center p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
-                  <input
-                    type="radio"
-                    value="online"
-                    checked={formData.paymentMethod === 'online'}
-                    onChange={(e) => setFormData({ ...formData, paymentMethod: 'online' })}
-                    className="mr-3"
-                  />
-                  <span className="font-medium">Online Payment</span>
-                </label>
-              </div>
-            </div>
-
             {/* Summary */}
-            <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-              <div className="flex justify-between text-gray-600"><span>Subtotal</span><span>₦{subtotal.toFixed(2)}</span></div>
-              <div className="flex justify-between text-gray-600"><span>Delivery Fee</span><span>₦{deliveryFee.toFixed(2)}</span></div>
-              {discount > 0 && <div className="flex justify-between text-green-600"><span>Discount</span><span>-₦{discount.toFixed(2)}</span></div>}
-              <div className="flex justify-between text-xl font-bold text-gray-900 pt-2 border-t border-gray-300"><span>Total</span><span>₦{effectiveTotal.toFixed(2)}</span></div>
+            <div className="bg-gray-50 rounded-xl p-5 space-y-3 border border-gray-100">
+              <div className="flex justify-between text-gray-700"><span>Subtotal</span><span className="font-medium">₦{subtotal.toFixed(2)}</span></div>
+              {packCount > 0 && <div className="flex justify-between text-gray-700"><span>Food Pack ({packCount}x)</span><span className="font-medium">₦{packTotal.toFixed(2)}</span></div>}
+              <div className="flex justify-between text-gray-700"><span>Delivery Fee</span><span className="font-medium">₦{deliveryFee.toFixed(2)}</span></div>
+              {discount > 0 && <div className="flex justify-between text-green-600 font-medium"><span>Discount</span><span>-₦{discount.toFixed(2)}</span></div>}
+              <div className="flex justify-between text-xl font-bold text-black pt-3 border-t border-gray-200"><span>Total</span><span>₦{effectiveTotal.toFixed(2)}</span></div>
             </div>
 
-            {/* Buttons */}
-            {formData.paymentMethod === 'online' ? (
-              !paystackScriptLoaded ? (
-                <button type="button" disabled className="w-full bg-blue-600 text-white py-4 rounded-lg font-semibold opacity-75">
-                  Loading payment gateway...
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!(window as any).PaystackPop) {
-                      alert('Payment gateway not loaded. Refresh and try again.');
-                      return;
-                    }
-                    if (!profile?.email) {
-                      alert('Email is required for payment. Please update your profile.');
-                      return;
-                    }
-                    const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY?.trim();
-                    if (!paystackKey) {
-                      alert('Payment system not configured. Please contact support.');
-                      console.error('VITE_PAYSTACK_PUBLIC_KEY not set');
-                      return;
-                    }
-                    const email = profile.email;
-                    const ref = `VARTICA_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-                    const handler = (window as any).PaystackPop.setup({
-                      key: paystackKey,
-                      email,
-                      amount: totalInKobo,
-                      currency: 'NGN',
-                      ref,
-                      callback: (response: any) => handlePaystackSuccess(response),
-                      onClose: () => handlePaystackClose(),
-                    });
-                    handler.openIframe();
-                  }}
-                  className="w-full bg-blue-600 text-white py-4 rounded-lg font-semibold hover:bg-blue-700"
-                >
-                  Pay Now (₦{effectiveTotal.toFixed(2)})
-                </button>
-              )
+            {/* Pay Button */}
+            {!paystackScriptLoaded ? (
+              <button type="button" disabled className="w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg opacity-75">
+                Loading payment gateway...
+              </button>
             ) : (
               <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-600 text-white py-4 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
+                onClick={() => {
+                  if (!(window as any).PaystackPop) {
+                    alert('Payment gateway not loaded. Refresh and try again.');
+                    return;
+                  }
+                  if (!profile?.email) {
+                    alert('Email is required for payment. Please update your profile.');
+                    return;
+                  }
+                  const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY?.trim();
+                  if (!paystackKey) {
+                    alert('Payment system not configured. Please contact support.');
+                    console.error('VITE_PAYSTACK_PUBLIC_KEY not set');
+                    return;
+                  }
+                  const email = profile.email;
+                  const ref = `VARTICA_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                  const handler = (window as any).PaystackPop.setup({
+                    key: paystackKey,
+                    email,
+                    amount: totalInKobo,
+                    currency: 'NGN',
+                    ref,
+                    callback: (response: any) => handlePaystackSuccess(response),
+                    onClose: () => handlePaystackClose(),
+                  });
+                  handler.openIframe();
+                }}
+                className="w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-colors shadow-lg"
               >
-                {loading ? 'Placing Order...' : 'Place Order'}
+                Pay Now • ₦{effectiveTotal.toFixed(2)}
               </button>
             )}
           </form>

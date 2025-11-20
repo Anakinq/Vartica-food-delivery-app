@@ -11,11 +11,9 @@ export interface AuthSession {
 export interface SignUpParams {
   email: string;
   password: string;
-  metadata?: {
-    full_name?: string;
-    role?: string;
-    phone?: string;
-  };
+  fullName?: string;
+  role?: string;
+  phone?: string;
 }
 
 export interface SignInParams {

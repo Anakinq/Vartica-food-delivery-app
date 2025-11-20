@@ -45,7 +45,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [pulseCategory, setPulseCategory] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [cartPackCount, setCartPackCount] = useState(1);
+  const [cartPackCount, setCartPackCount] = useState(0);
   const [showCheckout, setShowCheckout] = useState(false);
 
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -236,27 +236,27 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   };
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      <nav className="bg-white shadow-sm sticky top-0 z-40">
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => setSelectedSeller(null)}
-                className="text-2xl font-bold text-stone-800 hover:text-orange-600 transition-colors duration-200"
+                className="text-2xl font-bold text-black hover:text-gray-700 transition-colors duration-200"
                 aria-label="Back to home"
               >
                 Vartica
               </button>
               {selectedSeller && (
-                <span className="text-stone-400">/ {selectedSeller.name}</span>
+                <span className="text-gray-500">/ {selectedSeller.name}</span>
               )}
             </div>
 
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => setShowOrders(true)}
-                className="p-2 text-stone-600 hover:text-orange-600 transition-colors duration-200"
+                className="p-2 text-gray-700 hover:text-green-600 transition-colors duration-200"
                 title="My Orders"
                 aria-label="View orders"
               >
@@ -265,12 +265,12 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
               <button
                 onClick={() => setShowCart(true)}
-                className="relative p-2 text-stone-600 hover:text-orange-600 transition-colors duration-200"
+                className="relative p-2 text-gray-700 hover:text-green-600 transition-colors duration-200"
                 aria-label={`Cart, ${cartCount} items`}
               >
                 <ShoppingCart className="h-6 w-6" />
                 {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 bg-green-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
                     {cartCount}
                   </span>
                 )}
@@ -278,7 +278,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
               <button
                 onClick={onShowProfile}
-                className="flex items-center space-x-2 text-stone-700 hover:text-orange-600 transition-colors duration-200"
+                className="flex items-center space-x-2 text-gray-700 hover:text-green-600 transition-colors duration-200"
                 aria-label="View profile"
               >
                 <User className="h-5 w-5" />
@@ -287,7 +287,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
               <button
                 onClick={signOut}
-                className="p-2 text-stone-600 hover:text-red-600 transition-colors duration-200"
+                className="p-2 text-gray-700 hover:text-red-600 transition-colors duration-200"
                 aria-label="Sign out"
               >
                 <LogOut className="h-5 w-5" />
@@ -300,32 +300,32 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="mb-6">
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-400 h-5 w-5" />
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search for food, vendors, or cafeterias..."
-              className="w-full pl-12 pr-4 py-4 border border-stone-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
+              className="w-full pl-12 pr-4 py-4 bg-gray-100 border-0 rounded-full focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
               aria-label="Search food or vendors"
             />
           </div>
         </div>
 
         {selectedSeller && menuItems.length > 0 && (
-          <div className="sticky top-20 z-30 bg-stone-50 py-3 mb-6 -mx-4 px-4 shadow-sm">
+          <div className="sticky top-20 z-30 bg-gray-50 py-3 mb-6 -mx-4 px-4 border-b border-gray-200">
             <div className="flex overflow-x-auto pb-1 space-x-3 hide-scrollbar">
               {groupedCategories.map(({ category }) => (
                 <button
                   key={category}
                   onClick={() => handleCategoryClick(category)}
                   className={`
-                    whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-all duration-200
+                    whitespace-nowrap px-5 py-2 rounded-full text-sm font-medium transition-all duration-200
                     ${pulseCategory === category
-                      ? 'bg-orange-600 text-white scale-105'
+                      ? 'bg-black text-white scale-105'
                       : activeCategory === category
-                        ? 'bg-orange-500 text-white'
-                        : 'bg-stone-200 text-stone-800 hover:bg-stone-300 active:scale-95'}
+                        ? 'bg-black text-white'
+                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300 active:scale-95'}
                   `}
                 >
                   {category}
@@ -338,7 +338,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         {!selectedSeller ? (
           <>
             <section className="mb-12">
-              <h2 className="text-2xl font-bold text-stone-800 mb-6">Cafeterias</h2>
+              <h2 className="text-2xl font-bold text-black mb-6">Cafeterias</h2>
               {loading ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
@@ -357,16 +357,18 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                         tabIndex={0}
                         aria-pressed={isSelected}
                         aria-label={`Select ${cafeteria.name}`}
-                        className={`bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 ${isSelected ? 'border-orange-500 bg-orange-50' : 'border-stone-200 hover:border-orange-300'}`}
+                        className={`bg-white rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${isSelected ? 'ring-2 ring-green-600' : 'hover:shadow-md'}`}
                       >
                         <img
                           src={getImagePath(cafeteria.id, 'cafeteria')}
                           alt={cafeteria.name}
-                          className="w-20 h-20 rounded-xl object-cover mb-4"
+                          className="w-full h-40 object-cover"
                           onError={(e) => (e.currentTarget.src = '/images/placeholder.jpg')}
                         />
-                        <h3 className="font-bold text-stone-800">{cafeteria.name}</h3>
-                        <p className="text-sm text-stone-600 mt-1 line-clamp-2">{cafeteria.description}</p>
+                        <div className="p-4">
+                          <h3 className="font-bold text-black text-lg">{cafeteria.name}</h3>
+                          <p className="text-sm text-gray-600 mt-1 line-clamp-1">{cafeteria.description}</p>
+                        </div>
                       </div>
                     );
                   })}
@@ -375,7 +377,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
             </section>
 
             <section className="mb-12">
-              <h2 className="text-2xl font-bold text-stone-800 mb-6">Student Vendors</h2>
+              <h2 className="text-2xl font-bold text-black mb-6">Student Vendors</h2>
               {loading ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
@@ -394,25 +396,27 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                         tabIndex={0}
                         aria-pressed={isSelected}
                         aria-label={`Select ${vendor.store_name}`}
-                        className={`bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer relative transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 ${isSelected ? 'border-orange-500 bg-orange-50' : 'border-stone-200 hover:border-orange-300'}`}
+                        className={`bg-white rounded-xl overflow-hidden cursor-pointer relative transition-all duration-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${isSelected ? 'ring-2 ring-green-600' : 'hover:shadow-md'}`}
                       >
-                        <span className="absolute top-2 right-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                          Student Run
+                        <span className="absolute top-3 right-3 bg-blue-600 text-white text-xs px-3 py-1 rounded-full z-10 font-medium">
+                          Student
                         </span>
                         <img
                           src={getImagePath(vendor.id, 'vendor')}
                           alt={vendor.store_name}
-                          className="w-20 h-20 rounded-xl object-cover mb-4"
+                          className="w-full h-40 object-cover"
                           onError={(e) => (e.currentTarget.src = '/images/placeholder.jpg')}
                         />
-                        <h3 className="font-bold text-stone-800">{vendor.store_name}</h3>
-                        <p className="text-sm text-stone-600 mt-1 line-clamp-2">{vendor.description}</p>
+                        <div className="p-4">
+                          <h3 className="font-bold text-black text-lg">{vendor.store_name}</h3>
+                          <p className="text-sm text-gray-600 mt-1 line-clamp-1">{vendor.description}</p>
+                        </div>
                       </div>
                     );
                   })}
                 </div>
               ) : (
-                <div className="text-center py-8 text-stone-500">
+                <div className="text-center py-8 text-gray-500">
                   No student vendors available yet
                 </div>
               )}
@@ -518,11 +522,12 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
           items={cart}
           subtotal={subtotal}
           deliveryFee={deliveryFee}
+          packCount={cartPackCount}
           onBack={() => setShowCheckout(false)}
           onClose={() => setShowCheckout(false)}
           onSuccess={() => {
             setCart([]);
-            setCartPackCount(1);
+            setCartPackCount(0);
             setShowCheckout(false);
             showToast('Order placed successfully!');
           }}

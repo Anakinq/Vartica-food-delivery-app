@@ -118,7 +118,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // ✅ Sign up (with auto-login + profile sync)
+  // ✅ Sign up (trigger will auto-create profile on email confirmation)
   const signUp = async (
     email: string,
     password: string,
@@ -128,39 +128,41 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   ) => {
     setLoading(true);
     try {
-      // 1️⃣ Sign up (creates auth user)
-      const { user: newUser, error: signUpError } = await authService.signUp({ email, password });
-      if (signUpError || !newUser) {
-        throw signUpError || new Error('User creation failed');
-      }
-
-      // 2️⃣ Create profile
-      const { error: profileError } = await databaseService.insert<Profile>({
-        table: 'profiles',
-        data: {
-          id: newUser.id,
-          email,
-          full_name: fullName,
-          role,
-          phone: phone || null,
-        },
+      // 1️⃣ Sign up with metadata (database trigger will create profile after email confirmation)
+      const { user: newUser, error: signUpError } = await authService.signUp({
+        email,
+        password,
+        fullName,
+        role,
+        phone,
       });
 
-      if (profileError) {
-        // 🧹 Clean up: sign out the half-created user to avoid orphaned auth accounts
-        await authService.signOut();
-        throw new Error(`Profile creation failed: ${profileError.message}`);
+      if (signUpError) {
+        // Check if it's just a confirmation message
+        if (signUpError.message.includes('check your email')) {
+          // This is expected - show the message to user
+          throw signUpError;
+        }
+        throw signUpError;
       }
 
-      // 3️⃣ ✅ Auto-sign in to trigger onAuthStateChange & UI update
-      const { error: signInError } = await authService.signIn({ email, password });
-      if (signInError) {
-        // Optional: try to clean up profile? (or let RLS handle it)
-        console.warn('Sign-in after signup failed (profile exists but session missing)');
-        throw signInError;
+      if (!newUser) {
+        throw new Error('User creation failed');
       }
 
-      // 🌟 Let `onAuthStateChange` finish the job: set user + profile
+      // 2️⃣ If email is auto-confirmed, sign in to get session and profile
+      try {
+        const { error: signInError } = await authService.signIn({ email, password });
+        if (signInError) {
+          console.warn('Sign-in after signup failed:', signInError.message);
+          throw new Error('Account created! Please sign in to continue.');
+        }
+        // 🌟 Let `onAuthStateChange` finish the job: set user + profile
+      } catch (signInErr) {
+        // If auto-sign-in fails, that's okay - user can sign in manually
+        setLoading(false);
+        throw signInErr;
+      }
     } catch (err) {
       setLoading(false);
       throw err;

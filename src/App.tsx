@@ -11,7 +11,7 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { ProfileDashboard } from './components/shared/ProfileDashboard';
 import { PaymentSuccess } from './components/customer/PaymentSuccess';
 
-type Role = 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin';
+type Role = 'customer' | 'cafeteria' | 'vendor' | 'late_night_vendor' | 'delivery_agent' | 'admin';
 type AuthView = 'signin' | 'signup';
 
 function AppContent() {
@@ -128,18 +128,18 @@ function AppContent() {
   }
 
   if (selectedRole && selectedRole !== 'customer') {
-    return authView === 'signup' && (selectedRole === 'vendor' || selectedRole === 'delivery_agent') ? (
+    return authView === 'signup' && (selectedRole === 'vendor' || selectedRole === 'late_night_vendor' || selectedRole === 'delivery_agent') ? (
       <SignUp
-        role={selectedRole}
+        role={selectedRole === 'late_night_vendor' ? 'late_night_vendor' : selectedRole}
         onBack={() => setSelectedRole(null)}
         onSwitchToSignIn={() => setAuthView('signin')}
       />
     ) : (
       <SignIn
-        role={selectedRole}
+        role={selectedRole === 'late_night_vendor' ? 'vendor' : selectedRole}
         onBack={() => setSelectedRole(null)}
         onSwitchToSignUp={
-          selectedRole === 'vendor' || selectedRole === 'delivery_agent'
+          selectedRole === 'vendor' || selectedRole === 'late_night_vendor' || selectedRole === 'delivery_agent'
             ? () => setAuthView('signup')
             : undefined
         }

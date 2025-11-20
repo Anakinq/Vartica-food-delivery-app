@@ -8,10 +8,10 @@ interface MenuItemDetailProps {
   onAddToCart: (item: MenuItem, quantity: number) => void;
 }
 
-export const MenuItemDetail: React.FC<MenuItemDetailProps> = ({ 
-  item, 
+export const MenuItemDetail: React.FC<MenuItemDetailProps> = ({
+  item,
   onBack,
-  onAddToCart 
+  onAddToCart
 }) => {
   const [quantity, setQuantity] = useState(1);
   const [recommendedSides, setRecommendedSides] = useState<MenuItem[]>([]);
@@ -51,7 +51,7 @@ export const MenuItemDetail: React.FC<MenuItemDetailProps> = ({
     <div className="pb-24">
       {/* Header */}
       <div className="flex items-center px-4 pt-4">
-        <button 
+        <button
           onClick={onBack}
           className="p-2 mr-3 text-gray-600 hover:bg-gray-100 rounded-full"
         >
@@ -78,7 +78,7 @@ export const MenuItemDetail: React.FC<MenuItemDetailProps> = ({
       {/* Product Info */}
       <div className="px-4 mt-4">
         <h2 className="text-2xl font-bold text-gray-900">{item.name}</h2>
-        
+
         {/* Rating (mocked) */}
         <div className="flex items-center mt-1">
           <div className="flex text-yellow-400">⭐⭐⭐⭐☆</div>

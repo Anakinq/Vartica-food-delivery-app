@@ -16,12 +16,12 @@ interface CartProps {
   onCheckout: () => void; // ✅ Required now
 }
 
-export const Cart: React.FC<CartProps> = ({ 
-  items, 
-  onUpdateQuantity, 
-  onClear, 
+export const Cart: React.FC<CartProps> = ({
+  items,
+  onUpdateQuantity,
+  onClear,
   onClose,
-  cartPackCount = 1,
+  cartPackCount = 0,
   onCartPackChange,
   onCheckout // ✅ Destructure it
 }) => {
@@ -34,7 +34,7 @@ export const Cart: React.FC<CartProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center">
       <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">Your Cart</h2>
+          <h2 className="text-2xl font-bold text-black">Your Cart</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
             <X className="h-6 w-6" />
           </button>
@@ -43,11 +43,11 @@ export const Cart: React.FC<CartProps> = ({
         {items.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
             <ShoppingBag className="h-16 w-16 text-gray-300 mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Your cart is empty</h3>
+            <h3 className="text-xl font-semibold text-black mb-2">Your cart is empty</h3>
             <p className="text-gray-600 mb-6">Add some delicious items to get started!</p>
             <button
               onClick={onClose}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+              className="px-6 py-3 bg-black text-white rounded-full font-semibold hover:bg-gray-800 transition-colors"
             >
               Browse Menu
             </button>
@@ -56,9 +56,9 @@ export const Cart: React.FC<CartProps> = ({
           <>
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {items.map(item => (
-                <div key={item.id} className="flex items-center space-x-4 bg-gray-50 rounded-lg p-4">
+                <div key={item.id} className="flex items-center space-x-4 bg-gray-50 rounded-xl p-4">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">{item.name}</h3>
+                    <h3 className="font-semibold text-black">{item.name}</h3>
                     <p className="text-sm text-gray-600">₦{item.price.toLocaleString()} each</p>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -77,7 +77,7 @@ export const Cart: React.FC<CartProps> = ({
                     </button>
                   </div>
                   <div className="text-right min-w-[4rem]">
-                    <p className="font-bold text-gray-900">₦{(item.price * item.quantity).toLocaleString()}</p>
+                    <p className="font-bold text-black">₦{(item.price * item.quantity).toLocaleString()}</p>
                   </div>
                   <button
                     onClick={() => onUpdateQuantity(item.id, 0)}
@@ -100,12 +100,11 @@ export const Cart: React.FC<CartProps> = ({
                   <span className="text-gray-600">Food Pack</span>
                   <div className="flex items-center space-x-2">
                     <button
-                      onClick={() => cartPackCount > 1 && onCartPackChange && onCartPackChange(cartPackCount - 1)}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold ${
-                        cartPackCount <= 1
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      }`}
+                      onClick={() => cartPackCount > 0 && onCartPackChange && onCartPackChange(cartPackCount - 1)}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold ${cartPackCount <= 0
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
                       aria-label="Decrease packs"
                     >
                       –
@@ -128,7 +127,7 @@ export const Cart: React.FC<CartProps> = ({
                   <span>Delivery Fee</span>
                   <span>₦{deliveryFee.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between text-xl font-bold text-gray-900 pt-2 border-t border-gray-200">
+                <div className="flex justify-between text-xl font-bold text-black pt-2 border-t border-gray-200">
                   <span>Total</span>
                   <span>₦{total.toLocaleString()}</span>
                 </div>
@@ -137,7 +136,7 @@ export const Cart: React.FC<CartProps> = ({
               <div className="flex space-x-3">
                 <button
                   onClick={onClear}
-                  className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50"
+                  className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-full font-semibold hover:bg-gray-50 transition-colors"
                 >
                   Clear Cart
                 </button>
@@ -145,7 +144,7 @@ export const Cart: React.FC<CartProps> = ({
                 <button
                   onClick={onCheckout}
                   disabled={items.length === 0}
-                  className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 py-3 bg-green-600 text-white rounded-full font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Place Order
                 </button>
