@@ -34,10 +34,28 @@ export default defineConfig(({ mode }) => {
       headers: {
         'Content-Security-Policy': `
           default-src 'self';
+          script-src 'self' 'unsafe-inline' https://js.paystack.co https://checkout.paystack.com;
           connect-src 'self'
             https://jbqhbuogmxqzotlorahn.supabase.co
             https://jbqhbuogmxqzotlorahn.functions.supabase.co
-            https://api.paystack.co;
+            https://api.paystack.co
+            https://checkout.paystack.com;
+          frame-src https://checkout.paystack.com https://*.paystack.com;
+          style-src 'self' 'unsafe-inline' https://paystack.com https://*.paystack.com;
+          style-src-elem 'self' 'unsafe-inline' https://paystack.com https://*.paystack.com;
+          img-src 'self' blob: data:
+            https://jbqhbuogmxqzotlorahn.supabase.co
+            https://images.unsplash.com
+            https://via.placeholder.com
+            https://res.cloudinary.com
+            https://*.paystack.com
+            https://checkout.paystack.com
+            https://paystack.com
+            https://cdn-cgi.challenge-platform.hcaptcha.com;
+          font-src 'self' data:;
+          object-src 'none';
+          base-uri 'self';
+          form-action 'self';
         `.replace(/\n/g, ' '),
       },
     },
