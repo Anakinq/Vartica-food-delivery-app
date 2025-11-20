@@ -39,7 +39,10 @@ export default defineConfig(({ mode }) => {
             https://jbqhbuogmxqzotlorahn.supabase.co
             https://jbqhbuogmxqzotlorahn.functions.supabase.co
             https://api.paystack.co
-            https://checkout.paystack.com;
+            https://checkout.paystack.com
+            https://images.unsplash.com
+            https://via.placeholder.com
+            https://res.cloudinary.com;
           frame-src https://checkout.paystack.com https://*.paystack.com;
           style-src 'self' 'unsafe-inline' https://paystack.com https://*.paystack.com;
           style-src-elem 'self' 'unsafe-inline' https://paystack.com https://*.paystack.com;

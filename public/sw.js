@@ -51,17 +51,25 @@ self.addEventListener('fetch', (event) => {
     // Skip chrome extensions and non-http(s) requests
     if (!url.protocol.startsWith('http')) return;
 
-    // Skip Paystack resources - let browser handle them directly (avoids CSP/CORS issues)
+    // Skip all external resources that cause CSP issues - let browser handle them directly
     if (url.hostname === 'js.paystack.co' ||
         url.hostname === 'paystack.com' ||
         url.hostname === 'checkout.paystack.com' ||
-        url.hostname.includes('.paystack.com')) return;
+        url.hostname.includes('.paystack.com') ||
+        url.hostname === 'images.unsplash.com' ||
+        url.hostname === 'via.placeholder.com' ||
+        url.hostname === 'res.cloudinary.com' ||
+        url.hostname.includes('hcaptcha.com') ||
+        url.hostname.includes('challenge-platform') ||
+        url.hostname.includes('cloudflareinsights.com') ||
+        url.hostname.includes('datadoghq-browser-agent.com')) {
+        return;
+    }
 
     // Network-first for API calls
     if (
         url.hostname.includes('supabase.co') ||
-        url.hostname.includes('paystack.co') ||
-        url.hostname.includes('hcaptcha.com')
+        url.hostname.includes('paystack.co')
     ) {
         event.respondWith(
             fetch(request)
