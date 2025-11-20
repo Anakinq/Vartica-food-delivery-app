@@ -140,7 +140,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   };
 
   const groupMenuItemsByCategory = () => {
-    const categories = ['Main Course', 'Drink', 'Swallow', 'Protein', 'Side', 'Salad', 'Snack', 'Soup'];
+    const categories = ['Rice & Pasta', 'Proteins & Sides', 'Drinks'];
     return categories.map(category => {
       const items = menuItems.filter(item => item.category === category);
       return { category, items };
