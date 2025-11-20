@@ -26,6 +26,7 @@ class SupabaseAuthService implements IAuthService {
       });
 
       if (error) {
+        console.error('Supabase signup error:', error); // Log the error for debugging
         return { user: null, error };
       }
 
@@ -53,6 +54,7 @@ class SupabaseAuthService implements IAuthService {
         };
       }
     } catch (err) {
+      console.error('Signup exception:', err); // Log the exception for debugging
       return { user: null, error: err as Error };
     }
   }

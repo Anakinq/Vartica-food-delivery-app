@@ -37,8 +37,10 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
   // ✅ Auto-redirect on successful auth
   useEffect(() => {
+    console.log('SignUp useEffect triggered', { user, profile, role, showEmailConfirmation }); // Debug log
     if (user && profile && profile.role === role && !showEmailConfirmation) {
       // Success! App.tsx will render the correct dashboard
+      console.log('User authenticated and profile loaded, but not showing email confirmation'); // Debug log
     }
   }, [user, profile, role, showEmailConfirmation]);
 
@@ -70,6 +72,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log('Signup form submitted with data:', formData); // Debug log
     setError('');
 
     if (formData.password !== formData.confirmPassword) {
@@ -97,6 +100,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
     try {
       // First, sign up the user
+      console.log('Calling authSignUp'); // Debug log
       const result = await authSignUp(
         formData.email,
         formData.password,
@@ -104,6 +108,12 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
         role === 'late_night_vendor' ? 'vendor' : role,
         formData.phone
       );
+      console.log('authSignUp result:', result); // Debug log
+
+      // Check if there was an error in the result
+      if (result.error) {
+        throw result.error;
+      }
 
       // If vendor, upload logo and create vendor profile
       if ((role === 'vendor' || role === 'late_night_vendor') && logoFile) {
@@ -147,13 +157,15 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
       }
 
       // Show email confirmation message
+      console.log('Setting showEmailConfirmation to true'); // Debug log
       setShowEmailConfirmation(true);
 
       // Notify parent component that user just signed up
       // This is a workaround since we can't directly access the AppContent state
       window.dispatchEvent(new CustomEvent('userSignedUp'));
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to sign up');
+      console.error('Signup error:', err); // Log the error for debugging
+      setError(err instanceof Error ? err.message : 'Failed to sign up. Please check your information and try again.');
     } finally {
       setSubmitting(false);
     }

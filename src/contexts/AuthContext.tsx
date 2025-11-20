@@ -171,6 +171,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setLoading(false);
         throw signInErr;
       }
+
+      // If we get here, signup was successful
+      setLoading(false);
+      return { user: newUser, error: null };
     } catch (err) {
       setLoading(false);
       throw err;
