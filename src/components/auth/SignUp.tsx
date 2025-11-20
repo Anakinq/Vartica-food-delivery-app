@@ -69,6 +69,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setError('');
 
     if (formData.password !== formData.confirmPassword) {
@@ -147,6 +148,10 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
       // Show email confirmation message
       setShowEmailConfirmation(true);
+
+      // Notify parent component that user just signed up
+      // This is a workaround since we can't directly access the AppContent state
+      window.dispatchEvent(new CustomEvent('userSignedUp'));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to sign up');
     } finally {

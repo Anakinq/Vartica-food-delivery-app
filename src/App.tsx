@@ -19,6 +19,20 @@ function AppContent() {
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [authView, setAuthView] = useState<AuthView>('signin');
   const [showProfile, setShowProfile] = useState(false);
+  const [justSignedUp, setJustSignedUp] = useState(false); // Track if user just signed up
+
+  // Listen for user signup event
+  useEffect(() => {
+    const handleUserSignedUp = () => {
+      setJustSignedUp(true);
+    };
+
+    window.addEventListener('userSignedUp', handleUserSignedUp);
+
+    return () => {
+      window.removeEventListener('userSignedUp', handleUserSignedUp);
+    };
+  }, []);
 
   // Debug logging removed for production
   // useEffect(() => {
@@ -31,7 +45,7 @@ function AppContent() {
   }
 
   // ✅ Show loading if auth is still initializing
-  if (loading) {
+  if (loading && !justSignedUp) { // Don't show loading if user just signed up
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -48,7 +62,7 @@ function AppContent() {
   }
 
   // ✅ Authenticated & profile loaded → render dashboard
-  if (user && profile) {
+  if (user && profile && !justSignedUp) { // Don't redirect if user just signed up
     // 🔐 Extra safety: ensure profile.role is valid
     const role = profile.role as Role | undefined;
     if (!role || !['customer', 'cafeteria', 'vendor', 'delivery_agent', 'admin'].includes(role)) {
@@ -99,7 +113,7 @@ function AppContent() {
   }
 
   // ✅ Authed user, but profile still loading (rare, but possible)
-  if (user && !profile) {
+  if (user && !profile && !justSignedUp) { // Don't show loading if user just signed up
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -115,8 +129,14 @@ function AppContent() {
     return authView === 'signup' ? (
       <SignUp
         role="customer"
-        onBack={() => setSelectedRole(null)}
-        onSwitchToSignIn={() => setAuthView('signin')}
+        onBack={() => {
+          setSelectedRole(null);
+          setJustSignedUp(false); // Reset justSignedUp when going back
+        }}
+        onSwitchToSignIn={() => {
+          setAuthView('signin');
+          setJustSignedUp(false); // Reset justSignedUp when switching to sign in
+        }}
       />
     ) : (
       <SignIn
@@ -131,8 +151,14 @@ function AppContent() {
     return authView === 'signup' && (selectedRole === 'vendor' || selectedRole === 'late_night_vendor' || selectedRole === 'delivery_agent') ? (
       <SignUp
         role={selectedRole === 'late_night_vendor' ? 'late_night_vendor' : selectedRole}
-        onBack={() => setSelectedRole(null)}
-        onSwitchToSignIn={() => setAuthView('signin')}
+        onBack={() => {
+          setSelectedRole(null);
+          setJustSignedUp(false); // Reset justSignedUp when going back
+        }}
+        onSwitchToSignIn={() => {
+          setAuthView('signin');
+          setJustSignedUp(false); // Reset justSignedUp when switching to sign in
+        }}
       />
     ) : (
       <SignIn
@@ -153,6 +179,7 @@ function AppContent() {
       onRoleSelect={(role) => {
         setSelectedRole(role);
         setAuthView('signin');
+        setJustSignedUp(false); // Reset justSignedUp when selecting a new role
       }}
     />
   );

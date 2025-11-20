@@ -34,7 +34,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState(true);
 
   // 🔁 Unified fetch: user + profile
-  const fetchUserAndProfile = async (sessionUser: ServiceUser | null) => {
+  const fetchUserAndProfile = async (sessionUser: ServiceUser | null, skipUserSet: boolean = false) => {
     if (!sessionUser) {
       setUser(null);
       setProfile(null);
@@ -42,7 +42,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     try {
-      setUser(sessionUser);
+      // Only set user state if not skipping
+      if (!skipUserSet) {
+        setUser(sessionUser);
+      }
       const { data: profileData, error } = await databaseService.selectSingle<Profile>({
         table: 'profiles',
         match: { id: sessionUser.id },
@@ -96,6 +99,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(null);
         setProfile(null);
         setLoading(false); // ✅ Set loading to false after sign-out completes
+      } else if (event.event === 'SIGNUP') {
+        // Don't do anything special on signup - let the UI handle it
+        setLoading(false);
       }
     });
 
