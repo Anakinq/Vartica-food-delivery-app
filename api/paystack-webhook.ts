@@ -4,10 +4,14 @@ import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase with Service Role Key (full permissions)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Only accept POST
@@ -18,8 +22,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Verify Paystack signature
   const signature = req.headers['x-paystack-signature'] as string;
   const payload = JSON.stringify(req.body);
+
+  // Check if PAYSTACK_SECRET_KEY is configured
+  const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
+  if (!paystackSecretKey) {
+    console.error('❌ PAYSTACK_SECRET_KEY not configured in environment variables');
+    return res.status(500).json({ error: 'Payment system not configured' });
+  }
+
   const expectedSignature = crypto
-    .createHmac('sha512', process.env.PAYSTACK_SECRET_KEY!)
+    .createHmac('sha512', paystackSecretKey)
     .update(payload)
     .digest('hex');
 

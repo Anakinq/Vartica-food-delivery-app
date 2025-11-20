@@ -50,17 +50,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
   // 💳 Load Paystack script + CSS safely
   useEffect(() => {
-    // Load CSS
-    const cssId = 'paystack-css';
-    if (!document.getElementById(cssId)) {
-      const link = document.createElement('link');
-      link.id = cssId;
-      link.rel = 'stylesheet';
-      link.href = 'https://paystack.com/public/css/button.min.css';
-      document.head.appendChild(link);
-    }
-
-    // Load JS
+    // Load JS only (avoid CSS which causes CSP violations)
     const scriptId = 'paystack-inline-js';
     if (document.getElementById(scriptId)) {
       setPaystackScriptLoaded(true);

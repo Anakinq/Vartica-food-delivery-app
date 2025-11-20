@@ -52,12 +52,16 @@ self.addEventListener('fetch', (event) => {
     if (!url.protocol.startsWith('http')) return;
 
     // Skip Paystack resources - let browser handle them directly (avoids CSP/CORS issues)
-    if (url.hostname === 'js.paystack.co' || url.hostname === 'paystack.com') return;
+    if (url.hostname === 'js.paystack.co' ||
+        url.hostname === 'paystack.com' ||
+        url.hostname === 'checkout.paystack.com' ||
+        url.hostname.includes('.paystack.com')) return;
 
     // Network-first for API calls
     if (
         url.hostname.includes('supabase.co') ||
-        url.hostname.includes('paystack.co')
+        url.hostname.includes('paystack.co') ||
+        url.hostname.includes('hcaptcha.com')
     ) {
         event.respondWith(
             fetch(request)
