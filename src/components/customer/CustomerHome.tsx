@@ -111,7 +111,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   };
 
   const fetchMenuItems = async (sellerId: string, sellerType: 'cafeteria' | 'vendor') => {
-    const { data } = await supabase
+    console.log('Fetching menu items for:', { sellerId, sellerType });
+    const { data, error } = await supabase
       .from('menu_items')
       .select('*')
       .eq('seller_id', sellerId)
@@ -119,7 +120,12 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       .eq('is_available', true)
       .order('name');
 
-    if (data) setMenuItems(data);
+    if (error) {
+      console.error('Error fetching menu items:', error);
+    } else {
+      console.log('Fetched menu items:', data);
+      setMenuItems(data || []);
+    }
   };
 
   const handleSellerClick = async (id: string, type: 'cafeteria' | 'vendor', name: string) => {
@@ -141,10 +147,17 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
   const groupMenuItemsByCategory = () => {
     const categories = ['Rice & Pasta', 'Proteins & Sides', 'Drinks'];
-    return categories.map(category => {
+    console.log('Grouping menu items by categories:', categories);
+    console.log('Current menu items:', menuItems);
+
+    const result = categories.map(category => {
       const items = menuItems.filter(item => item.category === category);
+      console.log(`Items in category ${category}:`, items);
       return { category, items };
     }).filter(group => group.items.length > 0);
+
+    console.log('Grouped categories result:', result);
+    return result;
   };
 
   const filteredCafeterias = cafeterias.filter(c =>

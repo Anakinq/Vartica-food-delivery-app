@@ -96,7 +96,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
     try {
       // First, sign up the user
-      await authSignUp(
+      const result = await authSignUp(
         formData.email,
         formData.password,
         formData.fullName,
@@ -145,10 +145,16 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
         if (vendorError) throw vendorError;
       }
 
-      // Show email confirmation message
+      // Show email confirmation message regardless of whether we got a user or just a confirmation message
       setShowEmailConfirmation(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to sign up');
+      // Check if it's an email confirmation message (not really an error)
+      if (err instanceof Error && err.message.includes('check your email')) {
+        // This is expected behavior - show the confirmation screen
+        setShowEmailConfirmation(true);
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to sign up');
+      }
     } finally {
       setSubmitting(false);
     }
