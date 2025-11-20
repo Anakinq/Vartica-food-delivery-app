@@ -37,10 +37,10 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
   // ✅ Auto-redirect on successful auth
   useEffect(() => {
-    if (user && profile && profile.role === role) {
+    if (user && profile && profile.role === role && !showEmailConfirmation) {
       // Success! App.tsx will render the correct dashboard
     }
-  }, [user, profile, role]);
+  }, [user, profile, role, showEmailConfirmation]);
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -145,16 +145,10 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
         if (vendorError) throw vendorError;
       }
 
-      // Show email confirmation message regardless of whether we got a user or just a confirmation message
+      // Show email confirmation message
       setShowEmailConfirmation(true);
     } catch (err: unknown) {
-      // Check if it's an email confirmation message (not really an error)
-      if (err instanceof Error && err.message.includes('check your email')) {
-        // This is expected behavior - show the confirmation screen
-        setShowEmailConfirmation(true);
-      } else {
-        setError(err instanceof Error ? err.message : 'Failed to sign up');
-      }
+      setError(err instanceof Error ? err.message : 'Failed to sign up');
     } finally {
       setSubmitting(false);
     }

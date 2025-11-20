@@ -140,8 +140,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (signUpError) {
         // Check if it's just a confirmation message
         if (signUpError.message.includes('check your email')) {
-          // This is expected - show the message to user
-          throw signUpError;
+          // This is expected - don't throw an error, just return success
+          // The UI will handle showing the confirmation message
+          setLoading(false);
+          return { user: newUser, error: null };
         }
         throw signUpError;
       }
