@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
-    base: './', // ✅ fixes 404 errors on Vercel by using relative asset paths
+    base: '/', // Changed from './' to '/' for Vercel deployment
     optimizeDeps: {
       exclude: ['lucide-react'],
     },
