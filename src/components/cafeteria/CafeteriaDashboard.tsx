@@ -5,17 +5,33 @@ import { supabase, MenuItem, Cafeteria } from '../../lib/supabase';
 import { MenuItemForm } from '../shared/MenuItemForm';
 
 const uploadImage = async (file: File): Promise<string | null> => {
-  const { data, error } = await supabase.storage
-    .from('menu-images')
-    .upload(`${Date.now()}-${file.name}`, file);
+  try {
+    console.log('Uploading file:', file.name);
+    
+    const { data, error } = await supabase.storage
+      .from('menu-images')
+      .upload(`${Date.now()}-${file.name}`, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
 
-  if (error) return null;
+    if (error) {
+      console.error('Upload error:', error);
+      return null;
+    }
 
-  const { publicUrl } = supabase.storage
-    .from('menu-images')
-    .getPublicUrl(data?.path ?? '');
-
-  return publicUrl;
+    console.log('Upload successful:', data);
+    
+    const { data: { publicUrl } } = supabase.storage
+      .from('menu-images')
+      .getPublicUrl(data.path);
+      
+    console.log('Public URL:', publicUrl);
+    return publicUrl;
+  } catch (error) {
+    console.error('Unexpected error during upload:', error);
+    return null;
+  }
 };
 
 export const CafeteriaDashboard: React.FC = () => {
@@ -75,6 +91,10 @@ export const CafeteriaDashboard: React.FC = () => {
       const imageUrl = await uploadImage(file);
       if (imageUrl) {
         finalData = { ...finalData, image_url: imageUrl };
+      } else {
+        // Handle upload failure
+        console.error('Failed to upload image');
+        // You might want to show an error message to the user here
       }
     }
 
@@ -85,6 +105,8 @@ export const CafeteriaDashboard: React.FC = () => {
         .eq('id', editingItem.id);
 
       if (menuItemError) {
+        console.error('Error updating menu item:', menuItemError);
+        // You might want to show an error message to the user here
         return;
       }
 
@@ -101,6 +123,8 @@ export const CafeteriaDashboard: React.FC = () => {
         });
 
       if (insertError) {
+        console.error('Error inserting menu item:', insertError);
+        // You might want to show an error message to the user here
         return;
       }
 

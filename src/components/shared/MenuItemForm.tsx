@@ -22,6 +22,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(item?.image_url || null);
   const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setImagePreview(item?.image_url || null);
@@ -39,8 +40,12 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsUploading(true);
+    setError(null);
     try {
-      await onSave(formData, imageFile);
+      await onSave(formData, imageFile || undefined);
+    } catch (err) {
+      console.error('Error saving item:', err);
+      setError('Failed to save item. Please try again.');
     } finally {
       setIsUploading(false);
     }
@@ -70,6 +75,12 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
             <X className="h-6 w-6" />
           </button>
         </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
