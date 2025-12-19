@@ -1,0 +1,17 @@
+{
+  "tasks": {
+    "dev": "supabase functions serve"
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  },
+  "fmt": {
+    "options": {
+      "useTabs": false,
+      "lineWidth": 80,
+      "indentWidth": 2
+    }
+  }
+}
