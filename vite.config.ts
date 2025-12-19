@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
-    base: '/', // Changed from './' to '/' for Vercel deployment
+    base: '/', // Keep as '/' for Vercel deployment
     optimizeDeps: {
       exclude: ['lucide-react'],
     },
