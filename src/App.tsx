@@ -10,6 +10,7 @@ import { DeliveryDashboard } from './components/delivery/DeliveryDashboard';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { ProfileDashboard } from './components/shared/ProfileDashboard';
 import { PaymentSuccess } from './components/customer/PaymentSuccess';
+import AuthCallback from './components/auth/AuthCallback';
 
 type Role = 'customer' | 'cafeteria' | 'vendor' | 'late_night_vendor' | 'delivery_agent' | 'admin';
 type AuthView = 'signin' | 'signup';
@@ -33,6 +34,11 @@ function AppContent() {
       window.removeEventListener('userSignedUp', handleUserSignedUp);
     };
   }, []);
+
+  // ✅ Handle /auth/callback route for OAuth
+  if (window.location.pathname === '/auth/callback') {
+    return <AuthCallback />;
+  }
 
   // ✅ Handle /payment-success route FIRST
   if (window.location.pathname === '/payment-success') {

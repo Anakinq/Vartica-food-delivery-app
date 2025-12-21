@@ -7,6 +7,7 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signUp: (
     email: string,
     password: string,
@@ -14,6 +15,7 @@ interface AuthContextType {
     role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin',
     phone?: string
   ) => Promise<void>;
+  signUpWithGoogle: (role: 'customer' | 'vendor' | 'delivery_agent') => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -124,6 +126,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // ✅ Sign in with Google
+  const signInWithGoogle = async () => {
+    setLoading(true);
+    try {
+      const { error } = await authService.signInWithGoogle();
+      if (error) throw error;
+      // 🎯 OAuth flow will redirect the user
+    } catch (err) {
+      setLoading(false);
+      throw err;
+    }
+  };
+
   // ✅ Sign up (trigger will auto-create profile on email confirmation)
   const signUp = async (
     email: string,
@@ -156,6 +171,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // ✅ Sign up with Google
+  const signUpWithGoogle = async (role: 'customer' | 'vendor' | 'delivery_agent') => {
+    setLoading(true);
+    try {
+      const { error } = await authService.signUpWithGoogle(role);
+      if (error) throw error;
+      // 🎯 OAuth flow will redirect the user
+    } catch (err) {
+      setLoading(false);
+      throw err;
+    }
+  };
+
   // ✅ Sign out
   const signOut = async () => {
     setLoading(true);
@@ -176,7 +204,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         profile,
         loading,
         signIn,
+        signInWithGoogle,
         signUp,
+        signUpWithGoogle,
         signOut,
         refreshProfile,
       }}

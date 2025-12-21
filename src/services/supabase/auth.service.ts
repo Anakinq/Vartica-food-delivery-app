@@ -70,6 +70,53 @@ class SupabaseAuthService implements IAuthService {
     }
   }
 
+  // ✅ Sign in with Google
+  async signInWithGoogle() {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        return { error };
+      }
+
+      return { error: null };
+    } catch (err) {
+      return { error: err as Error };
+    }
+  }
+
+  // ✅ Sign up with Google
+  async signUpWithGoogle(role: 'customer' | 'vendor' | 'delivery_agent') {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+
+      if (error) {
+        return { error };
+      }
+
+      // Store the intended role in localStorage so we can use it after OAuth callback
+      localStorage.setItem('oauth_role', role);
+
+      return { error: null };
+    } catch (err) {
+      return { error: err as Error };
+    }
+  }
+
   // ✅ Sign out
   async signOut() {
     try {
