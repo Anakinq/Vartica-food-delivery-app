@@ -16,4 +16,10 @@ if (!supabaseUrl.startsWith('https://')) {
     throw new Error('VITE_SUPABASE_URL must be a valid HTTPS URL');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+        persistSession: true,
+        detectSessionInUrl: true,
+        flowType: 'pkce'
+    }
+});
