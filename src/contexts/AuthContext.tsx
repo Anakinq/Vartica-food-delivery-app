@@ -37,7 +37,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // 🔁 Unified fetch: user + profile
   const fetchUserAndProfile = async (sessionUser: ServiceUser | null, skipUserSet: boolean = false) => {
+    console.log('fetchUserAndProfile called with:', { sessionUser, skipUserSet });
     if (!sessionUser) {
+      console.log('No session user, clearing user and profile');
       setUser(null);
       setProfile(null);
       return;
@@ -46,6 +48,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       // Only set user state if not skipping
       if (!skipUserSet) {
+        console.log('Setting user state');
         setUser(sessionUser);
       }
       const { data: profileData, error } = await databaseService.selectSingle<Profile>({
@@ -57,31 +60,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.warn('Profile fetch failed (continuing without profile):', error.message);
         setProfile(null);
       } else {
+        console.log('Profile fetched successfully:', profileData);
         setProfile(profileData);
       }
     } catch (err) {
+      console.error('Error fetching user and profile:', err);
       // Error fetching user and profile
       setLoading(false);
     }
   };
 
   const refreshProfile = async () => {
+    console.log('refreshProfile called');
     if (user) {
       const { data, error } = await databaseService.selectSingle<Profile>({
         table: 'profiles',
         match: { id: user.id },
       });
-      if (!error) setProfile(data);
+      if (!error) {
+        console.log('Profile refreshed:', data);
+        setProfile(data);
+      } else {
+        console.error('Error refreshing profile:', error);
+      }
     }
   };
 
   // 🔄 Sync auth state (initial + real-time)
   useEffect(() => {
     let isMounted = true;
+    console.log('AuthContext useEffect initialized');
 
     // 1️⃣ Initial load
     const initAuth = async () => {
+      console.log('initAuth called');
       const { session } = await authService.getSession();
+      console.log('Initial session:', session);
       if (isMounted) {
         await fetchUserAndProfile(session?.user ?? null);
         setLoading(false);
@@ -92,22 +106,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // 2️⃣ Real-time listener
     const { unsubscribe } = authService.onAuthStateChange(async (event) => {
+      console.log('Auth state change event received:', event);
       if (!isMounted) return;
 
       if (event.event === 'SIGNED_IN' || event.event === 'USER_UPDATED') {
+        console.log('User signed in or updated');
         await fetchUserAndProfile(event.session?.user ?? null);
         setLoading(false); // ✅ Set loading to false after sign-in completes
       } else if (event.event === 'SIGNED_OUT') {
+        console.log('User signed out');
         setUser(null);
         setProfile(null);
         setLoading(false); // ✅ Set loading to false after sign-out completes
       } else if (event.event === 'SIGNUP') {
+        console.log('User signed up');
         // Don't do anything special on signup - let the UI handle it
         setLoading(false);
       }
     });
 
     return () => {
+      console.log('AuthContext cleanup');
       isMounted = false;
       unsubscribe();
     };
@@ -115,10 +134,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // ✅ Sign in
   const signIn = async (email: string, password: string) => {
+    console.log('signIn called with:', { email });
     setLoading(true);
     try {
       const { error } = await authService.signIn({ email, password });
-      if (error) throw error;
+      if (error) {
+        console.error('SignIn error:', error);
+        throw error;
+      }
       // 🎯 `onAuthStateChange` will handle state sync — no need to setUser here
     } catch (err) {
       setLoading(false);
@@ -128,10 +151,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // ✅ Sign in with Google
   const signInWithGoogle = async () => {
+    console.log('signInWithGoogle called');
     setLoading(true);
     try {
       const { error } = await authService.signInWithGoogle();
-      if (error) throw error;
+      if (error) {
+        console.error('Google SignIn error:', error);
+        throw error;
+      }
       // 🎯 OAuth flow will redirect the user
     } catch (err) {
       setLoading(false);
@@ -147,7 +174,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin',
     phone?: string
   ) => {
-    console.log('AuthContext signUp called with params:', { email, password, fullName, role, phone });
+    console.log('signUp called with params:', { email, password, fullName, role, phone });
     setLoading(true);
     try {
       // 1️⃣ Sign up with metadata (database trigger will create profile after email confirmation)
@@ -159,12 +186,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         phone,
       });
 
-      console.log('AuthContext signUp result:', { user: newUser, error: signUpError });
+      console.log('signUp result:', { user: newUser, error: signUpError });
       // Return the result to let the UI handle success or error states
       setLoading(false);
       return { user: newUser, error: signUpError };
     } catch (err) {
-      console.log('AuthContext signUp error:', err);
+      console.log('signUp error:', err);
       // Return the error to let the UI handle it
       setLoading(false);
       return { user: null, error: err as Error };
@@ -173,10 +200,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // ✅ Sign up with Google
   const signUpWithGoogle = async (role: 'customer' | 'vendor' | 'delivery_agent') => {
+    console.log('signUpWithGoogle called with role:', role);
     setLoading(true);
     try {
       const { error } = await authService.signUpWithGoogle(role);
-      if (error) throw error;
+      if (error) {
+        console.error('Google SignUp error:', error);
+        throw error;
+      }
       // 🎯 OAuth flow will redirect the user
     } catch (err) {
       setLoading(false);
@@ -186,10 +217,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // ✅ Sign out
   const signOut = async () => {
+    console.log('signOut called');
     setLoading(true);
     try {
       const { error } = await authService.signOut();
-      if (error) throw error;
+      if (error) {
+        console.error('SignOut error:', error);
+        throw error;
+      }
       // 🎯 `onAuthStateChange` → SIGNED_OUT → clears user/profile
     } catch (err) {
       setLoading(false);

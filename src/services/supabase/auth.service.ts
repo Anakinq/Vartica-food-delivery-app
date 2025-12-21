@@ -28,6 +28,7 @@ class SupabaseAuthService implements IAuthService {
 
       console.log('Supabase signUp result:', { data, error });
       if (error) {
+        console.error('Supabase signUp error:', error);
         return { user: null, error };
       }
 
@@ -48,12 +49,16 @@ class SupabaseAuthService implements IAuthService {
   // ✅ Sign in
   async signIn(params: SignInParams) {
     try {
+      console.log('AuthService signIn called with params:', params);
       const { data, error } = await supabase.auth.signInWithPassword({
         email: params.email,
         password: params.password,
       });
 
+      console.log('Supabase signIn result:', { data, error });
+
       if (error) {
+        console.error('Supabase signIn error:', error);
         return { user: null, error };
       }
 
@@ -66,6 +71,7 @@ class SupabaseAuthService implements IAuthService {
 
       return { user, error: null };
     } catch (err) {
+      console.error('AuthService signIn error:', err);
       return { user: null, error: err as Error };
     }
   }
@@ -81,11 +87,13 @@ class SupabaseAuthService implements IAuthService {
       });
 
       if (error) {
+        console.error('Supabase signInWithGoogle error:', error);
         return { error };
       }
 
       return { error: null };
     } catch (err) {
+      console.error('AuthService signInWithGoogle error:', err);
       return { error: err as Error };
     }
   }
@@ -105,6 +113,7 @@ class SupabaseAuthService implements IAuthService {
       });
 
       if (error) {
+        console.error('Supabase signUpWithGoogle error:', error);
         return { error };
       }
 
@@ -113,6 +122,7 @@ class SupabaseAuthService implements IAuthService {
 
       return { error: null };
     } catch (err) {
+      console.error('AuthService signUpWithGoogle error:', err);
       return { error: err as Error };
     }
   }
@@ -121,8 +131,12 @@ class SupabaseAuthService implements IAuthService {
   async signOut() {
     try {
       const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Supabase signOut error:', error);
+      }
       return { error };
     } catch (err) {
+      console.error('AuthService signOut error:', err);
       return { error: err as Error };
     }
   }
@@ -130,11 +144,15 @@ class SupabaseAuthService implements IAuthService {
   // ✅ Get current session
   async getSession() {
     try {
+      console.log('AuthService getSession called');
       const { data, error } = await supabase.auth.getSession();
 
       if (error) {
+        console.error('Supabase getSession error:', error);
         return { session: null, error };
       }
+
+      console.log('Supabase getSession result:', { data });
 
       const session: AuthSession | null = data.session
         ? {
@@ -148,6 +166,7 @@ class SupabaseAuthService implements IAuthService {
 
       return { session, error: null };
     } catch (err) {
+      console.error('AuthService getSession error:', err);
       return { session: null, error: err as Error };
     }
   }
@@ -158,6 +177,7 @@ class SupabaseAuthService implements IAuthService {
       const { data, error } = await supabase.auth.getUser();
 
       if (error) {
+        console.error('Supabase getUser error:', error);
         return { user: null, error };
       }
 
@@ -170,6 +190,7 @@ class SupabaseAuthService implements IAuthService {
 
       return { user, error: null };
     } catch (err) {
+      console.error('AuthService getUser error:', err);
       return { user: null, error: err as Error };
     }
   }
@@ -177,6 +198,7 @@ class SupabaseAuthService implements IAuthService {
   // ✅ Auth state listener
   onAuthStateChange(callback: (event: AuthChangeEvent) => void) {
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', { event, session });
       const authEvent: AuthChangeEvent = {
         event: event as AuthChangeEvent['event'],
         session: session
