@@ -8,8 +8,13 @@ const AuthCallback: React.FC = () => {
     useEffect(() => {
         const handleOAuthCallback = async () => {
             try {
+                console.log('Starting OAuth callback handling...');
+
                 // Get the current session
                 const { data, error } = await supabase.auth.getSession();
+
+                console.log('Session data:', data);
+                console.log('Session error:', error);
 
                 if (error) {
                     console.error('Error getting session:', error);
@@ -18,11 +23,14 @@ const AuthCallback: React.FC = () => {
                 }
 
                 if (data.session) {
+                    console.log('Session found, refreshing profile...');
                     // Refresh the profile to ensure we have the latest user data
                     await refreshProfile();
 
                     // Check if we have a stored role from the OAuth signup process
                     const oauthRole = localStorage.getItem('oauth_role');
+                    console.log('OAuth role from localStorage:', oauthRole);
+
                     if (oauthRole) {
                         // Clear the stored role
                         localStorage.removeItem('oauth_role');
@@ -46,6 +54,7 @@ const AuthCallback: React.FC = () => {
                         window.location.hash = '';
                     }
                 } else {
+                    console.log('No session found, redirecting to sign in');
                     // No session, redirect to sign in
                     window.location.hash = '#/signin';
                 }
