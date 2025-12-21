@@ -13,7 +13,7 @@ const AuthCallback: React.FC = () => {
 
                 if (error) {
                     console.error('Error getting session:', error);
-                    window.location.href = '/#/signin';
+                    window.location.hash = '#/signin';
                     return;
                 }
 
@@ -30,27 +30,27 @@ const AuthCallback: React.FC = () => {
                         // Redirect to the appropriate dashboard based on role
                         switch (oauthRole) {
                             case 'customer':
-                                window.location.href = '/#/customer';
+                                window.location.hash = '#/customer';
                                 break;
                             case 'vendor':
-                                window.location.href = '/#/vendor';
+                                window.location.hash = '#/vendor';
                                 break;
                             case 'delivery_agent':
-                                window.location.href = '/#/delivery';
+                                window.location.hash = '#/delivery';
                                 break;
                             default:
-                                window.location.href = '/';
+                                window.location.hash = '';
                         }
                     } else {
                         // For sign-in, redirect to home
-                        window.location.href = '/';
+                        window.location.hash = '';
                     }
                 } else {
-                    window.location.href = '/#/signin';
+                    window.location.hash = '#/signin';
                 }
             } catch (err) {
                 console.error('Error during OAuth callback:', err);
-                window.location.href = '/#/signin';
+                window.location.hash = '#/signin';
             }
         };
 
