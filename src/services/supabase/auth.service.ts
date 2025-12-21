@@ -76,7 +76,7 @@ class SupabaseAuthService implements IAuthService {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'https://vartica-food-delivery-app.vercel.app/auth/callback',
+          redirectTo: 'https://vartica-food-delivery-app.vercel.app/#/auth/callback',
         },
       });
 
@@ -96,7 +96,7 @@ class SupabaseAuthService implements IAuthService {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'https://vartica-food-delivery-app.vercel.app/auth/callback',
+          redirectTo: 'https://vartica-food-delivery-app.vercel.app/#/auth/callback',
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
