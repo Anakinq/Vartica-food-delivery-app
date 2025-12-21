@@ -42,10 +42,11 @@ const AuthCallback: React.FC = () => {
                                 window.location.hash = '';
                         }
                     } else {
-                        // For sign-in, redirect to home
+                        // For sign-in, redirect to home (which will show the appropriate dashboard)
                         window.location.hash = '';
                     }
                 } else {
+                    // No session, redirect to sign in
                     window.location.hash = '#/signin';
                 }
             } catch (err) {
