@@ -35,8 +35,8 @@ function AppContent() {
     };
   }, []);
 
-  // ✅ Handle /auth/callback route for OAuth
-  if (window.location.pathname === '/auth/callback') {
+  // ✅ Handle /auth/callback route for OAuth (using hash-based routing)
+  if (window.location.hash === '#/auth/callback' || window.location.pathname === '/auth/callback') {
     return <AuthCallback />;
   }
 
