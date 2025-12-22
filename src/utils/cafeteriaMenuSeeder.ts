@@ -26,8 +26,6 @@ const foodItemImages: Record<string, string> = {
     'indomie': 'indomie.jpg',
     'shawarma': 'sharwama.jpg',
     'toast': 'toast bread.jpg',
-    'french': 'fanta.jpg', // Placeholder - no specific french fries image
-    'sardine': 'fried fish.jpg', // Placeholder - using fish image
     'syrup': 'maple syrup.jpg',
     'afang': 'afang soup.jpg',
     'okro': 'okro soup.jpg',
@@ -38,110 +36,149 @@ const foodItemImages: Record<string, string> = {
     'egusi': 'egusi soup.jpg',
 };
 
+// Define the fixed prices for each food item
+const foodItemPrices: Record<string, number> = {
+    'jollof rice': 500,
+    'white rice': 500,
+    'fried rice': 500,
+    'porridge yam': 500,
+    'white beans': 500,
+    'porridge beans': 500,
+    'white spag': 500,
+    'moimoi': 500,
+    'egg': 300,
+    'beef': 400,
+    'fish': 400,
+    'plantain (3)': 300,
+    'chicken': 2500,
+    'eba': 300,
+    'semo': 300,
+    'fufu': 300,
+    'pounded yam': 500,
+    'pancake': 400,
+    'waffles': 400,
+    'ponmo': 300,
+    'indomie': 800,
+    'shawarma': 1500,
+    'toast': 400,
+    'syrup': 400,
+    'afang': 2000,
+    'okro': 400,
+    'bitter leaf': 2000,
+    'chicken pepper soup': 2000,
+    'ewedu': 4000,
+    'vegetable': 2000,
+    'egusi': 400,
+};
+
 // Define categories for different food types
 const categorizeFood = (foodName: string): string => {
     const lowerName = foodName.toLowerCase();
 
-    // Main dishes
-    if (lowerName.includes('rice') || lowerName.includes('spag') || lowerName.includes('yam') ||
-        lowerName.includes('beans') || lowerName.includes('indomie')) {
-        return 'Main Course';
+    // Main food category
+    if (['jollof rice', 'white rice', 'fried rice', 'porridge yam', 'white beans', 'porridge beans', 'white spag'].includes(lowerName)) {
+        return 'Main Food';
     }
 
-    // Swallow foods
-    if (lowerName.includes('eba') || lowerName.includes('semo') || lowerName.includes('fufu') ||
-        lowerName.includes('pounded yam')) {
-        return 'Swallow';
-    }
-
-    // Proteins
-    if (lowerName.includes('egg') || lowerName.includes('beef') || lowerName.includes('fish') ||
-        lowerName.includes('chicken') || lowerName.includes('ponmo')) {
+    // Protein category
+    if (['moimoi', 'egg', 'beef', 'fish', 'plantain (3)', 'chicken'].includes(lowerName)) {
         return 'Protein';
     }
 
-    // Soups
-    if (lowerName.includes('soup') || lowerName.includes('afang') || lowerName.includes('okro') ||
-        lowerName.includes('bitter leaf') || lowerName.includes('ewedu') || lowerName.includes('egusi') ||
-        lowerName.includes('vegetable')) {
+    // Swallow category
+    if (['eba', 'semo', 'fufu', 'pounded yam'].includes(lowerName)) {
+        return 'Swallow';
+    }
+
+    // Soup category
+    if (['afang', 'okro', 'bitter leaf', 'chicken pepper soup', 'ewedu', 'vegetable', 'egusi', 'soup'].includes(lowerName)) {
         return 'Soup';
     }
 
-    // Snacks
-    if (lowerName.includes('pancake') || lowerName.includes('waffles') || lowerName.includes('toast') ||
-        lowerName.includes('shawarma') || lowerName.includes('sardine') || lowerName.includes('french')) {
-        return 'Snack';
-    }
-
-    // Drinks/Syrups
-    if (lowerName.includes('syrup')) {
-        return 'Drink';
+    // Other category
+    if (['pancake', 'waffles', 'ponmo', 'indomie', 'shawarma', 'toast', 'syrup'].includes(lowerName)) {
+        return 'Other';
     }
 
     // Default category
-    return 'Main Course';
+    return 'Other';
 };
 
-// Generate a price based on the food type
-const generatePrice = (foodName: string): number => {
+// Get the fixed price for a food item
+const getFixedPrice = (foodName: string): number => {
     const lowerName = foodName.toLowerCase();
 
-    // Main dishes are more expensive
-    if (lowerName.includes('rice') || lowerName.includes('spag') || lowerName.includes('yam') ||
-        lowerName.includes('beans') || lowerName.includes('indomie')) {
-        return Math.floor(Math.random() * 300) + 400; // 400-700
+    // Check if we have a specific price for this food item
+    if (foodItemPrices[lowerName] !== undefined) {
+        return foodItemPrices[lowerName];
     }
 
-    // Proteins are medium cost
-    if (lowerName.includes('egg') || lowerName.includes('beef') || lowerName.includes('fish') ||
-        lowerName.includes('chicken') || lowerName.includes('ponmo')) {
-        return Math.floor(Math.random() * 200) + 200; // 200-400
-    }
+    // Default price if not specified
+    return 500;
+};
 
-    // Soups and snacks are cheaper
-    if (lowerName.includes('soup') || lowerName.includes('pancake') || lowerName.includes('waffles') ||
-        lowerName.includes('toast') || lowerName.includes('shawarma')) {
-        return Math.floor(Math.random() * 150) + 150; // 150-300
-    }
+// Function to clear existing cafeteria menu items
+const clearCafeteriaMenu = async (cafeteriaId: string) => {
+    try {
+        const { error } = await supabase
+            .from('menu_items')
+            .delete()
+            .eq('seller_id', cafeteriaId)
+            .eq('seller_type', 'cafeteria');
 
-    // Default price
-    return Math.floor(Math.random() * 200) + 100; // 100-300
+        if (error) {
+            console.error('Error clearing cafeteria menu:', error);
+            return { success: false, error };
+        }
+
+        console.log('Cafeteria menu cleared successfully');
+        return { success: true };
+    } catch (error) {
+        console.error('Error clearing cafeteria menu:', error);
+        return { success: false, error };
+    }
 };
 
 // Function to seed cafeteria menu with the requested food items
 export const seedCafeteriaMenu = async (cafeteriaId: string): Promise<{ success: boolean; message: string; error?: any }> => {
     try {
-        // List of all food items to add
+        // First, clear existing menu items
+        const clearResult = await clearCafeteriaMenu(cafeteriaId);
+        if (!clearResult.success) {
+            return {
+                success: false,
+                message: 'Failed to clear existing menu items',
+                error: clearResult.error
+            };
+        }
+
+        console.log('Cleared existing menu items, now adding new ones...');
+        // List of all food items to add with exact specifications
         const foodItems = [
             'Jollof Rice',
             'White Rice',
             'Fried Rice',
-            'Porridge Yam',
-            'White Beans',
-            'Porridge Beans',
+            'Porridge yam',
+            'White beans',
+            'Porridge beans',
             'White Spag',
             'White Spag', // Added twice as requested
             'Moimoi',
             'Egg',
             'Beef',
             'Fish',
-            'Plantain',
+            'Plantain (3)', // Updated as requested
             'Chicken',
             'Eba',
             'Semo',
             'Fufu',
-            'Pounded Yam',
+            'Pounded yam',
             'Pancake',
             'Waffles',
             'Ponmo',
-            'Egg', // Added twice as requested
             'Indomie',
             'Shawarma',
             'Toast',
-            'French',
-            'Egg', // Added third time as requested
-            'Chicken',
-            'Sardine',
             'Syrup',
             'The special soups',
             'Afang',
@@ -165,7 +202,7 @@ export const seedCafeteriaMenu = async (cafeteriaId: string): Promise<{ success:
             const imageFilename = foodItemImages[lowerName] || 'food-placeholder.png';
             const imageUrl = await getImageUrl(imageFilename);
 
-            const price = generatePrice(foodName);
+            const price = getFixedPrice(foodName);
             const category = categorizeFood(foodName);
 
             // Check if item already exists to avoid duplicates

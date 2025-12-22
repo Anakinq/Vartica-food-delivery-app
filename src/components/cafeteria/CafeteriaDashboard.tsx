@@ -43,6 +43,7 @@ export const CafeteriaDashboard: React.FC = () => {
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [seedingMenu, setSeedingMenu] = useState(false);
+  const [clearingMenu, setClearingMenu] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -155,6 +156,35 @@ export const CafeteriaDashboard: React.FC = () => {
     }
   };
 
+  const handleClearMenu = async () => {
+    if (!cafeteria) return;
+
+    const confirmClear = window.confirm('Are you sure you want to clear all menu items? This cannot be undone.');
+    if (!confirmClear) return;
+
+    setClearingMenu(true);
+    try {
+      const { error } = await supabase
+        .from('menu_items')
+        .delete()
+        .eq('seller_id', cafeteria.id)
+        .eq('seller_type', 'cafeteria');
+
+      if (error) {
+        console.error('Error clearing menu:', error);
+        alert('Error clearing menu: ' + error.message);
+      } else {
+        await fetchData(); // Refresh the menu items
+        alert('Menu cleared successfully!');
+      }
+    } catch (error) {
+      console.error('Error clearing menu:', error);
+      alert('Error clearing menu: ' + (error as Error).message);
+    } finally {
+      setClearingMenu(false);
+    }
+  };
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
@@ -194,6 +224,13 @@ export const CafeteriaDashboard: React.FC = () => {
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-3xl font-bold text-gray-900">Menu Management</h2>
           <div className="flex space-x-3">
+            <button
+              onClick={handleClearMenu}
+              disabled={clearingMenu}
+              className="flex items-center space-x-2 px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 disabled:opacity-70"
+            >
+              <span>{clearingMenu ? 'Clearing...' : 'Clear Menu'}</span>
+            </button>
             <button
               onClick={handleSeedMenu}
               disabled={seedingMenu}
