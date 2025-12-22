@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { LogOut, Plus, Edit2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { LogOut, Plus, Edit2, ToggleLeft, ToggleRight, Upload } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, MenuItem, Cafeteria } from '../../lib/supabase';
 import { MenuItemForm } from '../shared/MenuItemForm';
+import { seedCafeteriaMenu } from '../../utils/cafeteriaMenuSeeder';
 
 const uploadImage = async (file: File): Promise<string | null> => {
   try {
     console.log('Uploading file:', file.name);
-    
+
     const { data, error } = await supabase.storage
       .from('menu-images')
       .upload(`${Date.now()}-${file.name}`, file, {
@@ -21,11 +22,11 @@ const uploadImage = async (file: File): Promise<string | null> => {
     }
 
     console.log('Upload successful:', data);
-    
+
     const { data: { publicUrl } } = supabase.storage
       .from('menu-images')
       .getPublicUrl(data.path);
-      
+
     console.log('Public URL:', publicUrl);
     return publicUrl;
   } catch (error) {
@@ -41,6 +42,7 @@ export const CafeteriaDashboard: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [seedingMenu, setSeedingMenu] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -133,6 +135,26 @@ export const CafeteriaDashboard: React.FC = () => {
     }
   };
 
+  const handleSeedMenu = async () => {
+    if (!cafeteria) return;
+
+    setSeedingMenu(true);
+    try {
+      const result = await seedCafeteriaMenu(cafeteria.id);
+      if (result.success) {
+        await fetchData(); // Refresh the menu items
+        alert(result.message);
+      } else {
+        alert('Error seeding menu: ' + result.message);
+      }
+    } catch (error) {
+      console.error('Error seeding menu:', error);
+      alert('Error seeding menu: ' + (error as Error).message);
+    } finally {
+      setSeedingMenu(false);
+    }
+  };
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
@@ -171,16 +193,26 @@ export const CafeteriaDashboard: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-3xl font-bold text-gray-900">Menu Management</h2>
-          <button
-            onClick={() => {
-              setEditingItem(null);
-              setShowForm(true);
-            }}
-            className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
-          >
-            <Plus className="h-5 w-5" />
-            <span>Add Item</span>
-          </button>
+          <div className="flex space-x-3">
+            <button
+              onClick={handleSeedMenu}
+              disabled={seedingMenu}
+              className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-70"
+            >
+              <Upload className="h-5 w-5" />
+              <span>{seedingMenu ? 'Seeding...' : 'Seed Menu'}</span>
+            </button>
+            <button
+              onClick={() => {
+                setEditingItem(null);
+                setShowForm(true);
+              }}
+              className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+            >
+              <Plus className="h-5 w-5" />
+              <span>Add Item</span>
+            </button>
+          </div>
         </div>
 
         {menuItems.length === 0 ? (
