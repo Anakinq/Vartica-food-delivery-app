@@ -9,6 +9,14 @@ export default function AuthCallback() {
 
         // We just need to ensure the page stays on this component
         // while the AuthContext processes the session
+
+        // Optional: Add a timeout to redirect if auth state change doesn't occur
+        const timer = setTimeout(() => {
+            // If still on this page after 5 seconds, try to redirect to home
+            window.location.hash = '#/';
+        }, 5000);
+
+        return () => clearTimeout(timer);
     }, []);
 
     return (

@@ -175,6 +175,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { error } = await authService.signInWithGoogle();
       if (error) {
         console.error('Google SignIn error:', error);
+        setLoading(false);
         throw error;
       }
       // 🎯 OAuth flow will redirect the user
@@ -224,6 +225,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { error } = await authService.signUpWithGoogle(role);
       if (error) {
         console.error('Google SignUp error:', error);
+        setLoading(false);
         throw error;
       }
       // 🎯 OAuth flow will redirect the user

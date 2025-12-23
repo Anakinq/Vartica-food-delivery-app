@@ -79,10 +79,13 @@ class SupabaseAuthService implements IAuthService {
   // ✅ Sign in with Google
   async signInWithGoogle() {
     try {
+      const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+      const redirectUrl = `${appUrl}#/auth/callback`;
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'https://vartica-food-delivery-app.vercel.app/#/auth/callback',
+          redirectTo: redirectUrl,
         },
       });
 
@@ -110,10 +113,13 @@ class SupabaseAuthService implements IAuthService {
         console.warn('Storage access blocked by tracking prevention:', error);
       }
 
+      const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+      const redirectUrl = `${appUrl}#/auth/callback`;
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'https://vartica-food-delivery-app.vercel.app/#/auth/callback',
+          redirectTo: redirectUrl,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
