@@ -146,11 +146,25 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   };
 
   const groupMenuItemsByCategory = () => {
-    const categories = ['Rice & Pasta', 'Proteins & Sides', 'Drinks'];
-    console.log('Grouping menu items by categories:', categories);
+    // Get all unique categories from menu items
+    const uniqueCategories = Array.from(new Set(menuItems.map(item => item.category).filter(Boolean) as string[]));
+
+    // Define priority order for categories
+    const priorityCategories = [
+      'Main Food', 'Protein', 'Swallow', 'Soup', 'Other',
+      'Rice & Pasta', 'Proteins & Sides', 'Drinks', 'Meals', 'Main Course', 'Sides', 'Snacks', 'Salad'
+    ];
+
+    // Sort categories by priority
+    const sortedCategories = [
+      ...priorityCategories.filter(cat => uniqueCategories.includes(cat)),
+      ...uniqueCategories.filter(cat => !priorityCategories.includes(cat))
+    ];
+
+    console.log('Grouping menu items by categories:', sortedCategories);
     console.log('Current menu items:', menuItems);
 
-    const result = categories.map(category => {
+    const result = sortedCategories.map(category => {
       const items = menuItems.filter(item => item.category === category);
       console.log(`Items in category ${category}:`, items);
       return { category, items };
