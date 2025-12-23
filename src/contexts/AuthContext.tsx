@@ -157,6 +157,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { error } = await authService.signIn({ email, password });
       if (error) {
         console.error('SignIn error:', error);
+        setLoading(false);
         throw error;
       }
       // 🎯 `onAuthStateChange` will handle state sync — no need to setUser here
