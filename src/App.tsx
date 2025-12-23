@@ -55,7 +55,7 @@ function AppContent() {
     };
   }, []);
 
-  // ✅ Handle /auth/callback route for OAuth (using hash-based routing)
+  // ✅ Handle /auth/callback route for OAuth (support both path and hash-based routing)
   if (window.location.hash.startsWith('#/auth/callback') || window.location.pathname === '/auth/callback') {
     return <AuthCallback />;
   }
