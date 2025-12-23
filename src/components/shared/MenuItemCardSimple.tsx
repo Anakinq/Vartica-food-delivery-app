@@ -22,7 +22,7 @@ export const MenuItemCardSimple: React.FC<MenuItemCardSimpleProps> = ({
     setIsFavorite(!isFavorite);
   };
 
-  const imageUrl = item.image_url || 'https://placehold.co/400x400/e2e8f0/64748b?text=No+Image';
+  const imageUrl = item.image_url ? decodeURIComponent(item.image_url) : 'https://placehold.co/400x400/e2e8f0/64748b?text=No+Image';
 
   return (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -32,7 +32,16 @@ export const MenuItemCardSimple: React.FC<MenuItemCardSimpleProps> = ({
           alt={item.name}
           className="absolute inset-0 w-full h-full object-cover"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = '/images/food-placeholder.png';
+            const target = e.target as HTMLImageElement;
+            const currentSrc = target.src;
+
+            // If the current src is not already the fallback, try the fallback
+            if (!currentSrc.includes('food-placeholder.png')) {
+              target.src = '/images/food-placeholder.png';
+            } else {
+              // If already showing fallback, try the other fallback
+              target.src = 'https://placehold.co/400x400/e2e8f0/64748b?text=No+Image';
+            }
           }}
         />
         <button

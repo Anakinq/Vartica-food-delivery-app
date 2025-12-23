@@ -20,19 +20,19 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
   });
 
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(item?.image_url || null);
+  const [imagePreview, setImagePreview] = useState<string | null>(item?.image_url ? decodeURIComponent(item.image_url) : null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setImagePreview(item?.image_url || null);
+    setImagePreview(item?.image_url ? decodeURIComponent(item.image_url) : null);
     setImageFile(null);
     setFormData({
       name: item?.name || '',
       description: item?.description || '',
       price: item?.price || 0,
       category: item?.category || '',
-      image_url: item?.image_url || '',
+      image_url: item?.image_url ? decodeURIComponent(item.image_url) : '',
       is_available: item?.is_available ?? true,
     });
   }, [item]);
@@ -163,7 +163,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
             {imagePreview && (
               <div className="mt-2">
                 <img
-                  src={imagePreview}
+                  src={imagePreview || ''}
                   alt="Preview"
                   className="w-24 h-24 object-cover rounded-md border"
                 />

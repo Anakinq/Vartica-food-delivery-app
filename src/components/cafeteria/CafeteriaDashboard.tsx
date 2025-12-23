@@ -9,9 +9,12 @@ const uploadImage = async (file: File): Promise<string | null> => {
   try {
     console.log('Uploading file:', file.name);
 
+    // Sanitize the filename to handle special characters
+    const sanitizedFilename = file.name.trim().replace(/\s+/g, ' ').replace(/[<>:"/\\|?*]/g, '_');
+
     const { data, error } = await supabase.storage
       .from('menu-images')
-      .upload(`${Date.now()}-${file.name}`, file, {
+      .upload(`${Date.now()}-${sanitizedFilename}`, file, {
         cacheControl: '3600',
         upsert: false
       });
@@ -44,10 +47,21 @@ export const CafeteriaDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [seedingMenu, setSeedingMenu] = useState(false);
   const [clearingMenu, setClearingMenu] = useState(false);
+  const [isCafeteriaOpen, setIsCafeteriaOpen] = useState<boolean>(true); // Added for open/close status
 
   useEffect(() => {
     fetchData();
   }, [profile]);
+
+  // Update the open status when cafeteria data is loaded
+  useEffect(() => {
+    if (cafeteria) {
+      const savedStatus = localStorage.getItem(`cafeteria-open-${cafeteria.id}`);
+      if (savedStatus !== null) {
+        setIsCafeteriaOpen(JSON.parse(savedStatus));
+      }
+    }
+  }, [cafeteria]);
 
   const fetchData = async () => {
     if (!profile) return;
@@ -223,7 +237,21 @@ export const CafeteriaDashboard: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-3xl font-bold text-gray-900">Menu Management</h2>
-          <div className="flex space-x-3">
+          <div className="flex items-center space-x-3">
+            {/* Open/Close Toggle Button */}
+            <button
+              onClick={() => {
+                const newStatus = !isCafeteriaOpen;
+                setIsCafeteriaOpen(newStatus);
+                // Save to localStorage
+                if (cafeteria) {
+                  localStorage.setItem(`cafeteria-open-${cafeteria.id}`, JSON.stringify(newStatus));
+                }
+              }}
+              className={`px-4 py-2 rounded-lg font-semibold transition-colors ${isCafeteriaOpen ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-red-600 text-white hover:bg-red-700'}`}
+            >
+              {isCafeteriaOpen ? 'Open' : 'Closed'}
+            </button>
             <button
               onClick={handleClearMenu}
               disabled={clearingMenu}

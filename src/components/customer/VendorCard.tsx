@@ -22,8 +22,23 @@ export const VendorCard: React.FC<VendorCardProps> = ({ name, description, image
             loading="lazy"
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+              const target = e.currentTarget;
+              const currentSrc = target.src;
+
+              // If the current src is not already a fallback, try decoding it first
+              if (!currentSrc.includes('placehold.co') && !currentSrc.includes('Store') && !currentSrc.includes('data:')) {
+                try {
+                  target.src = decodeURIComponent(currentSrc);
+                } catch {
+                  // If decoding fails, hide the image and show the icon
+                  target.style.display = 'none';
+                  target.nextElementSibling?.classList.remove('hidden');
+                }
+              } else {
+                // If already showing fallback, hide and show the icon
+                target.style.display = 'none';
+                target.nextElementSibling?.classList.remove('hidden');
+              }
             }}
           />
         ) : null}

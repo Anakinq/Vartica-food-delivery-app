@@ -35,6 +35,9 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const [cafeterias, setCafeterias] = useState<Cafeteria[]>([]);
   const [studentVendors, setStudentVendors] = useState<Vendor[]>([]);
   const [lateNightVendor, setLateNightVendor] = useState<Vendor | null>(null);
+
+  // State to track cafeteria open status
+  const [cafeteriaStatus, setCafeteriaStatus] = useState<Record<string, boolean>>({});
   const [selectedSeller, setSelectedSeller] = useState<{ id: string; type: 'cafeteria' | 'vendor'; name: string } | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -100,7 +103,15 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       supabase.from('vendors').select('*').eq('is_active', true).order('store_name'),
     ]);
 
-    if (cafeteriasRes.data) setCafeterias(cafeteriasRes.data);
+    if (cafeteriasRes.data) {
+      setCafeterias(cafeteriasRes.data);
+      // Initialize cafeteria status (default to open for all)
+      const initialStatus: Record<string, boolean> = {};
+      cafeteriasRes.data.forEach(cafeteria => {
+        initialStatus[cafeteria.id] = true; // Default to open
+      });
+      setCafeteriaStatus(initialStatus);
+    }
     if (vendorsRes.data) {
       const students = vendorsRes.data.filter(v => v.vendor_type === 'student');
       const lateNight = vendorsRes.data.find(v => v.vendor_type === 'late_night');
@@ -193,6 +204,29 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     if (lateNightVendor) list.push({ id: lateNightVendor.id, type: 'vendor', name: lateNightVendor.store_name });
     return list;
   }, [filteredCafeterias, filteredVendors, lateNightVendor]);
+
+  // Function to determine if cafeteria is open
+  const isCafeteriaOpen = (cafeteriaId: string): boolean => {
+    // First check the state, then fallback to localStorage, then default to true
+    if (cafeteriaStatus[cafeteriaId] !== undefined) {
+      return cafeteriaStatus[cafeteriaId];
+    }
+
+    // Check localStorage for the status
+    try {
+      if (typeof window !== 'undefined') {
+        const savedStatus = localStorage.getItem(`cafeteria-open-${cafeteriaId}`);
+        if (savedStatus !== null) {
+          return JSON.parse(savedStatus);
+        }
+      }
+    } catch (e) {
+      console.warn('Could not read cafeteria status from localStorage:', e);
+    }
+
+    // Default to true (open) if no status is found
+    return true;
+  };
 
   const getImagePath = (sellerId: string, sellerType: 'cafeteria' | 'vendor') => {
     const index = allSellersInOrder.findIndex(s => s.id === sellerId && s.type === sellerType);
@@ -390,10 +424,26 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                           src={getImagePath(cafeteria.id, 'cafeteria')}
                           alt={cafeteria.name}
                           className="w-full h-40 object-cover"
-                          onError={(e) => (e.currentTarget.src = '/images/placeholder.jpg')}
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            const currentSrc = target.src;
+
+                            // If the current src is not already the fallback, try the fallback
+                            if (!currentSrc.includes('placeholder.jpg')) {
+                              target.src = '/images/placeholder.jpg';
+                            } else {
+                              // If already showing fallback, try another fallback
+                              target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
+                            }
+                          }}
                         />
                         <div className="p-4">
-                          <h3 className="font-bold text-black text-lg">{cafeteria.name}</h3>
+                          <div className="flex justify-between items-start">
+                            <h3 className="font-bold text-black text-lg">{cafeteria.name}</h3>
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${isCafeteriaOpen(cafeteria.id) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                              {isCafeteriaOpen(cafeteria.id) ? 'Open' : 'Closed'}
+                            </span>
+                          </div>
                           <p className="text-sm text-gray-600 mt-1 line-clamp-1">{cafeteria.description}</p>
                         </div>
                       </div>
@@ -432,7 +482,18 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                           src={getImagePath(vendor.id, 'vendor')}
                           alt={vendor.store_name}
                           className="w-full h-40 object-cover"
-                          onError={(e) => (e.currentTarget.src = '/images/placeholder.jpg')}
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            const currentSrc = target.src;
+
+                            // If the current src is not already the fallback, try the fallback
+                            if (!currentSrc.includes('placeholder.jpg')) {
+                              target.src = '/images/placeholder.jpg';
+                            } else {
+                              // If already showing fallback, try another fallback
+                              target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
+                            }
+                          }}
                         />
                         <div className="p-4">
                           <h3 className="font-bold text-black text-lg">{vendor.store_name}</h3>
@@ -472,7 +533,18 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                       src={getImagePath(lateNightVendor.id, 'vendor')}
                       alt={lateNightVendor.store_name}
                       className="w-20 h-20 rounded-xl object-cover mb-4"
-                      onError={(e) => (e.currentTarget.src = '/images/placeholder.jpg')}
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        const currentSrc = target.src;
+
+                        // If the current src is not already the fallback, try the fallback
+                        if (!currentSrc.includes('placeholder.jpg')) {
+                          target.src = '/images/placeholder.jpg';
+                        } else {
+                          // If already showing fallback, try another fallback
+                          target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
+                        }
+                      }}
                     />
                     <h3 className="font-bold text-stone-800">{lateNightVendor.store_name}</h3>
                     <p className="text-sm text-stone-600 mt-1 line-clamp-2">{lateNightVendor.description}</p>

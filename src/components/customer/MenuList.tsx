@@ -1,5 +1,5 @@
 // src/components/customer/MenuList.tsx
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { MenuItem } from '../../lib/supabase';
 import { MenuItemCardSimple } from '../shared/MenuItemCardSimple';
 
@@ -10,11 +10,11 @@ interface MenuListProps {
   onRemoveFromCart: (itemId: string) => void;
 }
 
-export const MenuList: React.FC<MenuListProps> = ({ 
-  menuItems, 
-  cartItems, 
-  onAddToCart, 
-  onRemoveFromCart 
+export const MenuList: React.FC<MenuListProps> = ({
+  menuItems,
+  cartItems,
+  onAddToCart,
+  onRemoveFromCart
 }) => {
   const [activeTab, setActiveTab] = useState<string>('All');
 
@@ -50,11 +50,10 @@ export const MenuList: React.FC<MenuListProps> = ({
       <div className="flex items-center px-4 mt-4 overflow-x-auto hide-scrollbar">
         <button
           onClick={() => setActiveTab('All')}
-          className={`px-4 py-2 text-sm font-medium whitespace-nowrap rounded-full mr-3 ${
-            activeTab === 'All'
+          className={`px-4 py-2 text-sm font-medium whitespace-nowrap rounded-full mr-3 ${activeTab === 'All'
               ? 'bg-blue-600 text-white'
               : 'text-gray-600 hover:bg-gray-100'
-          }`}
+            }`}
         >
           All
         </button>
@@ -62,11 +61,10 @@ export const MenuList: React.FC<MenuListProps> = ({
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium whitespace-nowrap rounded-full mr-3 ${
-              activeTab === tab
+            className={`px-4 py-2 text-sm font-medium whitespace-nowrap rounded-full mr-3 ${activeTab === tab
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-600 hover:bg-gray-100'
-            }`}
+              }`}
           >
             {tab}
           </button>

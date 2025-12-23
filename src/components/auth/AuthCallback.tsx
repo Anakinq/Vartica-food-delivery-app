@@ -12,8 +12,8 @@ export default function AuthCallback() {
 
         // Optional: Add a timeout to redirect if auth state change doesn't occur
         const timer = setTimeout(() => {
-            // If still on this page after 5 seconds, try to redirect to home
-            window.location.hash = '#/';
+            // If still on this page after 5 seconds, redirect to home without hash
+            window.location.href = window.location.origin;
         }, 5000);
 
         return () => clearTimeout(timer);

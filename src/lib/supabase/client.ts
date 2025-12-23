@@ -39,10 +39,27 @@ class SafeStorage {
     setItem(key: string, value: string): void {
         try {
             if (this.storage) {
+                // Check if storage is full before setting
                 this.storage.setItem(key, value);
             }
         } catch (error) {
-            console.warn(`Failed to set item in storage:`, error);
+            // Check for specific error types
+            if (error instanceof DOMException) {
+                if (error.name === 'QuotaExceededError') {
+                    console.warn('Storage quota exceeded, clearing some items');
+                    // Clear oldest items or clear all if needed
+                    this.clearOldItems();
+                    try {
+                        this.storage?.setItem(key, value);
+                    } catch (retryError) {
+                        console.warn('Failed to set item even after clearing storage:', retryError);
+                    }
+                } else {
+                    console.warn(`Storage error (type: ${error.name}):`, error);
+                }
+            } else {
+                console.warn('Failed to set item in storage:', error);
+            }
         }
     }
 
@@ -53,6 +70,17 @@ class SafeStorage {
             }
         } catch (error) {
             console.warn(`Failed to remove item from storage:`, error);
+        }
+    }
+
+    private clearOldItems(): void {
+        try {
+            if (this.storage) {
+                // Clear all items as a fallback when quota is exceeded
+                this.storage.clear();
+            }
+        } catch (error) {
+            console.warn('Failed to clear storage:', error);
         }
     }
 }

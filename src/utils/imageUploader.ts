@@ -21,11 +21,14 @@ export const uploadPublicImagesToStorage = async () => {
         console.log(`Uploading ${imageFiles.length} images to Supabase storage...`);
 
         for (const filename of imageFiles) {
+            // Sanitize the filename to handle special characters
+            const sanitizedFilename = filename.trim().replace(/\s+/g, ' ').replace(/[<>:"/\\|?*]/g, '_');
+
             // Check if the image already exists in storage
             const { data } = await supabase
                 .storage
                 .from('menu-images')
-                .getPublicUrl(filename);
+                .getPublicUrl(sanitizedFilename);
 
             // If the URL exists, the image is already uploaded
             if (data?.publicUrl) {
@@ -36,9 +39,9 @@ export const uploadPublicImagesToStorage = async () => {
             // If not, we need to fetch the public image and upload it
             try {
                 // Fetch the public image
-                const response = await fetch(`/images/${filename}`);
+                const response = await fetch(`/images/${sanitizedFilename}`);
                 if (!response.ok) {
-                    console.warn(`Could not fetch public image: /images/${filename}`);
+                    console.warn(`Could not fetch public image: /images/${sanitizedFilename}`);
                     continue;
                 }
 
@@ -49,7 +52,7 @@ export const uploadPublicImagesToStorage = async () => {
                 const { data: uploadData, error } = await supabase
                     .storage
                     .from('menu-images')
-                    .upload(filename, file, {
+                    .upload(sanitizedFilename, file, {
                         cacheControl: '3600',
                         upsert: false
                     });
@@ -74,16 +77,19 @@ export const uploadPublicImagesToStorage = async () => {
 
 // Function to get a public URL for an image that might be in Supabase storage or public directory
 export const getImageUrl = async (filename: string): Promise<string> => {
+    // Clean the filename to handle special characters
+    const cleanFilename = filename.trim().replace(/\s+/g, ' ').replace(/[<>:"/\\|?*]/g, '_');
+
     // First, try to get the public URL from Supabase storage
     const { data, error } = await supabase
         .storage
         .from('menu-images')
-        .getPublicUrl(filename);
+        .getPublicUrl(cleanFilename);
 
     if (!error && data?.publicUrl) {
         return data.publicUrl;
     }
 
     // If not in storage, return the public directory URL
-    return `/images/${filename}`;
+    return `/images/${cleanFilename}`;
 };
