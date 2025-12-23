@@ -33,8 +33,14 @@ export const PaymentSuccess: React.FC = () => {
           }
         }
 
-        localStorage.removeItem('cart');
-        localStorage.removeItem('selectedSeller');
+        try {
+          if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.removeItem('cart');
+            window.localStorage.removeItem('selectedSeller');
+          }
+        } catch (error) {
+          console.warn('Storage access blocked by tracking prevention:', error);
+        }
       } catch (error) {
         // Error fetching order details
       } finally {

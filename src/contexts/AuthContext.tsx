@@ -94,11 +94,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // 1️⃣ Initial load
     const initAuth = async () => {
       console.log('initAuth called');
-      const { session } = await authService.getSession();
-      console.log('Initial session:', session);
-      if (isMounted) {
-        await fetchUserAndProfile(session?.user ?? null);
-        setLoading(false);
+      try {
+        const { session, error } = await authService.getSession();
+        if (error) {
+          console.error('Auth session error (possibly due to storage access blocked):', error);
+        }
+        console.log('Initial session:', session);
+        if (isMounted) {
+          await fetchUserAndProfile(session?.user ?? null);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Error during auth initialization:', err);
+        // Even if session retrieval fails, set loading to false to avoid infinite loading
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
@@ -122,6 +133,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.log('User signed up');
         // Don't do anything special on signup - let the UI handle it
         setLoading(false);
+      } else if (event.event === 'MFA_CHALLENGE_VERIFIED' || event.event === 'PASSWORD_RECOVERY' || event.event === 'TOKEN_REFRESHED' || event.event === 'USER_DELETED') {
+        console.log('Other auth event:', event.event);
+        // For other events, ensure loading is set to false
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     });
 

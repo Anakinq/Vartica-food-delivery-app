@@ -12,7 +12,12 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
-    return localStorage.getItem('darkMode') === 'true';
+    try {
+      return typeof window !== 'undefined' && window.localStorage && localStorage.getItem('darkMode') === 'true';
+    } catch (error) {
+      console.warn('Storage access blocked by tracking prevention:', error);
+      return false; // Default to light mode if storage is blocked
+    }
   });
   const [activeTab, setActiveTab] = useState<'profile' | 'settings'>('profile');
   const [notifications, setNotifications] = useState({
@@ -31,7 +36,13 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
   }, [profile]);
 
   useEffect(() => {
-    localStorage.setItem('darkMode', darkMode.toString());
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('darkMode', darkMode.toString());
+      }
+    } catch (error) {
+      console.warn('Storage access blocked by tracking prevention:', error);
+    }
     if (darkMode) {
       document.documentElement.classList.add('dark');
     } else {
@@ -129,8 +140,8 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
           <button
             onClick={() => setActiveTab('profile')}
             className={`flex-1 py-3 px-6 rounded-xl font-semibold transition-all ${activeTab === 'profile'
-                ? 'bg-black dark:bg-white text-white dark:text-black shadow-lg'
-                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+              ? 'bg-black dark:bg-white text-white dark:text-black shadow-lg'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
           >
             Profile
@@ -138,8 +149,8 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
           <button
             onClick={() => setActiveTab('settings')}
             className={`flex-1 py-3 px-6 rounded-xl font-semibold transition-all ${activeTab === 'settings'
-                ? 'bg-black dark:bg-white text-white dark:text-black shadow-lg'
-                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+              ? 'bg-black dark:bg-white text-white dark:text-black shadow-lg'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
           >
             Settings

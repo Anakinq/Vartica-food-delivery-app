@@ -22,6 +22,26 @@ function AppContent() {
   const [showProfile, setShowProfile] = useState(false);
   const [justSignedUp, setJustSignedUp] = useState(false); // Track if user just signed up
 
+  // Check for stored OAuth role after redirect from OAuth flow
+  useEffect(() => {
+    const handleOAuthRedirect = () => {
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          const oauthRole = localStorage.getItem('oauth_role');
+          if (oauthRole) {
+            localStorage.removeItem('oauth_role'); // Clean up
+            // Set justSignedUp to prevent loading issues
+            setJustSignedUp(true);
+          }
+        }
+      } catch (error) {
+        console.warn('Storage access blocked by tracking prevention:', error);
+      }
+    };
+
+    handleOAuthRedirect();
+  }, []);
+
   // Listen for user signup event
   useEffect(() => {
     const handleUserSignedUp = () => {
@@ -36,7 +56,7 @@ function AppContent() {
   }, []);
 
   // ✅ Handle /auth/callback route for OAuth (using hash-based routing)
-  if (window.location.hash === '#/auth/callback' || window.location.pathname === '/auth/callback') {
+  if (window.location.hash.startsWith('#/auth/callback') || window.location.pathname === '/auth/callback') {
     return <AuthCallback />;
   }
 

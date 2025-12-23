@@ -101,6 +101,15 @@ class SupabaseAuthService implements IAuthService {
   // ✅ Sign up with Google
   async signUpWithGoogle(role: 'customer' | 'vendor' | 'delivery_agent') {
     try {
+      // Store the intended role in safe storage before OAuth redirect
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem('oauth_role', role);
+        }
+      } catch (error) {
+        console.warn('Storage access blocked by tracking prevention:', error);
+      }
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -116,9 +125,6 @@ class SupabaseAuthService implements IAuthService {
         console.error('Supabase signUpWithGoogle error:', error);
         return { error };
       }
-
-      // Store the intended role in localStorage so we can use it after OAuth callback
-      localStorage.setItem('oauth_role', role);
 
       return { error: null };
     } catch (err) {
