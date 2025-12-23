@@ -3,14 +3,12 @@ import { supabase } from '../../lib/supabase';
 
 export default function AuthCallback() {
     useEffect(() => {
-        const finalizeAuth = async () => {
-            // This consumes the tokens AND persists the session
-            await supabase.auth.getSession();
-            // DO NOT redirect manually
-            // Let AuthContext react to auth state change
-        };
+        // The Supabase client is configured with detectSessionInUrl: true
+        // which should automatically handle the session from the URL
+        // and trigger the auth state change event
 
-        finalizeAuth();
+        // We just need to ensure the page stays on this component
+        // while the AuthContext processes the session
     }, []);
 
     return (
