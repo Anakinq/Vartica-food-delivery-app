@@ -438,7 +438,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                           }}
                         />
                         <div className="p-4">
-                          <div className="flex justify-between items-start">
+                          <div className="flex items-center space-x-2">
                             <h3 className="font-bold text-black text-lg">{cafeteria.name}</h3>
                             <span className={`px-2 py-1 rounded-full text-xs font-semibold ${isCafeteriaOpen(cafeteria.id) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                               {isCafeteriaOpen(cafeteria.id) ? 'Open' : 'Closed'}

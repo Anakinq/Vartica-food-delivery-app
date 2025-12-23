@@ -219,8 +219,22 @@ export const CafeteriaDashboard: React.FC = () => {
       <nav className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div>
+            <div className="flex items-center space-x-4">
               <h1 className="text-2xl font-bold text-gray-900">{cafeteria.name}</h1>
+              {/* Open/Close Toggle Button */}
+              <button
+                onClick={() => {
+                  const newStatus = !isCafeteriaOpen;
+                  setIsCafeteriaOpen(newStatus);
+                  // Save to localStorage
+                  if (cafeteria) {
+                    localStorage.setItem(`cafeteria-open-${cafeteria.id}`, JSON.stringify(newStatus));
+                  }
+                }}
+                className={`px-4 py-2 rounded-lg font-semibold transition-colors ${isCafeteriaOpen ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-red-600 text-white hover:bg-red-700'}`}
+              >
+                {isCafeteriaOpen ? 'Open' : 'Closed'}
+              </button>
               <p className="text-sm text-gray-600">{profile?.full_name}</p>
             </div>
             <button
@@ -238,20 +252,6 @@ export const CafeteriaDashboard: React.FC = () => {
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-3xl font-bold text-gray-900">Menu Management</h2>
           <div className="flex items-center space-x-3">
-            {/* Open/Close Toggle Button */}
-            <button
-              onClick={() => {
-                const newStatus = !isCafeteriaOpen;
-                setIsCafeteriaOpen(newStatus);
-                // Save to localStorage
-                if (cafeteria) {
-                  localStorage.setItem(`cafeteria-open-${cafeteria.id}`, JSON.stringify(newStatus));
-                }
-              }}
-              className={`px-4 py-2 rounded-lg font-semibold transition-colors ${isCafeteriaOpen ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-red-600 text-white hover:bg-red-700'}`}
-            >
-              {isCafeteriaOpen ? 'Open' : 'Closed'}
-            </button>
             <button
               onClick={handleClearMenu}
               disabled={clearingMenu}
