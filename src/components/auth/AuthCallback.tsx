@@ -4,19 +4,25 @@ import { supabase } from '../../lib/supabase';
 export default function AuthCallback() {
     useEffect(() => {
         const finishOAuth = async () => {
-            // 🔥 THIS consumes the tokens from the URL
-            const { data, error } = await supabase.auth.getSession();
+            try {
+                // 🔥 THIS consumes the tokens from the URL and initializes the session
+                const { data, error } = await supabase.auth.getSession();
 
-            if (error) {
-                console.error('OAuth error:', error.message);
-                window.location.replace('/'); // fallback
-                return;
-            }
+                if (error) {
+                    console.error('OAuth error:', error.message);
+                    // Redirect to main page on error
+                    window.location.replace('/');
+                    return;
+                }
 
-            if (data?.session) {
-                // ✅ CLEAN the URL + force app reload
+                // Wait a bit to ensure session is properly initialized
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // ✅ CLEAN the URL + force app reload to main page
+                // This will trigger the AuthContext to pick up the session
                 window.location.replace('/');
-            } else {
+            } catch (err) {
+                console.error('Error during OAuth completion:', err);
                 window.location.replace('/');
             }
         };
