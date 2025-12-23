@@ -51,6 +51,11 @@ self.addEventListener('fetch', (event) => {
     // Skip chrome extensions and non-http(s) requests
     if (!url.protocol.startsWith('http')) return;
 
+    // Skip requests that are likely to cause MIME type issues
+    if (request.destination === 'script' && url.pathname.includes('node_modules')) {
+        return;
+    }
+
     // Skip all external resources that cause CSP issues - let browser handle them directly
     if (url.hostname === 'js.paystack.co' ||
         url.hostname === 'paystack.com' ||
@@ -62,7 +67,11 @@ self.addEventListener('fetch', (event) => {
         url.hostname.includes('hcaptcha.com') ||
         url.hostname.includes('challenge-platform') ||
         url.hostname.includes('cloudflareinsights.com') ||
-        url.hostname.includes('datadoghq-browser-agent.com')) {
+        url.hostname.includes('datadoghq-browser-agent.com') ||
+        url.hostname.includes('googletagmanager.com') ||
+        url.hostname.includes('google-analytics.com') ||
+        url.hostname.includes('analytics.google.com') ||
+        url.hostname.includes('doubleclick.net')) {
         return;
     }
 
