@@ -48,7 +48,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
     '/images/5.jpg',
     '/images/6.jpg',
     '/images/7.jpg',
-    '/public/images/1.jpg',
+    '/images/1.jpg',
   ];
 
   return (
