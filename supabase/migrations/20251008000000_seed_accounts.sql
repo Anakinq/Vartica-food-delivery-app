@@ -109,6 +109,24 @@ INSERT INTO vendors (user_id, store_name, description, vendor_type, is_active) V
 ('VENDOR1_USER_ID', 'Test Food Store', 'Student-run food business', 'student', true);
 */
 
+-- Hardcoded Delivery Agent Account with real UUID
+INSERT INTO profiles (id, email, full_name, role, phone, created_at) VALUES
+('d2f4e7a1-b8c9-4c5d-9e6f-7a8b9c0d1e2f', 'deliveryagent@vartica.edu', 'Test Delivery Agent', 'delivery_agent', '+1-555-0003', NOW())
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO delivery_agents (user_id, vehicle_type, is_available, created_at) VALUES
+('d2f4e7a1-b8c9-4c5d-9e6f-7a8b9c0d1e2f', 'bike', true, NOW())
+ON CONFLICT (user_id) DO NOTHING;
+
+-- Hardcoded Student Vendor Account with real UUID
+INSERT INTO profiles (id, email, full_name, role, phone, created_at) VALUES
+('e3g5f8b2-c9d0-5d6e-0f7g-8a9b0c1e3f4g', 'studentvendor@vartica.edu', 'Test Student Vendor', 'vendor', '+1-555-0004', NOW())
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO vendors (user_id, store_name, description, image_url, vendor_type, is_active, created_at) VALUES
+('e3g5f8b2-c9d0-5d6e-0f7g-8a9b0c1e3f4g', 'Student Vendor Store', 'Student-run food business', '/images/1.jpg', 'student', true, NOW())
+ON CONFLICT (user_id) DO NOTHING;
+
 -- Add some sample promo codes
 INSERT INTO promo_codes (code, discount_type, discount_value, min_order_value, valid_from, valid_until, is_active) VALUES
 ('WELCOME10', 'percentage', 10, 0, NOW(), NOW() + INTERVAL '90 days', true),
