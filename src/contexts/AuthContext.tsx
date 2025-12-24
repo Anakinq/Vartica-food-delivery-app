@@ -15,7 +15,7 @@ interface AuthContextType {
     role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin',
     phone?: string
   ) => Promise<void>;
-  signUpWithGoogle: (role: 'customer' | 'vendor' | 'delivery_agent') => Promise<void>;
+  signUpWithGoogle: (role: 'customer' | 'vendor') => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   linkAccountWithEmailPassword: (password: string) => Promise<{ data: any; error: Error | null } | { data: null; error: Error }>;
@@ -273,7 +273,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // ✅ Sign up with Google
-  const signUpWithGoogle = async (role: 'customer' | 'vendor' | 'delivery_agent') => {
+  const signUpWithGoogle = async (role: 'customer' | 'vendor') => {
     console.log('signUpWithGoogle called with role:', role);
     setLoading(true);
     try {
