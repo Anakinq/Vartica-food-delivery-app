@@ -264,45 +264,65 @@ CREATE TABLE IF NOT EXISTS menu_items (
 
 ALTER TABLE menu_items ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Anyone can view available menu items"
-  ON menu_items FOR SELECT
-  TO authenticated
-  USING (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'menu_items' AND policyname = 'Anyone can view available menu items') THEN
+    CREATE POLICY "Anyone can view available menu items"
+      ON menu_items FOR SELECT
+      TO authenticated
+      USING (true);
+  END IF;
+END $$;
 
-CREATE POLICY "Cafeterias can manage own menu items"
-  ON menu_items FOR ALL
-  TO authenticated
-  USING (
-    seller_type = 'cafeteria' AND
-    EXISTS (
-      SELECT 1 FROM cafeterias
-      WHERE cafeterias.id = seller_id
-      AND cafeterias.user_id = auth.uid()
-    )
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'menu_items' AND policyname = 'Cafeterias can manage own menu items') THEN
+    CREATE POLICY "Cafeterias can manage own menu items"
+      ON menu_items FOR ALL
+      TO authenticated
+      USING (
+        seller_type = 'cafeteria' AND
+        EXISTS (
+          SELECT 1 FROM cafeterias
+          WHERE cafeterias.id = seller_id
+          AND cafeterias.user_id = auth.uid()
+        )
+      );
+  END IF;
+END $$;
 
-CREATE POLICY "Vendors can manage own menu items"
-  ON menu_items FOR ALL
-  TO authenticated
-  USING (
-    seller_type = 'vendor' AND
-    EXISTS (
-      SELECT 1 FROM vendors
-      WHERE vendors.id = seller_id
-      AND vendors.user_id = auth.uid()
-    )
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'menu_items' AND policyname = 'Vendors can manage own menu items') THEN
+    CREATE POLICY "Vendors can manage own menu items"
+      ON menu_items FOR ALL
+      TO authenticated
+      USING (
+        seller_type = 'vendor' AND
+        EXISTS (
+          SELECT 1 FROM vendors
+          WHERE vendors.id = seller_id
+          AND vendors.user_id = auth.uid()
+        )
+      );
+  END IF;
+END $$;
 
-CREATE POLICY "Admin can manage all menu items"
-  ON menu_items FOR ALL
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
-    )
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'menu_items' AND policyname = 'Admin can manage all menu items') THEN
+    CREATE POLICY "Admin can manage all menu items"
+      ON menu_items FOR ALL
+      TO authenticated
+      USING (
+        EXISTS (
+          SELECT 1 FROM profiles
+          WHERE profiles.id = auth.uid()
+          AND profiles.role = 'admin'
+        )
+      );
+  END IF;
+END $$;
 
 -- Create delivery_agents table
 CREATE TABLE IF NOT EXISTS delivery_agents (
@@ -318,32 +338,52 @@ CREATE TABLE IF NOT EXISTS delivery_agents (
 
 ALTER TABLE delivery_agents ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Delivery agents can read own profile"
-  ON delivery_agents FOR SELECT
-  TO authenticated
-  USING (user_id = auth.uid());
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'delivery_agents' AND policyname = 'Delivery agents can read own profile') THEN
+    CREATE POLICY "Delivery agents can read own profile"
+      ON delivery_agents FOR SELECT
+      TO authenticated
+      USING (user_id = auth.uid());
+  END IF;
+END $$;
 
-CREATE POLICY "Delivery agents can update own profile"
-  ON delivery_agents FOR UPDATE
-  TO authenticated
-  USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'delivery_agents' AND policyname = 'Delivery agents can update own profile') THEN
+    CREATE POLICY "Delivery agents can update own profile"
+      ON delivery_agents FOR UPDATE
+      TO authenticated
+      USING (user_id = auth.uid())
+      WITH CHECK (user_id = auth.uid());
+  END IF;
+END $$;
 
-CREATE POLICY "Delivery agents can insert own profile"
-  ON delivery_agents FOR INSERT
-  TO authenticated
-  WITH CHECK (user_id = auth.uid());
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'delivery_agents' AND policyname = 'Delivery agents can insert own profile') THEN
+    CREATE POLICY "Delivery agents can insert own profile"
+      ON delivery_agents FOR INSERT
+      TO authenticated
+      WITH CHECK (user_id = auth.uid());
+  END IF;
+END $$;
 
-CREATE POLICY "Admin can manage all delivery agents"
-  ON delivery_agents FOR ALL
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
-    )
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'delivery_agents' AND policyname = 'Admin can manage all delivery agents') THEN
+    CREATE POLICY "Admin can manage all delivery agents"
+      ON delivery_agents FOR ALL
+      TO authenticated
+      USING (
+        EXISTS (
+          SELECT 1 FROM profiles
+          WHERE profiles.id = auth.uid()
+          AND profiles.role = 'admin'
+        )
+      );
+  END IF;
+END $$;
 
 -- Create orders table
 CREATE TABLE IF NOT EXISTS orders (
@@ -370,15 +410,25 @@ CREATE TABLE IF NOT EXISTS orders (
 
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Customers can view own orders"
-  ON orders FOR SELECT
-  TO authenticated
-  USING (customer_id = auth.uid());
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'orders' AND policyname = 'Customers can view own orders') THEN
+    CREATE POLICY "Customers can view own orders"
+      ON orders FOR SELECT
+      TO authenticated
+      USING (customer_id = auth.uid());
+  END IF;
+END $$;
 
-CREATE POLICY "Customers can create orders"
-  ON orders FOR INSERT
-  TO authenticated
-  WITH CHECK (customer_id = auth.uid());
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'orders' AND policyname = 'Customers can create orders') THEN
+    CREATE POLICY "Customers can create orders"
+      ON orders FOR INSERT
+      TO authenticated
+      WITH CHECK (customer_id = auth.uid());
+  END IF;
+END $$;
 
 CREATE POLICY "Delivery agents can view assigned orders"
   ON orders FOR SELECT
@@ -640,12 +690,12 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_created ON chat_messages(created_at
 
 -- Create function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS ##
+RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = now();
   RETURN NEW;
 END;
-## LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 -- Create triggers for updated_at
 CREATE TRIGGER update_menu_items_updated_at

@@ -6,6 +6,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Order, DeliveryAgent } from '../../lib/supabase';
 import { ChatModal } from '../shared/ChatModal';
+import { WalletService } from '../../services';
 
 // Interfaces
 interface FullOrder extends Order {
@@ -19,8 +20,8 @@ interface FullOrder extends Order {
 }
 
 interface AgentWallet {
-  total_earnings: number;
-  current_balance: number;
+  food_wallet_balance: number;
+  earnings_wallet_balance: number;
   pending_withdrawal: number;
   total_withdrawals: number;
 }
@@ -120,6 +121,8 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   // Helpers
   const formatCurrency = (n?: number) => `₦${(typeof n === 'number' ? n : 0).toFixed(2)}`;
 
+  const totalBalance = wallet ? wallet.food_wallet_balance + wallet.earnings_wallet_balance : 0;
+
   // Close mobile menu on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -156,13 +159,13 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       // 2. Wallet
       const { data: walletData } = await supabase
         .from('agent_wallets')
-        .select('total_earnings, current_balance, pending_withdrawal, total_withdrawals')
+        .select('food_wallet_balance, earnings_wallet_balance, pending_withdrawal, total_withdrawals')
         .eq('agent_id', agentData.id)
         .maybeSingle();
 
       setWallet({
-        total_earnings: Number(walletData?.total_earnings) || 0,
-        current_balance: Number(walletData?.current_balance) || 0,
+        food_wallet_balance: Number(walletData?.food_wallet_balance) || 0,
+        earnings_wallet_balance: Number(walletData?.earnings_wallet_balance) || 0,
         pending_withdrawal: Number(walletData?.pending_withdrawal) || 0,
         total_withdrawals: Number(walletData?.total_withdrawals) || 0,
       });
@@ -266,7 +269,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // Save bank details (simplified - no Paystack verification)
+  // Save bank details with Paystack verification
   const saveBankDetails = async () => {
     if (!profile?.id || !agent || bankAccount.length !== 10 || !bankCode) {
       setMessage({ type: 'error', text: 'Please enter a valid 10-digit account number and select a bank.' });
@@ -283,28 +286,22 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     setMessage(null);
 
     try {
-      const selectedBank = BANK_OPTIONS.find(b => b.code === bankCode);
+      // Use WalletService to verify and save bank details
+      await WalletService.setPayoutProfile(agent.id, {
+        account_number_encrypted: bankAccount.trim(),
+        account_name: profile.full_name || 'Unknown',
+        bank_name: BANK_OPTIONS.find(b => b.code === bankCode)?.name || 'Unknown Bank'
+      });
 
-      if (!selectedBank) {
-        throw new Error('Invalid bank selected.');
-      }
-
-      const { error: upsertError } = await supabase
-        .from('agent_payout_profiles')
-        .upsert(
-          {
-            user_id: profile.id,
-            account_number: bankAccount.trim(),
-            bank_code: bankCode,
-            bank_name: selectedBank.name,
-          },
-          { onConflict: 'user_id' }
-        );
-
-      if (upsertError) throw upsertError;
+      // Then verify with Paystack
+      await WalletService.verifyBankAccount(agent.id, {
+        account_number: bankAccount.trim(),
+        bank_code: bankCode
+      });
 
       await fetchData();
-      setMessage({ type: 'success', text: '✅ Bank details saved successfully!' });
+      setMessage({ type: 'success', text: '✅ Bank details saved and verified successfully!' });
+      setIsBankVerified(true);
     } catch (err: any) {
       console.error('Save bank error:', err);
       setMessage({ type: 'error', text: `Failed to save bank details: ${err.message}` });
@@ -315,16 +312,16 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
   // Open withdrawal modal
   const openWithdrawModal = () => {
-    if (!wallet || wallet.current_balance <= 0) {
-      setMessage({ type: 'error', text: 'Insufficient balance.' });
+    if (!wallet || wallet.earnings_wallet_balance <= 0) {
+      setMessage({ type: 'error', text: 'Insufficient balance in earnings wallet.' });
       return;
     }
-    setWithdrawAmount(wallet.current_balance);
+    setWithdrawAmount(wallet.earnings_wallet_balance);
     setShowWithdrawModal(true);
     setMessage(null);
   };
 
-  // Submit withdrawal request (manual - admin will approve)
+  // Submit withdrawal request (Paystack automated)
   const handleWithdrawRequest = async () => {
     if (!agent || !wallet || !profile || withdrawAmount == null) return;
 
@@ -334,8 +331,8 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     }
 
     // Validate amount
-    if (withdrawAmount <= 0 || withdrawAmount > wallet.current_balance) {
-      setMessage({ type: 'error', text: `Amount must be between ₦0.01 and ${formatCurrency(wallet.current_balance)}.` });
+    if (withdrawAmount <= 0 || withdrawAmount > wallet.earnings_wallet_balance) {
+      setMessage({ type: 'error', text: `Amount must be between ₦0.01 and ${formatCurrency(wallet.earnings_wallet_balance)}.` });
       return;
     }
 
@@ -361,29 +358,12 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       // Sanitize inputs
       const sanitizedAmount = Math.round(withdrawAmount * 100) / 100; // Round to 2 decimals
 
-      // Create withdrawal request
-      const { error } = await supabase
-        .from('withdrawal_requests')
-        .insert({
-          agent_id: agent.id,
-          rider_name: profile.full_name.trim(),
-          amount: sanitizedAmount,
-          bank_name: bankName.trim(),
-          account_number: bankAccount.trim(),
-          status: 'pending',
-        });
-
-      if (error) throw error;
-
-      // Update wallet pending_withdrawal
-      await supabase
-        .from('agent_wallets')
-        .update({ pending_withdrawal: wallet.pending_withdrawal + sanitizedAmount })
-        .eq('agent_id', agent.id);
+      // Use WalletService to request withdrawal
+      await WalletService.requestWithdrawal(agent.id, { amount: sanitizedAmount });
 
       setMessage({
         type: 'success',
-        text: `✅ Withdrawal request submitted! Admin will process it manually.`,
+        text: `✅ Withdrawal request submitted! The amount will be transferred to your account shortly.`,
       });
       setShowWithdrawModal(false);
       await fetchData(); // refresh
@@ -542,27 +522,27 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
         {/* Balance Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          {/* Total Earnings */}
-          <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-purple-500">
+          {/* Food Wallet */}
+          <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-blue-500">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-xs text-gray-500 uppercase font-semibold">Total Earnings</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(wallet?.total_earnings)}</p>
-                <p className="text-xs text-gray-500 mt-1">All time</p>
+                <p className="text-xs text-gray-500 uppercase font-semibold">Food Wallet</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(wallet?.food_wallet_balance)}</p>
+                <p className="text-xs text-gray-500 mt-1">For food purchases</p>
               </div>
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Wallet className="h-5 w-5 text-purple-600" />
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Wallet className="h-5 w-5 text-blue-600" />
               </div>
             </div>
           </div>
 
-          {/* Current Balance */}
+          {/* Earnings Wallet */}
           <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-green-500">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-xs text-gray-500 uppercase font-semibold">Current Balance</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(wallet?.current_balance)}</p>
-                <p className="text-xs text-gray-500 mt-1">Available</p>
+                <p className="text-xs text-gray-500 uppercase font-semibold">Earnings Wallet</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(wallet?.earnings_wallet_balance)}</p>
+                <p className="text-xs text-gray-500 mt-1">Available for withdrawal</p>
               </div>
               <div className="p-2 bg-green-100 rounded-lg">
                 <Banknote className="h-5 w-5 text-green-600" />
@@ -571,7 +551,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
             <div className="mt-3">
               <button
                 onClick={openWithdrawModal}
-                disabled={!wallet || wallet.current_balance <= 0}
+                disabled={!wallet || wallet.earnings_wallet_balance <= 0}
                 className="w-full py-2.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
               >
                 Request Withdrawal
@@ -579,16 +559,16 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
             </div>
           </div>
 
-          {/* Pending Withdrawal */}
-          <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-yellow-500">
+          {/* Total Balance */}
+          <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-purple-500">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-xs text-gray-500 uppercase font-semibold">Pending</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(wallet?.pending_withdrawal)}</p>
-                <p className="text-xs text-gray-500 mt-1">Awaiting admin</p>
+                <p className="text-xs text-gray-500 uppercase font-semibold">Total Balance</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(totalBalance)}</p>
+                <p className="text-xs text-gray-500 mt-1">Food + Earnings</p>
               </div>
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <AlertCircle className="h-5 w-5 text-yellow-600" />
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Banknote className="h-5 w-5 text-purple-600" />
               </div>
             </div>
           </div>
@@ -766,7 +746,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
           <div className="w-full max-w-md bg-white rounded-lg p-6">
             <h3 className="text-lg font-semibold mb-3">Request Withdrawal</h3>
             <p className="text-sm text-gray-600 mb-3">
-              Available Balance: <span className="font-bold text-green-600">{formatCurrency(wallet?.current_balance)}</span>
+              Available in Earnings Wallet: <span className="font-bold text-green-600">{formatCurrency(wallet?.earnings_wallet_balance)}</span>
             </p>
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
@@ -778,7 +758,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
               type="number"
               step="0.01"
               min="0.01"
-              max={wallet?.current_balance}
+              max={wallet?.earnings_wallet_balance}
               value={withdrawAmount ?? ''}
               onChange={(e) => setWithdrawAmount(e.target.value ? parseFloat(e.target.value) : null)}
               className="w-full p-3 border border-gray-300 rounded mb-3 focus:ring-2 focus:ring-blue-500"

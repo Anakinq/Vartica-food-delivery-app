@@ -1,104 +1,204 @@
-// /api/paystack-webhook.ts
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import crypto from 'crypto';
-import { createClient } from '@supabase/supabase-js';
+import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.23.0';
 
-// Initialize Supabase with Service Role Key (full permissions)
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Initialize Supabase client
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+);
 
-if (!supabaseUrl || !supabaseKey) {
-  console.error('Missing Supabase environment variables:');
-  console.error('- VITE_SUPABASE_URL:', process.env.VITE_SUPABASE_URL ? 'SET' : 'MISSING');
-  console.error('- SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'MISSING');
-  throw new Error('Missing Supabase environment variables');
+// Paystack secret key for webhook verification
+const PAYSTACK_SECRET = Deno.env.get('PAYSTACK_SECRET_KEY')!;
+
+// Payment split percentages (configurable)
+const PLATFORM_FEE_PERCENTAGE = 0.04; // 4% platform fee
+const AGENT_EARNINGS_PERCENTAGE = 0.06; // 6% agent earnings from total amount
+
+// Helper function to verify Paystack webhook signature
+function verifyPaystackSignature(payload: string, signature: string): boolean {
+  const crypto = globalThis.crypto.subtle;
+  const encoder = new TextEncoder();
+
+  const keyBuffer = encoder.encode(PAYSTACK_SECRET);
+  const payloadBuffer = encoder.encode(payload);
+
+  const keyPromise = crypto.importKey(
+    'raw',
+    keyBuffer,
+    { name: 'HMAC', hash: 'SHA256' },
+    false,
+    ['sign']
+  );
+
+  return keyPromise.then(key =>
+    crypto.sign('HMAC', key, payloadBuffer)
+  ).then(mac => {
+    const hexMac = Array.from(new Uint8Array(mac))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    return crypto.subtle.timingSafeEqual(
+      new TextEncoder().encode(hexMac),
+      new TextEncoder().encode(signature)
+    );
+  });
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Function to process payment splits and update wallets
+async function processPaymentSplit(eventData: any) {
+  try {
+    const { data: orderData } = await supabase
+      .from('orders')
+      .select('id, customer_id, seller_id, seller_type, total, delivery_agent_id')
+      .eq('order_number', eventData.reference)
+      .single();
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Only accept POST
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  // Verify Paystack signature
-  const signature = req.headers['x-paystack-signature'] as string;
-  const payload = JSON.stringify(req.body);
-
-  // Check if PAYSTACK_SECRET_KEY is configured
-  const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
-  if (!paystackSecretKey) {
-    console.error('❌ PAYSTACK_SECRET_KEY not configured in environment variables');
-    return res.status(500).json({ error: 'Payment system not configured' });
-  }
-
-  const expectedSignature = crypto
-    .createHmac('sha512', paystackSecretKey)
-    .update(payload)
-    .digest('hex');
-
-  if (signature !== expectedSignature) {
-    console.error('⚠️ Invalid Paystack webhook signature');
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  const { event, data } = req.body;
-
-  // Only process successful payments
-  if (event === 'charge.success') {
-    const { reference, amount, customer } = data;
-    const totalAmount = amount / 100; // convert kobo → naira
-
-    try {
-      // Fetch the pending order draft (if you save one before payment)
-      // For now, we assume you’ll send minimal order context via frontend
-      // But best practice: store order draft BEFORE payment, then update on success
-
-      // ⚠️ Since your current flow doesn’t pre-save orders,
-      // this webhook CANNOT know delivery address, items, etc.
-      // So you MUST send order data from frontend to webhook
-
-      // Therefore, we expect req.body to include `order` object
-      const { order } = req.body;
-
-      if (!order) {
-        console.error('❌ No order data in webhook payload');
-        return res.status(400).json({ error: 'Missing order data' });
-      }
-
-      const orderPayload = {
-        user_id: order.user_id,
-        seller_id: order.seller_id,
-        seller_type: order.seller_type,
-        subtotal: order.subtotal,
-        delivery_fee: order.delivery_fee,
-        discount: order.discount || 0,
-        total: order.total,
-        payment_method: 'online',
-        payment_status: 'paid',
-        payment_reference: reference,
-        promo_code: order.promo_code || null,
-        delivery_address: order.delivery_address,
-        delivery_notes: order.delivery_notes || null,
-        scheduled_for: order.scheduled_for || null,
-        platform_commission: 300.0,
-        agent_earnings: 200.0,
-        status: 'pending',
-        created_at: new Date().toISOString(),
-      };
-
-      const { error } = await supabase.from('orders').insert(orderPayload);
-      if (error) throw error;
-
-      console.log('✅ Order inserted via Paystack webhook:', reference);
-      return res.status(200).json({ success: true, message: 'Order created' });
-    } catch (err) {
-      console.error('🔥 Webhook order insert error:', err);
-      return res.status(500).json({ error: 'Failed to create order' });
+    if (!orderData) {
+      console.error(`Order not found for reference: ${eventData.reference}`);
+      return { success: false, message: 'Order not found' };
     }
+
+    if (!orderData.delivery_agent_id) {
+      console.error(`No delivery agent assigned for order: ${eventData.reference}`);
+      return { success: false, message: 'No delivery agent assigned' };
+    }
+
+    // Calculate payment splits
+    const totalAmount = parseFloat(eventData.amount) / 100; // Paystack sends amount in kobo
+    const platformFee = totalAmount * PLATFORM_FEE_PERCENTAGE;
+    const agentEarnings = totalAmount * AGENT_EARNINGS_PERCENTAGE;
+    const foodAmount = totalAmount - platformFee - agentEarnings;
+
+    // Update order status to paid
+    const { error: orderUpdateError } = await supabase
+      .from('orders')
+      .update({
+        payment_status: 'paid',
+        split_details: {
+          total: totalAmount,
+          food: foodAmount,
+          platform_fee: platformFee,
+          agent_earnings: agentEarnings,
+          delivery_fee: platformFee + agentEarnings
+        }
+      })
+      .eq('id', orderData.id);
+
+    if (orderUpdateError) {
+      console.error('Error updating order:', orderUpdateError);
+      return { success: false, message: 'Failed to update order' };
+    }
+
+    // Credit agent's food wallet
+    await supabase.rpc('update_agent_wallet', {
+      p_agent_id: orderData.delivery_agent_id,
+      p_wallet_type: 'food_wallet',
+      p_amount: foodAmount,
+      p_transaction_type: 'credit',
+      p_reference_type: 'order',
+      p_reference_id: orderData.id,
+      p_description: `Payment for order ${eventData.reference} - food amount`
+    });
+
+    // Credit agent's earnings wallet
+    await supabase.rpc('update_agent_wallet', {
+      p_agent_id: orderData.delivery_agent_id,
+      p_wallet_type: 'earnings_wallet',
+      p_amount: agentEarnings,
+      p_transaction_type: 'credit',
+      p_reference_type: 'order',
+      p_reference_id: orderData.id,
+      p_description: `Payment for order ${eventData.reference} - agent earnings`
+    });
+
+    // Credit platform wallet (we'll track this in a separate table or in the order)
+    // For now, we just track it in the order split_details
+
+    console.log(`Successfully processed payment split for order ${eventData.reference}`);
+    return { success: true, message: 'Payment split processed successfully' };
+  } catch (error) {
+    console.error('Error processing payment split:', error);
+    return { success: false, message: 'Error processing payment split', error: error.message };
+  }
+}
+
+// Function to handle transfer status updates from Paystack
+async function handleTransferStatus(eventData: any) {
+  try {
+    const transferReference = eventData.transfer.transfer_code;
+
+    // Update withdrawal status based on transfer status
+    const { error } = await supabase
+      .from('withdrawals')
+      .update({
+        status: eventData.transfer.status === 'success' ? 'completed' : 'failed',
+        processed_at: new Date().toISOString(),
+        error_message: eventData.transfer.status !== 'success' ? eventData.transfer.fail_reason : null
+      })
+      .eq('paystack_transfer_code', transferReference);
+
+    if (error) {
+      console.error('Error updating withdrawal status:', error);
+      return { success: false, message: 'Failed to update withdrawal status' };
+    }
+
+    console.log(`Successfully updated withdrawal status for transfer: ${transferReference}`);
+    return { success: true, message: 'Withdrawal status updated successfully' };
+  } catch (error) {
+    console.error('Error handling transfer status:', error);
+    return { success: false, message: 'Error handling transfer status', error: error.message };
+  }
+}
+
+// Main webhook handler
+async function handleWebhook(request: Request) {
+  const signature = request.headers.get('X-Paystack-Signature');
+  const payload = await request.text();
+
+  // Verify webhook signature
+  if (!signature || !await verifyPaystackSignature(payload, signature)) {
+    return new Response(JSON.stringify({ error: 'Invalid signature' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 
-  // Acknowledge other events (e.g., test events)
-  return res.status(200).json({ received: true });
+  try {
+    const event = JSON.parse(payload);
+
+    switch (event.event) {
+      case 'charge.success':
+        // Process successful payment and split funds
+        const result = await processPaymentSplit(event.data);
+        return new Response(JSON.stringify(result), {
+          status: result.success ? 200 : 400,
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+      case 'transfer.success':
+      case 'transfer.failed':
+        // Handle transfer status updates
+        const transferResult = await handleTransferStatus(event);
+        return new Response(JSON.stringify(transferResult), {
+          status: transferResult.success ? 200 : 400,
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+      default:
+        // Unhandled event type
+        console.log(`Unhandled event type: ${event.event}`);
+        return new Response(JSON.stringify({ message: 'Event type not handled' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+    }
+  } catch (error) {
+    console.error('Error processing webhook:', error);
+    return new Response(JSON.stringify({ error: 'Error processing webhook', details: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
 }
+
+// Start the server
+serve(handleWebhook, { port: 8000 });

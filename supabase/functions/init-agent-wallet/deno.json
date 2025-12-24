@@ -1,0 +1,18 @@
+{
+    "lib": [
+        "deno",
+        "unstable"
+    ],
+    "compilerOptions": {
+        "allowJs": true,
+        "lib": [
+            "ES2022",
+            "DOM",
+            "DOM.Iterable"
+        ],
+        "strict": true,
+        "types": [
+            "https://deno.land/x/supabase_functions@0.4.1/mod.ts"
+        ]
+    }
+}
