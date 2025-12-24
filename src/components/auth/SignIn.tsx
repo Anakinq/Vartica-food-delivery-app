@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
 interface SignInProps {
-  role: 'customer' | 'cafeteria' | 'vendor' | 'admin';
+  role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin';
   onBack: () => void;
   onSwitchToSignUp?: () => void;
 }
@@ -22,6 +22,7 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
     customer: 'Customer',
     cafeteria: 'Cafeteria',
     vendor: 'Student Vendor',
+    delivery_agent: 'Delivery Agent',
     admin: 'Admin',
   }[role];
 
