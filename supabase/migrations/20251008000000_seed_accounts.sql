@@ -91,8 +91,8 @@ INSERT INTO cafeterias (user_id, name, description, is_active) VALUES
 INSERT INTO profiles (id, email, full_name, role) VALUES
 ('LATENIGHT_USER_ID', 'latenight@vartica.edu', 'Late Night Vendor', 'vendor');
 
-INSERT INTO vendors (user_id, store_name, description, vendor_type, is_active, available_from, available_until) VALUES
-('LATENIGHT_USER_ID', 'Late-Night Vendors', 'Open for late night cravings', 'late_night', true, '21:00:00', '03:00:00');
+INSERT INTO vendors (user_id, store_name, description, image_url, vendor_type, is_active, available_from, available_until) VALUES
+('LATENIGHT_USER_ID', 'Late-Night Vendors', 'Open for late night cravings', '/images/late night vendor.jpg', 'late_night', true, '21:00:00', '03:00:00');
 
 -- Test Delivery Agent
 INSERT INTO profiles (id, email, full_name, role, phone) VALUES
@@ -114,7 +114,8 @@ INSERT INTO promo_codes (code, discount_type, discount_value, min_order_value, v
 ('WELCOME10', 'percentage', 10, 0, NOW(), NOW() + INTERVAL '90 days', true, 10),
 ('SAVE5', 'fixed', 5, 20, NOW(), NOW() + INTERVAL '90 days', true, NULL),
 ('STUDENT15', 'percentage', 15, 15, NOW(), NOW() + INTERVAL '90 days', true, 15),
-('LATENIGHT20', 'percentage', 20, 25, NOW(), NOW() + INTERVAL '90 days', true, 20);
+('LATENIGHT20', 'percentage', 20, 25, NOW(), NOW() + INTERVAL '90 days', true, 20)
+ON CONFLICT (code) DO NOTHING;
 
 -- Sample menu items for testing (uncomment and replace CAF1_ID with actual cafeteria ID)
 /*
