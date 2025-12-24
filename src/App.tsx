@@ -24,6 +24,8 @@ function AppContent() {
 
   // Check for stored OAuth role after redirect from OAuth flow
   useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+
     const handleOAuthRedirect = () => {
       try {
         if (typeof window !== 'undefined' && window.localStorage) {
@@ -32,6 +34,11 @@ function AppContent() {
             localStorage.removeItem('oauth_role'); // Clean up
             // Set justSignedUp to prevent loading issues
             setJustSignedUp(true);
+
+            // Auto-clear justSignedUp after 5 seconds to allow dashboard to show
+            timer = setTimeout(() => {
+              setJustSignedUp(false);
+            }, 5000);
           }
         }
       } catch (error) {
@@ -40,12 +47,27 @@ function AppContent() {
     };
 
     handleOAuthRedirect();
+
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
   }, []);
 
   // Listen for user signup event
   useEffect(() => {
-    const handleUserSignedUp = () => {
+    const handleUserSignedUp = (e: Event) => {
       setJustSignedUp(true);
+
+      // Auto-clear justSignedUp after 5 seconds to allow dashboard to show
+      // This handles cases where email confirmation happens in another tab/browser
+      const timer = setTimeout(() => {
+        setJustSignedUp(false);
+      }, 5000);
+
+      // Clean up the timer
+      return () => clearTimeout(timer);
     };
 
     window.addEventListener('userSignedUp', handleUserSignedUp);
@@ -83,7 +105,7 @@ function AppContent() {
   }
 
   // ✅ Authenticated & profile loaded → render dashboard
-  if (user && profile && !justSignedUp) { // Don't redirect if user just signed up
+  if (user && profile) { // Removed !justSignedUp condition to allow dashboard after email confirmation
     // 🔐 Extra safety: ensure profile.role is valid
     const role = profile.role as Role | undefined;
     if (!role || !['customer', 'cafeteria', 'vendor', 'delivery_agent', 'admin'].includes(role)) {
@@ -134,7 +156,7 @@ function AppContent() {
   }
 
   // ✅ Authed user, but profile still loading (rare, but possible)
-  if (user && !profile && !justSignedUp) { // Don't show loading if user just signed up
+  if (user && !profile) { // Removed !justSignedUp condition to allow profile loading after email confirmation
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
