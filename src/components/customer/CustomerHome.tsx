@@ -229,6 +229,30 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   };
 
   const getImagePath = (sellerId: string, sellerType: 'cafeteria' | 'vendor') => {
+    // Check if this is a late night vendor
+    if (lateNightVendor && sellerId === lateNightVendor.id && sellerType === 'vendor') {
+      return '/images/late night vendor.jpg';
+    }
+
+    // For cafeterias, use their position in the cafeteria array
+    if (sellerType === 'cafeteria') {
+      const index = cafeterias.findIndex(c => c.id === sellerId);
+      if (index !== -1) {
+        return `/images/${index + 1}.jpg`;
+      }
+    }
+
+    // For student vendors, use their position in the student vendor array
+    if (sellerType === 'vendor') {
+      const index = studentVendors.findIndex(v => v.id === sellerId);
+      if (index !== -1) {
+        // Start from the next available number after cafeterias
+        const cafeteriaCount = cafeterias.length;
+        return `/images/${cafeteriaCount + index + 1}.jpg`;
+      }
+    }
+
+    // Fallback to original logic
     const index = allSellersInOrder.findIndex(s => s.id === sellerId && s.type === sellerType);
     return `/images/${index + 1}.jpg`;
   };
