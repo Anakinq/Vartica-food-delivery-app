@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Menu, X, ChefHat, Users, Bike, ShieldCheck, UtensilsCrossed } from 'lucide-react';
+import { Menu, X, ChefHat, Users, ShieldCheck, UtensilsCrossed } from 'lucide-react';
 
 interface LandingPageProps {
-  onRoleSelect: (role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin') => void;
+  onRoleSelect: (role: 'customer' | 'cafeteria' | 'vendor' | 'admin') => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
@@ -22,13 +22,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
       icon: Users,
       description: 'Sign up or sign in to start selling',
       color: 'from-green-500 to-green-600',
-    },
-    {
-      id: 'delivery_agent' as const,
-      title: 'Delivery Agents',
-      icon: Bike,
-      description: 'Join our delivery network',
-      color: 'from-orange-500 to-orange-600',
     },
     {
       id: 'admin' as const,

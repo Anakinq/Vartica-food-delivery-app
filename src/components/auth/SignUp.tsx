@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
 interface SignUpProps {
-  role: 'customer' | 'vendor' | 'late_night_vendor' | 'delivery_agent';
+  role: 'customer' | 'vendor' | 'late_night_vendor';
   onBack: () => void;
   onSwitchToSignIn: () => void;
 }
