@@ -177,8 +177,8 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
             </button>
           </form>
 
-          {/* ✅ Google Sign In Button */}
-          {!forgotPasswordMode && (
+          {/* ✅ Google Sign In Button - Only for non-cafeteria and non-admin roles */}
+          {!forgotPasswordMode && role !== 'cafeteria' && role !== 'admin' && (
             <div className="mt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">

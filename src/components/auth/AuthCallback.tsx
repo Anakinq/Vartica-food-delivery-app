@@ -3,6 +3,19 @@ import { supabase } from '../../lib/supabase';
 
 export default function AuthCallback() {
     useEffect(() => {
+        // Check for role in URL query parameters (from Google OAuth)
+        const urlParams = new URLSearchParams(window.location.search);
+        const role = urlParams.get('role');
+
+        // Store the role in localStorage so it can be used during profile creation
+        if (role && typeof window !== 'undefined' && window.localStorage) {
+            try {
+                window.localStorage.setItem('oauth_role', role);
+            } catch (error) {
+                console.warn('Failed to store role in localStorage:', error);
+            }
+        }
+
         // The Supabase client is configured with detectSessionInUrl: true
         // which should automatically handle the session from the URL
         // and trigger the auth state change event

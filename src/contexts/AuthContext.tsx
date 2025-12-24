@@ -18,6 +18,7 @@ interface AuthContextType {
   signUpWithGoogle: (role: 'customer' | 'vendor' | 'delivery_agent') => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  linkAccountWithEmailPassword: (password: string) => Promise<{ data: any; error: Error | null } | { data: null; error: Error }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -122,6 +123,60 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (event.event === 'SIGNED_IN' || event.event === 'USER_UPDATED') {
         console.log('User signed in or updated');
+
+        // Check if this is an OAuth sign-in and we have a stored role
+        if (typeof window !== 'undefined' && window.localStorage) {
+          try {
+            const storedRole = window.localStorage.getItem('oauth_role');
+            if (storedRole && event.session?.user) {
+              // Remove the stored role to prevent it from being used again
+              window.localStorage.removeItem('oauth_role');
+
+              // Check if the user already has a profile with a role
+              const { data: existingProfile, error: profileError } = await databaseService.selectSingle<Profile>({
+                table: 'profiles',
+                match: { id: event.session.user.id },
+              });
+
+              if (!existingProfile && !profileError) {
+                // If no profile exists yet, create one with the stored role
+                const { error: insertError } = await databaseService.insert<Profile>({
+                  table: 'profiles',
+                  data: {
+                    id: event.session.user.id,
+                    email: event.session.user.email || '',
+                    full_name: event.session.user.user_metadata?.full_name || 'User',
+                    role: storedRole as any,
+                    phone: event.session.user.user_metadata?.phone || null,
+                    created_at: new Date().toISOString(),
+                  },
+                });
+
+                if (insertError) {
+                  console.error('Error creating profile with stored role:', insertError);
+                } else {
+                  console.log('Profile created with stored role:', storedRole);
+                }
+              } else if (existingProfile && existingProfile.role !== storedRole) {
+                // If profile exists but has wrong role, update it
+                const { error: updateError } = await databaseService.update<Profile>({
+                  table: 'profiles',
+                  data: { role: storedRole as any },
+                  match: { id: event.session.user.id },
+                });
+
+                if (updateError) {
+                  console.error('Error updating profile role:', updateError);
+                } else {
+                  console.log('Profile role updated to:', storedRole);
+                }
+              }
+            }
+          } catch (storageError) {
+            console.warn('Storage access error when checking for OAuth role:', storageError);
+          }
+        }
+
         await fetchUserAndProfile(event.session?.user ?? null);
         setLoading(false); // ✅ Set loading to false after sign-in completes
       } else if (event.event === 'SIGNED_OUT') {
@@ -235,6 +290,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // ✅ Link Google account with email/password
+  const linkAccountWithEmailPassword = async (password: string) => {
+    console.log('linkAccountWithEmailPassword called');
+    try {
+      // Update user's password to enable email/password sign-in
+      const { data, error } = await supabase.auth.updateUser({
+        password: password,
+      });
+
+      if (error) {
+        console.error('Error updating user password:', error);
+        throw error;
+      }
+
+      console.log('Account linked with email/password successfully');
+      return { data, error: null };
+    } catch (err) {
+      console.error('Error linking account with email/password:', err);
+      return { data: null, error: err as Error };
+    }
+  };
+
   // ✅ Sign out
   const signOut = async () => {
     console.log('signOut called');
@@ -264,6 +341,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         signUpWithGoogle,
         signOut,
         refreshProfile,
+        linkAccountWithEmailPassword,
       }}
     >
       {children}
