@@ -13,7 +13,7 @@ import { PaymentSuccess } from './components/customer/PaymentSuccess';
 import { VendorDashboard } from './components/vendor/VendorDashboard';
 import AuthCallback from './components/auth/AuthCallback';
 
-type Role = 'customer' | 'cafeteria' | 'vendor' | 'late_night_vendor' | 'admin';
+type Role = 'customer' | 'cafeteria' | 'vendor' | 'late_night_vendor' | 'delivery_agent' | 'admin';
 type AuthView = 'signin' | 'signup';
 
 function AppContent() {
@@ -109,7 +109,7 @@ function AppContent() {
   if (user && profile) { // Removed !justSignedUp condition to allow dashboard after email confirmation
     // 🔐 Extra safety: ensure profile.role is valid
     const role = profile.role as Role | undefined;
-    if (!role || !['customer', 'cafeteria', 'vendor', 'admin'].includes(role)) {
+    if (!role || !['customer', 'cafeteria', 'vendor', 'delivery_agent', 'admin'].includes(role)) {
       // Invalid role - redirect to customer home
       return (
         <div className="min-h-screen flex items-center justify-center bg-red-50">
@@ -179,7 +179,7 @@ function AppContent() {
   }
 
   if (selectedRole && selectedRole !== 'customer') {
-    return authView === 'signup' && (selectedRole === 'vendor' || selectedRole === 'late_night_vendor') ? (
+    return authView === 'signup' && (selectedRole === 'vendor' || selectedRole === 'late_night_vendor' || selectedRole === 'delivery_agent') ? (
       <SignUp
         role={selectedRole === 'late_night_vendor' ? 'late_night_vendor' : selectedRole}
         onBack={() => {
@@ -196,7 +196,7 @@ function AppContent() {
         role={selectedRole === 'late_night_vendor' ? 'vendor' : selectedRole}
         onBack={() => setSelectedRole(null)}
         onSwitchToSignUp={
-          selectedRole === 'vendor' || selectedRole === 'late_night_vendor'
+          selectedRole === 'vendor' || selectedRole === 'late_night_vendor' || selectedRole === 'delivery_agent'
             ? () => setAuthView('signup')
             : undefined
         }

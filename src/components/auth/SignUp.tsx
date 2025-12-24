@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
 interface SignUpProps {
-  role: 'customer' | 'vendor' | 'late_night_vendor';
+  role: 'customer' | 'vendor' | 'late_night_vendor' | 'delivery_agent';
   onBack: () => void;
   onSwitchToSignIn: () => void;
 }
@@ -19,7 +19,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
     phone: '',
     storeName: '',
     storeDescription: '',
-    vehicleType: '',
+
     vendorType: (role === 'late_night_vendor' ? 'late_night' : 'student') as 'student' | 'late_night',
     availableFrom: '21:00',
     availableUntil: '03:00',
@@ -33,7 +33,8 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
   const roleTitle =
     role === 'customer' ? 'Customer' :
       role === 'vendor' ? 'Student Vendor' :
-        role === 'late_night_vendor' ? 'Late Night Vendor' : 'Delivery Agent';
+        role === 'late_night_vendor' ? 'Late Night Vendor' :
+          role === 'delivery_agent' ? 'Delivery Agent' : 'User';
 
   // Handle browser back/forward — ensure confirmation screen stays if needed
   useEffect(() => {
@@ -471,25 +472,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
               </>
             )}
 
-            {role === 'delivery_agent' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Vehicle Type
-                </label>
-                <select
-                  value={formData.vehicleType}
-                  onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value })}
-                  disabled={isLoading}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Select vehicle</option>
-                  <option value="bike">Bike</option>
-                  <option value="scooter">Scooter</option>
-                  <option value="motorcycle">Motorcycle</option>
-                  <option value="car">Car</option>
-                </select>
-              </div>
-            )}
+
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
