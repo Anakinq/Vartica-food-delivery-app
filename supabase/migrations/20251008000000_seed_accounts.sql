@@ -109,22 +109,18 @@ INSERT INTO vendors (user_id, store_name, description, vendor_type, is_active) V
 ('VENDOR1_USER_ID', 'Test Food Store', 'Student-run food business', 'student', true);
 */
 
--- Hardcoded Delivery Agent Account with real UUID
-INSERT INTO profiles (id, email, full_name, role, phone, created_at) VALUES
-('d2f4e7a1-b8c9-4c5d-9e6f-7a8b9c0d1e2f', 'deliveryagent@vartica.edu', 'Test Delivery Agent', 'delivery_agent', '+1-555-0003', NOW())
-ON CONFLICT (id) DO NOTHING;
+-- Update Delivery Agent Account role and create delivery agent record
+UPDATE profiles SET role = 'delivery_agent', phone = '+1-555-0003' WHERE email = 'deliveryagent@vartica.edu';
 
 INSERT INTO delivery_agents (user_id, vehicle_type, is_available, created_at) VALUES
-('d2f4e7a1-b8c9-4c5d-9e6f-7a8b9c0d1e2f', 'bike', true, NOW())
+('869cf638-8d6e-45f2-96c5-b31229132f41', 'bike', true, NOW())
 ON CONFLICT (user_id) DO NOTHING;
 
--- Hardcoded Student Vendor Account with real UUID
-INSERT INTO profiles (id, email, full_name, role, phone, created_at) VALUES
-('e3g5f8b2-c9d0-5d6e-0f7g-8a9b0c1e3f4g', 'studentvendor@vartica.edu', 'Test Student Vendor', 'vendor', '+1-555-0004', NOW())
-ON CONFLICT (id) DO NOTHING;
+-- Update Student Vendor Account role and create vendor record
+UPDATE profiles SET role = 'vendor', phone = '+1-555-0004' WHERE email = 'studentvendor@vartica.edu';
 
 INSERT INTO vendors (user_id, store_name, description, image_url, vendor_type, is_active, created_at) VALUES
-('e3g5f8b2-c9d0-5d6e-0f7g-8a9b0c1e3f4g', 'Student Vendor Store', 'Student-run food business', '/images/1.jpg', 'student', true, NOW())
+('41777ab7-ac90-4255-be9d-f7b957425f25', 'Student Vendor Store', 'Student-run food business', '/images/store.jpg', 'student', true, NOW())
 ON CONFLICT (user_id) DO NOTHING;
 
 -- Add some sample promo codes
