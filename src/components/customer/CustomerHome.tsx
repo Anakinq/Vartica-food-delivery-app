@@ -231,7 +231,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const getImagePath = (sellerId: string, sellerType: 'cafeteria' | 'vendor') => {
     // Check if this is a late night vendor
     if (lateNightVendor && sellerId === lateNightVendor.id && sellerType === 'vendor') {
-      return '/images/late night vendor.jpg';
+      return '/images/latenightvendor.jpg';
     }
 
     // For cafeterias, use their position in the cafeteria array
