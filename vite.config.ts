@@ -48,6 +48,7 @@ export default defineConfig(({ mode }) => {
           style-src-elem 'self' 'unsafe-inline' https://paystack.com https://*.paystack.com;
           img-src 'self' blob: data:
             https://jbqhbuogmxqzotlorahn.supabase.co
+            https://jbqhbuogmxqzotlorahn.supabase.co/storage/v1/object/public/
             https://images.unsplash.com
             https://via.placeholder.com
             https://res.cloudinary.com
