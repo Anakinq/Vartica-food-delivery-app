@@ -124,10 +124,30 @@ export const Checkout: React.FC<CheckoutProps> = ({
     const sellerType = items[0].seller_type;
     if (!sellerId || !sellerType) throw new Error('Invalid seller info');
 
+    // Generate unique order number
+    const orderNumber = `ORDER_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+    // First, we need to assign a delivery agent to the order
+    // Find an available delivery agent
+    const { data: availableAgent, error: agentError } = await supabase
+      .from('delivery_agents')
+      .select('id')
+      .eq('is_active', true)
+      .limit(1)
+      .single();
+
+    if (agentError) {
+      console.error('Error finding delivery agent:', agentError);
+      // For now, we'll continue without an agent and assign one later
+    }
+
+    // Create the order first
     const orderPayload = {
+      order_number: orderNumber,
       user_id: user.id,
       seller_id: sellerId,
       seller_type: sellerType,
+      delivery_agent_id: availableAgent?.id || null, // Assign agent if available
       status: 'pending',
       subtotal,
       delivery_fee: deliveryFee,
@@ -143,8 +163,33 @@ export const Checkout: React.FC<CheckoutProps> = ({
       platform_commission: 300.0,
       agent_earnings: 200.0,
     };
-    const { error: insertError } = await supabase.from('orders').insert(orderPayload);
+
+    const { data: orderData, error: insertError } = await supabase
+      .from('orders')
+      .insert(orderPayload)
+      .select('id')
+      .single();
+
     if (insertError) throw insertError;
+
+    // Now create the order items
+    const orderItems = items.map(item => ({
+      order_id: orderData[0].id,
+      menu_item_id: item.id,
+      quantity: item.quantity,
+      price: item.price,
+    }));
+
+    const { error: itemsInsertError } = await supabase
+      .from('order_items')
+      .insert(orderItems);
+
+    if (itemsInsertError) {
+      // If order items fail to insert, we should delete the order to maintain consistency
+      await supabase.from('orders').delete().eq('id', orderData[0].id);
+      throw itemsInsertError;
+    }
+
     return { success: true };
   };
 
@@ -152,24 +197,35 @@ export const Checkout: React.FC<CheckoutProps> = ({
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    const orderData = {
-      user_id: user.id,
-      seller_id: items[0].seller_id,
-      seller_type: items[0].seller_type,
-      subtotal,
-      delivery_fee: deliveryFee,
-      discount,
-      total: effectiveTotal,
-      promo_code: formData.promoCode || null,
-      delivery_address: formData.deliveryAddress.trim() || 'Address not provided',
-      delivery_notes: formData.deliveryNotes || null,
-      scheduled_for: formData.scheduledFor || null,
+    // Format data to match Paystack webhook format for charge.success event
+    const paystackWebhookData = {
+      event: 'charge.success',
+      data: {
+        reference,
+        amount: Math.round(effectiveTotal * 100), // Paystack sends amount in kobo
+        status: 'success',
+        gateway_response: 'Successful',
+        paid_at: new Date().toISOString(),
+        channel: 'card',
+        currency: 'NGN',
+        customer: {
+          email: profile?.email || 'unknown@example.com',
+        },
+        authorization: {
+          authorization_code: 'AUTH_' + reference,
+          bin: '412345',
+          last4: '1234',
+          exp_month: '12',
+          exp_year: '2025',
+          channel: 'card',
+        }
+      }
     };
 
     const webhookRes = await fetch('/api/paystack-webhook', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reference, order: orderData }),
+      body: JSON.stringify(paystackWebhookData),
     });
 
     if (!webhookRes.ok) throw new Error('Webhook verification failed');
@@ -178,11 +234,13 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const handlePaystackSuccess = async (response: any) => {
     try {
       setLoading(true);
-      await sendToWebhook(response.reference);
+      // Create order with payment reference after successful payment
+      await createOrder(response.reference);
       setSuccess(true);
       setTimeout(() => onSuccess(), 2000);
     } catch (error) {
-      alert('Payment successful but order creation failed. Contact support with payment reference.');
+      console.error('Payment success but order creation failed:', error);
+      alert('Payment successful but order creation failed. Contact support with payment reference: ' + response.reference);
     } finally {
       setLoading(false);
     }
