@@ -445,7 +445,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                         className={`bg-white rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${isSelected ? 'ring-2 ring-green-600' : 'hover:shadow-md'}`}
                       >
                         <img
-                          src={getImagePath(cafeteria.id, 'cafeteria')}
+                          src={cafeteria.image_url || getImagePath(cafeteria.id, 'cafeteria')}
                           alt={cafeteria.name}
                           className="w-full h-40 object-cover"
                           onError={(e) => {
@@ -453,7 +453,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                             const currentSrc = target.src;
 
                             // If the current src is not already the fallback, try the fallback
-                            if (!currentSrc.includes('placeholder.jpg')) {
+                            if (!currentSrc.includes('placeholder.jpg') && !currentSrc.includes('placehold.co')) {
                               target.src = '/images/placeholder.jpg';
                             } else {
                               // If already showing fallback, try another fallback
@@ -503,7 +503,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                           Student
                         </span>
                         <img
-                          src={getImagePath(vendor.id, 'vendor')}
+                          src={vendor.image_url || getImagePath(vendor.id, 'vendor')}
                           alt={vendor.store_name}
                           className="w-full h-40 object-cover"
                           onError={(e) => {
@@ -511,7 +511,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                             const currentSrc = target.src;
 
                             // If the current src is not already the fallback, try the fallback
-                            if (!currentSrc.includes('placeholder.jpg')) {
+                            if (!currentSrc.includes('placeholder.jpg') && !currentSrc.includes('placehold.co')) {
                               target.src = '/images/placeholder.jpg';
                             } else {
                               // If already showing fallback, try another fallback
@@ -554,7 +554,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                       <Moon className="h-3 w-3 mr-1" /> Late Night
                     </span>
                     <img
-                      src={getImagePath(lateNightVendor.id, 'vendor')}
+                      src={lateNightVendor.image_url || getImagePath(lateNightVendor.id, 'vendor')}
                       alt={lateNightVendor.store_name}
                       className="w-20 h-20 rounded-xl object-cover mb-4"
                       onError={(e) => {
@@ -562,7 +562,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                         const currentSrc = target.src;
 
                         // If the current src is not already the fallback, try the fallback
-                        if (!currentSrc.includes('placeholder.jpg')) {
+                        if (!currentSrc.includes('placeholder.jpg') && !currentSrc.includes('placehold.co')) {
                           target.src = '/images/placeholder.jpg';
                         } else {
                           // If already showing fallback, try another fallback
