@@ -40,7 +40,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const [cafeteriaStatus, setCafeteriaStatus] = useState<Record<string, boolean>>({});
   const [selectedSeller, setSelectedSeller] = useState<{ id: string; type: 'cafeteria' | 'vendor'; name: string } | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
+  const [menuSearchQuery, setMenuSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCart, setShowCart] = useState(false);
   const [showOrders, setShowOrders] = useState(false);
@@ -156,9 +157,9 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     setCart([]);
   };
 
-  const groupMenuItemsByCategory = () => {
+  const groupMenuItemsByCategory = (itemsToGroup: MenuItem[] = menuItems) => {
     // Get all unique categories from menu items
-    const uniqueCategories = Array.from(new Set(menuItems.map(item => item.category).filter(Boolean) as string[]));
+    const uniqueCategories = Array.from(new Set(itemsToGroup.map(item => item.category).filter(Boolean) as string[]));
 
     // Define priority order for categories
     const priorityCategories = [
@@ -173,10 +174,10 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     ];
 
     console.log('Grouping menu items by categories:', sortedCategories);
-    console.log('Current menu items:', menuItems);
+    console.log('Current menu items:', itemsToGroup);
 
     const result = sortedCategories.map(category => {
-      const items = menuItems.filter(item => item.category === category);
+      const items = itemsToGroup.filter(item => item.category === category);
       console.log(`Items in category ${category}:`, items);
       return { category, items };
     }).filter(group => group.items.length > 0);
@@ -185,13 +186,17 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     return result;
   };
 
-  const filteredCafeterias = cafeterias.filter(c =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCafeterias = useMemo(() => {
+    return cafeterias.filter(c =>
+      c.name.toLowerCase().includes(globalSearchQuery.toLowerCase())
+    );
+  }, [cafeterias, globalSearchQuery]);
 
-  const filteredVendors = studentVendors.filter(v =>
-    v.store_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredVendors = useMemo(() => {
+    return studentVendors.filter(v =>
+      v.store_name.toLowerCase().includes(globalSearchQuery.toLowerCase())
+    );
+  }, [studentVendors, globalSearchQuery]);
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -269,7 +274,19 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     }
   };
 
-  const groupedCategories = groupMenuItemsByCategory();
+  // Filter menu items based on search query when a seller is selected
+  const filteredMenuItems = useMemo(() => {
+    if (!selectedSeller || !menuSearchQuery.trim()) {
+      return menuItems;
+    }
+
+    return menuItems.filter(item =>
+      item.name.toLowerCase().includes(menuSearchQuery.toLowerCase()) ||
+      (item.description && item.description.toLowerCase().includes(menuSearchQuery.toLowerCase()))
+    );
+  }, [menuItems, menuSearchQuery, selectedSeller]);
+
+  const groupedCategories = groupMenuItemsByCategory(filteredMenuItems);
 
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
 
@@ -388,8 +405,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
             <input
               type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={globalSearchQuery}
+              onChange={(e) => setGlobalSearchQuery(e.target.value)}
               placeholder="Search for food, vendors, or cafeterias..."
               className="w-full pl-12 pr-4 py-4 bg-gray-100 border-0 rounded-full focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
               aria-label="Search food or vendors"
@@ -399,23 +416,38 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
         {selectedSeller && menuItems.length > 0 && (
           <div className="sticky top-20 z-30 bg-gray-50 py-3 mb-6 -mx-4 px-4 border-b border-gray-200">
-            <div className="flex overflow-x-auto pb-1 space-x-3 hide-scrollbar">
-              {groupedCategories.map(({ category }) => (
-                <button
-                  key={category}
-                  onClick={() => handleCategoryClick(category)}
-                  className={`
-                    whitespace-nowrap px-5 py-2 rounded-full text-sm font-medium transition-all duration-200
-                    ${pulseCategory === category
-                      ? 'bg-black text-white scale-105'
-                      : activeCategory === category
-                        ? 'bg-black text-white'
-                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300 active:scale-95'}
-                  `}
-                >
-                  {category}
-                </button>
-              ))}
+            <div className="flex flex-col space-y-3">
+              <div className="flex overflow-x-auto pb-1 space-x-3 hide-scrollbar">
+                {groupedCategories.map(({ category }) => (
+                  <button
+                    key={category}
+                    onClick={() => handleCategoryClick(category)}
+                    className={`
+                      whitespace-nowrap px-5 py-2 rounded-full text-sm font-medium transition-all duration-200
+                      ${pulseCategory === category
+                        ? 'bg-black text-white scale-105'
+                        : activeCategory === category
+                          ? 'bg-black text-white'
+                          : 'bg-gray-200 text-gray-800 hover:bg-gray-300 active:scale-95'}
+                    `}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+
+              {/* Search bar for menu items */}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={menuSearchQuery}
+                  onChange={(e) => setMenuSearchQuery(e.target.value)}
+                  placeholder="Search menu items..."
+                  className="w-full pl-10 pr-4 py-2 bg-gray-100 border-0 rounded-full focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
+                  aria-label="Search menu items"
+                />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              </div>
             </div>
           </div>
         )}
