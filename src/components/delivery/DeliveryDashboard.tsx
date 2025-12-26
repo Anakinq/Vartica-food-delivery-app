@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
-  LogOut, MapPin, MessageCircle, Wallet, User, Menu,
-  CheckCircle, AlertCircle, Banknote
+  LogOut, MapPin, MessageCircle, Wallet, User, Menu, X,
+  CheckCircle, AlertCircle, Banknote, Package, Clock, Check, Truck,
+  Settings, Bell, Star, Phone, Navigation, BarChart3
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Order, DeliveryAgent } from '../../lib/supabase';
@@ -98,6 +99,9 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   const [isOnline, setIsOnline] = useState(false);
   const [dashboardKey, setDashboardKey] = useState(0);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [activeTab, setActiveTab] = useState<'available' | 'active' | 'history'>('active');
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   // Bank state
   const [bankAccount, setBankAccount] = useState('');
@@ -116,6 +120,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
 
   const menuRef = useRef<HTMLDivElement>(null);
+  const hamburgerButtonRef = useRef<HTMLButtonElement>(null);
   const withdrawCooldownRef = useRef<number | null>(null);
 
   // Helpers
@@ -126,13 +131,15 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   // Close mobile menu on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (showMobileMenu && menuRef.current && !menuRef.current.contains(target) &&
+        hamburgerButtonRef.current && !hamburgerButtonRef.current.contains(target)) {
         setShowMobileMenu(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [showMobileMenu]);
 
   // 🔁 Unified data fetcher — called on mount, interval, and after key actions
   const fetchData = useCallback(async () => {
@@ -197,7 +204,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       // 5. Orders
       const { data: myOrdersData } = await supabase
         .from('orders')
-        .select('id, order_number, total, status, delivery_address, delivery_notes, seller_id, seller_type, created_at')
+        .select('id, order_number, customer_id, subtotal, delivery_fee, discount, total, status, payment_method, payment_status, promo_code, delivery_address, delivery_notes, seller_id, seller_type, created_at, updated_at')
         .eq('delivery_agent_id', agentData.id)
         .neq('status', 'cancelled')
         .order('created_at', { ascending: false });
@@ -206,7 +213,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       if (agentData.is_available) {
         const { data: available } = await supabase
           .from('orders')
-          .select('id, order_number, total, status, delivery_address, delivery_notes, seller_id, seller_type, created_at')
+          .select('id, order_number, customer_id, subtotal, delivery_fee, discount, total, status, payment_method, payment_status, promo_code, delivery_address, delivery_notes, seller_id, seller_type, created_at, updated_at')
           .is('delivery_agent_id', null)
           .eq('status', 'pending')
           .order('created_at', { ascending: false });
@@ -492,6 +499,15 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                 </button>
               )}
 
+              {/* Hamburger Menu */}
+              <button
+                ref={hamburgerButtonRef}
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 md:hidden"
+              >
+                {showMobileMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </button>
+
               {/* Sign Out Button */}
               <button
                 onClick={signOut}
@@ -501,6 +517,81 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                 <span className="text-sm">Sign Out</span>
               </button>
             </div>
+
+            {/* Hamburger Menu Dropdown */}
+            {showMobileMenu && (
+              <div ref={menuRef} className="absolute right-4 top-16 bg-white shadow-lg rounded-md py-2 w-48 z-50 border border-gray-200 md:hidden">
+                <button
+                  onClick={() => {
+                    setShowProfileModal(true);
+                    setShowMobileMenu(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <div className="flex items-center space-x-2">
+                    <User className="h-4 w-4" />
+                    <span>Profile</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('active');
+                    setShowMobileMenu(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <div className="flex items-center space-x-2">
+                    <Package className="h-4 w-4" />
+                    <span>Active Orders</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('available');
+                    setShowMobileMenu(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <div className="flex items-center space-x-2">
+                    <Clock className="h-4 w-4" />
+                    <span>Available Orders</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowNotifications(true);
+                    setShowMobileMenu(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <div className="flex items-center space-x-2">
+                    <Bell className="h-4 w-4" />
+                    <span>Notifications</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('history');
+                    setShowMobileMenu(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <div className="flex items-center space-x-2">
+                    <BarChart3 className="h-4 w-4" />
+                    <span>Earnings History</span>
+                  </div>
+                </button>
+                <button
+                  onClick={signOut}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <div className="flex items-center space-x-2">
+                    <LogOut className="h-4 w-4" />
+                    <span>Sign Out</span>
+                  </div>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </nav>
@@ -659,8 +750,260 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
           </div>
         )}
 
-        {/* Orders & Withdrawal History — keep your existing UI */}
-        {/* ... (omitted for length — use your second version’s clean layout) */}
+        {/* Order Tabs */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="flex space-x-8 px-6">
+              <button
+                onClick={() => setActiveTab('active')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'active'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
+              >
+                Active Orders ({myOrders.filter(o => ['pending', 'accepted', 'preparing', 'ready', 'picked_up'].includes(o.status)).length})
+              </button>
+              <button
+                onClick={() => setActiveTab('available')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'available'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
+              >
+                Available Orders ({availableOrders.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('history')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'history'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
+              >
+                Order History
+              </button>
+            </nav>
+          </div>
+
+          <div className="p-6">
+            {/* Active Orders Tab */}
+            {activeTab === 'active' && (
+              <div>
+                {myOrders.filter(o => ['pending', 'accepted', 'preparing', 'ready', 'picked_up'].includes(o.status)).length === 0 ? (
+                  <div className="text-center py-8">
+                    <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-1">No Active Orders</h3>
+                    <p className="text-gray-500">You don't have any active orders right now.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {myOrders
+                      .filter(o => ['pending', 'accepted', 'preparing', 'ready', 'picked_up'].includes(o.status))
+                      .map(order => (
+                        <div key={order.id} className="border border-gray-200 rounded-lg p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <h4 className="font-medium text-gray-900">Order #{order.order_number}</h4>
+                              <p className="text-sm text-gray-500">{new Date(order.created_at).toLocaleString()}</p>
+                            </div>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                              order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                                order.status === 'picked_up' ? 'bg-blue-100 text-blue-800' :
+                                  order.status === 'ready' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-gray-100 text-gray-800'
+                              }`}>
+                              {order.status === 'pending' && 'Pending'}
+                              {order.status === 'accepted' && 'Accepted'}
+                              {order.status === 'preparing' && 'Preparing'}
+                              {order.status === 'ready' && 'Ready for Pickup'}
+                              {order.status === 'picked_up' && 'Out for Delivery'}
+                              {order.status === 'delivered' && 'Delivered'}
+                              {order.status === 'cancelled' && 'Cancelled'}
+                            </span>
+                          </div>
+
+                          <div className="mb-3">
+                            <p className="text-sm text-gray-600">Total: {formatCurrency(order.total)}</p>
+                            <p className="text-sm text-gray-600">Address: {order.delivery_address}</p>
+                          </div>
+
+                          {order.order_items && order.order_items.length > 0 && (
+                            <div className="mb-3">
+                              <p className="text-sm font-medium text-gray-700 mb-1">Items:</p>
+                              <ul className="text-sm text-gray-600">
+                                {order.order_items.map(item => (
+                                  <li key={item.id}>
+                                    {item.quantity}x {item.menu_item?.name || 'Unknown Item'}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          <div className="flex flex-wrap gap-2">
+                            {order.status === 'accepted' && (
+                              <button
+                                onClick={() => handleUpdateStatus(order.id, 'preparing')}
+                                className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                              >
+                                Mark Preparing
+                              </button>
+                            )}
+                            {order.status === 'preparing' && (
+                              <button
+                                onClick={() => handleUpdateStatus(order.id, 'ready')}
+                                className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                              >
+                                Mark Ready
+                              </button>
+                            )}
+                            {order.status === 'ready' && (
+                              <button
+                                onClick={() => handleUpdateStatus(order.id, 'picked_up')}
+                                className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                              >
+                                Mark Picked Up
+                              </button>
+                            )}
+                            {order.status === 'picked_up' && (
+                              <button
+                                onClick={() => handleUpdateStatus(order.id, 'delivered')}
+                                className="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                              >
+                                Mark Delivered
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setSelectedOrderForChat(order)}
+                              className="px-3 py-1.5 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 flex items-center"
+                            >
+                              <MessageCircle className="h-3 w-3 mr-1" />
+                              Chat
+                            </button>
+                            <button
+                              onClick={() => {
+                                // In a real app, this would open navigation
+                                alert('Navigation would open to customer location');
+                              }}
+                              className="px-3 py-1.5 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 flex items-center"
+                            >
+                              <Navigation className="h-3 w-3 mr-1" />
+                              Navigate
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Available Orders Tab */}
+            {activeTab === 'available' && (
+              <div>
+                {availableOrders.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-1">No Available Orders</h3>
+                    <p className="text-gray-500">There are no orders available for delivery right now.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {availableOrders.map(order => (
+                      <div key={order.id} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h4 className="font-medium text-gray-900">Order #{order.order_number}</h4>
+                            <p className="text-sm text-gray-500">{new Date(order.created_at).toLocaleString()}</p>
+                          </div>
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            Available
+                          </span>
+                        </div>
+
+                        <div className="mb-3">
+                          <p className="text-sm text-gray-600">Total: {formatCurrency(order.total)}</p>
+                          <p className="text-sm text-gray-600">Address: {order.delivery_address}</p>
+                        </div>
+
+                        {order.order_items && order.order_items.length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-sm font-medium text-gray-700 mb-1">Items:</p>
+                            <ul className="text-sm text-gray-600">
+                              {order.order_items.map(item => (
+                                <li key={item.id}>
+                                  {item.quantity}x {item.menu_item?.name || 'Unknown Item'}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        <button
+                          onClick={() => handleAcceptOrder(order)}
+                          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-medium"
+                          disabled={!isOnline}
+                        >
+                          {isOnline ? 'Accept Order' : 'Go Online to Accept'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Order History Tab */}
+            {activeTab === 'history' && (
+              <div>
+                {myOrders.filter(o => o.status === 'delivered' || o.status === 'cancelled').length === 0 ? (
+                  <div className="text-center py-8">
+                    <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-1">No Order History</h3>
+                    <p className="text-gray-500">You don't have any completed or cancelled orders yet.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Order #</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Total</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {myOrders
+                          .filter(o => o.status === 'delivered' || o.status === 'cancelled')
+                          .map(order => (
+                            <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="py-3 px-4 text-sm text-gray-900">#{order.order_number}</td>
+                              <td className="py-3 px-4 text-sm text-gray-600">{new Date(order.created_at).toLocaleDateString()}</td>
+                              <td className="py-3 px-4 text-sm font-medium text-gray-900">{formatCurrency(order.total)}</td>
+                              <td className="py-3 px-4">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${order.status === 'delivered' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                  {order.status === 'delivered' ? 'Delivered' : 'Cancelled'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <button
+                                  onClick={() => setSelectedOrderForChat(order)}
+                                  className="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 mr-2"
+                                >
+                                  Chat
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Withdrawal History Section */}
         <div className="mt-6">
@@ -738,6 +1081,152 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
           recipientName="Customer"
           onClose={() => setSelectedOrderForChat(null)}
         />
+      )}
+
+      {/* Profile Modal */}
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Delivery Agent Profile</h2>
+                <button
+                  onClick={() => setShowProfileModal(false)}
+                  className="p-2 rounded-full hover:bg-gray-100"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
+                    <User className="h-8 w-8 text-gray-500" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{profile?.full_name}</h3>
+                    <p className="text-sm text-gray-600">{profile?.email}</p>
+                    <div className="flex items-center mt-1">
+                      <Star className="h-4 w-4 text-yellow-400" />
+                      <span className="text-sm text-gray-700 ml-1">{agent?.rating || '4.8'} Rating</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-medium text-gray-700 mb-2">Account Information</h4>
+                    <div className="space-y-2 text-sm">
+                      <p><span className="text-gray-500">ID:</span> {agent?.id}</p>
+                      <p><span className="text-gray-500">Phone:</span> {profile?.phone || 'Not provided'}</p>
+                      <p><span className="text-gray-500">Vehicle:</span> {agent?.vehicle_type || 'Not specified'}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-medium text-gray-700 mb-2">Performance Stats</h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-gray-500">Total Deliveries</p>
+                        <p className="font-semibold">{agent?.total_deliveries || 0}</p>
+                      </div>
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-gray-500">Active Orders</p>
+                        <p className="font-semibold">{myOrders.filter(o => ['pending', 'accepted', 'preparing', 'ready', 'picked_up'].includes(o.status)).length}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-medium text-gray-700 mb-2">Status</h4>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span>Online Status</span>
+                      <button
+                        onClick={toggleOnlineStatus}
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
+                      >
+                        {isOnline ? 'ONLINE' : 'OFFLINE'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setShowProfileModal(false);
+                    signOut();
+                  }}
+                  className="w-full py-2.5 text-sm bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-medium"
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notifications Modal */}
+      {showNotifications && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Notifications</h2>
+                <button
+                  onClick={() => setShowNotifications(false)}
+                  className="p-2 rounded-full hover:bg-gray-100"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start space-x-3">
+                    <Bell className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-medium text-blue-800">New Available Orders</h4>
+                      <p className="text-sm text-blue-700 mt-1">There are 3 new orders available for delivery in your area.</p>
+                      <p className="text-xs text-blue-600 mt-2">Just now</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                  <div className="flex items-start space-x-3">
+                    <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-medium text-green-800">Order Delivered</h4>
+                      <p className="text-sm text-green-700 mt-1">You successfully delivered order #ORD-001. ₦500 earned.</p>
+                      <p className="text-xs text-green-600 mt-2">10 minutes ago</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-start space-x-3">
+                    <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-medium text-yellow-800">Bank Details Required</h4>
+                      <p className="text-sm text-yellow-700 mt-1">Please update your bank details to receive earnings.</p>
+                      <p className="text-xs text-yellow-600 mt-2">1 hour ago</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => setShowNotifications(false)}
+                  className="w-full py-2.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Withdrawal Request Modal */}
