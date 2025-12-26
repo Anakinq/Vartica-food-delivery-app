@@ -208,7 +208,21 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
     } catch (err: any) {
       console.error('Signup error:', err);
-      setError(err.message || 'Failed to create account');
+
+      // Get the detailed error message from our enhanced error handling
+      let errorMessage = 'Failed to create account';
+      if (err.message) {
+        errorMessage = err.message;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+
+      // If there's an original error with more details, log it
+      if (err.originalError) {
+        console.error('Original signup error:', err.originalError);
+      }
+
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -232,7 +246,17 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
       await signUpWithGoogle(role === 'late_night_vendor' ? 'vendor' : role, normalizedPhone);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to sign up with Google');
+      let errorMessage = 'Failed to sign up with Google';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+        // If there's an original error with more details, log it
+        if ((err as any).originalError) {
+          console.error('Original Google signup error:', (err as any).originalError);
+        }
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
     }

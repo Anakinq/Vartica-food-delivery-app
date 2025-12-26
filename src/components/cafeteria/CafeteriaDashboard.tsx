@@ -1,9 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { LogOut, Plus, Edit2, ToggleLeft, ToggleRight, Upload, Menu, X, User, Camera, Save } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase, MenuItem, Cafeteria } from '../../lib/supabase';
+import { MenuItem, Cafeteria } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase/client';
 import { MenuItemForm } from '../shared/MenuItemForm';
 import { seedCafeteriaMenu } from '../../utils/cafeteriaMenuSeeder';
+
+interface CafeteriaDashboardProps {
+  onShowProfile?: () => void;
+}
 
 const uploadImage = async (file: File): Promise<string | null> => {
   try {
@@ -38,7 +43,7 @@ const uploadImage = async (file: File): Promise<string | null> => {
   }
 };
 
-export const CafeteriaDashboard: React.FC = () => {
+export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowProfile }) => {
   const { profile, signOut } = useAuth();
   const [cafeteria, setCafeteria] = useState<Cafeteria | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -64,9 +69,17 @@ export const CafeteriaDashboard: React.FC = () => {
   // Update the open status when cafeteria data is loaded
   useEffect(() => {
     if (cafeteria) {
-      const savedStatus = localStorage.getItem(`cafeteria-open-${cafeteria.id}`);
-      if (savedStatus !== null) {
-        setIsCafeteriaOpen(JSON.parse(savedStatus));
+      try {
+        // Use the same SafeStorage instance that Supabase uses
+        const safeStorage = (supabase.auth as any)._client.storage;
+        const savedStatus = safeStorage.getItem(`cafeteria-open-${cafeteria.id}`);
+        if (savedStatus !== null) {
+          setIsCafeteriaOpen(JSON.parse(savedStatus));
+        }
+      } catch (error) {
+        console.warn('Storage access blocked by tracking prevention:', error);
+        // Fallback to default status if storage access is blocked
+        setIsCafeteriaOpen(true);
       }
       // Update profile form data when cafeteria data is loaded
       setProfileFormData({

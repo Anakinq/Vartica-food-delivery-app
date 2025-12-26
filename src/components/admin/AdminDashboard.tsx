@@ -3,6 +3,10 @@ import { LogOut, Users, Store, Bike, Package, Wallet, Menu, X, Search, Filter, D
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Profile, Order } from '../../lib/supabase';
 
+interface AdminDashboardProps {
+  onShowProfile?: () => void;
+}
+
 interface WithdrawalRequest {
   id: string;
   agent_id: string;
@@ -16,7 +20,7 @@ interface WithdrawalRequest {
   rejection_reason?: string;
 }
 
-export const AdminDashboard: React.FC = () => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile }) => {
   const { profile, signOut, user } = useAuth();
   const [stats, setStats] = useState({
     totalUsers: 0,

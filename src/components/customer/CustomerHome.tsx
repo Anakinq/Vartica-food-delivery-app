@@ -2,7 +2,8 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Search, ShoppingCart, LogOut, User, Moon, Package } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase, Cafeteria, Vendor, MenuItem } from '../../lib/supabase';
+import { Cafeteria, Vendor, MenuItem } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase/client';
 import { MenuItemCard } from './MenuItemCard';
 import { Cart } from './Cart';
 import { Checkout } from './Checkout';
@@ -216,10 +217,12 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       return cafeteriaStatus[cafeteriaId];
     }
 
-    // Check localStorage for the status
     try {
       if (typeof window !== 'undefined') {
-        const savedStatus = localStorage.getItem(`cafeteria-open-${cafeteriaId}`);
+        // Use the same SafeStorage instance that Supabase uses
+        const safeStorage = (supabase.auth as any)._client.storage;
+        // Check localStorage for the status
+        const savedStatus = safeStorage.getItem(`cafeteria-open-${cafeteriaId}`);
         if (savedStatus !== null) {
           return JSON.parse(savedStatus);
         }

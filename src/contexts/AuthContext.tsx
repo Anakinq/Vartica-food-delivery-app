@@ -222,7 +222,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (error) {
         console.error('SignIn error:', error);
         setLoading(false);
-        throw error;
+
+        // Provide more detailed error information
+        let errorMessage = error.message || 'Failed to sign in';
+
+        // Check for specific error codes and provide more helpful messages
+        if (error.message?.includes('400')) {
+          errorMessage = 'Invalid email or password.';
+        } else if (error.message?.includes('401')) {
+          errorMessage = 'Invalid credentials. Please check your email and password.';
+        } else if (error.message?.includes('429')) {
+          errorMessage = 'Too many requests. Please try again later.';
+        }
+
+        const errorWithDetails = new Error(errorMessage);
+        (errorWithDetails as any).originalError = error;
+        throw errorWithDetails;
       }
       // 🎯 `onAuthStateChange` will handle state sync — no need to setUser here
     } catch (err) {
@@ -273,7 +288,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Handle success or error states in the UI
       setLoading(false);
       if (signUpError) {
-        throw signUpError;
+        console.error('Detailed signup error:', signUpError);
+        // Provide more detailed error information
+        let errorMessage = signUpError.message || 'Failed to create account';
+
+        // Check for specific error codes and provide more helpful messages
+        if (signUpError.message?.includes('422')) {
+          errorMessage = 'Invalid input provided. Please check your email and password.';
+        } else if (signUpError.message?.includes('400')) {
+          errorMessage = 'Invalid request. Please check your input.';
+        } else if (signUpError.message?.includes('429')) {
+          errorMessage = 'Too many requests. Please try again later.';
+        } else if (signUpError.message?.includes('email')) {
+          errorMessage = 'Invalid or already registered email address.';
+        }
+
+        const errorWithDetails = new Error(errorMessage);
+        (errorWithDetails as any).originalError = signUpError;
+        throw errorWithDetails;
       }
     } catch (err) {
       console.log('signUp error:', err);

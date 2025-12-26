@@ -17,7 +17,7 @@ class SupabaseAuthService implements IAuthService {
       if (!params.email && !params.phone) {
         throw new Error('Either email or phone must be provided');
       }
-      
+
       // Check if phone signup is requested
       if (params.phone && !params.email) {
         // Phone-based signup with OTP
@@ -51,6 +51,12 @@ class SupabaseAuthService implements IAuthService {
               full_name: params.fullName || 'User',
               role: params.role || 'customer',
               phone: params.phone || null,
+              ...(params.role === 'vendor' && {
+                vendor_type: 'student', // Default to student vendor type
+              }),
+              ...(params.role === 'delivery_agent' && {
+                vehicle_type: 'Bike', // Default to bike
+              }),
             },
           },
         });
@@ -142,11 +148,13 @@ class SupabaseAuthService implements IAuthService {
     try {
       // Store the intended role in safe storage before OAuth redirect
       try {
-        if (typeof window !== 'undefined' && window.localStorage) {
-          window.localStorage.setItem('oauth_role', role);
+        if (typeof window !== 'undefined') {
+          // Use the same SafeStorage instance that Supabase uses
+          const safeStorage = (supabase.auth as any)._client.storage;
+          safeStorage.setItem('oauth_role', role);
           // Store phone number as well if provided
           if (phone) {
-            window.localStorage.setItem('oauth_phone', phone);
+            safeStorage.setItem('oauth_phone', phone);
           }
         }
       } catch (error) {

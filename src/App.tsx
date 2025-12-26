@@ -1,6 +1,7 @@
 // src/App.tsx (NO ROUTER + PAYMENT SUCCESS) — FIXED
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { supabase } from './lib/supabase/client';
 import { LandingPage } from './components/LandingPage';
 import { SignIn } from './components/auth/SignIn';
 import { SignUp } from './components/auth/SignUp';
@@ -29,10 +30,12 @@ function AppContent() {
 
     const handleOAuthRedirect = () => {
       try {
-        if (typeof window !== 'undefined' && window.localStorage) {
-          const oauthRole = localStorage.getItem('oauth_role');
+        if (typeof window !== 'undefined') {
+          // Use the same SafeStorage instance that Supabase uses
+          const safeStorage = (supabase.auth as any)._client.storage;
+          const oauthRole = safeStorage.getItem('oauth_role');
           if (oauthRole) {
-            localStorage.removeItem('oauth_role'); // Clean up
+            safeStorage.removeItem('oauth_role'); // Clean up
             // Set justSignedUp to prevent loading issues
             setJustSignedUp(true);
 

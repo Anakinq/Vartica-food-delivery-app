@@ -5,6 +5,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Create a storage wrapper that handles tracking prevention
+// Implements the Supabase AuthStorage interface
 class SafeStorage {
     private storage: Storage | null;
 
@@ -70,6 +71,34 @@ class SafeStorage {
             }
         } catch (error) {
             console.warn(`Failed to remove item from storage:`, error);
+        }
+    }
+
+    key(index: number): string | null {
+        try {
+            return this.storage ? this.storage.key(index) : null;
+        } catch (error) {
+            console.warn(`Failed to get key at index ${index} from storage:`, error);
+            return null;
+        }
+    }
+
+    get length(): number {
+        try {
+            return this.storage ? this.storage.length : 0;
+        } catch (error) {
+            console.warn('Failed to get storage length:', error);
+            return 0;
+        }
+    }
+
+    clear(): void {
+        try {
+            if (this.storage) {
+                this.storage.clear();
+            }
+        } catch (error) {
+            console.warn('Failed to clear storage:', error);
         }
     }
 
