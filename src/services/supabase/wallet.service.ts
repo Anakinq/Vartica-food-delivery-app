@@ -6,10 +6,10 @@ interface WalletBalance {
 }
 
 interface PayoutProfile {
-    bank_name: string;
-    account_number_encrypted: string;
+    bank_code: string;
+    account_number: string;
     account_name: string;
-    is_verified: boolean;
+    verified: boolean;
 }
 
 interface WithdrawalRequest {
@@ -46,10 +46,22 @@ export class WalletService {
     // Get agent's payout profile
     static async getPayoutProfile(agentId: string): Promise<PayoutProfile | null> {
         try {
+            // First get the user_id from delivery_agents table
+            const { data: agentData, error: agentError } = await supabase
+                .from('delivery_agents')
+                .select('user_id')
+                .eq('id', agentId)
+                .single();
+
+            if (agentError || !agentData) {
+                console.error('Error fetching agent:', agentError);
+                throw agentError || new Error('Agent not found');
+            }
+
             const { data, error } = await supabase
                 .from('agent_payout_profiles')
-                .select('bank_name, account_number_encrypted, account_name, is_verified')
-                .eq('agent_id', agentId)
+                .select('bank_code, account_number, account_name, verified')
+                .eq('user_id', agentData.user_id)
                 .single();
 
             if (error) {
@@ -65,13 +77,25 @@ export class WalletService {
     }
 
     // Create or update payout profile
-    static async setPayoutProfile(agentId: string, profile: Omit<PayoutProfile, 'is_verified'>): Promise<void> {
+    static async setPayoutProfile(agentId: string, profile: Omit<PayoutProfile, 'verified'>): Promise<void> {
         try {
+            // First get the user_id from delivery_agents table
+            const { data: agentData, error: agentError } = await supabase
+                .from('delivery_agents')
+                .select('user_id')
+                .eq('id', agentId)
+                .single();
+
+            if (agentError || !agentData) {
+                console.error('Error fetching agent:', agentError);
+                throw agentError || new Error('Agent not found');
+            }
+
             // Check if profile exists
             const { data: existingProfile } = await supabase
                 .from('agent_payout_profiles')
                 .select('id')
-                .eq('agent_id', agentId)
+                .eq('user_id', agentData.user_id)
                 .single();
 
             let result;
@@ -80,18 +104,22 @@ export class WalletService {
                 result = await supabase
                     .from('agent_payout_profiles')
                     .update({
-                        ...profile,
-                        is_verified: false // Reset verification status
+                        account_number: profile.account_number,
+                        account_name: profile.account_name,
+                        bank_code: profile.bank_code,
+                        verified: false // Reset verification status
                     })
-                    .eq('agent_id', agentId);
+                    .eq('user_id', agentData.user_id);
             } else {
                 // Create new profile
                 result = await supabase
                     .from('agent_payout_profiles')
                     .insert([{
-                        agent_id: agentId,
-                        ...profile,
-                        is_verified: false
+                        user_id: agentData.user_id,
+                        account_number: profile.account_number,
+                        account_name: profile.account_name,
+                        bank_code: profile.bank_code,
+                        verified: false
                     }]);
             }
 
