@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LogOut, Plus, Edit2, ToggleLeft, ToggleRight, Upload } from 'lucide-react';
+import { LogOut, Plus, Edit2, ToggleLeft, ToggleRight, Upload, Menu, X, User, Camera, Save } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, MenuItem, Cafeteria } from '../../lib/supabase';
 import { MenuItemForm } from '../shared/MenuItemForm';
@@ -48,6 +48,14 @@ export const CafeteriaDashboard: React.FC = () => {
   const [seedingMenu, setSeedingMenu] = useState(false);
   const [clearingMenu, setClearingMenu] = useState(false);
   const [isCafeteriaOpen, setIsCafeteriaOpen] = useState<boolean>(true); // Added for open/close status
+  const [showMenu, setShowMenu] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
+  const [profileImagePreview, setProfileImagePreview] = useState<string>('');
+  const [profileFormData, setProfileFormData] = useState({
+    name: '',
+    description: '',
+  });
 
   useEffect(() => {
     fetchData();
@@ -60,6 +68,12 @@ export const CafeteriaDashboard: React.FC = () => {
       if (savedStatus !== null) {
         setIsCafeteriaOpen(JSON.parse(savedStatus));
       }
+      // Update profile form data when cafeteria data is loaded
+      setProfileFormData({
+        name: cafeteria.name,
+        description: cafeteria.description || '',
+      });
+      setProfileImagePreview(cafeteria.image_url || '');
     }
   }, [cafeteria]);
 
@@ -199,6 +213,109 @@ export const CafeteriaDashboard: React.FC = () => {
     }
   };
 
+  // Function to handle cafeteria profile update
+  const handleUpdateCafeteriaProfile = async () => {
+    if (!cafeteria) return;
+
+    let finalImageUrl = cafeteria.image_url || '';
+
+    // Upload new profile image if provided
+    if (profileImageFile) {
+      const fileName = `cafeteria-${Date.now()}-${profileImageFile.name}`;
+
+      const { data: uploadData, error: uploadError } = await supabase
+        .storage
+        .from('vendor-logos') // Using same bucket as vendor logos
+        .upload(fileName, profileImageFile);
+
+      if (uploadError) {
+        console.error('Cafeteria image upload failed:', uploadError);
+        alert('Failed to upload cafeteria image. Please try again.');
+        return;
+      }
+
+      // Get public URL
+      const { data: publicUrlData } = supabase
+        .storage
+        .from('vendor-logos')
+        .getPublicUrl(fileName);
+
+      finalImageUrl = publicUrlData.publicUrl;
+    }
+
+    // Update cafeteria profile
+    const { error } = await supabase
+      .from('cafeterias')
+      .update({
+        name: profileFormData.name,
+        description: profileFormData.description,
+        image_url: finalImageUrl,
+      })
+      .eq('id', cafeteria.id);
+
+    if (error) {
+      console.error('Update failed:', error);
+      alert('Failed to update cafeteria profile. Please try again.');
+    } else {
+      // Update local state
+      setCafeteria({
+        ...cafeteria,
+        name: profileFormData.name,
+        description: profileFormData.description,
+        image_url: finalImageUrl,
+      });
+      setShowProfileModal(false);
+      setProfileImageFile(null);
+      setProfileImagePreview('');
+      alert('Cafeteria profile updated successfully!');
+    }
+  };
+
+  // Function to handle profile image change
+  const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+        alert('Image file must be less than 2MB');
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        alert('Please upload an image file');
+        return;
+      }
+      setProfileImageFile(file);
+      setProfileImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  // Function to remove profile image
+  const removeProfileImage = () => {
+    setProfileImageFile(null);
+    setProfileImagePreview('');
+    if (profileImagePreview) {
+      URL.revokeObjectURL(profileImagePreview);
+    }
+  };
+
+  // Function to open profile modal with current data
+  const openProfileModal = () => {
+    if (cafeteria) {
+      setProfileFormData({
+        name: cafeteria.name,
+        description: cafeteria.description || '',
+      });
+      setProfileImagePreview(cafeteria.image_url || '');
+      setShowProfileModal(true);
+    }
+  };
+
+  // Function to close profile modal
+  const closeProfileModal = () => {
+    setShowProfileModal(false);
+    setProfileImageFile(null);
+    setProfileImagePreview('');
+  };
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
@@ -237,14 +354,55 @@ export const CafeteriaDashboard: React.FC = () => {
               </button>
               <p className="text-sm text-gray-600">{profile?.full_name}</p>
             </div>
-            <button
-              onClick={signOut}
-              className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:text-red-600"
-            >
-              <LogOut className="h-5 w-5" />
-              <span>Sign Out</span>
-            </button>
+            <div className="flex items-center space-x-3">
+              {/* Hamburger Menu */}
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+              >
+                {showMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </button>
+            </div>
           </div>
+
+          {/* Hamburger Menu Dropdown */}
+          {showMenu && (
+            <div className="absolute right-4 top-16 bg-white shadow-lg rounded-md py-2 w-48 z-50 border border-gray-200">
+              <button
+                onClick={() => {
+                  openProfileModal();
+                  setShowMenu(false);
+                }}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <div className="flex items-center space-x-2">
+                  <User className="h-4 w-4" />
+                  <span>Cafeteria Profile</span>
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  setShowForm(true);
+                  setShowMenu(false);
+                }}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <div className="flex items-center space-x-2">
+                  <Plus className="h-4 w-4" />
+                  <span>Add Menu Item</span>
+                </div>
+              </button>
+              <button
+                onClick={signOut}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <div className="flex items-center space-x-2">
+                  <LogOut className="h-4 w-4" />
+                  <span>Sign Out</span>
+                </div>
+              </button>
+            </div>
+          )}
         </div>
       </nav>
 
@@ -348,16 +506,127 @@ export const CafeteriaDashboard: React.FC = () => {
         )}
       </div>
 
-      {showForm && (
-        <MenuItemForm
-          item={editingItem}
-          onSave={handleSaveItem} // Now passes imageFile as 2nd arg
-          onClose={() => {
-            setShowForm(false);
-            setEditingItem(null);
-          }}
-        />
+      {
+        showForm && (
+          <MenuItemForm
+            item={editingItem}
+            onSave={handleSaveItem} // Now passes imageFile as 2nd arg
+            onClose={() => {
+              setShowForm(false);
+              setEditingItem(null);
+            }}
+          />
+        )
+      }
+
+      {/* Cafeteria Profile Modal */}
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Cafeteria Profile</h2>
+                <button
+                  onClick={closeProfileModal}
+                  className="p-2 rounded-full hover:bg-gray-100"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Cafeteria Image Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Cafeteria Logo/Image
+                  </label>
+                  <div className="flex items-center space-x-6">
+                    <div className="relative">
+                      {profileImagePreview ? (
+                        <div className="relative">
+                          <img
+                            src={profileImagePreview}
+                            alt="Cafeteria preview"
+                            className="w-32 h-32 rounded-xl object-cover border-2 border-gray-200"
+                          />
+                          <button
+                            type="button"
+                            onClick={removeProfileImage}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="w-32 h-32 rounded-xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center">
+                          <Camera className="h-8 w-8 text-gray-400" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col space-y-2">
+                      <label className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 cursor-pointer">
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/*"
+                          onChange={handleProfileImageChange}
+                        />
+                        Upload Image
+                      </label>
+                      <p className="text-xs text-gray-500">PNG, JPG up to 2MB</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cafeteria Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Cafeteria Name
+                  </label>
+                  <input
+                    type="text"
+                    value={profileFormData.name}
+                    onChange={(e) => setProfileFormData({ ...profileFormData, name: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Your cafeteria name"
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={profileFormData.description}
+                    onChange={(e) => setProfileFormData({ ...profileFormData, description: e.target.value })}
+                    rows={4}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Tell customers about your cafeteria"
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    onClick={closeProfileModal}
+                    className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleUpdateCafeteriaProfile}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center space-x-2"
+                  >
+                    <Save className="h-5 w-5" />
+                    <span>Save Changes</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
-    </div>
+    </div >
   );
 };
