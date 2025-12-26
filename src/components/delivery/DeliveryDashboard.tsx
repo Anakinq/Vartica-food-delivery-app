@@ -30,12 +30,10 @@ interface AgentWallet {
 interface WithdrawalRequest {
   id: string;
   amount: number;
-  bank_name: string;
-  account_number: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'processing' | 'completed' | 'failed';
   created_at: string;
-  approved_at?: string;
-  rejection_reason?: string;
+  processed_at?: string;
+  error_message?: string;
 }
 
 interface DeliveryDashboardProps {
@@ -179,36 +177,27 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
       // 3. Withdrawal Requests History
       const { data: withdrawals } = await supabase
-        .from('withdrawal_requests')
-        .select('id, amount, bank_name, account_number, status, created_at, approved_at, rejection_reason')
+        .from('withdrawals')
+        .select('id, amount, status, created_at, processed_at, error_message')
         .eq('agent_id', agentData.id)
         .order('created_at', { ascending: false })
         .limit(20);
       setWithdrawalRequests(withdrawals || []);
 
       // 4. Bank profile (optional for manual withdrawals)
-      // First, get the agent_id to use for payout profile lookup
-      const { data: agentDataForPayout } = await supabase
-        .from('delivery_agents')
-        .select('id')
-        .eq('user_id', profile.id)
-        .single();
+      const { data: bankData } = await supabase
+        .from('agent_payout_profiles')
+        .select('account_number_encrypted, bank_name, is_verified')
+        .eq('agent_id', agentData.id)
+        .maybeSingle();
 
-      if (agentDataForPayout) {
-        const { data: bankData } = await supabase
-          .from('agent_payout_profiles')
-          .select('account_number_encrypted, bank_name')
-          .eq('agent_id', agentDataForPayout.id)
-          .maybeSingle();
-
-        if (bankData) {
-          setBankAccount(bankData.account_number_encrypted);
-          // Find the bank code from the name
-          const foundBank = BANK_OPTIONS.find(b => b.name === bankData.bank_name);
-          setBankCode(foundBank?.code || '');
-          setBankName(bankData.bank_name || 'Unknown Bank');
-          setIsBankVerified(true); // Bank saved = verified for manual system
-        }
+      if (bankData) {
+        setBankAccount(bankData.account_number_encrypted);
+        // Find the bank code from the name
+        const foundBank = BANK_OPTIONS.find(b => b.name === bankData.bank_name);
+        setBankCode(foundBank?.code || '');
+        setBankName(bankData.bank_name || 'Unknown Bank');
+        setIsBankVerified(bankData.is_verified || true); // Bank saved = verified for manual system
       }
 
       // 5. Orders
@@ -316,9 +305,9 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         bank_code: bankCode
       });
 
-      await fetchData();
       setMessage({ type: 'success', text: '✅ Bank details saved and verified successfully!' });
       setIsBankVerified(true);
+      // Don't call fetchData here since it will be called by the periodic effect
     } catch (err: any) {
       console.error('Save bank error:', err);
       setMessage({ type: 'error', text: `Failed to save bank details: ${err.message}` });
@@ -383,7 +372,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         text: `✅ Withdrawal request submitted! The amount will be transferred to your account shortly.`,
       });
       setShowWithdrawModal(false);
-      await fetchData(); // refresh
+      // Don't call fetchData here since it will be called by the periodic effect
     } catch (err: any) {
       console.error('Withdrawal request error:', err);
       setMessage({ type: 'error', text: `❌ Failed: ${err.message}` });
@@ -403,7 +392,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
     if (!error) {
       setIsOnline(newStatus);
-      fetchData();
+      // Don't call fetchData here since it will be called by the periodic effect
     } else {
       setMessage({ type: 'error', text: 'Failed to update status' });
     }
@@ -428,7 +417,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       .eq('id', order.id);
 
     if (!error) {
-      fetchData();
+      // Don't call fetchData here since it will be called by the periodic effect
       setDashboardKey(prev => prev + 1);
     } else {
       setMessage({ type: 'error', text: 'Failed to accept order' });
@@ -442,7 +431,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       .eq('id', orderId);
 
     if (!error) {
-      fetchData();
+      // Don't call fetchData here since it will be called by the periodic effect
       setDashboardKey(prev => prev + 1);
     } else {
       setMessage({ type: 'error', text: 'Failed to update status' });
@@ -1089,31 +1078,30 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                         <td className="py-3 px-3 text-sm font-medium text-gray-900">
                           {formatCurrency(Number(req.amount))}
                         </td>
-                        <td className="py-3 px-3 text-sm text-gray-600">
-                          {req.bank_name}<br />
-                          <span className="text-xs text-gray-500">•••• {req.account_number.slice(-4)}</span>
-                        </td>
                         <td className="py-3 px-3">
                           <span
-                            className={`px-2 py-1 rounded text-xs font-medium ${req.status === 'approved'
+                            className={`px-2 py-1 rounded text-xs font-medium ${req.status === 'completed'
                               ? 'bg-green-100 text-green-800'
-                              : req.status === 'rejected'
+                              : req.status === 'failed'
                                 ? 'bg-red-100 text-red-800'
-                                : 'bg-yellow-100 text-yellow-800'
+                                : req.status === 'processing'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : 'bg-yellow-100 text-yellow-800'
                               }`}
                           >
-                            {req.status === 'approved' && '✅ '}
-                            {req.status === 'rejected' && '❌ '}
+                            {req.status === 'completed' && '✅ '}
+                            {req.status === 'failed' && '❌ '}
+                            {req.status === 'processing' && '🔄 '}
                             {req.status === 'pending' && '⏳ '}
                             {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
                           </span>
-                          {req.approved_at && (
+                          {req.processed_at && (
                             <div className="text-xs text-gray-500 mt-1">
-                              {new Date(req.approved_at).toLocaleDateString()}
+                              {new Date(req.processed_at).toLocaleDateString()}
                             </div>
                           )}
-                          {req.rejection_reason && (
-                            <div className="text-xs text-red-600 mt-1">{req.rejection_reason}</div>
+                          {req.error_message && (
+                            <div className="text-xs text-red-600 mt-1">{req.error_message}</div>
                           )}
                         </td>
                       </tr>
