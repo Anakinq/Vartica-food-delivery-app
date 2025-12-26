@@ -88,15 +88,11 @@ async function handleRequest(request: Request) {
             });
         }
 
-        // Encrypt the account number (in a real implementation, use proper encryption)
-        // For now, we'll just store it as is, but in production, use proper encryption
-        const encryptedAccountNumber = account_number; // This should be properly encrypted
-
         // Store the verified account details in the database
         const { data: existingProfile, error: selectError } = await supabase
             .from('agent_payout_profiles')
             .select('id')
-            .eq('agent_id', agent_id)
+            .eq('user_id', agentData.user_id)
             .single();
 
         let result;
@@ -105,12 +101,12 @@ async function handleRequest(request: Request) {
             const { data, error } = await supabase
                 .from('agent_payout_profiles')
                 .update({
-                    account_number_encrypted: encryptedAccountNumber,
+                    account_number: account_number,
                     account_name: verificationResult.data.account_name,
-                    bank_name: verificationResult.data.bank_name,
-                    is_verified: true
+                    bank_code: bank_code,
+                    verified: true
                 })
-                .eq('agent_id', agent_id)
+                .eq('user_id', agentData.user_id)
                 .select();
 
             if (error) {
@@ -122,11 +118,11 @@ async function handleRequest(request: Request) {
             const { data, error } = await supabase
                 .from('agent_payout_profiles')
                 .insert({
-                    agent_id,
-                    account_number_encrypted: encryptedAccountNumber,
+                    user_id: agentData.user_id,
+                    account_number: account_number,
                     account_name: verificationResult.data.account_name,
-                    bank_name: verificationResult.data.bank_name,
-                    is_verified: true
+                    bank_code: bank_code,
+                    verified: true
                 })
                 .select();
 
