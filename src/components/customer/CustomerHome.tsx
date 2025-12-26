@@ -41,7 +41,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const [selectedSeller, setSelectedSeller] = useState<{ id: string; type: 'cafeteria' | 'vendor'; name: string } | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
-  const [menuSearchQuery, setMenuSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCart, setShowCart] = useState(false);
   const [showOrders, setShowOrders] = useState(false);
@@ -276,15 +275,15 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
   // Filter menu items based on search query when a seller is selected
   const filteredMenuItems = useMemo(() => {
-    if (!selectedSeller || !menuSearchQuery.trim()) {
+    if (!selectedSeller || !globalSearchQuery.trim()) {
       return menuItems;
     }
 
     return menuItems.filter(item =>
-      item.name.toLowerCase().includes(menuSearchQuery.toLowerCase()) ||
-      (item.description && item.description.toLowerCase().includes(menuSearchQuery.toLowerCase()))
+      item.name.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+      (item.description && item.description.toLowerCase().includes(globalSearchQuery.toLowerCase()))
     );
-  }, [menuItems, menuSearchQuery, selectedSeller]);
+  }, [menuItems, globalSearchQuery, selectedSeller]);
 
   const groupedCategories = groupMenuItemsByCategory(filteredMenuItems);
 
@@ -436,12 +435,12 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                 ))}
               </div>
 
-              {/* Search bar for menu items */}
+              {/* Combined search bar for menu items */}
               <div className="relative">
                 <input
                   type="text"
-                  value={menuSearchQuery}
-                  onChange={(e) => setMenuSearchQuery(e.target.value)}
+                  value={globalSearchQuery}
+                  onChange={(e) => setGlobalSearchQuery(e.target.value)}
                   placeholder="Search menu items..."
                   className="w-full pl-10 pr-4 py-2 bg-gray-100 border-0 rounded-full focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
                   aria-label="Search menu items"

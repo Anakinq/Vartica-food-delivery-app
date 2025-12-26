@@ -128,11 +128,13 @@ export const Checkout: React.FC<CheckoutProps> = ({
     const orderNumber = `ORDER_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
     // First, we need to assign a delivery agent to the order
-    // Find an available delivery agent
+    // Find an available delivery agent (prioritize those with fewer active orders)
     const { data: availableAgent, error: agentError } = await supabase
       .from('delivery_agents')
-      .select('id')
+      .select('id, active_orders_count')
       .eq('is_active', true)
+      .eq('is_available', true)
+      .order('active_orders_count', { ascending: true })
       .limit(1)
       .single();
 
@@ -174,7 +176,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
     // Now create the order items
     const orderItems = items.map(item => ({
-      order_id: orderData[0].id,
+      order_id: orderData.id,
       menu_item_id: item.id,
       quantity: item.quantity,
       price: item.price,
@@ -186,7 +188,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
     if (itemsInsertError) {
       // If order items fail to insert, we should delete the order to maintain consistency
-      await supabase.from('orders').delete().eq('id', orderData[0].id);
+      await supabase.from('orders').delete().eq('id', orderData.id);
       throw itemsInsertError;
     }
 
