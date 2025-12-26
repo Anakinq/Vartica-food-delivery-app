@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LogOut, Users, Store, Bike, Package, Wallet } from 'lucide-react';
+import { LogOut, Users, Store, Bike, Package, Wallet, Menu, X, Search, Filter, Download, BarChart3, Settings, User, CreditCard, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Profile, Order } from '../../lib/supabase';
 
@@ -32,6 +32,9 @@ export const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'users' | 'orders' | 'withdrawals'>('withdrawals');
   const [loading, setLoading] = useState(true);
   const [processingWithdrawal, setProcessingWithdrawal] = useState<string | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
 
   useEffect(() => {
     fetchData();
@@ -140,6 +143,94 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  // Function to filter data based on search term and date range
+  const filterData = () => {
+    // Filter users
+    const filteredUsers = users.filter(user => {
+      const matchesSearch = searchTerm === '' ||
+        user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.role.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesSearch;
+    });
+
+    // Filter orders
+    const filteredOrders = orders.filter(order => {
+      const matchesSearch = searchTerm === '' ||
+        order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.payment_method.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.payment_status.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesDate = dateRange.start && dateRange.end ?
+        new Date(order.created_at) >= new Date(dateRange.start) &&
+        new Date(order.created_at) <= new Date(dateRange.end) :
+        true;
+
+      return matchesSearch && matchesDate;
+    });
+
+    // Filter withdrawal requests
+    const filteredWithdrawals = withdrawalRequests.filter(request => {
+      const matchesSearch = searchTerm === '' ||
+        request.rider_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        request.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        request.bank_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        request.account_number.includes(searchTerm);
+
+      const matchesDate = dateRange.start && dateRange.end ?
+        new Date(request.created_at) >= new Date(dateRange.start) &&
+        new Date(request.created_at) <= new Date(dateRange.end) :
+        true;
+
+      return matchesSearch && matchesDate;
+    });
+
+    return { filteredUsers, filteredOrders, filteredWithdrawals };
+  };
+
+  // Function to export data
+  const exportData = (type: 'users' | 'orders' | 'withdrawals') => {
+    const { filteredUsers, filteredOrders, filteredWithdrawals } = filterData();
+
+    let data: any[];
+    let headers: string[];
+
+    switch (type) {
+      case 'users':
+        data = filteredUsers;
+        headers = ['Name', 'Email', 'Role', 'Joined'];
+        break;
+      case 'orders':
+        data = filteredOrders;
+        headers = ['Order #', 'Total', 'Status', 'Payment Method', 'Payment Status', 'Date'];
+        break;
+      case 'withdrawals':
+        data = filteredWithdrawals;
+        headers = ['Date', 'Rider', 'Amount', 'Bank', 'Account', 'Status'];
+        break;
+      default:
+        return;
+    }
+
+    // Convert data to CSV
+    const csvContent = [
+      headers.join(','),
+      ...data.map(item => Object.values(item).join(','))
+    ].join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${type}_data_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
@@ -153,18 +244,118 @@ export const AdminDashboard: React.FC = () => {
               <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
               <p className="text-sm text-gray-600">{profile?.full_name}</p>
             </div>
-            <button
-              onClick={signOut}
-              className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:text-red-600"
-            >
-              <LogOut className="h-5 w-5" />
-              <span>Sign Out</span>
-            </button>
+            <div className="flex items-center space-x-3">
+              {/* Hamburger Menu */}
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+              >
+                {showMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </button>
+            </div>
           </div>
+
+          {/* Hamburger Menu Dropdown */}
+          {showMenu && (
+            <div className="absolute right-4 top-16 bg-white shadow-lg rounded-md py-2 w-48 z-50 border border-gray-200">
+              <button
+                onClick={() => {
+                  setActiveTab('users');
+                  setShowMenu(false);
+                }}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <div className="flex items-center space-x-2">
+                  <Users className="h-4 w-4" />
+                  <span>Users</span>
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('orders');
+                  setShowMenu(false);
+                }}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <div className="flex items-center space-x-2">
+                  <Package className="h-4 w-4" />
+                  <span>Orders</span>
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('withdrawals');
+                  setShowMenu(false);
+                }}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <div className="flex items-center space-x-2">
+                  <Wallet className="h-4 w-4" />
+                  <span>Withdrawals</span>
+                </div>
+              </button>
+              <button
+                onClick={signOut}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <div className="flex items-center space-x-2">
+                  <LogOut className="h-4 w-4" />
+                  <span>Sign Out</span>
+                </div>
+              </button>
+            </div>
+          )}
         </div>
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Search and Filter Controls */}
+        <div className="mb-6 flex flex-col sm:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <input
+                type="text"
+                placeholder="Search users, orders, withdrawals..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={dateRange.start}
+              onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+              className="px-3 py-2 border border-gray-300 rounded-lg"
+              placeholder="Start date"
+            />
+            <input
+              type="date"
+              value={dateRange.end}
+              onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+              className="px-3 py-2 border border-gray-300 rounded-lg"
+              placeholder="End date"
+            />
+            <button
+              onClick={() => {
+                setDateRange({ start: '', end: '' });
+                setSearchTerm('');
+              }}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+            >
+              Clear
+            </button>
+          </div>
+          <button
+            onClick={() => exportData(activeTab as 'users' | 'orders' | 'withdrawals')}
+            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            <Download className="h-5 w-5" />
+            <span>Export</span>
+          </button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-md p-6">
             <div className="flex items-center space-x-3">
@@ -173,7 +364,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Total Users</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
+                <p className="text-2xl font-bold text-gray-900">{searchTerm ? filterData().filteredUsers.length : stats.totalUsers}</p>
               </div>
             </div>
           </div>
@@ -185,7 +376,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Vendors</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalVendors}</p>
+                <p className="text-2xl font-bold text-gray-900">{searchTerm ? filterData().filteredUsers.filter(u => u.role === 'vendor').length : stats.totalVendors}</p>
               </div>
             </div>
           </div>
@@ -197,7 +388,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Delivery Agents</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalAgents}</p>
+                <p className="text-2xl font-bold text-gray-900">{searchTerm ? filterData().filteredUsers.filter(u => u.role === 'delivery_agent').length : stats.totalAgents}</p>
               </div>
             </div>
           </div>
@@ -209,7 +400,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Total Orders</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
+                <p className="text-2xl font-bold text-gray-900">{searchTerm ? filterData().filteredOrders.length : stats.totalOrders}</p>
               </div>
             </div>
           </div>
@@ -221,7 +412,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Pending Withdrawals</p>
-                <p className="text-2xl font-bold text-red-600">{stats.pendingWithdrawals}</p>
+                <p className="text-2xl font-bold text-red-600">{searchTerm ? filterData().filteredWithdrawals.filter(w => w.status === 'pending').length : stats.pendingWithdrawals}</p>
               </div>
             </div>
           </div>
@@ -237,7 +428,7 @@ export const AdminDashboard: React.FC = () => {
                   : 'border-transparent text-gray-600 hover:text-gray-900'
                   }`}
               >
-                💸 Withdrawals ({stats.pendingWithdrawals} pending)
+                💸 Withdrawals ({filterData().filteredWithdrawals.filter(w => w.status === 'pending').length} pending)
               </button>
               <button
                 onClick={() => setActiveTab('orders')}
@@ -246,7 +437,7 @@ export const AdminDashboard: React.FC = () => {
                   : 'border-transparent text-gray-600 hover:text-gray-900'
                   }`}
               >
-                Orders ({orders.length})
+                Orders ({filterData().filteredOrders.length})
               </button>
               <button
                 onClick={() => setActiveTab('users')}
@@ -255,7 +446,7 @@ export const AdminDashboard: React.FC = () => {
                   : 'border-transparent text-gray-600 hover:text-gray-900'
                   }`}
               >
-                Users ({users.length})
+                Users ({filterData().filteredUsers.length})
               </button>
             </nav>
           </div>
@@ -268,8 +459,8 @@ export const AdminDashboard: React.FC = () => {
                     <strong>⚠️ Manual Withdrawal System:</strong> After approving, you must manually send the money to the rider's bank account via your banking app.
                   </p>
                 </div>
-                {withdrawalRequests.length === 0 ? (
-                  <p className="text-gray-600">No withdrawal requests yet.</p>
+                {filterData().filteredWithdrawals.length === 0 ? (
+                  <p className="text-gray-600">No withdrawal requests found.</p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="min-w-full">
@@ -284,7 +475,7 @@ export const AdminDashboard: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {withdrawalRequests.map(req => (
+                        {filterData().filteredWithdrawals.map(req => (
                           <tr key={req.id} className="border-b border-gray-100 hover:bg-gray-50">
                             <td className="py-3 px-4 text-sm text-gray-600">
                               {new Date(req.created_at).toLocaleDateString('en-US', {
@@ -369,7 +560,7 @@ export const AdminDashboard: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map(user => (
+                    {filterData().filteredUsers.map(user => (
                       <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-3 px-4 text-sm text-gray-900">{user.full_name}</td>
                         <td className="py-3 px-4 text-sm text-gray-600">{user.email}</td>
@@ -402,7 +593,7 @@ export const AdminDashboard: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {orders.map(order => (
+                    {filterData().filteredOrders.map(order => (
                       <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-3 px-4 text-sm font-medium text-gray-900">{order.order_number}</td>
                         <td className="py-3 px-4 text-sm font-bold text-gray-900">₦{order.total.toFixed(2)}</td>
