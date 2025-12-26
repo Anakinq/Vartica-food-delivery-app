@@ -127,12 +127,22 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
         role: role === 'late_night_vendor' ? 'vendor' : role,
         phone: formData.phone
       }); // Debug log
+      // Normalize phone number if provided (for Nigeria: 080... -> +23480...)
+      let normalizedPhone = formData.phone;
+      if (formData.phone) {
+        if (formData.phone.startsWith('0')) {
+          normalizedPhone = '+234' + formData.phone.substring(1);
+        } else if (!formData.phone.startsWith('+')) {
+          normalizedPhone = '+234' + formData.phone;
+        }
+      }
+
       await authSignUp(
         formData.email,
         formData.password,
         formData.fullName,
         role === 'late_night_vendor' ? 'vendor' : role,
-        formData.phone
+        normalizedPhone
       );
       console.log('authSignUp completed successfully'); // Debug log
 
@@ -210,7 +220,17 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
     setSubmitting(true);
 
     try {
-      await signUpWithGoogle(role === 'late_night_vendor' ? 'vendor' : role);
+      // Normalize phone number if provided (for Nigeria: 080... -> +23480...)
+      let normalizedPhone = formData.phone;
+      if (formData.phone) {
+        if (formData.phone.startsWith('0')) {
+          normalizedPhone = '+234' + formData.phone.substring(1);
+        } else if (!formData.phone.startsWith('+')) {
+          normalizedPhone = '+234' + formData.phone;
+        }
+      }
+
+      await signUpWithGoogle(role === 'late_night_vendor' ? 'vendor' : role, normalizedPhone);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to sign up with Google');
     } finally {

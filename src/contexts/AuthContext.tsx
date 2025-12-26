@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { authService, databaseService, User as ServiceUser } from '../services';
 import { Profile } from '../lib/supabase';
+import { supabase } from '../lib/supabase/client';
 
 interface AuthContextType {
   user: ServiceUser | null;
@@ -15,7 +16,7 @@ interface AuthContextType {
     role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin',
     phone?: string
   ) => Promise<void>;
-  signUpWithGoogle: (role: 'customer' | 'vendor' | 'delivery_agent') => Promise<void>;
+  signUpWithGoogle: (role: 'customer' | 'vendor' | 'delivery_agent', phone?: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   linkAccountWithEmailPassword: (password: string) => Promise<{ data: any; error: Error | null } | { data: null; error: Error }>;
@@ -140,14 +141,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
               if (!existingProfile && !profileError) {
                 // If no profile exists yet, create one with the stored role
+                // First check if there's a phone number stored from OAuth signup
+                let storedPhone = null;
+                try {
+                  if (typeof window !== 'undefined' && window.localStorage) {
+                    storedPhone = window.localStorage.getItem('oauth_phone');
+                    // Remove the stored phone to prevent it from being used again
+                    window.localStorage.removeItem('oauth_phone');
+                  }
+                } catch (storageError) {
+                  console.warn('Storage access error when checking for OAuth phone:', storageError);
+                }
+
                 const { error: insertError } = await databaseService.insert<Profile>({
                   table: 'profiles',
                   data: {
                     id: event.session.user.id,
                     email: event.session.user.email || '',
-                    full_name: event.session.user.user_metadata?.full_name || 'User',
+                    full_name: (event.session.user as any).user_metadata?.full_name || 'User',
                     role: storedRole as any,
-                    phone: event.session.user.user_metadata?.phone || null,
+                    phone: storedPhone || (event.session.user as any).user_metadata?.phone || null,
                     created_at: new Date().toISOString(),
                   },
                 });
@@ -184,11 +197,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(null);
         setProfile(null);
         setLoading(false); // ✅ Set loading to false after sign-out completes
-      } else if (event.event === 'SIGNUP') {
-        console.log('User signed up');
-        // Don't do anything special on signup - let the UI handle it
-        setLoading(false);
-      } else if (event.event === 'MFA_CHALLENGE_VERIFIED' || event.event === 'PASSWORD_RECOVERY' || event.event === 'TOKEN_REFRESHED' || event.event === 'USER_DELETED') {
+      } else {
         console.log('Other auth event:', event.event);
         // For other events, ensure loading is set to false
         if (isMounted) {
@@ -261,23 +270,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
 
       console.log('signUp result:', { user: newUser, error: signUpError });
-      // Return the result to let the UI handle success or error states
+      // Handle success or error states in the UI
       setLoading(false);
-      return { user: newUser, error: signUpError };
+      if (signUpError) {
+        throw signUpError;
+      }
     } catch (err) {
       console.log('signUp error:', err);
-      // Return the error to let the UI handle it
+      // Handle the error in the UI
       setLoading(false);
-      return { user: null, error: err as Error };
+      throw err;
     }
   };
 
   // ✅ Sign up with Google
-  const signUpWithGoogle = async (role: 'customer' | 'vendor' | 'delivery_agent') => {
-    console.log('signUpWithGoogle called with role:', role);
+  const signUpWithGoogle = async (role: 'customer' | 'vendor' | 'delivery_agent', phone?: string) => {
+    console.log('signUpWithGoogle called with role:', role, 'phone:', phone);
     setLoading(true);
     try {
-      const { error } = await authService.signUpWithGoogle(role);
+      const { error } = await authService.signUpWithGoogle(role, phone);
       if (error) {
         console.error('Google SignUp error:', error);
         setLoading(false);

@@ -13,33 +13,58 @@ class SupabaseAuthService implements IAuthService {
   async signUp(params: SignUpParams) {
     console.log('AuthService signUp called with params:', params);
     try {
-      // 1️⃣ Sign up user with metadata
-      const { data, error } = await supabase.auth.signUp({
-        email: params.email,
-        password: params.password,
-        options: {
-          data: {
-            full_name: params.fullName || 'User',
-            role: params.role || 'customer',
-            phone: params.phone || null,
+      // Check if phone signup is requested
+      if (params.phone && !params.email) {
+        // Phone-based signup with OTP
+        const { data, error } = await supabase.auth.signInWithOtp({
+          phone: params.phone,
+          options: {
+            data: {
+              full_name: params.fullName || 'User',
+              role: params.role || 'customer',
+            },
+            shouldCreateUser: true,
           },
-        },
-      });
+        });
 
-      console.log('Supabase signUp result:', { data, error });
-      if (error) {
-        console.error('Supabase signUp error:', error);
-        return { user: null, error };
-      }
-
-      const user: User | null = data.user
-        ? {
-          id: data.user.id,
-          email: data.user.email || '',
+        console.log('Supabase phone signUp result:', { data, error });
+        if (error) {
+          console.error('Supabase phone signUp error:', error);
+          return { user: null, error };
         }
-        : null;
 
-      return { user, error: null };
+        // For phone signup, we don't get the user immediately
+        // The user will be created after OTP verification
+        return { user: null, error: null };
+      } else {
+        // Email-based signup
+        const { data, error } = await supabase.auth.signUp({
+          email: params.email,
+          password: params.password,
+          options: {
+            data: {
+              full_name: params.fullName || 'User',
+              role: params.role || 'customer',
+              phone: params.phone || null,
+            },
+          },
+        });
+
+        console.log('Supabase email signUp result:', { data, error });
+        if (error) {
+          console.error('Supabase email signUp error:', error);
+          return { user: null, error };
+        }
+
+        const user: User | null = data.user
+          ? {
+            id: data.user.id,
+            email: data.user.email || '',
+          }
+          : null;
+
+        return { user, error: null };
+      }
     } catch (err) {
       console.log('AuthService signUp error:', err);
       return { user: null, error: err as Error };
@@ -106,12 +131,16 @@ class SupabaseAuthService implements IAuthService {
   }
 
   // ✅ Sign up with Google
-  async signUpWithGoogle(role: 'customer' | 'vendor' | 'delivery_agent') {
+  async signUpWithGoogle(role: 'customer' | 'vendor' | 'delivery_agent', phone?: string) {
     try {
       // Store the intended role in safe storage before OAuth redirect
       try {
         if (typeof window !== 'undefined' && window.localStorage) {
           window.localStorage.setItem('oauth_role', role);
+          // Store phone number as well if provided
+          if (phone) {
+            window.localStorage.setItem('oauth_phone', phone);
+          }
         }
       } catch (error) {
         console.warn('Storage access blocked by tracking prevention:', error);
