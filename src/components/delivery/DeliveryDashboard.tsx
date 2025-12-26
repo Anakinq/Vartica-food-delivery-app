@@ -162,11 +162,15 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       setIsOnline(agentData.is_available);
 
       // 2. Wallet
-      const { data: walletData } = await supabase
+      const { data: walletData, error: walletError } = await supabase
         .from('agent_wallets')
         .select('food_wallet_balance, earnings_wallet_balance, pending_withdrawal, total_withdrawals')
         .eq('agent_id', agentData.id)
         .maybeSingle();
+
+      if (walletError) {
+        console.error('Wallet fetch error:', walletError);
+      }
 
       setWallet({
         food_wallet_balance: Number(walletData?.food_wallet_balance) || 0,
@@ -176,20 +180,29 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       });
 
       // 3. Withdrawal Requests History
-      const { data: withdrawals } = await supabase
+      const { data: withdrawals, error: withdrawalsError } = await supabase
         .from('withdrawals')
         .select('id, amount, status, created_at, processed_at, error_message')
         .eq('agent_id', agentData.id)
         .order('created_at', { ascending: false })
         .limit(20);
+
+      if (withdrawalsError) {
+        console.error('Withdrawals fetch error:', withdrawalsError);
+      }
+
       setWithdrawalRequests(withdrawals || []);
 
       // 4. Bank profile (optional for manual withdrawals)
-      const { data: bankData } = await supabase
+      const { data: bankData, error: bankError } = await supabase
         .from('agent_payout_profiles')
         .select('account_number_encrypted, bank_name, is_verified')
         .eq('agent_id', agentData.id)
         .maybeSingle();
+
+      if (bankError) {
+        console.error('Bank data fetch error:', bankError);
+      }
 
       if (bankData) {
         setBankAccount(bankData.account_number_encrypted);
@@ -201,21 +214,30 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       }
 
       // 5. Orders
-      const { data: myOrdersData } = await supabase
+      const { data: myOrdersData, error: myOrdersError } = await supabase
         .from('orders')
         .select('id, order_number, customer_id, subtotal, delivery_fee, discount, total, status, payment_method, payment_status, promo_code, delivery_address, delivery_notes, seller_id, seller_type, created_at, updated_at')
         .eq('delivery_agent_id', agentData.id)
         .neq('status', 'cancelled')
         .order('created_at', { ascending: false });
 
+      if (myOrdersError) {
+        console.error('My orders fetch error:', myOrdersError);
+      }
+
       let availableOrdersData: FullOrder[] = [];
       if (agentData.is_available) {
-        const { data: available } = await supabase
+        const { data: available, error: availableOrdersError } = await supabase
           .from('orders')
           .select('id, order_number, customer_id, subtotal, delivery_fee, discount, total, status, payment_method, payment_status, promo_code, delivery_address, delivery_notes, seller_id, seller_type, created_at, updated_at')
           .is('delivery_agent_id', null)
           .eq('status', 'pending')
           .order('created_at', { ascending: false });
+
+        if (availableOrdersError) {
+          console.error('Available orders fetch error:', availableOrdersError);
+        }
+
         availableOrdersData = available || [];
       }
 
@@ -223,10 +245,15 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       const allOrderIds = [...(myOrdersData || []), ...availableOrdersData].map(o => o.id);
       let orderItemsByOrderId: Record<string, any[]> = {};
       if (allOrderIds.length > 0) {
-        const { data: orderItemsData } = await supabase
+        const { data: orderItemsData, error: orderItemsError } = await supabase
           .from('order_items')
           .select('id, order_id, quantity, price, menu_item_id')
           .in('order_id', allOrderIds);
+
+        if (orderItemsError) {
+          console.error('Order items fetch error:', orderItemsError);
+        }
+
         orderItemsByOrderId = (orderItemsData || []).reduce((acc, item) => {
           if (!acc[item.order_id]) acc[item.order_id] = [];
           acc[item.order_id].push(item);
@@ -240,10 +267,15 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         .filter(Boolean);
       let menuItemMap: Record<string, { name: string }> = {};
       if (menuItemIds.length > 0) {
-        const { data: menuItemsData } = await supabase
+        const { data: menuItemsData, error: menuItemsError } = await supabase
           .from('menu_items')
           .select('id, name')
           .in('id', menuItemIds);
+
+        if (menuItemsError) {
+          console.error('Menu items fetch error:', menuItemsError);
+        }
+
         menuItemMap = (menuItemsData || []).reduce((acc, item) => {
           acc[item.id] = item;
           return acc;
@@ -263,6 +295,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       setAvailableOrders(attachItems(availableOrdersData));
     } catch (err) {
       console.error('fetchData error', err);
+      setMessage({ type: 'error', text: 'Error loading dashboard data. Please try refreshing the page.' });
     } finally {
       setLoading(false);
     }
