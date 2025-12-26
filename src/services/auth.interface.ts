@@ -9,8 +9,8 @@ export interface AuthSession {
 }
 
 export interface SignUpParams {
-  email: string;
-  password: string;
+  email?: string;
+  password?: string;
   fullName?: string;
   role?: string;
   phone?: string;

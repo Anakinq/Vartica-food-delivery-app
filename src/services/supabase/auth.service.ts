@@ -13,6 +13,11 @@ class SupabaseAuthService implements IAuthService {
   async signUp(params: SignUpParams) {
     console.log('AuthService signUp called with params:', params);
     try {
+      // Validate that either email or phone is provided
+      if (!params.email && !params.phone) {
+        throw new Error('Either email or phone must be provided');
+      }
+      
       // Check if phone signup is requested
       if (params.phone && !params.email) {
         // Phone-based signup with OTP
@@ -36,7 +41,7 @@ class SupabaseAuthService implements IAuthService {
         // For phone signup, we don't get the user immediately
         // The user will be created after OTP verification
         return { user: null, error: null };
-      } else {
+      } else if (params.email && params.password) {
         // Email-based signup
         const { data, error } = await supabase.auth.signUp({
           email: params.email,
@@ -64,6 +69,8 @@ class SupabaseAuthService implements IAuthService {
           : null;
 
         return { user, error: null };
+      } else {
+        throw new Error('For email signup, both email and password are required');
       }
     } catch (err) {
       console.log('AuthService signUp error:', err);
