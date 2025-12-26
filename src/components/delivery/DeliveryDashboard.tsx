@@ -187,18 +187,28 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       setWithdrawalRequests(withdrawals || []);
 
       // 4. Bank profile (optional for manual withdrawals)
-      const { data: bankData } = await supabase
-        .from('agent_payout_profiles')
-        .select('account_number, bank_code')
+      // First, get the agent_id to use for payout profile lookup
+      const { data: agentDataForPayout } = await supabase
+        .from('delivery_agents')
+        .select('id')
         .eq('user_id', profile.id)
-        .maybeSingle();
+        .single();
 
-      if (bankData) {
-        setBankAccount(bankData.account_number);
-        setBankCode(bankData.bank_code);
-        const bank = BANK_OPTIONS.find(b => b.code === bankData.bank_code);
-        setBankName(bank?.name || 'Unknown Bank');
-        setIsBankVerified(true); // Bank saved = verified for manual system
+      if (agentDataForPayout) {
+        const { data: bankData } = await supabase
+          .from('agent_payout_profiles')
+          .select('account_number_encrypted, bank_name')
+          .eq('agent_id', agentDataForPayout.id)
+          .maybeSingle();
+
+        if (bankData) {
+          setBankAccount(bankData.account_number_encrypted);
+          // Find the bank code from the name
+          const foundBank = BANK_OPTIONS.find(b => b.name === bankData.bank_name);
+          setBankCode(foundBank?.code || '');
+          setBankName(bankData.bank_name || 'Unknown Bank');
+          setIsBankVerified(true); // Bank saved = verified for manual system
+        }
       }
 
       // 5. Orders
@@ -499,11 +509,21 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                 </button>
               )}
 
+              {/* Desktop Payment Methods Button */}
+              <button
+                onClick={() => setShowProfileModal(true)}
+                className="hidden md:flex items-center space-x-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <Wallet className="h-5 w-5" />
+                <span className="text-sm font-medium">Payment</span>
+              </button>
+
               {/* Hamburger Menu */}
               <button
                 ref={hamburgerButtonRef}
                 onClick={() => setShowMobileMenu(!showMobileMenu)}
                 className="p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 md:hidden"
+                aria-label="Menu"
               >
                 {showMobileMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
               </button>
@@ -579,6 +599,19 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                   <div className="flex items-center space-x-2">
                     <BarChart3 className="h-4 w-4" />
                     <span>Earnings History</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    // Open payment methods (bank details management)
+                    setShowProfileModal(true);
+                    setShowMobileMenu(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <div className="flex items-center space-x-2">
+                    <Wallet className="h-4 w-4" />
+                    <span>Payment Methods</span>
                   </div>
                 </button>
                 <button
@@ -689,66 +722,86 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         </div>
 
         {/* Bank Setup */}
-        {!isBankVerified ? (
-          <div className="bg-white rounded-xl shadow-sm p-5 mb-6 border border-gray-200">
-            <div className="flex items-start space-x-3 mb-3">
-              <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-              <h3 className="text-lg font-bold text-yellow-800">⚠️ Bank Details Required</h3>
+        <div className="bg-white rounded-xl shadow-sm p-5 mb-6 border border-gray-200">
+          <div className="flex justify-between items-center mb-3">
+            <div className="flex items-center space-x-3">
+              {isBankVerified ? (
+                <>
+                  <div className="mt-0.5 p-1.5 bg-green-100 rounded-full">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-green-800">✅ Bank Details Saved</h3>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                  <h3 className="text-lg font-bold text-yellow-800">⚠️ Bank Details Required</h3>
+                </>
+              )}
             </div>
-            <p className="text-gray-600 mb-4">
-              Please save your bank account details. Admin will use this for manual withdrawals.
-            </p>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
-                <input
-                  type="text"
-                  value={bankAccount}
-                  onChange={(e) => setBankAccount(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                  placeholder="10-digit number"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  maxLength={10}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Bank</label>
-                <select
-                  value={bankCode}
-                  onChange={(e) => setBankCode(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select Bank</option>
-                  {BANK_OPTIONS.map((bank) => (
-                    <option key={bank.code} value={bank.code}>
-                      {bank.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button
-                onClick={saveBankDetails}
-                disabled={savingBank || !bankAccount || !bankCode || bankAccount.length !== 10}
-                className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium"
-              >
-                {savingBank ? 'Saving...' : '✅ Save Bank Details'}
-              </button>
-            </div>
+            <button
+              onClick={() => { }}
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              disabled
+            >
+              {isBankVerified ? 'Update' : 'Manage'}
+            </button>
           </div>
-        ) : (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-5 mb-6">
-            <div className="flex items-start space-x-3">
-              <div className="mt-0.5 p-1.5 bg-green-100 rounded-full">
-                <CheckCircle className="h-5 w-5 text-green-600" />
+
+          {!isBankVerified ? (
+            <>
+              <p className="text-gray-600 mb-4">
+                Please save your bank account details. Admin will use this for manual withdrawals.
+              </p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                  <input
+                    type="text"
+                    value={bankAccount}
+                    onChange={(e) => setBankAccount(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="10-digit number"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    maxLength={10}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bank</label>
+                  <select
+                    value={bankCode}
+                    onChange={(e) => setBankCode(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select Bank</option>
+                    {BANK_OPTIONS.map((bank) => (
+                      <option key={bank.code} value={bank.code}>
+                        {bank.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  onClick={saveBankDetails}
+                  disabled={savingBank || !bankAccount || !bankCode || bankAccount.length !== 10}
+                  className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium"
+                >
+                  {savingBank ? 'Saving...' : '✅ Save Bank Details'}
+                </button>
               </div>
-              <div>
-                <h3 className="font-semibold text-green-800">✅ Bank Details Saved!</h3>
-                <p className="text-green-700 mt-1">
-                  {bankName} •••• {bankAccount.slice(-4)} — Admin will use this for manual withdrawals.
+            </>
+          ) : (
+            <div>
+              <p className="text-gray-600 mb-4">
+                Your bank details are saved and ready for withdrawals.
+              </p>
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <p className="text-green-800">
+                  <span className="font-medium">{bankName}</span> •••• {bankAccount.slice(-4)}
                 </p>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Order Tabs */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
@@ -1120,6 +1173,33 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                       <p><span className="text-gray-500">ID:</span> {agent?.id}</p>
                       <p><span className="text-gray-500">Phone:</span> {profile?.phone || 'Not provided'}</p>
                       <p><span className="text-gray-500">Vehicle:</span> {agent?.vehicle_type || 'Not specified'}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-medium text-gray-700">Payment Methods</h4>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          // This button just shows the current state
+                          // The actual update happens in the main bank section
+                        }}
+                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                        disabled
+                      >
+                        {isBankVerified ? 'Update' : 'Add'}
+                      </button>
+                    </div>
+                    <div className="text-sm">
+                      {isBankVerified ? (
+                        <p className="text-green-700">
+                          <span className="text-gray-500">Bank:</span> {bankName}<br />
+                          <span className="text-gray-500">Account:</span> •••• {bankAccount.slice(-4)}
+                        </p>
+                      ) : (
+                        <p className="text-yellow-700">No bank details saved yet</p>
+                      )}
                     </div>
                   </div>
 
