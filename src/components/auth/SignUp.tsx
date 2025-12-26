@@ -117,26 +117,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
     setSubmitting(true);
 
-    // ✅ Show confirmation screen immediately to prevent user confusion
-    console.log('Showing confirmation screen immediately');
-    setShowEmailConfirmation(true);
-
-    // Notify parent component that user just signed up
-    window.dispatchEvent(new CustomEvent('userSignedUp'));
-
-    // Optional: Browser notification (non-blocking)
-    if ('Notification' in window && Notification.permission !== 'denied') {
-      Notification.requestPermission().then(perm => {
-        if (perm === 'granted') {
-          new Notification('✅ Check your email!', {
-            body: `Confirmation link sent to ${formData.email}`,
-            icon: '/logo192.png',
-          });
-        }
-      });
-    }
-
-    // 🔑 Run signup in background
+    // 🔑 Run signup immediately (not in background) so we can show proper errors
     try {
       // First, sign up the user
       console.log('Calling authSignUp with params:', {
@@ -146,69 +127,78 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
         role: role === 'late_night_vendor' ? 'vendor' : role,
         phone: formData.phone
       }); // Debug log
-      const result = await authSignUp(
+      await authSignUp(
         formData.email,
         formData.password,
         formData.fullName,
         role === 'late_night_vendor' ? 'vendor' : role,
         formData.phone
       );
-      console.log('authSignUp result:', result); // Debug log
-
-      if (result.error) {
-        console.error('Background signup error:', result.error);
-        // Don't show error to user since confirmation screen is already displayed
-        return;
-      }
+      console.log('authSignUp completed successfully'); // Debug log
 
       // If vendor, upload logo and create vendor profile
       if ((role === 'vendor' || role === 'late_night_vendor') && logoFile) {
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) throw new Error('User not found after signup');
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not found after signup');
 
-          // Upload logo to Supabase storage
-          const fileExt = logoFile.name.split('.').pop();
-          const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-          const { error: uploadError, data: uploadData } = await supabase.storage
-            .from('vendor-logos')
-            .upload(fileName, logoFile);
+        // Upload logo to Supabase storage
+        const fileExt = logoFile.name.split('.').pop();
+        const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+        const { error: uploadError, data: uploadData } = await supabase.storage
+          .from('vendor-logos')
+          .upload(fileName, logoFile);
 
-          if (uploadError) throw uploadError;
+        if (uploadError) throw uploadError;
 
-          // Get public URL
-          const { data: { publicUrl } } = supabase.storage
-            .from('vendor-logos')
-            .getPublicUrl(fileName);
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('vendor-logos')
+          .getPublicUrl(fileName);
 
-          // Create vendor profile
-          const vendorData: any = {
-            user_id: user.id,
-            store_name: formData.storeName,
-            description: formData.storeDescription || null,
-            image_url: publicUrl,
-            vendor_type: formData.vendorType,
-            is_active: true,
-          };
+        // Create vendor profile
+        const vendorData: any = {
+          user_id: user.id,
+          store_name: formData.storeName,
+          description: formData.storeDescription || null,
+          image_url: publicUrl,
+          vendor_type: formData.vendorType,
+          is_active: true,
+        };
 
-          if (role === 'late_night_vendor') {
-            vendorData.available_from = formData.availableFrom;
-            vendorData.available_until = formData.availableUntil;
-          }
-
-          const { error: vendorError } = await supabase
-            .from('vendors')
-            .insert([vendorData]);
-
-          if (vendorError) throw vendorError;
-        } catch (vendorErr) {
-          console.error('Vendor profile creation error (ignored):', vendorErr);
+        if (role === 'late_night_vendor') {
+          vendorData.available_from = formData.availableFrom;
+          vendorData.available_until = formData.availableUntil;
         }
+
+        const { error: vendorError } = await supabase
+          .from('vendors')
+          .insert([vendorData]);
+
+        if (vendorError) throw vendorError;
       }
 
-    } catch (err: unknown) {
-      console.error('Background signup error:', err);
-      // Don't show error to user since confirmation screen is already displayed
+      // Only show confirmation screen after successful signup
+      console.log('Showing confirmation screen after successful signup');
+      setShowEmailConfirmation(true);
+
+      // Notify parent component that user just signed up
+      window.dispatchEvent(new CustomEvent('userSignedUp'));
+
+      // Optional: Browser notification (non-blocking)
+      if ('Notification' in window && Notification.permission !== 'denied') {
+        Notification.requestPermission().then(perm => {
+          if (perm === 'granted') {
+            new Notification('✅ Check your email!', {
+              body: `Confirmation link sent to ${formData.email}`,
+              icon: '/logo192.png',
+            });
+          }
+        });
+      }
+
+    } catch (err: any) {
+      console.error('Signup error:', err);
+      setError(err.message || 'Failed to create account');
     } finally {
       setSubmitting(false);
     }
