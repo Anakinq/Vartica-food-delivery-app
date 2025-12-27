@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="description"
     content="Vartica - University campus food delivery connecting students with cafeterias, vendors, and late-night food options" />
   <meta name="theme-color" content="#2563eb" />
@@ -13,6 +13,22 @@
 
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icon-192.png" />
+
+  <!-- Service Worker for PWA -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        // Register service worker with error handling
+        navigator.serviceWorker.register("./sw.js")
+          .then(function (registration) {
+            console.log("ServiceWorker registration successful with scope: ", registration.scope);
+          })
+          .catch(function (error) {
+            console.log("ServiceWorker registration failed: ", error);
+          });
+      });
+    }
+  </script>
 
   <!-- iOS Splash Screens -->
   <meta name="mobile-web-app-capable" content="yes" />

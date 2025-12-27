@@ -39,9 +39,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // 🔁 Unified fetch: user + profile
   const fetchUserAndProfile = async (sessionUser: ServiceUser | null, skipUserSet: boolean = false) => {
-    console.log('fetchUserAndProfile called with:', { sessionUser, skipUserSet });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('fetchUserAndProfile called with:', { sessionUser, skipUserSet });
+    }
     if (!sessionUser) {
-      console.log('No session user, clearing user and profile');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('No session user, clearing user and profile');
+      }
       setUser(null);
       setProfile(null);
       return;
@@ -62,7 +66,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.warn('Profile fetch failed (continuing without profile):', error.message);
         setProfile(null);
       } else {
-        console.log('Profile fetched successfully:', profileData);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Profile fetched successfully:', profileData);
+        }
         setProfile(profileData);
       }
     } catch (err) {
@@ -73,14 +79,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const refreshProfile = async () => {
-    console.log('refreshProfile called');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('refreshProfile called');
+    }
     if (user) {
       const { data, error } = await databaseService.selectSingle<Profile>({
         table: 'profiles',
         match: { id: user.id },
       });
       if (!error) {
-        console.log('Profile refreshed:', data);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Profile refreshed:', data);
+        }
         setProfile(data);
       } else {
         console.error('Error refreshing profile:', error);
@@ -91,7 +101,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // 🔄 Sync auth state (initial + real-time)
   useEffect(() => {
     let isMounted = true;
-    console.log('AuthContext useEffect initialized');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('AuthContext useEffect initialized');
+    }
 
     // 1️⃣ Initial load
     const initAuth = async () => {
@@ -101,7 +113,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (error) {
           console.error('Auth session error (possibly due to storage access blocked):', error);
         }
-        console.log('Initial session:', session);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Initial session:', session);
+        }
         if (isMounted) {
           await fetchUserAndProfile(session?.user ?? null);
           setLoading(false);
@@ -119,11 +133,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // 2️⃣ Real-time listener
     const { unsubscribe } = authService.onAuthStateChange(async (event) => {
-      console.log('Auth state change event received:', event);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Auth state change event received:', event);
+      }
       if (!isMounted) return;
 
       if (event.event === 'SIGNED_IN' || event.event === 'USER_UPDATED') {
-        console.log('User signed in or updated');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('User signed in or updated');
+        }
 
         // Check if this is an OAuth sign-in and we have a stored role
         if (typeof window !== 'undefined' && window.localStorage) {
@@ -168,7 +186,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 if (insertError) {
                   console.error('Error creating profile with stored role:', insertError);
                 } else {
-                  console.log('Profile created with stored role:', storedRole);
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('Profile created with stored role:', storedRole);
+                  }
                 }
               } else if (existingProfile && existingProfile.role !== storedRole) {
                 // If profile exists but has wrong role, update it
@@ -181,7 +201,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 if (updateError) {
                   console.error('Error updating profile role:', updateError);
                 } else {
-                  console.log('Profile role updated to:', storedRole);
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('Profile role updated to:', storedRole);
+                  }
                 }
               }
             }
@@ -193,12 +215,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         await fetchUserAndProfile(event.session?.user ?? null);
         setLoading(false); // ✅ Set loading to false after sign-in completes
       } else if (event.event === 'SIGNED_OUT') {
-        console.log('User signed out');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('User signed out');
+        }
         setUser(null);
         setProfile(null);
         setLoading(false); // ✅ Set loading to false after sign-out completes
       } else {
-        console.log('Other auth event:', event.event);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Other auth event:', event.event);
+        }
         // For other events, ensure loading is set to false
         if (isMounted) {
           setLoading(false);
@@ -215,12 +241,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // ✅ Sign in
   const signIn = async (email: string, password: string) => {
-    console.log('signIn called with:', { email });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('signIn called with:', { email });
+    }
     setLoading(true);
     try {
       const { error } = await authService.signIn({ email, password });
       if (error) {
-        console.error('SignIn error:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('SignIn error:', error);
+        }
         setLoading(false);
 
         // Provide more detailed error information
@@ -248,12 +278,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // ✅ Sign in with Google
   const signInWithGoogle = async () => {
-    console.log('signInWithGoogle called');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('signInWithGoogle called');
+    }
     setLoading(true);
     try {
       const { error } = await authService.signInWithGoogle();
       if (error) {
-        console.error('Google SignIn error:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Google SignIn error:', error);
+        }
         setLoading(false);
         throw error;
       }
@@ -272,7 +306,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin',
     phone?: string
   ) => {
-    console.log('signUp called with params:', { email, password, fullName, role, phone });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('signUp called with params:', { email, password, fullName, role, phone });
+    }
     setLoading(true);
     try {
       // 1️⃣ Sign up with metadata (database trigger will create profile after email confirmation)
@@ -284,11 +320,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         phone,
       });
 
-      console.log('signUp result:', { user: newUser, error: signUpError });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('signUp result:', { user: newUser, error: signUpError });
+      }
       // Handle success or error states in the UI
       setLoading(false);
       if (signUpError) {
-        console.error('Detailed signup error:', signUpError);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Detailed signup error:', signUpError);
+        }
         // Provide more detailed error information
         let errorMessage = signUpError.message || 'Failed to create account';
 
@@ -308,7 +348,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         throw errorWithDetails;
       }
     } catch (err) {
-      console.log('signUp error:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('signUp error:', err);
+      }
       // Handle the error in the UI
       setLoading(false);
       throw err;
@@ -317,12 +359,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // ✅ Sign up with Google
   const signUpWithGoogle = async (role: 'customer' | 'vendor' | 'delivery_agent', phone?: string) => {
-    console.log('signUpWithGoogle called with role:', role, 'phone:', phone);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('signUpWithGoogle called with role:', role, 'phone:', phone);
+    }
     setLoading(true);
     try {
       const { error } = await authService.signUpWithGoogle(role, phone);
       if (error) {
-        console.error('Google SignUp error:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Google SignUp error:', error);
+        }
         setLoading(false);
         throw error;
       }
@@ -357,12 +403,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // ✅ Sign out
   const signOut = async () => {
-    console.log('signOut called');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('signOut called');
+    }
     setLoading(true);
     try {
       const { error } = await authService.signOut();
       if (error) {
-        console.error('SignOut error:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('SignOut error:', error);
+        }
         throw error;
       }
       // 🎯 `onAuthStateChange` → SIGNED_OUT → clears user/profile

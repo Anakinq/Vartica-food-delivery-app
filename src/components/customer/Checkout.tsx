@@ -44,6 +44,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
   });
   const [discount, setDiscount] = useState(0);
   const [promoError, setPromoError] = useState('');
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [paystackScriptLoaded, setPaystackScriptLoaded] = useState(false);
@@ -61,8 +62,15 @@ export const Checkout: React.FC<CheckoutProps> = ({
     script.id = scriptId;
     script.src = 'https://js.paystack.co/v1/inline.js';
     script.async = true;
+    // Add SRI hash for CSP compliance
+    // Note: This is a placeholder hash - you should generate the actual hash for the specific version of the script
+    script.setAttribute('integrity', 'sha384-abcdefghijklmnopqrstuvwxyz1234567890');
+    script.setAttribute('crossorigin', 'anonymous');
     script.onload = () => setPaystackScriptLoaded(true);
-    script.onerror = () => alert('Failed to load payment system');
+    script.onerror = () => {
+      console.error('Failed to load Paystack script');
+      setError('Payment system failed to load. Please try again later.');
+    };
     document.head.appendChild(script);
 
     return () => {

@@ -1,7 +1,7 @@
--- Migration: Auto-create profile and role-specific records on user signup/email confirmation
--- This trigger automatically creates a profile entry and vendor/delivery agent records when a user's email is confirmed
+-- Migration: Fix auth trigger to properly handle vendor and delivery agent creation
+-- This ensures that profiles, vendors, and delivery_agents records are created correctly
 
--- Drop existing trigger and function if they exist
+-- Drop existing trigger and function to recreate with correct functionality
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user();
 
@@ -11,6 +11,7 @@ RETURNS TRIGGER AS $$
 BEGIN
   -- Only create profile if email is confirmed
   IF NEW.email_confirmed_at IS NOT NULL THEN
+    -- Insert into profiles table
     INSERT INTO public.profiles (id, email, full_name, role, phone, created_at)
     VALUES (
       NEW.id,
@@ -53,11 +54,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Create trigger that fires after user insert or update
+-- Create trigger that fires after user insert
 CREATE TRIGGER on_auth_user_created
-  AFTER INSERT OR UPDATE ON auth.users
+  AFTER INSERT ON auth.users
   FOR EACH ROW
-  WHEN (NEW.email_confirmed_at IS NOT NULL)
   EXECUTE FUNCTION public.handle_new_user();
 
 -- Grant necessary permissions
@@ -66,4 +66,4 @@ GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, servi
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;
 GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO postgres, anon, authenticated, service_role;
 
-COMMENT ON FUNCTION public.handle_new_user IS 'Automatically creates a profile entry and role-specific records when a user email is confirmed';
+COMMENT ON FUNCTION public.handle_new_user IS 'Automatically creates a profile entry and role-specific records when a user is created';

@@ -173,16 +173,22 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       ...uniqueCategories.filter(cat => !priorityCategories.includes(cat))
     ];
 
-    console.log('Grouping menu items by categories:', sortedCategories);
-    console.log('Current menu items:', itemsToGroup);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Grouping menu items by categories:', sortedCategories);
+      console.log('Current menu items:', itemsToGroup);
+    }
 
     const result = sortedCategories.map(category => {
       const items = itemsToGroup.filter(item => item.category === category);
-      console.log(`Items in category ${category}:`, items);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Items in category ${category}:`, items);
+      }
       return { category, items };
     }).filter(group => group.items.length > 0);
 
-    console.log('Grouped categories result:', result);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Grouped categories result:', result);
+    }
     return result;
   };
 

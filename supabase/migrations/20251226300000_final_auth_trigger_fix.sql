@@ -1,7 +1,7 @@
--- Migration: Auto-create profile and role-specific records on user signup/email confirmation
--- This trigger automatically creates a profile entry and vendor/delivery agent records when a user's email is confirmed
+-- Migration: Final fix for auth trigger to handle email confirmation properly
+-- This ensures profiles and role-specific records are created when email is confirmed
 
--- Drop existing trigger and function if they exist
+-- Drop existing trigger and function to recreate with correct functionality
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user();
 
@@ -9,8 +9,9 @@ DROP FUNCTION IF EXISTS public.handle_new_user();
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Only create profile if email is confirmed
+  -- Create profile and role-specific records when email is confirmed
   IF NEW.email_confirmed_at IS NOT NULL THEN
+    -- Insert into profiles table (this will only insert if not already present due to ON CONFLICT)
     INSERT INTO public.profiles (id, email, full_name, role, phone, created_at)
     VALUES (
       NEW.id,
@@ -20,11 +21,10 @@ BEGIN
       NEW.raw_user_meta_data->>'phone',
       NOW()
     )
-    ON CONFLICT (id) DO NOTHING; -- Prevent duplicate profile creation
+    ON CONFLICT (id) DO NOTHING;
 
-    -- Create role-specific records based on the user's role
+    -- Create vendor record if role is 'vendor' and record doesn't already exist
     IF COALESCE(NEW.raw_user_meta_data->>'role', 'customer') = 'vendor' THEN
-      -- Create vendor record
       INSERT INTO public.vendors (user_id, store_name, description, vendor_type, is_active)
       VALUES (
         NEW.id,
@@ -35,7 +35,7 @@ BEGIN
       )
       ON CONFLICT (user_id) DO NOTHING;
     ELSIF COALESCE(NEW.raw_user_meta_data->>'role', 'customer') = 'delivery_agent' THEN
-      -- Create delivery agent record
+      -- Create delivery agent record if role is 'delivery_agent' and record doesn't already exist
       INSERT INTO public.delivery_agents (user_id, vehicle_type, is_available, active_orders_count, total_deliveries, rating)
       VALUES (
         NEW.id,
@@ -53,7 +53,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Create trigger that fires after user insert or update
+-- Create trigger that fires after user insert or update when email is confirmed
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT OR UPDATE ON auth.users
   FOR EACH ROW

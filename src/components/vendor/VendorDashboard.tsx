@@ -4,7 +4,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase, MenuItem, Vendor } from '../../lib/supabase';
 import { MenuItemForm } from '../shared/MenuItemForm';
 
-export const VendorDashboard: React.FC = () => {
+interface VendorDashboardProps {
+  onShowProfile?: () => void;
+}
+
+export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile }) => {
   const { profile, signOut } = useAuth();
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);

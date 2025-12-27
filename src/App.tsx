@@ -181,7 +181,7 @@ function AppContent() {
     );
   }
 
-  if (selectedRole && selectedRole !== 'customer') {
+  if (selectedRole && (selectedRole === 'cafeteria' || selectedRole === 'vendor' || selectedRole === 'late_night_vendor' || selectedRole === 'delivery_agent' || selectedRole === 'admin')) {
     return authView === 'signup' && (selectedRole === 'vendor' || selectedRole === 'late_night_vendor' || selectedRole === 'delivery_agent') ? (
       <SignUp
         role={selectedRole === 'late_night_vendor' ? 'late_night_vendor' : selectedRole}
@@ -236,7 +236,16 @@ function App() {
 
   return (
     <AuthProvider>
-      <AppContent />
+      <div>
+        {/* Accessibility elements inspired by Flutter Web apps */}
+        <div role="status" aria-live="polite" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
+          Loading application
+        </div>
+        <div role="alert" aria-live="assertive" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
+          {/* For error messages */}
+        </div>
+        <AppContent />
+      </div>
     </AuthProvider>
   );
 }

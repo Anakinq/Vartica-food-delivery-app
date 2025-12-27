@@ -23,7 +23,9 @@ class SafeStorage {
             window.localStorage.removeItem(testKey);
             this.storage = window.localStorage;
         } catch (error) {
-            console.warn('Storage access blocked by tracking prevention:', error);
+            if (process.env.NODE_ENV === 'development') {
+                console.warn('Storage access blocked by tracking prevention:', error);
+            }
             this.storage = null;
         }
     }
@@ -32,7 +34,9 @@ class SafeStorage {
         try {
             return this.storage ? this.storage.getItem(key) : null;
         } catch (error) {
-            console.warn(`Failed to get item from storage:`, error);
+            if (process.env.NODE_ENV === 'development') {
+                console.warn(`Failed to get item from storage:`, error);
+            }
             return null;
         }
     }

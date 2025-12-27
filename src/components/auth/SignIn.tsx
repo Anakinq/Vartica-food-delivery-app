@@ -42,6 +42,9 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
     try {
       await signIn(email, password);
     } catch (err: unknown) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Sign in error:', err);
+      }
       setError(err instanceof Error ? err.message : 'Failed to sign in');
     } finally {
       setSubmitting(false);
@@ -56,6 +59,9 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
     try {
       await signInWithGoogle();
     } catch (err: unknown) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Google sign in error:', err);
+      }
       setError(err instanceof Error ? err.message : 'Failed to sign in with Google');
     } finally {
       setSubmitting(false);
@@ -84,6 +90,9 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
       alert('✅ Password reset email sent! Check your inbox (and spam folder).');
       setForgotPasswordMode(false);
     } catch (err: unknown) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Forgot password error:', err);
+      }
       setError(err instanceof Error ? err.message : 'Failed to send reset email');
     } finally {
       setSubmitting(false);

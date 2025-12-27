@@ -49,10 +49,14 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
   // ✅ Auto-redirect on successful auth
   useEffect(() => {
-    console.log('SignUp useEffect triggered', { user, profile, role, showEmailConfirmation }); // Debug log
+    if (process.env.NODE_ENV === 'development') {
+      console.log('SignUp useEffect triggered', { user, profile, role, showEmailConfirmation }); // Debug log
+    }
     if (user && profile && profile.role === role && !showEmailConfirmation) {
       // Success! App.tsx will render the correct dashboard
-      console.log('User authenticated and profile loaded, but not showing email confirmation'); // Debug log
+      if (process.env.NODE_ENV === 'development') {
+        console.log('User authenticated and profile loaded, but not showing email confirmation'); // Debug log
+      }
     }
   }, [user, profile, role, showEmailConfirmation]);
 
@@ -85,16 +89,22 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
     e.preventDefault();
     e.stopPropagation();
 
-    console.log('Signup form submitted with data:', formData); // Debug log
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Signup form submitted with data:', formData); // Debug log
+    }
     setError('');
 
     if (formData.password !== formData.confirmPassword) {
-      console.log('Validation failed: Passwords do not match');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Validation failed: Passwords do not match');
+      }
       setError('Passwords do not match');
       return;
     }
     if (formData.password.length < 6) {
-      console.log('Validation failed: Password too short');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Validation failed: Password too short');
+      }
       setError('Password must be at least 6 characters');
       return;
     }
@@ -102,38 +112,60 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
     // Validate vendor fields
     if ((role === 'vendor' || role === 'late_night_vendor')) {
       if (!formData.storeName.trim()) {
-        console.log('Validation failed: Store name required');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Validation failed: Store name required');
+        }
         setError('Store name is required');
         return;
       }
       if (!logoFile) {
-        console.log('Validation failed: Logo required');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Validation failed: Logo required');
+        }
         setError('Please upload your business logo');
         return;
       }
     }
 
-    console.log('All validations passed, proceeding with signup');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('All validations passed, proceeding with signup');
+    }
 
     setSubmitting(true);
 
     // 🔑 Run signup immediately (not in background) so we can show proper errors
     try {
       // First, sign up the user
-      console.log('Calling authSignUp with params:', {
-        email: formData.email,
-        password: formData.password,
-        fullName: formData.fullName,
-        role: role === 'late_night_vendor' ? 'vendor' : role,
-        phone: formData.phone
-      }); // Debug log
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Calling authSignUp with params:', {
+          email: formData.email,
+          password: formData.password,
+          fullName: formData.fullName,
+          role: role === 'late_night_vendor' ? 'vendor' : role,
+          phone: formData.phone
+        }); // Debug log
+      }
       // Normalize phone number if provided (for Nigeria: 080... -> +23480...)
       let normalizedPhone = formData.phone;
       if (formData.phone) {
+        // Validate phone number format
+        const phoneRegex = /^\+?[1-9]\d{1,14}$/;
         if (formData.phone.startsWith('0')) {
+          // Nigerian format: 080... -> +23480...
           normalizedPhone = '+234' + formData.phone.substring(1);
         } else if (!formData.phone.startsWith('+')) {
+          // Assume Nigerian format if no country code provided
           normalizedPhone = '+234' + formData.phone;
+        } else {
+          normalizedPhone = formData.phone;
+        }
+
+        // Validate the normalized phone number
+        const cleanedPhone = normalizedPhone.replace(/\D/g, '');
+        if (!phoneRegex.test(normalizedPhone) || cleanedPhone.length < 10 || cleanedPhone.length > 15) {
+          setError('Please enter a valid phone number');
+          setSubmitting(false);
+          return;
         }
       }
 
@@ -144,7 +176,9 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
         role === 'late_night_vendor' ? 'vendor' : role,
         normalizedPhone
       );
-      console.log('authSignUp completed successfully'); // Debug log
+      if (process.env.NODE_ENV === 'development') {
+        console.log('authSignUp completed successfully'); // Debug log
+      }
 
       // If vendor, upload logo and create vendor profile
       if ((role === 'vendor' || role === 'late_night_vendor') && logoFile) {
@@ -188,7 +222,9 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
       }
 
       // Only show confirmation screen after successful signup
-      console.log('Showing confirmation screen after successful signup');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Showing confirmation screen after successful signup');
+      }
       setShowEmailConfirmation(true);
 
       // Notify parent component that user just signed up
@@ -208,6 +244,9 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
     } catch (err: any) {
       console.error('Signup error:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Signup error details:', err);
+      }
 
       // Get the detailed error message from our enhanced error handling
       let errorMessage = 'Failed to create account';
@@ -219,7 +258,9 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
       // If there's an original error with more details, log it
       if (err.originalError) {
-        console.error('Original signup error:', err.originalError);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Original signup error:', err.originalError);
+        }
       }
 
       setError(errorMessage);
@@ -237,10 +278,24 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
       // Normalize phone number if provided (for Nigeria: 080... -> +23480...)
       let normalizedPhone = formData.phone;
       if (formData.phone) {
+        // Validate phone number format
+        const phoneRegex = /^\+?[1-9]\d{1,14}$/;
         if (formData.phone.startsWith('0')) {
+          // Nigerian format: 080... -> +23480...
           normalizedPhone = '+234' + formData.phone.substring(1);
         } else if (!formData.phone.startsWith('+')) {
+          // Assume Nigerian format if no country code provided
           normalizedPhone = '+234' + formData.phone;
+        } else {
+          normalizedPhone = formData.phone;
+        }
+
+        // Validate the normalized phone number
+        const cleanedPhone = normalizedPhone.replace(/\D/g, '');
+        if (!phoneRegex.test(normalizedPhone) || cleanedPhone.length < 10 || cleanedPhone.length > 15) {
+          setError('Please enter a valid phone number');
+          setSubmitting(false);
+          return;
         }
       }
 
@@ -251,7 +306,9 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
         errorMessage = err.message;
         // If there's an original error with more details, log it
         if ((err as any).originalError) {
-          console.error('Original Google signup error:', (err as any).originalError);
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Original Google signup error:', (err as any).originalError);
+          }
         }
       } else if (typeof err === 'string') {
         errorMessage = err;
@@ -272,7 +329,9 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
       alert('✅ Confirmation email resent! Check your inbox (and spam folder).');
     } catch (err) {
       alert('❌ Failed to resend. Please try again later.');
-      console.error('Resend error:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Resend error:', err);
+      }
     }
   };
 

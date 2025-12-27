@@ -11,7 +11,9 @@ import {
 class SupabaseAuthService implements IAuthService {
   // ✅ Sign up with user metadata (trigger will auto-create profile)
   async signUp(params: SignUpParams) {
-    console.log('AuthService signUp called with params:', params);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('AuthService signUp called with params:', params);
+    }
     try {
       // Validate that either email or phone is provided
       if (!params.email && !params.phone) {
@@ -32,9 +34,13 @@ class SupabaseAuthService implements IAuthService {
           },
         });
 
-        console.log('Supabase phone signUp result:', { data, error });
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Supabase phone signUp result:', { data, error });
+        }
         if (error) {
-          console.error('Supabase phone signUp error:', error);
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Supabase phone signUp error:', error);
+          }
           return { user: null, error };
         }
 
@@ -61,9 +67,13 @@ class SupabaseAuthService implements IAuthService {
           },
         });
 
-        console.log('Supabase email signUp result:', { data, error });
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Supabase email signUp result:', { data, error });
+        }
         if (error) {
-          console.error('Supabase email signUp error:', error);
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Supabase email signUp error:', error);
+          }
           return { user: null, error };
         }
 
@@ -79,7 +89,9 @@ class SupabaseAuthService implements IAuthService {
         throw new Error('For email signup, both email and password are required');
       }
     } catch (err) {
-      console.log('AuthService signUp error:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('AuthService signUp error:', err);
+      }
       return { user: null, error: err as Error };
     }
   }
@@ -87,16 +99,22 @@ class SupabaseAuthService implements IAuthService {
   // ✅ Sign in
   async signIn(params: SignInParams) {
     try {
-      console.log('AuthService signIn called with params:', params);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('AuthService signIn called with params:', params);
+      }
       const { data, error } = await supabase.auth.signInWithPassword({
         email: params.email,
         password: params.password,
       });
 
-      console.log('Supabase signIn result:', { data, error });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Supabase signIn result:', { data, error });
+      }
 
       if (error) {
-        console.error('Supabase signIn error:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Supabase signIn error:', error);
+        }
         return { user: null, error };
       }
 
@@ -109,7 +127,9 @@ class SupabaseAuthService implements IAuthService {
 
       return { user, error: null };
     } catch (err) {
-      console.error('AuthService signIn error:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('AuthService signIn error:', err);
+      }
       return { user: null, error: err as Error };
     }
   }
@@ -132,13 +152,17 @@ class SupabaseAuthService implements IAuthService {
       });
 
       if (error) {
-        console.error('Supabase signInWithGoogle error:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Supabase signInWithGoogle error:', error);
+        }
         return { error };
       }
 
       return { error: null };
     } catch (err) {
-      console.error('AuthService signInWithGoogle error:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('AuthService signInWithGoogle error:', err);
+      }
       return { error: err as Error };
     }
   }
@@ -176,13 +200,17 @@ class SupabaseAuthService implements IAuthService {
       });
 
       if (error) {
-        console.error('Supabase signUpWithGoogle error:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Supabase signUpWithGoogle error:', error);
+        }
         return { error };
       }
 
       return { error: null };
     } catch (err) {
-      console.error('AuthService signUpWithGoogle error:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('AuthService signUpWithGoogle error:', err);
+      }
       return { error: err as Error };
     }
   }
@@ -192,11 +220,15 @@ class SupabaseAuthService implements IAuthService {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error('Supabase signOut error:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Supabase signOut error:', error);
+        }
       }
       return { error };
     } catch (err) {
-      console.error('AuthService signOut error:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('AuthService signOut error:', err);
+      }
       return { error: err as Error };
     }
   }
@@ -204,15 +236,21 @@ class SupabaseAuthService implements IAuthService {
   // ✅ Get current session
   async getSession() {
     try {
-      console.log('AuthService getSession called');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('AuthService getSession called');
+      }
       const { data, error } = await supabase.auth.getSession();
 
       if (error) {
-        console.error('Supabase getSession error:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Supabase getSession error:', error);
+        }
         return { session: null, error };
       }
 
-      console.log('Supabase getSession result:', { data });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Supabase getSession result:', { data });
+      }
 
       const session: AuthSession | null = data.session
         ? {
@@ -226,7 +264,9 @@ class SupabaseAuthService implements IAuthService {
 
       return { session, error: null };
     } catch (err) {
-      console.error('AuthService getSession error:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('AuthService getSession error:', err);
+      }
       return { session: null, error: err as Error };
     }
   }
@@ -250,7 +290,9 @@ class SupabaseAuthService implements IAuthService {
 
       return { user, error: null };
     } catch (err) {
-      console.error('AuthService getUser error:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('AuthService getUser error:', err);
+      }
       return { user: null, error: err as Error };
     }
   }
@@ -258,7 +300,9 @@ class SupabaseAuthService implements IAuthService {
   // ✅ Auth state listener
   onAuthStateChange(callback: (event: AuthChangeEvent) => void) {
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth state changed:', { event, session });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Auth state changed:', { event, session });
+      }
       const authEvent: AuthChangeEvent = {
         event: event as AuthChangeEvent['event'],
         session: session
