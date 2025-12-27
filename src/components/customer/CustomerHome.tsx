@@ -1,5 +1,5 @@
 // src/components/customer/CustomerHome.tsx
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { Search, ShoppingCart, LogOut, User, Moon, Package } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Cafeteria, Vendor, MenuItem } from '../../lib/supabase';

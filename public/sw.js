@@ -81,25 +81,36 @@ self.addEventListener('fetch', (event) => {
         url.hostname.includes('paystack.co')
     ) {
         event.respondWith(
-            fetch(request)
-                .then((response) => {
-                    // Don't cache failed responses
-                    if (!response || response.status !== 200) {
-                        return response;
-                    }
-                    // Only cache GET requests (POST/PUT/DELETE cannot be cached)
-                    if (request.method === 'GET') {
+            caches.match(request).then((cachedResponse) => {
+                // Return cached response immediately if available
+                if (cachedResponse) {
+                    // Update cache in background
+                    fetch(request).then((response) => {
+                        if (response && response.status === 200) {
+                            const responseClone = response.clone();
+                            caches.open(DYNAMIC_CACHE).then((cache) => {
+                                cache.put(request, responseClone);
+                            });
+                        }
+                    }).catch(() => {});
+                    
+                    return cachedResponse;
+                }
+                
+                // If no cached response, fetch from network
+                return fetch(request).then((response) => {
+                    if (response && response.status === 200) {
                         const responseClone = response.clone();
                         caches.open(DYNAMIC_CACHE).then((cache) => {
                             cache.put(request, responseClone);
                         });
                     }
                     return response;
-                })
-                .catch(() => {
-                    // Fallback to cache if network fails
+                }).catch(() => {
+                    // Last resort: try to return any cached response
                     return caches.match(request);
-                })
+                });
+            })
         );
         return;
     }

@@ -2,9 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Smooth scroll for anchor links */
+/* Performance optimizations */
 html {
   scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Optimize for mobile rendering */
+body {
+  -webkit-overflow-scrolling: touch;
+  transform: translateZ(0);
+  will-change: scroll-position;
+}
+
+/* Optimize animations */
+.animate-fadeIn {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+/* Optimize for touch devices */
+.touch-target {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
 /* Hide scrollbar for category bar (keeps functionality) */
