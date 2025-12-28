@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { LogOut, Users, Store, Bike, Package, Wallet, Menu, X, Search, Filter, Download, BarChart3, Settings, User, CreditCard, AlertTriangle } from 'lucide-react';
+import { LogOut, Users, Store, Bike, Package, Wallet, Menu, X, Search, Filter, Download, BarChart3, Settings, User, CreditCard, AlertTriangle, UserCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Profile, Order } from '../../lib/supabase';
+import { AdminApprovalDashboard } from './AdminApprovalDashboard';
 
 interface AdminDashboardProps {
   onShowProfile?: () => void;
@@ -33,7 +34,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
   const [users, setUsers] = useState<Profile[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
-  const [activeTab, setActiveTab] = useState<'users' | 'orders' | 'withdrawals'>('withdrawals');
+  const [activeTab, setActiveTab] = useState<'users' | 'orders' | 'withdrawals' | 'approvals'>('withdrawals');
   const [loading, setLoading] = useState(true);
   const [processingWithdrawal, setProcessingWithdrawal] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -276,6 +277,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
               </button>
               <button
                 onClick={() => {
+                  setActiveTab('approvals');
+                  setShowMenu(false);
+                }}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <div className="flex items-center space-x-2">
+                  <UserCheck className="h-4 w-4" />
+                  <span>Approvals</span>
+                </div>
+              </button>
+              <button
+                onClick={() => {
                   setActiveTab('orders');
                   setShowMenu(false);
                 }}
@@ -452,10 +465,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
               >
                 Users ({filterData().filteredUsers.length})
               </button>
+              <button
+                onClick={() => setActiveTab('approvals')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'approvals'
+                  ? 'border-purple-600 text-purple-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                  }`}
+              >
+                Approvals
+              </button>
             </nav>
           </div>
 
           <div className="p-6">
+            {activeTab === 'approvals' && (
+              <AdminApprovalDashboard />
+            )}
             {activeTab === 'withdrawals' && (
               <div>
                 <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">

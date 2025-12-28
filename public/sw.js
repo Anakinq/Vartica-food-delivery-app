@@ -92,11 +92,11 @@ self.addEventListener('fetch', (event) => {
                                 cache.put(request, responseClone);
                             });
                         }
-                    }).catch(() => {});
-                    
+                    }).catch(() => { });
+
                     return cachedResponse;
                 }
-                
+
                 // If no cached response, fetch from network
                 return fetch(request).then((response) => {
                     if (response && response.status === 200) {

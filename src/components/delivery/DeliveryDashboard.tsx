@@ -2,11 +2,12 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   LogOut, MapPin, MessageCircle, Wallet, User, Menu, X,
   CheckCircle, AlertCircle, Banknote, Package, Clock, Check, Truck,
-  Settings, Bell, Star, Phone, Navigation, BarChart3
+  Settings, Bell, Star, Phone, Navigation, BarChart3, Lock
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase, Order, DeliveryAgent } from '../../lib/supabase';
+import { supabase, Order, DeliveryAgent, Profile } from '../../lib/supabase';
 import { ChatModal } from '../shared/ChatModal';
+import { LocationTracker } from '../shared/LocationTracker';
 import { WalletService } from '../../services';
 
 // Interfaces
@@ -83,7 +84,9 @@ const BANK_OPTIONS = [
 ];
 
 export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProfile }) => {
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, checkApprovalStatus } = useAuth();
+  const [approvalStatus, setApprovalStatus] = useState<boolean | null>(null);
+  const [loadingApproval, setLoadingApproval] = useState(true);
 
   // Core state
   const [agent, setAgent] = useState<DeliveryAgent | null>(null);
@@ -93,6 +96,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   const [availableOrders, setAvailableOrders] = useState<FullOrder[]>([]);
   const [myOrders, setMyOrders] = useState<FullOrder[]>([]);
   const [selectedOrderForChat, setSelectedOrderForChat] = useState<FullOrder | null>(null);
+  const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<FullOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
   const [dashboardKey, setDashboardKey] = useState(0);
@@ -304,9 +308,24 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   // Initial + periodic fetch
   useEffect(() => {
     fetchData();
+
+    // Check approval status for delivery agents
+    if (profile && profile.role === 'delivery_agent') {
+      checkAgentApproval();
+    }
+
     const interval = setInterval(fetchData, 15000);
     return () => clearInterval(interval);
-  }, [fetchData]);
+  }, [fetchData, profile]);
+
+  const checkAgentApproval = async () => {
+    if (profile && profile.role === 'delivery_agent') {
+      setLoadingApproval(true);
+      const status = await checkApprovalStatus(profile.id, 'delivery_agent');
+      setApprovalStatus(status);
+      setLoadingApproval(false);
+    }
+  };
 
   // Save bank details with Paystack verification
   const saveBankDetails = async () => {
@@ -530,6 +549,53 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         </div>
       </div>
     );
+  }
+
+  // Check if user is a delivery agent and hasn't been approved yet
+  if (profile && profile.role === 'delivery_agent') {
+    if (loadingApproval) {
+      return <div className="min-h-screen flex items-center justify-center">Checking approval status...</div>;
+    }
+
+    if (approvalStatus === false) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
+            <Lock className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Account Pending Approval</h2>
+            <p className="text-gray-600 mb-6">
+              Your delivery agent account is currently under review by the admin. You will be notified once approved.
+            </p>
+            <button
+              onClick={signOut}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (approvalStatus === null) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
+            <Lock className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Account Approval Required</h2>
+            <p className="text-gray-600 mb-6">
+              Your delivery agent account needs to be approved by the admin before you can access the dashboard.
+            </p>
+            <button
+              onClick={signOut}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+      );
+    }
   }
 
   if (!agent) {
@@ -1003,14 +1069,11 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                               Chat
                             </button>
                             <button
-                              onClick={() => {
-                                // In a real app, this would open navigation
-                                alert('Navigation would open to customer location');
-                              }}
-                              className="px-3 py-1.5 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 flex items-center"
+                              onClick={() => setSelectedOrderForTracking(order)}
+                              className="px-3 py-1.5 text-xs bg-blue-200 text-blue-700 rounded hover:bg-blue-300 flex items-center"
                             >
                               <Navigation className="h-3 w-3 mr-1" />
-                              Navigate
+                              Track
                             </button>
                           </div>
                         </div>
@@ -1202,6 +1265,14 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
           orderNumber={selectedOrderForChat.order_number}
           recipientName="Customer"
           onClose={() => setSelectedOrderForChat(null)}
+        />
+      )}
+
+      {selectedOrderForTracking && (
+        <LocationTracker
+          orderId={selectedOrderForTracking.id}
+          orderStatus={selectedOrderForTracking.status}
+          onClose={() => setSelectedOrderForTracking(null)}
         />
       )}
 

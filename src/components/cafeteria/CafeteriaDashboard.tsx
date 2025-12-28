@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { LogOut, Plus, Edit2, ToggleLeft, ToggleRight, Upload, Menu, X, User, Camera, Save } from 'lucide-react';
+import { LogOut, Plus, Edit2, ToggleLeft, ToggleRight, Upload, Menu, X, User, Camera, Save, Lock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { MenuItem, Cafeteria } from '../../lib/supabase';
+import { MenuItem, Cafeteria, Profile } from '../../lib/supabase';
 import { supabase } from '../../lib/supabase/client';
 import { MenuItemForm } from '../shared/MenuItemForm';
 import { seedCafeteriaMenu } from '../../utils/cafeteriaMenuSeeder';
@@ -44,7 +44,9 @@ const uploadImage = async (file: File): Promise<string | null> => {
 };
 
 export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowProfile }) => {
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, checkApprovalStatus } = useAuth();
+  const [approvalStatus, setApprovalStatus] = useState<boolean | null>(null);
+  const [loadingApproval, setLoadingApproval] = useState(true);
   const [cafeteria, setCafeteria] = useState<Cafeteria | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -64,7 +66,21 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
 
   useEffect(() => {
     fetchData();
+
+    // Check approval status for vendors
+    if (profile && profile.role === 'vendor') {
+      checkVendorApproval();
+    }
   }, [profile]);
+
+  const checkVendorApproval = async () => {
+    if (profile && profile.role === 'vendor') {
+      setLoadingApproval(true);
+      const status = await checkApprovalStatus(profile.id, 'vendor');
+      setApprovalStatus(status);
+      setLoadingApproval(false);
+    }
+  };
 
   // Update the open status when cafeteria data is loaded
   useEffect(() => {
@@ -331,6 +347,53 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
+  // Check if user is a vendor and hasn't been approved yet
+  if (profile && profile.role === 'vendor') {
+    if (loadingApproval) {
+      return <div className="min-h-screen flex items-center justify-center">Checking approval status...</div>;
+    }
+
+    if (approvalStatus === false) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
+            <Lock className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Account Pending Approval</h2>
+            <p className="text-gray-600 mb-6">
+              Your vendor account is currently under review by the admin. You will be notified once approved.
+            </p>
+            <button
+              onClick={signOut}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (approvalStatus === null) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
+            <Lock className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Account Approval Required</h2>
+            <p className="text-gray-600 mb-6">
+              Your vendor account needs to be approved by the admin before you can access the dashboard.
+            </p>
+            <button
+              onClick={signOut}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+      );
+    }
   }
 
   if (!cafeteria) {

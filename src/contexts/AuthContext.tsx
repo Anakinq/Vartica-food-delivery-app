@@ -19,6 +19,7 @@ interface AuthContextType {
   signUpWithGoogle: (role: 'customer' | 'vendor' | 'delivery_agent', phone?: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  checkApprovalStatus: (userId: string, role: string) => Promise<boolean | null>;
   linkAccountWithEmailPassword: (password: string) => Promise<{ data: any; error: Error | null } | { data: null; error: Error }>;
 }
 
@@ -96,6 +97,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.error('Error refreshing profile:', error);
       }
     }
+  };
+
+  const checkApprovalStatus = async (userId: string, role: string) => {
+    if (!user) return null;
+
+    const { data, error } = await databaseService.selectSingle<Profile>({
+      table: 'profiles',
+      match: { id: userId },
+      columns: 'vendor_approved, delivery_approved'
+    });
+
+    if (error) {
+      console.error('Error fetching approval status:', error);
+      return null;
+    }
+
+    if (role === 'vendor') {
+      return data?.vendor_approved ?? null;
+    } else if (role === 'delivery_agent') {
+      return data?.delivery_approved ?? null;
+    }
+
+    return null;
   };
 
   // 🔄 Sync auth state (initial + real-time)
@@ -434,6 +458,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         signUpWithGoogle,
         signOut,
         refreshProfile,
+        checkApprovalStatus,
         linkAccountWithEmailPassword,
       }}
     >

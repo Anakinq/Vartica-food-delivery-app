@@ -163,6 +163,133 @@ class SupabaseDatabaseService implements IDatabaseService {
       },
     };
   }
+
+  async getPendingApprovals() {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        id,
+        email,
+        full_name,
+        role,
+        vendor_approved,
+        delivery_approved,
+        created_at
+      `)
+      .or('vendor_approved.is.null,delivery_approved.is.null')
+      .neq('role', 'customer')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching pending approvals:', error);
+      throw error;
+    }
+
+    return { data, error: null };
+  }
+
+  async updateApproval(userId: string, role: 'vendor' | 'delivery_agent', approved: boolean) {
+    let updateData = {};
+    if (role === 'vendor') {
+      updateData = { vendor_approved: approved };
+    } else if (role === 'delivery_agent') {
+      updateData = { delivery_approved: approved };
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update(updateData)
+      .eq('id', userId);
+
+    if (error) {
+      console.error('Error updating approval:', error);
+      throw error;
+    }
+
+    return { success: true, error: null };
+  }
+
+  async getVendorStatus(userId: string) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('vendor_approved')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching vendor status:', error);
+      throw error;
+    }
+
+    return { data, error: null };
+  }
+
+  async getDeliveryAgentStatus(userId: string) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('delivery_approved')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching delivery agent status:', error);
+      throw error;
+    }
+
+    return { data, error: null };
+  }
+
+  // Add location tracking methods
+  async updateOrderLocation(orderId: string, location: { latitude: number; longitude: number; timestamp?: string; accuracy?: number }) {
+    const locationData = {
+      latitude: location.latitude,
+      longitude: location.longitude,
+      timestamp: location.timestamp || new Date().toISOString(),
+      accuracy: location.accuracy
+    };
+
+    const { error } = await supabase
+      .from('orders')
+      .update({ delivery_agent_location: locationData })
+      .eq('id', orderId);
+
+    if (error) {
+      console.error('Error updating delivery agent location:', error);
+      throw error;
+    }
+
+    return { success: true, error: null };
+  }
+
+  async getDeliveryAgentLocation(orderId: string) {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('delivery_agent_location')
+      .eq('id', orderId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching delivery agent location:', error);
+      throw error;
+    }
+
+    return { data, error: null };
+  }
+
+  async getCustomerLocation(orderId: string) {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('customer_location')
+      .eq('id', orderId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching customer location:', error);
+      throw error;
+    }
+
+    return { data, error: null };
+  }
 }
 
 export const databaseService = new SupabaseDatabaseService();

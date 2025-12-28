@@ -10,6 +10,8 @@ export interface Profile {
     role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin';
     phone?: string;
     created_at?: string;
+    vendor_approved?: boolean | null;
+    delivery_approved?: boolean | null;
 }
 
 export interface Cafeteria {
@@ -80,6 +82,24 @@ export interface Order {
     scheduled_for?: string;
     created_at?: string;
     updated_at?: string;
+    // Added location tracking fields
+    customer_location?: {
+        latitude: number;
+        longitude: number;
+        timestamp: string;
+        accuracy?: number;
+    };
+    delivery_agent_location?: {
+        latitude: number;
+        longitude: number;
+        timestamp: string;
+        accuracy?: number;
+    };
+    route_coordinates?: Array<{
+        latitude: number;
+        longitude: number;
+        timestamp: string;
+    }>;
 }
 
 export interface OrderItem {
