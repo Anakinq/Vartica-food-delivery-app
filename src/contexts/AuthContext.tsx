@@ -102,7 +102,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const checkApprovalStatus = async (userId: string, role: string) => {
     if (!user) return null;
 
-    const { data, error } = await databaseService.selectSingle<Profile>({
+    const { data, error } = await databaseService.selectSingle<{
+      vendor_approved?: boolean | null;
+      delivery_approved?: boolean | null;
+    }>({
       table: 'profiles',
       match: { id: userId },
       columns: 'vendor_approved, delivery_approved'
