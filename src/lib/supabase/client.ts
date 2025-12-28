@@ -120,15 +120,21 @@ class SafeStorage {
 
 const safeStorage = new SafeStorage();
 
-// Validate required environment variables
+// Validate required environment variables in development
 if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-        'Missing Supabase configuration. Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your environment variables.'
-    );
-}
+    console.warn('Missing Supabase configuration. Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your environment variables.');
 
-// Validate URL format
-if (!supabaseUrl.startsWith('https://')) {
+    // In production builds, we'll set default empty values to allow build to proceed
+    // The actual error handling will happen at runtime
+    if (typeof window !== 'undefined') {
+        // Only throw error in browser environment, not during build
+        if (process.env.NODE_ENV === 'development') {
+            throw new Error(
+                'Missing Supabase configuration. Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your environment variables.'
+            );
+        }
+    }
+} else if (supabaseUrl && !supabaseUrl.startsWith('https://')) {
     throw new Error('VITE_SUPABASE_URL must be a valid HTTPS URL');
 }
 

@@ -31,10 +31,22 @@ if ('serviceWorker' in navigator) {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                 // New update available
-                if (confirm('New version available! Reload to update?')) {
+                // Show notification instead of confirm dialog for better UX
+                const showUpdateNotification = () => {
+                  if (typeof window !== 'undefined') {
+                    // Create a simple notification or update banner instead of confirm dialog
+                    console.log('New version available! Refresh to update.');
+                    // You could show a custom UI element here instead
+                  }
+                  showUpdateNotification();
+
+                  // Auto-update after a delay or when user interacts with notification
                   newWorker.postMessage({ type: 'SKIP_WAITING' });
                   window.location.reload();
-                }
+                };
+
+                // Trigger update notification
+                showUpdateNotification();
               }
             });
           }

@@ -11,6 +11,9 @@ const STATIC_ASSETS = [
     '/icon-192.png',
     '/icon-512.png',
     '/favicon.ico',
+    // Add other critical assets that should be cached
+    '/src/main.tsx',
+    '/src/App.tsx',
 ];
 
 // Install event - cache static assets

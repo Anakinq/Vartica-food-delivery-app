@@ -230,7 +230,7 @@ function App() {
 
     // Validate environment variables (silent check)
     if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-      alert('Configuration error: Missing Supabase credentials. Check your .env file.');
+      console.warn('Configuration error: Missing Supabase credentials. Check your .env file.');
     }
   }, []);
 
