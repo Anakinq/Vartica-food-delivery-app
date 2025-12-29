@@ -11,9 +11,6 @@ const STATIC_ASSETS = [
     '/icon-192.png',
     '/icon-512.png',
     '/favicon.ico',
-    // Add other critical assets that should be cached
-    '/src/main.tsx',
-    '/src/App.tsx',
 ];
 
 // Install event - cache static assets
@@ -78,6 +75,12 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // For non-GET requests (POST, PUT, DELETE, etc.), always go to network directly
+    if (request.method !== 'GET') {
+        event.respondWith(fetch(request));
+        return;
+    }
+
     // Network-first for API calls
     if (
         url.hostname.includes('supabase.co') ||
@@ -89,7 +92,7 @@ self.addEventListener('fetch', (event) => {
                 if (cachedResponse) {
                     // Update cache in background
                     fetch(request).then((response) => {
-                        if (response && response.status === 200) {
+                        if (response && response.status === 200 && request.method === 'GET') {
                             const responseClone = response.clone();
                             caches.open(DYNAMIC_CACHE).then((cache) => {
                                 cache.put(request, responseClone);
@@ -102,7 +105,7 @@ self.addEventListener('fetch', (event) => {
 
                 // If no cached response, fetch from network
                 return fetch(request).then((response) => {
-                    if (response && response.status === 200) {
+                    if (response && response.status === 200 && request.method === 'GET') {
                         const responseClone = response.clone();
                         caches.open(DYNAMIC_CACHE).then((cache) => {
                             cache.put(request, responseClone);
@@ -140,6 +143,14 @@ self.addEventListener('fetch', (event) => {
                 }
 
                 return response;
+            }).catch((error) => {
+                console.error('Fetch failed for URL:', request.url, error);
+                // Return error response if fetch fails
+                return new Response('Network Error', {
+                    status: 408,
+                    statusText: 'Network Error',
+                    headers: new Headers({ 'content-type': 'text/plain' })
+                });
             });
         })
     );

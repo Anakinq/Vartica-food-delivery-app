@@ -472,8 +472,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {filteredCafeterias.map((cafeteria: Cafeteria) => {
                     const isSelected = selectedSeller !== null &&
-                      selectedSeller.id === cafeteria.id &&
-                      selectedSeller.type === 'cafeteria';
+                      (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === cafeteria.id &&
+                      (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).type === 'cafeteria';
                     return (
                       <div
                         key={cafeteria.id}
@@ -527,8 +527,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {filteredVendors.map((vendor: Vendor) => {
                     const isSelected = selectedSeller !== null &&
-                      selectedSeller.id === vendor.id &&
-                      selectedSeller.type === 'vendor';
+                      (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === vendor.id &&
+                      (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).type === 'vendor';
                     return (
                       <div
                         key={vendor.id}
@@ -586,9 +586,9 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                     onClick={() => handleSellerClick(lateNightVendor.id, 'vendor', lateNightVendor.store_name)}
                     role="button"
                     tabIndex={0}
-                    aria-pressed={selectedSeller !== null && lateNightVendor !== null && selectedSeller.id === lateNightVendor.id}
+                    aria-pressed={selectedSeller !== null && lateNightVendor !== null && (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === lateNightVendor.id}
                     aria-label={`Select ${lateNightVendor.store_name}`}
-                    className={`bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer relative transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 ${selectedSeller !== null && lateNightVendor !== null && selectedSeller.id === lateNightVendor.id ? 'border-orange-500 bg-orange-50' : 'border-stone-200 hover:border-orange-300'}`}
+                    className={`bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer relative transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 ${selectedSeller !== null && lateNightVendor !== null && (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === lateNightVendor.id ? 'border-orange-500 bg-orange-50' : 'border-stone-200 hover:border-orange-300'}`
                   >
                     <span className="absolute top-2 right-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full flex items-center">
                       <Moon className="h-3 w-3 mr-1" /> Late Night
@@ -668,36 +668,40 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         ))}
       </div>
 
-      {showCart && (
-        <Cart
-          items={cart}
-          onUpdateQuantity={handleUpdateQuantity}
-          onClear={handleClearCart}
-          onClose={() => setShowCart(false)}
-          cartPackCount={cartPackCount}
-          onCartPackChange={setCartPackCount}
-          onCheckout={() => setShowCheckout(true)}
-        />
-      )}
+      {
+    showCart && (
+      <Cart
+        items={cart}
+        onUpdateQuantity={handleUpdateQuantity}
+        onClear={handleClearCart}
+        onClose={() => setShowCart(false)}
+        cartPackCount={cartPackCount}
+        onCartPackChange={setCartPackCount}
+        onCheckout={() => setShowCheckout(true)}
+      />
+    )
+  }
 
-      {showCheckout && (
-        <Checkout
-          items={cart}
-          subtotal={subtotal}
-          deliveryFee={deliveryFee}
-          packCount={cartPackCount}
-          onBack={() => setShowCheckout(false)}
-          onClose={() => setShowCheckout(false)}
-          onSuccess={() => {
-            setCart([]);
-            setCartPackCount(0);
-            setShowCheckout(false);
-            showToast('Order placed successfully!');
-          }}
-        />
-      )}
+  {
+    showCheckout && (
+      <Checkout
+        items={cart}
+        subtotal={subtotal}
+        deliveryFee={deliveryFee}
+        packCount={cartPackCount}
+        onBack={() => setShowCheckout(false)}
+        onClose={() => setShowCheckout(false)}
+        onSuccess={() => {
+          setCart([]);
+          setCartPackCount(0);
+          setShowCheckout(false);
+          showToast('Order placed successfully!');
+        }}
+      />
+    )
+  }
 
-      {showOrders && <OrderTracking onClose={() => setShowOrders(false)} />}
-    </div>
+  { showOrders && <OrderTracking onClose={() => setShowOrders(false)} /> }
+    </div >
   );
 };

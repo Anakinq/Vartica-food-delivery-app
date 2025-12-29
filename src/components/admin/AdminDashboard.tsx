@@ -8,17 +8,16 @@ interface AdminDashboardProps {
   onShowProfile?: () => void;
 }
 
-interface WithdrawalRequest {
+interface WithdrawalRecord {
   id: string;
   agent_id: string;
-  rider_name: string;
   amount: number;
-  bank_name: string;
-  account_number: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'processing' | 'completed' | 'failed';
   created_at: string;
-  approved_at?: string;
-  rejection_reason?: string;
+  processed_at?: string;
+  error_message?: string;
+  paystack_transfer_code?: string;
+  paystack_transfer_reference?: string;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile }) => {
@@ -33,7 +32,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
   });
   const [users, setUsers] = useState<Profile[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
+  const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRecord[]>([]);
   const [activeTab, setActiveTab] = useState<'users' | 'orders' | 'withdrawals' | 'approvals'>('withdrawals');
   const [loading, setLoading] = useState(true);
   const [processingWithdrawal, setProcessingWithdrawal] = useState<string | null>(null);
@@ -51,7 +50,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
       supabase.from('vendors').select('*'),
       supabase.from('delivery_agents').select('*'),
       supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(50),
-      supabase.from('withdrawal_requests').select('*').order('created_at', { ascending: false }),
+      supabase.from('withdrawals').select('*').order('created_at', { ascending: false }),
     ]);
 
     if (usersRes.data) {
@@ -87,67 +86,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
     setLoading(false);
   };
 
-  const handleApproveWithdrawal = async (withdrawalId: string) => {
-    if (!user?.id) return;
-
-    // Confirm action
-    const confirmed = window.confirm(
-      '⚠️ IMPORTANT: Have you manually sent the money to the rider\'s bank account?\n\nOnly click OK if payment is completed.'
-    );
-    if (!confirmed) return;
-
-    setProcessingWithdrawal(withdrawalId);
-
-    try {
-      const { data, error } = await supabase.rpc('approve_withdrawal', {
-        p_withdrawal_id: withdrawalId,
-        p_admin_id: user.id,
-      });
-
-      if (error) throw error;
-      if (!data.success) throw new Error(data.error);
-
-      alert('✅ Withdrawal approved! Rider will see updated balance.');
-      await fetchData(); // Refresh
-    } catch (err: any) {
-      alert(`❌ Error: ${err.message}`);
-    } finally {
-      setProcessingWithdrawal(null);
-    }
-  };
-
-  const handleRejectWithdrawal = async (withdrawalId: string) => {
-    const reason = prompt('Enter rejection reason:');
-    if (!reason || reason.trim().length === 0) {
-      alert('Rejection reason is required.');
-      return;
-    }
-
-    // Sanitize input
-    const sanitizedReason = reason.trim().slice(0, 200);
-
-    setProcessingWithdrawal(withdrawalId);
-
-    try {
-      const { error } = await supabase
-        .from('withdrawal_requests')
-        .update({
-          status: 'rejected',
-          rejection_reason: sanitizedReason,
-        })
-        .eq('id', withdrawalId);
-
-      if (error) throw error;
-
-      alert('❌ Withdrawal rejected.');
-      await fetchData();
-    } catch (err: any) {
-      alert(`Error: ${err.message}`);
-    } finally {
-      setProcessingWithdrawal(null);
-    }
-  };
-
   // Function to filter data based on search term and date range
   const filterData = () => {
     // Filter users
@@ -175,13 +113,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
       return matchesSearch && matchesDate;
     });
 
-    // Filter withdrawal requests
+    // Filter withdrawal records
     const filteredWithdrawals = withdrawalRequests.filter(request => {
       const matchesSearch = searchTerm === '' ||
-        request.rider_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        request.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        request.bank_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        request.account_number.includes(searchTerm);
+        request.agent_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        request.status.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesDate = dateRange.start && dateRange.end ?
         new Date(request.created_at) >= new Date(dateRange.start) &&
@@ -212,7 +148,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
         break;
       case 'withdrawals':
         data = filteredWithdrawals;
-        headers = ['Date', 'Rider', 'Amount', 'Bank', 'Account', 'Status'];
+        headers = ['Date', 'Agent ID', 'Amount', 'Status', 'Paystack Reference', 'Processed At'];
         break;
       default:
         return;
@@ -483,24 +419,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
             )}
             {activeTab === 'withdrawals' && (
               <div>
-                <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-sm text-yellow-800">
-                    <strong>⚠️ Manual Withdrawal System:</strong> After approving, you must manually send the money to the rider's bank account via your banking app.
-                  </p>
-                </div>
                 {filterData().filteredWithdrawals.length === 0 ? (
-                  <p className="text-gray-600">No withdrawal requests found.</p>
+                  <p className="text-gray-600">No withdrawal records found.</p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="min-w-full">
                       <thead>
                         <tr className="border-b border-gray-200">
                           <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Rider</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Agent ID</th>
                           <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Amount</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Bank Details</th>
                           <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Action</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Paystack Reference</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Processed At</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -514,59 +445,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                                 minute: '2-digit',
                               })}
                             </td>
-                            <td className="py-3 px-4 text-sm font-medium text-gray-900">{req.rider_name}</td>
+                            <td className="py-3 px-4 text-sm font-medium text-gray-900">{req.agent_id}</td>
                             <td className="py-3 px-4 text-sm font-bold text-green-600">
                               ₦{Number(req.amount).toFixed(2)}
                             </td>
-                            <td className="py-3 px-4 text-sm text-gray-600">
-                              <div><strong>{req.bank_name}</strong></div>
-                              <div className="text-xs text-gray-500">{req.account_number}</div>
-                            </td>
                             <td className="py-3 px-4">
                               <span
-                                className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${req.status === 'approved'
+                                className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${req.status === 'completed'
                                   ? 'bg-green-100 text-green-700'
-                                  : req.status === 'rejected'
+                                  : req.status === 'failed'
                                     ? 'bg-red-100 text-red-700'
-                                    : 'bg-yellow-100 text-yellow-700'
+                                    : req.status === 'processing'
+                                      ? 'bg-yellow-100 text-yellow-700'
+                                      : 'bg-blue-100 text-blue-700'
                                   }`}
                               >
-                                {req.status === 'approved' && '✅ '}
-                                {req.status === 'rejected' && '❌ '}
-                                {req.status === 'pending' && '⏳ '}
+                                {req.status === 'completed' && '✅ '}
+                                {req.status === 'failed' && '❌ '}
+                                {req.status === 'processing' && '⏳ '}
+                                {req.status === 'pending' && '📅 '}
                                 {req.status.toUpperCase()}
                               </span>
-                              {req.approved_at && (
+                              {req.processed_at && (
                                 <div className="text-xs text-gray-500 mt-1">
-                                  {new Date(req.approved_at).toLocaleDateString()}
+                                  {new Date(req.processed_at).toLocaleDateString()}
                                 </div>
                               )}
-                              {req.rejection_reason && (
-                                <div className="text-xs text-red-600 mt-1">{req.rejection_reason}</div>
+                              {req.error_message && (
+                                <div className="text-xs text-red-600 mt-1">{req.error_message}</div>
                               )}
                             </td>
-                            <td className="py-3 px-4">
-                              {req.status === 'pending' && (
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => handleApproveWithdrawal(req.id)}
-                                    disabled={processingWithdrawal === req.id}
-                                    className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
-                                  >
-                                    {processingWithdrawal === req.id ? 'Processing...' : '✅ Approve'}
-                                  </button>
-                                  <button
-                                    onClick={() => handleRejectWithdrawal(req.id)}
-                                    disabled={processingWithdrawal === req.id}
-                                    className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 disabled:opacity-50"
-                                  >
-                                    ❌ Reject
-                                  </button>
-                                </div>
-                              )}
-                              {req.status !== 'pending' && (
-                                <span className="text-xs text-gray-500">—</span>
-                              )}
+                            <td className="py-3 px-4 text-sm text-gray-600">
+                              {req.paystack_transfer_reference || req.paystack_transfer_code || 'N/A'}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-gray-600">
+                              {req.processed_at ? new Date(req.processed_at).toLocaleString() : 'N/A'}
                             </td>
                           </tr>
                         ))}

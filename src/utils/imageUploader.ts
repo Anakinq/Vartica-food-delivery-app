@@ -81,12 +81,12 @@ export const getImageUrl = async (filename: string): Promise<string> => {
     const cleanFilename = filename.trim().replace(/\s+/g, ' ').replace(/[<>:"/\\|?*]/g, '_');
 
     // First, try to get the public URL from Supabase storage
-    const { data, error } = await supabase
+    const { data } = await supabase
         .storage
         .from('menu-images')
         .getPublicUrl(cleanFilename);
 
-    if (!error && data?.publicUrl) {
+    if (data?.publicUrl) {
         return data.publicUrl;
     }
 

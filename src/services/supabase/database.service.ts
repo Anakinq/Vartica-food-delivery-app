@@ -206,6 +206,19 @@ class SupabaseDatabaseService implements IDatabaseService {
       throw error;
     }
 
+    // If vendor is approved, also update the vendor's is_active status
+    if (role === 'vendor' && approved) {
+      const { error: vendorError } = await supabase
+        .from('vendors')
+        .update({ is_active: true })
+        .eq('user_id', userId);
+
+      if (vendorError) {
+        console.error('Error updating vendor active status:', vendorError);
+        throw vendorError;
+      }
+    }
+
     return { success: true, error: null };
   }
 
