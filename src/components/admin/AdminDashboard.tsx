@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LogOut, Users, Store, Bike, Package, Wallet, Menu, X, Search, Filter, Download, BarChart3, Settings, User, CreditCard, AlertTriangle, UserCheck } from 'lucide-react';
+import { LogOut, Users, Store, Bike, Package, Wallet, Menu, X, Search, Filter, Download, BarChart3, Settings, User, CreditCard, AlertTriangle, UserCheck, MessageCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Profile, Order } from '../../lib/supabase';
 import { AdminApprovalDashboard } from './AdminApprovalDashboard';
@@ -33,7 +33,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
   const [users, setUsers] = useState<Profile[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRecord[]>([]);
-  const [activeTab, setActiveTab] = useState<'users' | 'orders' | 'withdrawals' | 'approvals'>('withdrawals');
+  const [supportMessages, setSupportMessages] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'users' | 'orders' | 'withdrawals' | 'approvals' | 'support'>('withdrawals');
   const [loading, setLoading] = useState(true);
   const [processingWithdrawal, setProcessingWithdrawal] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -45,12 +46,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
   }, []);
 
   const fetchData = async () => {
-    const [usersRes, vendorsRes, agentsRes, ordersRes, withdrawalsRes] = await Promise.all([
+    const [usersRes, vendorsRes, agentsRes, ordersRes, withdrawalsRes, supportRes] = await Promise.all([
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
       supabase.from('vendors').select('*'),
       supabase.from('delivery_agents').select('*'),
       supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(50),
       supabase.from('withdrawals').select('*').order('created_at', { ascending: false }),
+      supabase.from('support_messages').select('*').order('created_at', { ascending: false }),
     ]);
 
     if (usersRes.data) {
@@ -81,6 +83,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
         ...prev,
         pendingWithdrawals: withdrawalsRes.data.filter(w => w.status === 'pending').length,
       }));
+    }
+
+    if (supportRes.data) {
+      setSupportMessages(supportRes.data);
     }
 
     setLoading(false);
@@ -127,12 +133,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
       return matchesSearch && matchesDate;
     });
 
-    return { filteredUsers, filteredOrders, filteredWithdrawals };
+    // Filter support messages
+    const filteredSupportMessages = supportMessages.filter(message => {
+      const matchesSearch = searchTerm === '' ||
+        message.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        message.user_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        message.message.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesDate = dateRange.start && dateRange.end ?
+        new Date(message.created_at) >= new Date(dateRange.start) &&
+        new Date(message.created_at) <= new Date(dateRange.end) :
+        true;
+
+      return matchesSearch && matchesDate;
+    });
+
+    return { filteredUsers, filteredOrders, filteredWithdrawals, filteredSupportMessages };
   };
 
   // Function to export data
-  const exportData = (type: 'users' | 'orders' | 'withdrawals') => {
-    const { filteredUsers, filteredOrders, filteredWithdrawals } = filterData();
+  const exportData = (type: 'users' | 'orders' | 'withdrawals' | 'support') => {
+    const { filteredUsers, filteredOrders, filteredWithdrawals, filteredSupportMessages } = filterData();
 
     let data: any[];
     let headers: string[];
@@ -149,6 +170,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
       case 'withdrawals':
         data = filteredWithdrawals;
         headers = ['Date', 'Agent ID', 'Amount', 'Status', 'Paystack Reference', 'Processed At'];
+        break;
+      case 'support':
+        data = filteredSupportMessages;
+        headers = ['User Name', 'User Email', 'Message', 'Created At', 'Is Resolved'];
         break;
       default:
         return;
@@ -245,6 +270,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                 <div className="flex items-center space-x-2">
                   <Wallet className="h-4 w-4" />
                   <span>Withdrawals</span>
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('support');
+                  setShowMenu(false);
+                }}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <div className="flex items-center space-x-2">
+                  <MessageCircle className="h-4 w-4" />
+                  <span>Support Messages</span>
                 </div>
               </button>
               <button
@@ -410,6 +447,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
               >
                 Approvals
               </button>
+              <button
+                onClick={() => setActiveTab('support')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'support'
+                  ? 'border-purple-600 text-purple-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                  }`}
+              >
+                Support Messages
+              </button>
             </nav>
           </div>
 
@@ -560,6 +606,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                         </td>
                         <td className="py-3 px-4 text-sm text-gray-600">
                           {new Date(order.created_at).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {activeTab === 'support' && (
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">User Name</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">User Email</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Message</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filterData().filteredSupportMessages.map(message => (
+                      <tr key={message.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-3 px-4 text-sm text-gray-900">{message.user_name}</td>
+                        <td className="py-3 px-4 text-sm text-gray-600">{message.user_email}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700 max-w-xs truncate" title={message.message}>{message.message}</td>
+                        <td className="py-3 px-4 text-sm text-gray-600">
+                          {new Date(message.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${message.is_resolved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                            {message.is_resolved ? 'Resolved' : 'Pending'}
+                          </span>
                         </td>
                       </tr>
                     ))}
