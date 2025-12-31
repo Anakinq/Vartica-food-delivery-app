@@ -116,8 +116,9 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     }
     if (vendorsRes.data) {
       const students = vendorsRes.data.filter(v => v.vendor_type === 'student');
+      const lateNight = vendorsRes.data.filter(v => v.vendor_type === 'late_night');
       setStudentVendors(students);
-      setLateNightVendors(vendorsRes.data.filter(v => v.vendor_type === 'late_night'));
+      setLateNightVendors(lateNight);
     }
     setLoading(false);
   };
@@ -576,161 +577,49 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
             </section>
 
             {lateNightVendors.length > 0 && (
-              <section>
+              <section className="mb-12">
                 <div className="flex items-center space-x-2 mb-6">
                   <Moon className="h-6 w-6 text-stone-700" />
                   <h2 className="text-2xl font-bold text-stone-800">Late-Night Vendors</h2>
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {lateNightVendors.map(vendor => (
+                    <div
+                      key={vendor.id}
+                      onClick={() => handleSellerClick(vendor.id, 'vendor', vendor.store_name)}
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={selectedSeller !== null && (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === vendor.id}
+                      aria-label={`Select ${vendor.store_name}`}
+                      className={
+                        `bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer relative transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 ${selectedSeller !== null && (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === vendor.id ? 'border-orange-500 bg-orange-50' : 'border-stone-200 hover:border-orange-300'}`
+                      }
+                    >
+                      <span className="absolute top-2 right-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full flex items-center">
+                        <Moon className="h-3 w-3 mr-1" /> Late Night
+                      </span>
+                      <img
+                        src={vendor.image_url || getImagePath(vendor.id, 'vendor')}
+                        alt={vendor.store_name}
+                        className="w-20 h-20 rounded-xl object-cover mb-4"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          const currentSrc = target.src;
 
-                {lateNightVendors.length > 0 && (
-                  <section>
-                    <div className="flex items-center space-x-2 mb-6">
-                      <Moon className="h-6 w-6 text-stone-700" />
-                      <h2 className="text-2xl font-bold text-stone-800">Late-Night Vendors</h2>
+                          // If the current src is not already the fallback, try the fallback
+                          if (!currentSrc.includes('placeholder.jpg') && !currentSrc.includes('placehold.co')) {
+                            target.src = '/images/placeholder.jpg';
+                          } else {
+                            // If already showing fallback, try another fallback
+                            target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
+                          }
+                        }}
+                      />
+                      <h3 className="font-bold text-stone-800">{vendor.store_name}</h3>
+                      <p className="text-sm text-stone-600 mt-1 line-clamp-2">{vendor.description}</p>
                     </div>
-
-                    {/* Med Side Late Night Vendor */}
-                    {lateNightVendors.filter(v => v.location === 'med_side').length > 0 && (
-                      <div className="mb-8">
-                        <h3 className="text-xl font-semibold text-stone-700 mb-4">Med Side</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                          {lateNightVendors
-                            .filter(v => v.location === 'med_side')
-                            .map(vendor => (
-                              <div
-                                key={vendor.id}
-                                onClick={() => handleSellerClick(vendor.id, 'vendor', vendor.store_name)}
-                                role="button"
-                                tabIndex={0}
-                                aria-pressed={selectedSeller !== null && (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === vendor.id}
-                                aria-label={`Select ${vendor.store_name}`}
-                                className={
-                                  `bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer relative transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 ${selectedSeller !== null && (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === vendor.id ? 'border-orange-500 bg-orange-50' : 'border-stone-200 hover:border-orange-300'}`
-                                }
-                              >
-                                <span className="absolute top-2 right-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full flex items-center">
-                                  <Moon className="h-3 w-3 mr-1" /> Late Night
-                                </span>
-                                <img
-                                  src={vendor.image_url || getImagePath(vendor.id, 'vendor')}
-                                  alt={vendor.store_name}
-                                  className="w-20 h-20 rounded-xl object-cover mb-4"
-                                  onError={(e) => {
-                                    const target = e.currentTarget;
-                                    const currentSrc = target.src;
-
-                                    // If the current src is not already the fallback, try the fallback
-                                    if (!currentSrc.includes('placeholder.jpg') && !currentSrc.includes('placehold.co')) {
-                                      target.src = '/images/placeholder.jpg';
-                                    } else {
-                                      // If already showing fallback, try another fallback
-                                      target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
-                                    }
-                                  }}
-                                />
-                                <h3 className="font-bold text-stone-800">{vendor.store_name}</h3>
-                                <p className="text-sm text-stone-600 mt-1 line-clamp-2">{vendor.description}</p>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Main School Late Night Vendor */}
-                    {lateNightVendors.filter(v => v.location === 'main_school').length > 0 && (
-                      <div className="mb-8">
-                        <h3 className="text-xl font-semibold text-stone-700 mb-4">Main School</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                          {lateNightVendors
-                            .filter(v => v.location === 'main_school')
-                            .map(vendor => (
-                              <div
-                                key={vendor.id}
-                                onClick={() => handleSellerClick(vendor.id, 'vendor', vendor.store_name)}
-                                role="button"
-                                tabIndex={0}
-                                aria-pressed={selectedSeller !== null && (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === vendor.id}
-                                aria-label={`Select ${vendor.store_name}`}
-                                className={
-                                  `bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer relative transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 ${selectedSeller !== null && (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === vendor.id ? 'border-orange-500 bg-orange-50' : 'border-stone-200 hover:border-orange-300'}`
-                                }
-                              >
-                                <span className="absolute top-2 right-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full flex items-center">
-                                  <Moon className="h-3 w-3 mr-1" /> Late Night
-                                </span>
-                                <img
-                                  src={vendor.image_url || getImagePath(vendor.id, 'vendor')}
-                                  alt={vendor.store_name}
-                                  className="w-20 h-20 rounded-xl object-cover mb-4"
-                                  onError={(e) => {
-                                    const target = e.currentTarget;
-                                    const currentSrc = target.src;
-
-                                    // If the current src is not already the fallback, try the fallback
-                                    if (!currentSrc.includes('placeholder.jpg') && !currentSrc.includes('placehold.co')) {
-                                      target.src = '/images/placeholder.jpg';
-                                    } else {
-                                      // If already showing fallback, try another fallback
-                                      target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
-                                    }
-                                  }}
-                                />
-                                <h3 className="font-bold text-stone-800">{vendor.store_name}</h3>
-                                <p className="text-sm text-stone-600 mt-1 line-clamp-2">{vendor.description}</p>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Other Late Night Vendors (fallback) */}
-                    {lateNightVendors.filter(v => !v.location).length > 0 && (
-                      <div>
-                        <h3 className="text-xl font-semibold text-stone-700 mb-4">Other Late-Night Vendors</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                          {lateNightVendors
-                            .filter(v => !v.location)
-                            .map(vendor => (
-                              <div
-                                key={vendor.id}
-                                onClick={() => handleSellerClick(vendor.id, 'vendor', vendor.store_name)}
-                                role="button"
-                                tabIndex={0}
-                                aria-pressed={selectedSeller !== null && (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === vendor.id}
-                                aria-label={`Select ${vendor.store_name}`}
-                                className={
-                                  `bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer relative transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 ${selectedSeller !== null && (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === vendor.id ? 'border-orange-500 bg-orange-50' : 'border-stone-200 hover:border-orange-300'}`
-                                }
-                              >
-                                <span className="absolute top-2 right-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full flex items-center">
-                                  <Moon className="h-3 w-3 mr-1" /> Late Night
-                                </span>
-                                <img
-                                  src={vendor.image_url || getImagePath(vendor.id, 'vendor')}
-                                  alt={vendor.store_name}
-                                  className="w-20 h-20 rounded-xl object-cover mb-4"
-                                  onError={(e) => {
-                                    const target = e.currentTarget;
-                                    const currentSrc = target.src;
-
-                                    // If the current src is not already the fallback, try the fallback
-                                    if (!currentSrc.includes('placeholder.jpg') && !currentSrc.includes('placehold.co')) {
-                                      target.src = '/images/placeholder.jpg';
-                                    } else {
-                                      // If already showing fallback, try another fallback
-                                      target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
-                                    }
-                                  }}
-                                />
-                                <h3 className="font-bold text-stone-800">{vendor.store_name}</h3>
-                                <p className="text-sm text-stone-600 mt-1 line-clamp-2">{vendor.description}</p>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-                  </section>
-                )}
+                  ))}
+                </div>
               </section>
             )}
           </>

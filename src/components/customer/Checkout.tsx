@@ -41,7 +41,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
     deliveryNotes: '',
     promoCode: '',
     scheduledFor: '',
-    hostelLocation: '',
   });
   const [discount, setDiscount] = useState(0);
   const [deliveryFeeDiscount, setDeliveryFeeDiscount] = useState(0);
@@ -181,32 +180,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
     const sellerType = items[0].seller_type;
     if (!sellerId || !sellerType) throw new Error('Invalid seller info');
 
-    // Get vendor location to calculate delivery fee
-    const { data: vendorData, error: vendorError } = await supabase
-      .from('vendors')
-      .select('location')
-      .eq('id', sellerId)
-      .single();
-
-    let calculatedDeliveryFee = deliveryFee;
-    if (!vendorError && vendorData) {
-      // Calculate location-based delivery fee if both vendor and customer locations are available
-      if (vendorData.location && formData.hostelLocation) {
-        // Call the database function to get the delivery fee based on location
-        const { data: feeData, error: feeError } = await supabase
-          .rpc('get_delivery_fee', {
-            p_vendor_location: vendorData.location,
-            p_customer_location: formData.hostelLocation
-          });
-
-        if (!feeError && feeData && feeData[0]) {
-          calculatedDeliveryFee = parseFloat(feeData[0].get_delivery_fee);
-        }
-      }
-    }
-
     // Calculate effective delivery fee after discount
-    const effectiveDeliveryFee = Math.max(calculatedDeliveryFee - deliveryFeeDiscount, 0);
+    const effectiveDeliveryFee = Math.max(deliveryFee - deliveryFeeDiscount, 0);
     const total = subtotal + packTotal + effectiveDeliveryFee - discount;
     const effectiveTotal = Math.max(total, MIN_NGN);
 
@@ -238,7 +213,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
       delivery_agent_id: availableAgent?.id || null, // Assign agent if available
       status: 'pending',
       subtotal,
-      delivery_fee: calculatedDeliveryFee,
+      delivery_fee: deliveryFee,
       delivery_fee_discount: deliveryFeeDiscount,
       discount,
       total: effectiveTotal,
@@ -249,7 +224,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
       delivery_address: formData.deliveryAddress.trim() || 'Address not provided',
       delivery_notes: formData.deliveryNotes || null,
       scheduled_for: formData.scheduledFor || null,
-      customer_hostel_location: formData.hostelLocation || null, // Store customer location
       platform_commission: 300.0,
       agent_earnings: 200.0,
     };
@@ -440,37 +414,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
               />
             </div>
 
-            {/* Hostel Location */}
-            <div>
-              <label className="block text-sm font-semibold text-black mb-2">Your Hostel</label>
-              <select
-                value={formData.hostelLocation}
-                onChange={(e) => setFormData({ ...formData, hostelLocation: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
-                required
-              >
-                <option value="">Select your hostel</option>
-                <option value="New Female Hostel 1">New Female Hostel 1</option>
-                <option value="New Female Hostel 2">New Female Hostel 2</option>
-                <option value="Abuad Hostel">Abuad Hostel</option>
-                <option value="Wema Hostel">Wema Hostel</option>
-                <option value="Male Hostel 1">Male Hostel 1</option>
-                <option value="Male Hostel 2">Male Hostel 2</option>
-                <option value="Male Hostel 3">Male Hostel 3</option>
-                <option value="Male Hostel 4">Male Hostel 4</option>
-                <option value="Male Hostel 5">Male Hostel 5</option>
-                <option value="Male Hostel 6">Male Hostel 6</option>
-                <option value="Medical Male Hostel 1">Medical Male Hostel 1</option>
-                <option value="Medical Male Hostel 2">Medical Male Hostel 2</option>
-                <option value="Female Medical Hostel 1">Female Medical Hostel 1</option>
-                <option value="Female Medical Hostel 2">Female Medical Hostel 2</option>
-                <option value="Female Medical Hostel 3">Female Medical Hostel 3</option>
-                <option value="Female Medical Hostel 4">Female Medical Hostel 4</option>
-                <option value="Female Medical Hostel 5">Female Medical Hostel 5</option>
-                <option value="Female Medical Hostel 6">Female Medical Hostel 6</option>
-                <option value="Med caf">Med caf (for Med Side)</option>
-              </select>
-            </div>
+
 
             {/* Promo */}
             <div>

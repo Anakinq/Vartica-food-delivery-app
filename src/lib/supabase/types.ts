@@ -12,7 +12,6 @@ export interface Profile {
     created_at?: string;
     vendor_approved?: boolean | null;
     delivery_approved?: boolean | null;
-    hostel_location?: string;
 }
 
 export interface Cafeteria {
@@ -102,7 +101,6 @@ export interface Order {
         longitude: number;
         timestamp: string;
     }>;
-    customer_hostel_location?: string;
 }
 
 export interface OrderItem {
