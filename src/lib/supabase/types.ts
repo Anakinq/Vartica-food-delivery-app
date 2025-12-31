@@ -12,6 +12,7 @@ export interface Profile {
     created_at?: string;
     vendor_approved?: boolean | null;
     delivery_approved?: boolean | null;
+    hostel_location?: string;
 }
 
 export interface Cafeteria {
@@ -35,6 +36,7 @@ export interface Vendor {
     available_from?: string;
     available_until?: string;
     created_at?: string;
+    location?: string;
 }
 
 export interface MenuItem {
@@ -100,6 +102,7 @@ export interface Order {
         longitude: number;
         timestamp: string;
     }>;
+    customer_hostel_location?: string;
 }
 
 export interface OrderItem {
@@ -132,5 +135,19 @@ export interface ChatMessage {
     sender_id: string;
     message: string;
     is_read?: boolean;
+    created_at?: string;
+    file_url?: string;
+    file_name?: string;
+    file_size?: number;
+    file_type?: string;
+}
+
+export interface DeliveryRating {
+    id: string;
+    customer_id: string;
+    delivery_agent_id: string;
+    order_id: string;
+    rating: number;
+    review?: string;
     created_at?: string;
 }

@@ -41,8 +41,10 @@ export const Checkout: React.FC<CheckoutProps> = ({
     deliveryNotes: '',
     promoCode: '',
     scheduledFor: '',
+    hostelLocation: '',
   });
   const [discount, setDiscount] = useState(0);
+  const [deliveryFeeDiscount, setDeliveryFeeDiscount] = useState(0);
   const [promoError, setPromoError] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -82,45 +84,92 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const MIN_NGN = 100;
   const packPrice = 300.00;
   const packTotal = packPrice * packCount;
-  const total = subtotal + packTotal + deliveryFee - discount;
+  const effectiveDeliveryFee = Math.max(deliveryFee - deliveryFeeDiscount, 0);
+  const total = subtotal + packTotal + effectiveDeliveryFee - discount;
   const effectiveTotal = Math.max(total, MIN_NGN);
   const totalInKobo = Math.round(effectiveTotal * 100);
 
   const handleApplyPromo = async () => {
     setPromoError('');
     if (!formData.promoCode.trim()) return;
-    const { data, error } = await supabase
+
+    // First try regular promo codes
+    let { data, error } = await supabase
       .from('promo_codes')
       .select('*')
       .eq('code', formData.promoCode.toUpperCase())
       .eq('is_active', true)
       .maybeSingle();
-    if (error || !data) {
+
+    if (!error && data) {
+      // Regular promo code found
+      if (new Date(data.valid_until) < new Date()) {
+        setPromoError('Promo code has expired');
+        return;
+      }
+      if (data.usage_limit && data.used_count >= data.usage_limit) {
+        setPromoError('Promo code usage limit reached');
+        return;
+      }
+      if (subtotal < data.min_order_value) {
+        setPromoError(`Minimum order value is ₦${data.min_order_value}`);
+        return;
+      }
+      let calculatedDiscount = 0;
+      if (data.discount_type === 'percentage') {
+        calculatedDiscount = (subtotal * data.discount_value) / 100;
+        if (data.max_discount) {
+          calculatedDiscount = Math.min(calculatedDiscount, data.max_discount);
+        }
+      } else {
+        calculatedDiscount = data.discount_value;
+      }
+      setDiscount(calculatedDiscount);
+      setDeliveryFeeDiscount(0); // Reset delivery fee discount when using regular promo
+      return;
+    }
+
+    // If not found in regular promo codes, check delivery fee discount codes
+    const { data: deliveryFeeData, error: deliveryFeeError } = await supabase
+      .from('delivery_fee_discount_promo_codes')
+      .select('*')
+      .eq('code', formData.promoCode.toUpperCase())
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (deliveryFeeError || !deliveryFeeData) {
       setPromoError('Invalid promo code');
       return;
     }
-    if (new Date(data.valid_until) < new Date()) {
+
+    if (new Date(deliveryFeeData.valid_until) < new Date()) {
       setPromoError('Promo code has expired');
       return;
     }
-    if (data.usage_limit && data.used_count >= data.usage_limit) {
+    if (deliveryFeeData.usage_limit && deliveryFeeData.used_count >= deliveryFeeData.usage_limit) {
       setPromoError('Promo code usage limit reached');
       return;
     }
-    if (subtotal < data.min_order_value) {
-      setPromoError(`Minimum order value is ₦${data.min_order_value}`);
+    if (subtotal < deliveryFeeData.min_order_value) {
+      setPromoError(`Minimum order value is ₦${deliveryFeeData.min_order_value}`);
       return;
     }
-    let calculatedDiscount = 0;
-    if (data.discount_type === 'percentage') {
-      calculatedDiscount = (subtotal * data.discount_value) / 100;
-      if (data.max_discount) {
-        calculatedDiscount = Math.min(calculatedDiscount, data.max_discount);
+
+    let calculatedDeliveryFeeDiscount = 0;
+    if (deliveryFeeData.discount_type === 'percentage') {
+      calculatedDeliveryFeeDiscount = (deliveryFee * deliveryFeeData.discount_value) / 100;
+      if (deliveryFeeData.max_discount) {
+        calculatedDeliveryFeeDiscount = Math.min(calculatedDeliveryFeeDiscount, deliveryFeeData.max_discount);
       }
     } else {
-      calculatedDiscount = data.discount_value;
+      calculatedDeliveryFeeDiscount = deliveryFeeData.discount_value;
     }
-    setDiscount(calculatedDiscount);
+
+    // Ensure discount doesn't exceed delivery fee
+    calculatedDeliveryFeeDiscount = Math.min(calculatedDeliveryFeeDiscount, deliveryFee);
+
+    setDeliveryFeeDiscount(calculatedDeliveryFeeDiscount);
+    setDiscount(0); // Reset regular discount when using delivery fee discount
   };
 
   const createOrder = async (paymentReference?: string) => {
@@ -131,6 +180,35 @@ export const Checkout: React.FC<CheckoutProps> = ({
     const sellerId = items[0].seller_id;
     const sellerType = items[0].seller_type;
     if (!sellerId || !sellerType) throw new Error('Invalid seller info');
+
+    // Get vendor location to calculate delivery fee
+    const { data: vendorData, error: vendorError } = await supabase
+      .from('vendors')
+      .select('location')
+      .eq('id', sellerId)
+      .single();
+
+    let calculatedDeliveryFee = deliveryFee;
+    if (!vendorError && vendorData) {
+      // Calculate location-based delivery fee if both vendor and customer locations are available
+      if (vendorData.location && formData.hostelLocation) {
+        // Call the database function to get the delivery fee based on location
+        const { data: feeData, error: feeError } = await supabase
+          .rpc('get_delivery_fee', {
+            p_vendor_location: vendorData.location,
+            p_customer_location: formData.hostelLocation
+          });
+
+        if (!feeError && feeData && feeData[0]) {
+          calculatedDeliveryFee = parseFloat(feeData[0].get_delivery_fee);
+        }
+      }
+    }
+
+    // Calculate effective delivery fee after discount
+    const effectiveDeliveryFee = Math.max(calculatedDeliveryFee - deliveryFeeDiscount, 0);
+    const total = subtotal + packTotal + effectiveDeliveryFee - discount;
+    const effectiveTotal = Math.max(total, MIN_NGN);
 
     // Generate unique order number
     const orderNumber = `ORDER_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
@@ -160,7 +238,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
       delivery_agent_id: availableAgent?.id || null, // Assign agent if available
       status: 'pending',
       subtotal,
-      delivery_fee: deliveryFee,
+      delivery_fee: calculatedDeliveryFee,
+      delivery_fee_discount: deliveryFeeDiscount,
       discount,
       total: effectiveTotal,
       payment_method: 'online',
@@ -170,6 +249,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
       delivery_address: formData.deliveryAddress.trim() || 'Address not provided',
       delivery_notes: formData.deliveryNotes || null,
       scheduled_for: formData.scheduledFor || null,
+      customer_hostel_location: formData.hostelLocation || null, // Store customer location
       platform_commission: 300.0,
       agent_earnings: 200.0,
     };
@@ -246,6 +326,18 @@ export const Checkout: React.FC<CheckoutProps> = ({
       setLoading(true);
       // Create order with payment reference after successful payment
       await createOrder(response.reference);
+
+      // If a delivery fee discount promo code was used, increment its usage count
+      if (formData.promoCode && deliveryFeeDiscount > 0) {
+        const { error: incrementError } = await supabase.rpc('increment_promo_code_usage', {
+          p_code: formData.promoCode.toUpperCase()
+        });
+
+        if (incrementError) {
+          console.error('Error incrementing promo code usage:', incrementError);
+        }
+      }
+
       setSuccess(true);
       setTimeout(() => onSuccess(), 2000);
     } catch (error) {
@@ -264,6 +356,18 @@ export const Checkout: React.FC<CheckoutProps> = ({
     setLoading(true);
     try {
       await createOrder(reference);
+
+      // If a delivery fee discount promo code was used, increment its usage count
+      if (formData.promoCode && deliveryFeeDiscount > 0) {
+        const { error: incrementError } = await supabase.rpc('increment_promo_code_usage', {
+          p_code: formData.promoCode.toUpperCase()
+        });
+
+        if (incrementError) {
+          console.error('Error incrementing promo code usage:', incrementError);
+        }
+      }
+
       setSuccess(true);
       setTimeout(() => onSuccess(), 2000);
     } catch (error) {
@@ -336,6 +440,38 @@ export const Checkout: React.FC<CheckoutProps> = ({
               />
             </div>
 
+            {/* Hostel Location */}
+            <div>
+              <label className="block text-sm font-semibold text-black mb-2">Your Hostel</label>
+              <select
+                value={formData.hostelLocation}
+                onChange={(e) => setFormData({ ...formData, hostelLocation: e.target.value })}
+                className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
+                required
+              >
+                <option value="">Select your hostel</option>
+                <option value="New Female Hostel 1">New Female Hostel 1</option>
+                <option value="New Female Hostel 2">New Female Hostel 2</option>
+                <option value="Abuad Hostel">Abuad Hostel</option>
+                <option value="Wema Hostel">Wema Hostel</option>
+                <option value="Male Hostel 1">Male Hostel 1</option>
+                <option value="Male Hostel 2">Male Hostel 2</option>
+                <option value="Male Hostel 3">Male Hostel 3</option>
+                <option value="Male Hostel 4">Male Hostel 4</option>
+                <option value="Male Hostel 5">Male Hostel 5</option>
+                <option value="Male Hostel 6">Male Hostel 6</option>
+                <option value="Medical Male Hostel 1">Medical Male Hostel 1</option>
+                <option value="Medical Male Hostel 2">Medical Male Hostel 2</option>
+                <option value="Female Medical Hostel 1">Female Medical Hostel 1</option>
+                <option value="Female Medical Hostel 2">Female Medical Hostel 2</option>
+                <option value="Female Medical Hostel 3">Female Medical Hostel 3</option>
+                <option value="Female Medical Hostel 4">Female Medical Hostel 4</option>
+                <option value="Female Medical Hostel 5">Female Medical Hostel 5</option>
+                <option value="Female Medical Hostel 6">Female Medical Hostel 6</option>
+                <option value="Med caf">Med caf (for Med Side)</option>
+              </select>
+            </div>
+
             {/* Promo */}
             <div>
               <label className="block text-sm font-semibold text-black mb-2">Promo Code</label>
@@ -360,13 +496,31 @@ export const Checkout: React.FC<CheckoutProps> = ({
               </div>
               {promoError && <p className="text-sm text-red-600 mt-1">{promoError}</p>}
               {discount > 0 && <p className="text-sm text-green-600 mt-1">Discount applied: -₦{discount.toFixed(2)}</p>}
+              {deliveryFeeDiscount > 0 && <p className="text-sm text-green-600 mt-1">Delivery fee discount applied: -₦{deliveryFeeDiscount.toFixed(2)}</p>}
             </div>
 
             {/* Summary */}
             <div className="bg-gray-50 rounded-xl p-5 space-y-3 border border-gray-100">
               <div className="flex justify-between text-gray-700"><span>Subtotal</span><span className="font-medium">₦{subtotal.toFixed(2)}</span></div>
               {packCount > 0 && <div className="flex justify-between text-gray-700"><span>Food Pack ({packCount}x)</span><span className="font-medium">₦{packTotal.toFixed(2)}</span></div>}
-              <div className="flex justify-between text-gray-700"><span>Delivery Fee</span><span className="font-medium">₦{deliveryFee.toFixed(2)}</span></div>
+              <div className="flex justify-between text-gray-700">
+                <span>Delivery Fee</span>
+                <span className="font-medium">
+                  {deliveryFeeDiscount > 0 ? (
+                    <span>
+                      <s className="text-red-500">₦{deliveryFee.toFixed(2)}</s> ₦{effectiveDeliveryFee.toFixed(2)}
+                    </span>
+                  ) : (
+                    <span>₦{deliveryFee.toFixed(2)}</span>
+                  )}
+                </span>
+              </div>
+              {deliveryFeeDiscount > 0 && (
+                <div className="flex justify-between text-green-600 font-medium">
+                  <span>Delivery Fee Discount</span>
+                  <span>-₦{deliveryFeeDiscount.toFixed(2)}</span>
+                </div>
+              )}
               {discount > 0 && <div className="flex justify-between text-green-600 font-medium"><span>Discount</span><span>-₦{discount.toFixed(2)}</span></div>}
               <div className="flex justify-between text-xl font-bold text-black pt-3 border-t border-gray-200"><span>Total</span><span>₦{effectiveTotal.toFixed(2)}</span></div>
             </div>

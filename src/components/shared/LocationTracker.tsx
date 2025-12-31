@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, Navigation, Clock, User } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { notificationService } from '../../services/notification.service';
 
 interface LocationTrackerProps {
     orderId: string;
@@ -158,6 +159,31 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                     .eq('id', orderId)
                     .eq('delivery_agent_id', profile.id);
 
+                // Send notification about location update
+                if (!error) {
+                    try {
+                        // Fetch order details to get customer and seller IDs
+                        const { data: orderData, error: orderError } = await supabase
+                            .from('orders')
+                            .select('customer_id, seller_id, seller_type, order_number')
+                            .eq('id', orderId)
+                            .single();
+
+                        if (orderData) {
+                            // Send notification to customer about delivery progress
+                            await notificationService.sendOrderStatusUpdate(orderData.order_number, orderData.customer_id, 'picked_up');
+
+                            // Send notification to seller
+                            if (orderData.seller_id) {
+                                await notificationService.sendOrderStatusUpdate(orderData.order_number, orderData.seller_id, 'picked_up');
+                            }
+                        }
+                    } catch (notificationError) {
+                        console.error('Error sending location update notification:', notificationError);
+                        // Don't fail the location update if notification fails
+                    }
+                }
+
                 if (error) {
                     setError('Failed to update location');
                     console.error('Location update error:', error);
@@ -298,8 +324,8 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                             onClick={updateDeliveryAgentLocation}
                             disabled={profile?.role !== 'delivery_agent'}
                             className={`flex-1 py-3 px-4 rounded-lg font-medium ${profile?.role === 'delivery_agent'
-                                    ? 'bg-green-600 text-white hover:bg-green-700'
-                                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                ? 'bg-green-600 text-white hover:bg-green-700'
+                                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                                 }`}
                         >
                             {profile?.role === 'delivery_agent' ? 'Update Location' : 'Delivery Only'}

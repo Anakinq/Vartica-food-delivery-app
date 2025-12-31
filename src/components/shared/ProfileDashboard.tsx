@@ -11,6 +11,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
     full_name: profile?.full_name || '',
     phone: profile?.phone || '',
   });
+  const [hostelLocation, setHostelLocation] = useState(profile?.hostel_location || '');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
@@ -34,6 +35,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
         full_name: profile.full_name || '',
         phone: profile.phone || '',
       });
+      setHostelLocation(profile.hostel_location || '');
     }
   }, [profile]);
 
@@ -69,6 +71,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
         .update({
           full_name: formData.full_name,
           phone: formData.phone,
+          hostel_location: hostelLocation,
         })
         .eq('id', profile.id);
 
@@ -216,6 +219,43 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
                       className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-gray-700 border-0 rounded-xl focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 text-black dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-all"
                       placeholder="+234 801 234 5678"
                     />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-black dark:text-white mb-3">
+                    Hostel Location
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <MapPin className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <select
+                      value={hostelLocation}
+                      onChange={(e) => setHostelLocation(e.target.value)}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-gray-700 border-0 rounded-xl focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 text-black dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-all"
+                    >
+                      <option value="">Select your hostel</option>
+                      <option value="New Female Hostel 1">New Female Hostel 1</option>
+                      <option value="New Female Hostel 2">New Female Hostel 2</option>
+                      <option value="Abuad Hostel">Abuad Hostel</option>
+                      <option value="Wema Hostel">Wema Hostel</option>
+                      <option value="Male Hostel 1">Male Hostel 1</option>
+                      <option value="Male Hostel 2">Male Hostel 2</option>
+                      <option value="Male Hostel 3">Male Hostel 3</option>
+                      <option value="Male Hostel 4">Male Hostel 4</option>
+                      <option value="Male Hostel 5">Male Hostel 5</option>
+                      <option value="Male Hostel 6">Male Hostel 6</option>
+                      <option value="Medical Male Hostel 1">Medical Male Hostel 1</option>
+                      <option value="Medical Male Hostel 2">Medical Male Hostel 2</option>
+                      <option value="Female Medical Hostel 1">Female Medical Hostel 1</option>
+                      <option value="Female Medical Hostel 2">Female Medical Hostel 2</option>
+                      <option value="Female Medical Hostel 3">Female Medical Hostel 3</option>
+                      <option value="Female Medical Hostel 4">Female Medical Hostel 4</option>
+                      <option value="Female Medical Hostel 5">Female Medical Hostel 5</option>
+                      <option value="Female Medical Hostel 6">Female Medical Hostel 6</option>
+                      <option value="Med caf">Med caf (for Med Side)</option>
+                    </select>
                   </div>
                 </div>
 

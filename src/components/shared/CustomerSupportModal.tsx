@@ -22,12 +22,14 @@ export const CustomerSupportModal: React.FC<CustomerSupportModalProps> = ({ onCl
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim() || !user || !profile) return;
 
     setSending(true);
+    setError(null); // Clear previous errors
 
     try {
       const supportMessage: SupportMessage = {
@@ -37,13 +39,14 @@ export const CustomerSupportModal: React.FC<CustomerSupportModalProps> = ({ onCl
         message: message.trim(),
       };
 
-      const { error } = await databaseService.insert<SupportMessage>({
+      const result = await databaseService.insert<SupportMessage>({
         table: 'support_messages',
         data: supportMessage,
       });
 
-      if (error) {
-        console.error('Failed to send support message:', error);
+      if (result.error) {
+        console.error('Failed to send support message:', result.error);
+        setError(result.error.message || 'Failed to send support message. Please try again.');
         return;
       }
 
@@ -55,7 +58,7 @@ export const CustomerSupportModal: React.FC<CustomerSupportModalProps> = ({ onCl
       }, 2000);
     } catch (error) {
       console.error('Error sending support message:', error);
-      console.error('Failed to send support message. Please try again.');
+      setError('Failed to send support message. Please try again.');
     } finally {
       setSending(false);
     }
@@ -109,6 +112,11 @@ export const CustomerSupportModal: React.FC<CustomerSupportModalProps> = ({ onCl
                   Your name and email will be included with this message
                 </p>
               </div>
+              {error && (
+                <div className="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-lg">
+                  {error}
+                </div>
+              )}
 
               <div className="flex space-x-3">
                 <button

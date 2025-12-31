@@ -3,6 +3,7 @@ import { LogOut, Users, Store, Bike, Package, Wallet, Menu, X, Search, Filter, D
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Profile, Order } from '../../lib/supabase';
 import { AdminApprovalDashboard } from './AdminApprovalDashboard';
+import { DeliveryFeePromoCodesManager } from './DeliveryFeePromoCodesManager';
 
 interface AdminDashboardProps {
   onShowProfile?: () => void;
@@ -34,7 +35,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
   const [orders, setOrders] = useState<Order[]>([]);
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRecord[]>([]);
   const [supportMessages, setSupportMessages] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'users' | 'orders' | 'withdrawals' | 'approvals' | 'support'>('withdrawals');
+  const [activeTab, setActiveTab] = useState<'users' | 'orders' | 'withdrawals' | 'approvals' | 'support' | 'promo-codes'>('withdrawals');
   const [loading, setLoading] = useState(true);
   const [processingWithdrawal, setProcessingWithdrawal] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -285,6 +286,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                 </div>
               </button>
               <button
+                onClick={() => {
+                  setActiveTab('promo-codes');
+                  setShowMenu(false);
+                }}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <div className="flex items-center space-x-2">
+                  <Package className="h-4 w-4" />
+                  <span>Delivery Fee Promo Codes</span>
+                </div>
+              </button>
+              <button
                 onClick={signOut}
                 className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
               >
@@ -455,6 +468,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                   }`}
               >
                 Support Messages
+              </button>
+              <button
+                onClick={() => setActiveTab('promo-codes')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'promo-codes'
+                  ? 'border-green-600 text-green-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                  }`}
+              >
+                Delivery Fee Promo Codes
               </button>
             </nav>
           </div>
@@ -645,6 +667,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                   </tbody>
                 </table>
               </div>
+            )}
+
+            {activeTab === 'promo-codes' && (
+              <DeliveryFeePromoCodesManager />
             )}
           </div>
         </div>

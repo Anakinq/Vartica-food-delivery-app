@@ -2,7 +2,8 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { Search, ShoppingCart, LogOut, User, Moon, Package } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Cafeteria, Vendor, MenuItem } from '../../lib/supabase';
+import { Cafeteria, MenuItem } from '../../lib/supabase';
+import { Vendor } from '../../lib/supabase/types';
 import { supabase } from '../../lib/supabase/client';
 import { MenuItemCard } from './MenuItemCard';
 import { Cart } from './Cart';
@@ -35,7 +36,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const { profile, signOut } = useAuth();
   const [cafeterias, setCafeterias] = useState<Cafeteria[]>([]);
   const [studentVendors, setStudentVendors] = useState<Vendor[]>([]);
-  const [lateNightVendor, setLateNightVendor] = useState<Vendor | null>(null);
+  const [lateNightVendors, setLateNightVendors] = useState<Vendor[]>([]);
 
   // State to track cafeteria open status
   const [cafeteriaStatus, setCafeteriaStatus] = useState<Record<string, boolean>>({});
@@ -115,9 +116,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     }
     if (vendorsRes.data) {
       const students = vendorsRes.data.filter(v => v.vendor_type === 'student');
-      const lateNight = vendorsRes.data.find(v => v.vendor_type === 'late_night');
       setStudentVendors(students);
-      if (lateNight) setLateNightVendor(lateNight);
+      setLateNightVendors(vendorsRes.data.filter(v => v.vendor_type === 'late_night'));
     }
     setLoading(false);
   };
@@ -212,9 +212,9 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     const list: Array<{ id: string; type: 'cafeteria' | 'vendor'; name: string }> = [];
     filteredCafeterias.forEach(c => list.push({ id: c.id, type: 'cafeteria', name: c.name }));
     filteredVendors.forEach(v => list.push({ id: v.id, type: 'vendor', name: v.store_name }));
-    if (lateNightVendor) list.push({ id: lateNightVendor.id, type: 'vendor', name: lateNightVendor.store_name });
+    lateNightVendors.forEach(v => list.push({ id: v.id, type: 'vendor', name: v.store_name }));
     return list;
-  }, [filteredCafeterias, filteredVendors, lateNightVendor]);
+  }, [filteredCafeterias, filteredVendors, lateNightVendors]);
 
   // Function to determine if cafeteria is open
   const isCafeteriaOpen = (cafeteriaId: string): boolean => {
@@ -243,7 +243,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
   const getImagePath = (sellerId: string, sellerType: 'cafeteria' | 'vendor') => {
     // Check if this is a late night vendor
-    if (lateNightVendor && sellerId === lateNightVendor.id && sellerType === 'vendor') {
+    const isLateNightVendor = lateNightVendors.some(v => v.id === sellerId);
+    if (isLateNightVendor && sellerType === 'vendor') {
       return '/images/latenightvendor.jpg';
     }
 
@@ -574,48 +575,162 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
               )}
             </section>
 
-            {lateNightVendor && (
+            {lateNightVendors.length > 0 && (
               <section>
                 <div className="flex items-center space-x-2 mb-6">
                   <Moon className="h-6 w-6 text-stone-700" />
                   <h2 className="text-2xl font-bold text-stone-800">Late-Night Vendors</h2>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  <div
-                    key={lateNightVendor.id}
-                    onClick={() => handleSellerClick(lateNightVendor.id, 'vendor', lateNightVendor.store_name)}
-                    role="button"
-                    tabIndex={0}
-                    aria-pressed={selectedSeller !== null && lateNightVendor !== null && (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === lateNightVendor.id}
-                    aria-label={`Select ${lateNightVendor.store_name}`}
-                    className={
-                      `bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer relative transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 ${selectedSeller !== null && lateNightVendor !== null && (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === lateNightVendor.id ? 'border-orange-500 bg-orange-50' : 'border-stone-200 hover:border-orange-300'}`
-                    }
-                  >
-                    <span className="absolute top-2 right-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full flex items-center">
-                      <Moon className="h-3 w-3 mr-1" /> Late Night
-                    </span>
-                    <img
-                      src={lateNightVendor.image_url || getImagePath(lateNightVendor.id, 'vendor')}
-                      alt={lateNightVendor.store_name}
-                      className="w-20 h-20 rounded-xl object-cover mb-4"
-                      onError={(e) => {
-                        const target = e.currentTarget;
-                        const currentSrc = target.src;
 
-                        // If the current src is not already the fallback, try the fallback
-                        if (!currentSrc.includes('placeholder.jpg') && !currentSrc.includes('placehold.co')) {
-                          target.src = '/images/placeholder.jpg';
-                        } else {
-                          // If already showing fallback, try another fallback
-                          target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
-                        }
-                      }}
-                    />
-                    <h3 className="font-bold text-stone-800">{lateNightVendor.store_name}</h3>
-                    <p className="text-sm text-stone-600 mt-1 line-clamp-2">{lateNightVendor.description}</p>
-                  </div>
-                </div>
+                {lateNightVendors.length > 0 && (
+                  <section>
+                    <div className="flex items-center space-x-2 mb-6">
+                      <Moon className="h-6 w-6 text-stone-700" />
+                      <h2 className="text-2xl font-bold text-stone-800">Late-Night Vendors</h2>
+                    </div>
+
+                    {/* Med Side Late Night Vendor */}
+                    {lateNightVendors.filter(v => v.location === 'med_side').length > 0 && (
+                      <div className="mb-8">
+                        <h3 className="text-xl font-semibold text-stone-700 mb-4">Med Side</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                          {lateNightVendors
+                            .filter(v => v.location === 'med_side')
+                            .map(vendor => (
+                              <div
+                                key={vendor.id}
+                                onClick={() => handleSellerClick(vendor.id, 'vendor', vendor.store_name)}
+                                role="button"
+                                tabIndex={0}
+                                aria-pressed={selectedSeller !== null && (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === vendor.id}
+                                aria-label={`Select ${vendor.store_name}`}
+                                className={
+                                  `bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer relative transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 ${selectedSeller !== null && (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === vendor.id ? 'border-orange-500 bg-orange-50' : 'border-stone-200 hover:border-orange-300'}`
+                                }
+                              >
+                                <span className="absolute top-2 right-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full flex items-center">
+                                  <Moon className="h-3 w-3 mr-1" /> Late Night
+                                </span>
+                                <img
+                                  src={vendor.image_url || getImagePath(vendor.id, 'vendor')}
+                                  alt={vendor.store_name}
+                                  className="w-20 h-20 rounded-xl object-cover mb-4"
+                                  onError={(e) => {
+                                    const target = e.currentTarget;
+                                    const currentSrc = target.src;
+
+                                    // If the current src is not already the fallback, try the fallback
+                                    if (!currentSrc.includes('placeholder.jpg') && !currentSrc.includes('placehold.co')) {
+                                      target.src = '/images/placeholder.jpg';
+                                    } else {
+                                      // If already showing fallback, try another fallback
+                                      target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
+                                    }
+                                  }}
+                                />
+                                <h3 className="font-bold text-stone-800">{vendor.store_name}</h3>
+                                <p className="text-sm text-stone-600 mt-1 line-clamp-2">{vendor.description}</p>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Main School Late Night Vendor */}
+                    {lateNightVendors.filter(v => v.location === 'main_school').length > 0 && (
+                      <div className="mb-8">
+                        <h3 className="text-xl font-semibold text-stone-700 mb-4">Main School</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                          {lateNightVendors
+                            .filter(v => v.location === 'main_school')
+                            .map(vendor => (
+                              <div
+                                key={vendor.id}
+                                onClick={() => handleSellerClick(vendor.id, 'vendor', vendor.store_name)}
+                                role="button"
+                                tabIndex={0}
+                                aria-pressed={selectedSeller !== null && (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === vendor.id}
+                                aria-label={`Select ${vendor.store_name}`}
+                                className={
+                                  `bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer relative transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 ${selectedSeller !== null && (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === vendor.id ? 'border-orange-500 bg-orange-50' : 'border-stone-200 hover:border-orange-300'}`
+                                }
+                              >
+                                <span className="absolute top-2 right-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full flex items-center">
+                                  <Moon className="h-3 w-3 mr-1" /> Late Night
+                                </span>
+                                <img
+                                  src={vendor.image_url || getImagePath(vendor.id, 'vendor')}
+                                  alt={vendor.store_name}
+                                  className="w-20 h-20 rounded-xl object-cover mb-4"
+                                  onError={(e) => {
+                                    const target = e.currentTarget;
+                                    const currentSrc = target.src;
+
+                                    // If the current src is not already the fallback, try the fallback
+                                    if (!currentSrc.includes('placeholder.jpg') && !currentSrc.includes('placehold.co')) {
+                                      target.src = '/images/placeholder.jpg';
+                                    } else {
+                                      // If already showing fallback, try another fallback
+                                      target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
+                                    }
+                                  }}
+                                />
+                                <h3 className="font-bold text-stone-800">{vendor.store_name}</h3>
+                                <p className="text-sm text-stone-600 mt-1 line-clamp-2">{vendor.description}</p>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Other Late Night Vendors (fallback) */}
+                    {lateNightVendors.filter(v => !v.location).length > 0 && (
+                      <div>
+                        <h3 className="text-xl font-semibold text-stone-700 mb-4">Other Late-Night Vendors</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                          {lateNightVendors
+                            .filter(v => !v.location)
+                            .map(vendor => (
+                              <div
+                                key={vendor.id}
+                                onClick={() => handleSellerClick(vendor.id, 'vendor', vendor.store_name)}
+                                role="button"
+                                tabIndex={0}
+                                aria-pressed={selectedSeller !== null && (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === vendor.id}
+                                aria-label={`Select ${vendor.store_name}`}
+                                className={
+                                  `bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer relative transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 ${selectedSeller !== null && (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === vendor.id ? 'border-orange-500 bg-orange-50' : 'border-stone-200 hover:border-orange-300'}`
+                                }
+                              >
+                                <span className="absolute top-2 right-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full flex items-center">
+                                  <Moon className="h-3 w-3 mr-1" /> Late Night
+                                </span>
+                                <img
+                                  src={vendor.image_url || getImagePath(vendor.id, 'vendor')}
+                                  alt={vendor.store_name}
+                                  className="w-20 h-20 rounded-xl object-cover mb-4"
+                                  onError={(e) => {
+                                    const target = e.currentTarget;
+                                    const currentSrc = target.src;
+
+                                    // If the current src is not already the fallback, try the fallback
+                                    if (!currentSrc.includes('placeholder.jpg') && !currentSrc.includes('placehold.co')) {
+                                      target.src = '/images/placeholder.jpg';
+                                    } else {
+                                      // If already showing fallback, try another fallback
+                                      target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
+                                    }
+                                  }}
+                                />
+                                <h3 className="font-bold text-stone-800">{vendor.store_name}</h3>
+                                <p className="text-sm text-stone-600 mt-1 line-clamp-2">{vendor.description}</p>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </section>
+                )}
               </section>
             )}
           </>

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { LogOut, Plus, Edit2, ToggleLeft, ToggleRight, Menu, X, User, Camera, Save } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase, MenuItem, Vendor } from '../../lib/supabase';
+import { supabase, MenuItem } from '../../lib/supabase';
+import { Vendor } from '../../lib/supabase/types';
 import { MenuItemForm } from '../shared/MenuItemForm';
 
 interface VendorDashboardProps {
@@ -9,7 +10,7 @@ interface VendorDashboardProps {
 }
 
 export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile }) => {
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, checkApprovalStatus } = useAuth();
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -23,13 +24,26 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     store_name: '',
     description: '',
   });
+  const [approvalStatus, setApprovalStatus] = useState<boolean | null>(null);
+  const [loadingApproval, setLoadingApproval] = useState(true);
 
   useEffect(() => {
     fetchData();
+
+    // Check approval status for vendors
+    if (profile && profile.role === 'vendor') {
+      checkVendorApproval();
+    }
   }, [profile]);
 
   const fetchData = async () => {
     if (!profile) return;
+
+    // Only fetch data if vendor is approved
+    if (profile.role === 'vendor' && approvalStatus !== true) {
+      setLoading(false);
+      return;
+    }
 
     const { data: vendorData } = await supabase
       .from('vendors')
@@ -218,6 +232,66 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       setShowProfileModal(true);
     }
   };
+
+  const checkVendorApproval = async () => {
+    if (profile && profile.role === 'vendor') {
+      setLoadingApproval(true);
+      const status = await checkApprovalStatus(profile.id, 'vendor');
+      setApprovalStatus(status);
+      setLoadingApproval(false);
+    }
+  };
+
+  // Check if user is a vendor and hasn't been approved yet
+  if (profile && profile.role === 'vendor') {
+    if (loadingApproval) {
+      return <div className="min-h-screen flex items-center justify-center">Checking approval status...</div>;
+    }
+
+    if (approvalStatus === false) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-red-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Account Pending Approval</h2>
+            <p className="text-gray-600 mb-6">
+              Your vendor account is currently under review by the admin. You will be notified once approved.
+            </p>
+            <button
+              onClick={signOut}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (approvalStatus === null) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-yellow-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Account Approval Required</h2>
+            <p className="text-gray-600 mb-6">
+              Your vendor account needs to be approved by the admin before you can access the dashboard.
+            </p>
+            <button
+              onClick={signOut}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+      );
+    }
+  }
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -472,6 +546,8 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
                     placeholder="Tell customers about your store"
                   />
                 </div>
+
+
 
                 <div className="flex justify-end space-x-3 pt-4">
                   <button

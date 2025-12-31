@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { MessageCircle, Package, X, Navigation } from 'lucide-react';
+import { MessageCircle, Package, X, Navigation, Star } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { databaseService } from '../../services';
 import { Order } from '../../lib/supabase';
 import { ChatModal } from '../shared/ChatModal';
 import { LocationTracker } from '../shared/LocationTracker';
+import { DeliveryAgentRating } from '../shared/DeliveryAgentRating';
 
 interface OrderTrackingProps {
   onClose: () => void;
@@ -116,7 +117,7 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
                       <p className="text-sm text-gray-600">Address: {order.delivery_address}</p>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 mb-4">
                       {order.delivery_agent_id && (
                         <>
                           <button
@@ -139,6 +140,15 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
                         </>
                       )}
                     </div>
+
+                    {order.status === 'delivered' && order.delivery_agent_id && (
+                      <div className="border-t pt-4 mt-4">
+                        <DeliveryAgentRating
+                          deliveryAgentId={order.delivery_agent_id}
+                          orderId={order.id}
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

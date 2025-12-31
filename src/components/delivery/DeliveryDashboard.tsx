@@ -9,6 +9,7 @@ import { supabase, Order, DeliveryAgent, Profile } from '../../lib/supabase';
 import { ChatModal } from '../shared/ChatModal';
 import { LocationTracker } from '../shared/LocationTracker';
 import { WalletService } from '../../services';
+import { notificationService } from '../../services/notification.service';
 
 // Interfaces
 interface FullOrder extends Order {
@@ -531,6 +532,29 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       .eq('id', orderId);
 
     if (!error) {
+      // Send notification about status update
+      try {
+        // Fetch order details to get customer and seller IDs
+        const { data: orderData, error: orderError } = await supabase
+          .from('orders')
+          .select('customer_id, seller_id, seller_type, order_number')
+          .eq('id', orderId)
+          .single();
+
+        if (orderData) {
+          // Send notification to customer
+          await notificationService.sendOrderStatusUpdate(orderData.order_number, orderData.customer_id, newStatus);
+
+          // Send notification to seller (vendor or cafeteria)
+          if (orderData.seller_id) {
+            await notificationService.sendOrderStatusUpdate(orderData.order_number, orderData.seller_id, newStatus);
+          }
+        }
+      } catch (notificationError) {
+        console.error('Error sending notification:', notificationError);
+        // Don't fail the status update if notification fails
+      }
+
       // Don't call fetchData here since it will be called by the periodic effect
       setDashboardKey(prev => prev + 1);
     } else {
