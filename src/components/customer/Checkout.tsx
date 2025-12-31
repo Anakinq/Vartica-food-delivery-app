@@ -44,6 +44,52 @@ export const Checkout: React.FC<CheckoutProps> = ({
   });
   const [discount, setDiscount] = useState(0);
   const [deliveryFeeDiscount, setDeliveryFeeDiscount] = useState(0);
+  const [hostelBasedDeliveryFee, setHostelBasedDeliveryFee] = useState(deliveryFee); // Initialize with default delivery fee;
+    
+  // Function to calculate delivery fee based on hostel location
+  const calculateDeliveryFee = (hostel: string): number => {
+    // Define delivery fees based on hostel location
+    const hostelDeliveryFees: Record<string, number> = {
+      'Med caf': 1000, // Med side to med side
+      'New Female Hostel 1': 1500,
+      'New Female Hostel 2': 1500,
+      'Caf 2': 1500,
+      'Caf 1': 1000,
+      'Smoothie Shack': 1000,
+      'Captain Cook': 1000,
+      'Staff Caf': 1000,
+      'Seasons': 1500,
+      'Abuad Hostel': 700,
+      'Wema Hostel': 700,
+      'Male Hostel 1': 1500,
+      'Male Hostel 2': 1500,
+      'Male Hostel 3': 1000,
+      'Male Hostel 4': 1000,
+      'Male Hostel 5': 1000,
+      'Male Hostel 6': 1000,
+      'Medical Male Hostel 1': 2000,
+      'Medical Male Hostel 2': 2000,
+      'Female Medical Hostel 1': 2000,
+      'Female Medical Hostel 2': 2000,
+      'Female Medical Hostel 3': 2000,
+      'Female Medical Hostel 4': 2000,
+      'Female Medical Hostel 5': 2000,
+      'Female Medical Hostel 6': 2000,
+    };
+      
+    // Return the specific fee if available, otherwise default to 500
+    return hostelDeliveryFees[hostel] || 500;
+  };
+    
+  // Update delivery fee when hostel selection changes
+  useEffect(() => {
+    if (formData.deliveryAddress) {
+      const fee = calculateDeliveryFee(formData.deliveryAddress);
+      setHostelBasedDeliveryFee(fee);
+    } else {
+      setHostelBasedDeliveryFee(deliveryFee); // Reset to default if no hostel selected
+    }
+  }, [formData.deliveryAddress]);
   const [promoError, setPromoError] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -83,7 +129,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const MIN_NGN = 100;
   const packPrice = 300.00;
   const packTotal = packPrice * packCount;
-  const effectiveDeliveryFee = Math.max(deliveryFee - deliveryFeeDiscount, 0);
+  const effectiveDeliveryFee = Math.max(hostelBasedDeliveryFee - deliveryFeeDiscount, 0);
   const total = subtotal + packTotal + effectiveDeliveryFee - discount;
   const effectiveTotal = Math.max(total, MIN_NGN);
   const totalInKobo = Math.round(effectiveTotal * 100);
@@ -156,7 +202,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
     let calculatedDeliveryFeeDiscount = 0;
     if (deliveryFeeData.discount_type === 'percentage') {
-      calculatedDeliveryFeeDiscount = (deliveryFee * deliveryFeeData.discount_value) / 100;
+      calculatedDeliveryFeeDiscount = (hostelBasedDeliveryFee * deliveryFeeData.discount_value) / 100;
       if (deliveryFeeData.max_discount) {
         calculatedDeliveryFeeDiscount = Math.min(calculatedDeliveryFeeDiscount, deliveryFeeData.max_discount);
       }
@@ -165,7 +211,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
     }
 
     // Ensure discount doesn't exceed delivery fee
-    calculatedDeliveryFeeDiscount = Math.min(calculatedDeliveryFeeDiscount, deliveryFee);
+    calculatedDeliveryFeeDiscount = Math.min(calculatedDeliveryFeeDiscount, hostelBasedDeliveryFee);
 
     setDeliveryFeeDiscount(calculatedDeliveryFeeDiscount);
     setDiscount(0); // Reset regular discount when using delivery fee discount
@@ -181,7 +227,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
     if (!sellerId || !sellerType) throw new Error('Invalid seller info');
 
     // Calculate effective delivery fee after discount
-    const effectiveDeliveryFee = Math.max(deliveryFee - deliveryFeeDiscount, 0);
+    const effectiveDeliveryFee = Math.max(hostelBasedDeliveryFee - deliveryFeeDiscount, 0);
     const total = subtotal + packTotal + effectiveDeliveryFee - discount;
     const effectiveTotal = Math.max(total, MIN_NGN);
 
@@ -213,7 +259,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
       delivery_agent_id: availableAgent?.id || null, // Assign agent if available
       status: 'pending',
       subtotal,
-      delivery_fee: deliveryFee,
+      delivery_fee: hostelBasedDeliveryFee,
       delivery_fee_discount: deliveryFeeDiscount,
       discount,
       total: effectiveTotal,
@@ -221,7 +267,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
       payment_status: 'paid',
       payment_reference: paymentReference || null,
       promo_code: formData.promoCode || null,
-      delivery_address: formData.deliveryAddress.trim() || 'Address not provided',
+      delivery_address: formData.deliveryAddress.trim() || 'Hostel not selected',
       delivery_notes: formData.deliveryNotes || null,
       scheduled_for: formData.scheduledFor || null,
       platform_commission: 300.0,
@@ -378,17 +424,42 @@ export const Checkout: React.FC<CheckoutProps> = ({
             <h2 className="text-2xl font-bold text-black ml-4">Checkout</h2>
           </div>
           <form className="space-y-6">
-            {/* Delivery Address */}
+            {/* Hostel Selection */}
             <div>
-              <label className="block text-sm font-semibold text-black mb-2">Delivery Address *</label>
-              <textarea
+              <label className="block text-sm font-semibold text-black mb-2">Your Hostel *</label>
+              <select
                 value={formData.deliveryAddress}
                 onChange={(e) => setFormData({ ...formData, deliveryAddress: e.target.value })}
                 required
-                rows={3}
                 className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
-                placeholder="Building name, room number, etc."
-              />
+              >
+                <option value="">Select your hostel</option>
+                <option value="New Female Hostel 1">New Female Hostel 1</option>
+                <option value="New Female Hostel 2">New Female Hostel 2</option>
+                <option value="Caf 2">Caf 2</option>
+                <option value="Caf 1">Caf 1</option>
+                <option value="Smoothie Shack">Smoothie Shack</option>
+                <option value="Captain Cook">Captain Cook</option>
+                <option value="Staff Caf">Staff Caf</option>
+                <option value="Med caf">Med caf</option>
+                <option value="Seasons">Seasons</option>
+                <option value="Abuad Hostel">Abuad Hostel</option>
+                <option value="Wema Hostel">Wema Hostel</option>
+                <option value="Male Hostel 1">Male Hostel 1</option>
+                <option value="Male Hostel 2">Male Hostel 2</option>
+                <option value="Male Hostel 3">Male Hostel 3</option>
+                <option value="Male Hostel 4">Male Hostel 4</option>
+                <option value="Male Hostel 5">Male Hostel 5</option>
+                <option value="Male Hostel 6">Male Hostel 6</option>
+                <option value="Medical Male Hostel 1">Medical Male Hostel 1</option>
+                <option value="Medical Male Hostel 2">Medical Male Hostel 2</option>
+                <option value="Female Medical Hostel 1">Female Medical Hostel 1</option>
+                <option value="Female Medical Hostel 2">Female Medical Hostel 2</option>
+                <option value="Female Medical Hostel 3">Female Medical Hostel 3</option>
+                <option value="Female Medical Hostel 4">Female Medical Hostel 4</option>
+                <option value="Female Medical Hostel 5">Female Medical Hostel 5</option>
+                <option value="Female Medical Hostel 6">Female Medical Hostel 6</option>
+              </select>
             </div>
 
             {/* Delivery Notes */}
@@ -452,10 +523,10 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 <span className="font-medium">
                   {deliveryFeeDiscount > 0 ? (
                     <span>
-                      <s className="text-red-500">₦{deliveryFee.toFixed(2)}</s> ₦{effectiveDeliveryFee.toFixed(2)}
+                      <s className="text-red-500">₦{hostelBasedDeliveryFee.toFixed(2)}</s> ₦{effectiveDeliveryFee.toFixed(2)}
                     </span>
                   ) : (
-                    <span>₦{deliveryFee.toFixed(2)}</span>
+                    <span>₦{hostelBasedDeliveryFee.toFixed(2)}</span>
                   )}
                 </span>
               </div>
