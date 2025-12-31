@@ -112,7 +112,7 @@ function AppContent() {
   if (user && profile) { // Removed !justSignedUp condition to allow dashboard after email confirmation
     // 🔐 Extra safety: ensure profile.role is valid
     const role = profile.role as Role | undefined;
-    if (!role || !['customer', 'cafeteria', 'vendor', 'delivery_agent', 'admin'].includes(role)) {
+    if (!role || !['customer', 'cafeteria', 'vendor', 'late_night_vendor', 'delivery_agent', 'admin'].includes(role)) {
       // Invalid role - redirect to customer home
       return (
         <div className="min-h-screen flex items-center justify-center bg-red-50">
@@ -136,6 +136,8 @@ function AppContent() {
       case 'cafeteria':
         return <CafeteriaDashboard onShowProfile={() => setShowProfile(true)} />;
       case 'vendor':
+        return <VendorDashboard onShowProfile={() => setShowProfile(true)} />;
+      case 'late_night_vendor':
         return <VendorDashboard onShowProfile={() => setShowProfile(true)} />;
       case 'delivery_agent':
         return <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />;

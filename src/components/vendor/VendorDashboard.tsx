@@ -40,7 +40,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     if (!profile) return;
 
     // Only fetch data if vendor is approved
-    if (profile.role === 'vendor' && approvalStatus !== true) {
+    if (['vendor', 'late_night_vendor'].includes(profile.role) && approvalStatus !== true) {
       setLoading(false);
       return;
     }
@@ -58,7 +58,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         .from('menu_items')
         .select('*')
         .eq('seller_id', vendorData.id)
-        .eq('seller_type', 'vendor')
+        .in('seller_type', ['vendor', 'late_night_vendor'])
         .order('name');
 
       if (items) setMenuItems(items);
@@ -111,7 +111,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       ...itemData,
       image_url: finalImageUrl,
       seller_id: vendor.id,
-      seller_type: 'vendor',
+      seller_type: vendor.vendor_type === 'late_night' ? 'late_night_vendor' : 'vendor',
     };
 
     let query;
@@ -234,7 +234,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   };
 
   const checkVendorApproval = async () => {
-    if (profile && profile.role === 'vendor') {
+    if (profile && ['vendor', 'late_night_vendor'].includes(profile.role)) {
       setLoadingApproval(true);
       const status = await checkApprovalStatus(profile.id, 'vendor');
       setApprovalStatus(status);
@@ -243,7 +243,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   };
 
   // Check if user is a vendor and hasn't been approved yet
-  if (profile && profile.role === 'vendor') {
+  if (profile && ['vendor', 'late_night_vendor'].includes(profile.role)) {
     if (loadingApproval) {
       return <div className="min-h-screen flex items-center justify-center">Checking approval status...</div>;
     }

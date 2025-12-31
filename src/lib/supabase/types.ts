@@ -7,7 +7,7 @@ export interface Profile {
     id: string;
     email: string;
     full_name: string;
-    role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin';
+    role: 'customer' | 'cafeteria' | 'vendor' | 'late_night_vendor' | 'delivery_agent' | 'admin';
     phone?: string;
     created_at?: string;
     vendor_approved?: boolean | null;
@@ -41,7 +41,7 @@ export interface Vendor {
 export interface MenuItem {
     id: string;
     seller_id: string;
-    seller_type: 'cafeteria' | 'vendor';
+    seller_type: 'cafeteria' | 'vendor' | 'late_night_vendor';
     name: string;
     description?: string;
     price: number;
@@ -68,7 +68,7 @@ export interface Order {
     order_number: string;
     customer_id: string;
     seller_id: string;
-    seller_type: 'cafeteria' | 'vendor';
+    seller_type: 'cafeteria' | 'vendor' | 'late_night_vendor';
     delivery_agent_id?: string;
     status: 'pending' | 'accepted' | 'preparing' | 'ready' | 'picked_up' | 'delivered' | 'cancelled';
     subtotal: number;

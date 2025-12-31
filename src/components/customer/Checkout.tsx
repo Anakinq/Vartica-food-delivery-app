@@ -45,7 +45,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const [discount, setDiscount] = useState(0);
   const [deliveryFeeDiscount, setDeliveryFeeDiscount] = useState(0);
   const [hostelBasedDeliveryFee, setHostelBasedDeliveryFee] = useState(deliveryFee); // Initialize with default delivery fee;
-    
+
   // Function to calculate delivery fee based on hostel location
   const calculateDeliveryFee = (hostel: string): number => {
     // Define delivery fees based on hostel location
@@ -76,11 +76,11 @@ export const Checkout: React.FC<CheckoutProps> = ({
       'Female Medical Hostel 5': 2000,
       'Female Medical Hostel 6': 2000,
     };
-      
+
     // Return the specific fee if available, otherwise default to 500
     return hostelDeliveryFees[hostel] || 500;
   };
-    
+
   // Update delivery fee when hostel selection changes
   useEffect(() => {
     if (formData.deliveryAddress) {

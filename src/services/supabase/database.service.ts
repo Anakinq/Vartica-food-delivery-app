@@ -177,7 +177,7 @@ class SupabaseDatabaseService implements IDatabaseService {
         created_at
       `)
       .or('vendor_approved.is.null,delivery_approved.is.null')
-      .neq('role', 'customer')
+      .in('role', ['vendor', 'late_night_vendor'])
       .order('created_at', { ascending: false });
 
     if (error) {

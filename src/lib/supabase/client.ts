@@ -145,5 +145,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         flowType: 'pkce',
         storage: safeStorage,
         storageKey: 'vartica-auth-token'
+    },
+    global: {
+        headers: {
+            'X-Client-Info': 'vartica-food-app/1.0.0'
+        }
     }
 });

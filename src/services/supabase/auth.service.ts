@@ -138,7 +138,7 @@ class SupabaseAuthService implements IAuthService {
   async signInWithGoogle() {
     try {
       const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
-      const redirectUrl = `${appUrl}/auth/callback/`;
+      const redirectUrl = `${appUrl}/auth/callback`;
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -186,7 +186,7 @@ class SupabaseAuthService implements IAuthService {
       }
 
       const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
-      const redirectUrl = `${appUrl}/auth/callback/`;
+      const redirectUrl = `${appUrl}/auth/callback`;
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',

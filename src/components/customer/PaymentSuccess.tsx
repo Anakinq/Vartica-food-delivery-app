@@ -25,7 +25,7 @@ export const PaymentSuccess: React.FC = () => {
             .from('orders')
             .select('order_number')
             .eq('id', orderId)
-            .eq('user_id', profile.id)
+            .eq('customer_id', profile.id)
             .single();
 
           if (order) {

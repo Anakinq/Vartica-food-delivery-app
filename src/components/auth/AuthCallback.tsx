@@ -7,10 +7,14 @@ export default function AuthCallback() {
         const urlParams = new URLSearchParams(window.location.search);
         const role = urlParams.get('role');
 
+        // Also check hash parameters for compatibility
+        const hashParams = new URLSearchParams(window.location.hash.substring(1)); // Remove '#' and parse
+        const hashRole = hashParams.get('role') || role; // Use hash role if available, otherwise use query param
+
         // Store the role in localStorage so it can be used during profile creation
-        if (role && typeof window !== 'undefined' && window.localStorage) {
+        if (hashRole && typeof window !== 'undefined' && window.localStorage) {
             try {
-                window.localStorage.setItem('oauth_role', role);
+                window.localStorage.setItem('oauth_role', hashRole);
             } catch (error) {
                 console.warn('Failed to store role in localStorage:', error);
             }
