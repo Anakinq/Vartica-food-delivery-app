@@ -9,6 +9,8 @@ export interface Profile {
     full_name: string;
     role: 'customer' | 'cafeteria' | 'vendor' | 'late_night_vendor' | 'delivery_agent' | 'admin';
     phone?: string;
+    avatar_url?: string;
+    hostel_location?: string;
     created_at?: string;
     vendor_approved?: boolean | null;
     delivery_approved?: boolean | null;

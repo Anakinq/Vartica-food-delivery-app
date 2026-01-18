@@ -63,9 +63,83 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         match: { id: sessionUser.id },
       });
 
-      if (error) {
-        console.warn('Profile fetch failed (continuing without profile):', error.message);
-        setProfile(null);
+      if (error || !profileData) {
+        console.warn('Profile not found, attempting to create profile for user:', sessionUser.id);
+
+        // Try to get user details from Supabase auth
+        const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
+
+        if (authUser && authUser.id === sessionUser.id) {
+          // Create profile with user's auth metadata
+          const userRole = (authUser.user_metadata?.role as string) || 'customer';
+          // Ensure role is of the correct type
+          const validRoles: Array<'customer' | 'cafeteria' | 'vendor' | 'late_night_vendor' | 'delivery_agent' | 'admin'> =
+            ['customer', 'cafeteria', 'vendor', 'late_night_vendor', 'delivery_agent', 'admin'];
+          const profileRole = validRoles.includes(userRole as any) ? userRole as any : 'customer';
+
+          const userProfile: Profile = {
+            id: authUser.id,
+            email: authUser.email || '',
+            full_name: (authUser.user_metadata?.full_name as string) || (authUser.user_metadata?.name as string) || 'User',
+            role: profileRole,
+            phone: (authUser.user_metadata?.phone as string),
+            created_at: new Date().toISOString(),
+            ...(authUser.user_metadata?.role === 'vendor' && { vendor_approved: false }),
+            ...(authUser.user_metadata?.role === 'delivery_agent' && { delivery_approved: false }),
+          };
+
+          const { error: insertError } = await databaseService.insert<Profile>({
+            table: 'profiles',
+            data: userProfile,
+          });
+
+          if (insertError) {
+            console.error('Error creating profile:', insertError);
+            setProfile(null);
+          } else {
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Profile created successfully:', userProfile);
+            }
+            setProfile(userProfile);
+
+            // Create role-specific records if needed
+            if (userProfile.role === 'vendor') {
+              const { error: vendorError } = await databaseService.insert({
+                table: 'vendors',
+                data: {
+                  user_id: authUser.id,
+                  store_name: userProfile.full_name,
+                  description: 'New vendor account',
+                  vendor_type: (authUser.user_metadata?.vendor_type as string) || 'student',
+                  is_active: false, // Initially inactive until approved
+                },
+              });
+
+              if (vendorError) {
+                console.error('Error creating vendor record:', vendorError);
+              }
+            } else if (userProfile.role === 'delivery_agent') {
+              const { error: deliveryError } = await databaseService.insert({
+                table: 'delivery_agents',
+                data: {
+                  user_id: authUser.id,
+                  vehicle_type: (authUser.user_metadata?.vehicle_type as string) || 'Bike',
+                  is_available: false,
+                  active_orders_count: 0,
+                  total_deliveries: 0,
+                  rating: 0.0,
+                },
+              });
+
+              if (deliveryError) {
+                console.error('Error creating delivery agent record:', deliveryError);
+              }
+            }
+          }
+        } else {
+          console.warn('Could not retrieve user from auth:', userError);
+          setProfile(null);
+        }
       } else {
         if (process.env.NODE_ENV === 'development') {
           console.log('Profile fetched successfully:', profileData);

@@ -393,7 +393,22 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                 className="flex items-center space-x-2 text-gray-700 hover:text-green-600 transition-colors duration-200"
                 aria-label="View profile"
               >
-                <User className="h-5 w-5" />
+                {(profile as any)?.avatar_url ? (
+                  <img
+                    src={(profile as any).avatar_url}
+                    alt="Profile"
+                    className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      target.onerror = null; // prevents looping
+                      target.src = 'https://placehold.co/40x40/4ade80/ffffff?text=' + (profile?.full_name?.charAt(0).toUpperCase() || 'U');
+                    }}
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold">
+                    {profile?.full_name?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                )}
                 <span className="hidden sm:inline">{profile?.full_name}</span>
               </button>
 
@@ -495,8 +510,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                             const currentSrc = target.src;
 
                             // If the current src is not already the fallback, try the fallback
-                            if (!currentSrc.includes('placeholder.jpg') && !currentSrc.includes('placehold.co')) {
-                              target.src = '/images/placeholder.jpg';
+                            if (!currentSrc.includes('1.jpg') && !currentSrc.includes('placehold.co')) {
+                              target.src = '/images/1.jpg';
                             } else {
                               // If already showing fallback, try another fallback
                               target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
@@ -553,8 +568,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                             const currentSrc = target.src;
 
                             // If the current src is not already the fallback, try the fallback
-                            if (!currentSrc.includes('placeholder.jpg') && !currentSrc.includes('placehold.co')) {
-                              target.src = '/images/placeholder.jpg';
+                            if (!currentSrc.includes('1.jpg') && !currentSrc.includes('placehold.co')) {
+                              target.src = '/images/1.jpg';
                             } else {
                               // If already showing fallback, try another fallback
                               target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
@@ -607,8 +622,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                           const currentSrc = target.src;
 
                           // If the current src is not already the fallback, try the fallback
-                          if (!currentSrc.includes('placeholder.jpg') && !currentSrc.includes('placehold.co')) {
-                            target.src = '/images/placeholder.jpg';
+                          if (!currentSrc.includes('1.jpg') && !currentSrc.includes('placehold.co')) {
+                            target.src = '/images/1.jpg';
                           } else {
                             // If already showing fallback, try another fallback
                             target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';

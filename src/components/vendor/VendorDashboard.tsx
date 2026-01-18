@@ -89,7 +89,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
 
       const { data: uploadData, error: uploadError } = await supabase
         .storage
-        .from('food-images')
+        .from('menu-images')
         .upload(fileName, imageFile);
 
       if (uploadError) {
@@ -101,7 +101,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       // Get public URL
       const { data: publicUrlData } = supabase
         .storage
-        .from('food-images')
+        .from('menu-images')
         .getPublicUrl(fileName);
 
       finalImageUrl = publicUrlData.publicUrl;

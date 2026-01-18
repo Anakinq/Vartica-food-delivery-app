@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, HelpCircle, CreditCard, MapPin, MessageCircle } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, HelpCircle, CreditCard, MapPin, MessageCircle, Camera } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { CustomerSupportModal } from './CustomerSupportModal';
@@ -11,7 +11,10 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
     full_name: profile?.full_name || '',
     phone: profile?.phone || '',
   });
-  const [hostelLocation, setHostelLocation] = useState(profile?.hostel_location || '');
+  const [hostelLocation, setHostelLocation] = useState((profile as any)?.hostel_location || '');
+  const [avatarUrl, setAvatarUrl] = useState((profile as any)?.avatar_url || '');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
@@ -35,7 +38,8 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
         full_name: profile.full_name || '',
         phone: profile.phone || '',
       });
-      setHostelLocation(profile.hostel_location || '');
+      setHostelLocation((profile as any).hostel_location || '');
+      setAvatarUrl((profile as any).avatar_url || '');
     }
   }, [profile]);
 
@@ -58,6 +62,32 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
     setDarkMode(!darkMode);
   };
 
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+        alert('Image file must be less than 2MB');
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        alert('Please upload an image file');
+        return;
+      }
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
+      setAvatarUrl(''); // Clear current avatar URL so preview shows
+    }
+  };
+
+  const removeAvatar = () => {
+    setAvatarFile(null);
+    setAvatarPreview('');
+    setAvatarUrl(''); // This will show the initials again
+    if (avatarPreview) {
+      URL.revokeObjectURL(avatarPreview);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
@@ -66,12 +96,39 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
     setSuccess(false);
 
     try {
+      // Handle avatar upload if a new avatar was selected
+      let finalAvatarUrl = avatarUrl;
+      if (avatarFile) {
+        // Upload avatar to Supabase storage
+        const fileName = `avatars/${profile.id}-${Date.now()}-${avatarFile.name}`;
+
+        const { data: uploadData, error: uploadError } = await supabase
+          .storage
+          .from('avatars')
+          .upload(fileName, avatarFile, { upsert: true });
+
+        if (uploadError) {
+          console.error('Avatar upload failed:', uploadError);
+          alert('Failed to upload avatar image. Please try again.');
+          throw uploadError;
+        }
+
+        // Get public URL
+        const { data: publicUrlData } = supabase
+          .storage
+          .from('avatars')
+          .getPublicUrl(fileName);
+
+        finalAvatarUrl = publicUrlData.publicUrl;
+      }
+
       const { error } = await supabase
         .from('profiles')
         .update({
           full_name: formData.full_name,
           phone: formData.phone,
           hostel_location: hostelLocation,
+          avatar_url: finalAvatarUrl,
         })
         .eq('id', profile.id);
 
@@ -128,8 +185,37 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
           {/* Profile Header Card */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 mb-6">
             <div className="flex items-center space-x-6">
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
-                {profile.full_name?.charAt(0).toUpperCase() || 'U'}
+              <div className="relative">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt="Profile"
+                    className="w-24 h-24 rounded-full object-cover shadow-lg border-2 border-white"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      target.onerror = null; // prevents looping
+                      target.src = 'https://placehold.co/150x150/4ade80/ffffff?text=' + (profile.full_name?.charAt(0).toUpperCase() || 'U');
+                    }}
+                  />
+                ) : (
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
+                    {profile.full_name?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                )}
+                <div className="absolute -bottom-2 -right-2 bg-white dark:bg-gray-800 rounded-full p-1 shadow-lg">
+                  <div className="relative">
+                    <label htmlFor="avatar-upload" className="cursor-pointer">
+                      <Camera className="h-6 w-6 text-gray-600 dark:text-gray-300 hover:text-green-600" />
+                      <input
+                        id="avatar-upload"
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleAvatarChange}
+                      />
+                    </label>
+                  </div>
+                </div>
               </div>
               <div className="flex-1">
                 <h2 className="text-2xl font-bold text-black dark:text-white">{profile.full_name}</h2>

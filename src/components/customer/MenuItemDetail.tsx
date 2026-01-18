@@ -45,7 +45,7 @@ export const MenuItemDetail: React.FC<MenuItemDetailProps> = ({
     onAddToCart(item, quantity);
   };
 
-  const imageUrl = item.image_url ? decodeURIComponent(item.image_url) : 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
+  const imageUrl = item.image_url ? decodeURIComponent(item.image_url) : '/images/1.jpg';
 
   return (
     <div className="pb-24">
@@ -77,7 +77,7 @@ export const MenuItemDetail: React.FC<MenuItemDetailProps> = ({
                 target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=Image+Error';
               } else {
                 // If already showing fallback, try the local fallback
-                target.src = '/images/food-placeholder.png';
+                target.src = '/images/1.jpg';
               }
             }}
           />
@@ -132,7 +132,7 @@ export const MenuItemDetail: React.FC<MenuItemDetailProps> = ({
                 <div key={side.id} className="bg-gray-50 rounded-lg p-2 text-center">
                   <div className="h-16 w-full rounded-md bg-gray-200 overflow-hidden mb-2">
                     <img
-                      src={side.image_url || 'https://placehold.co/100?text=Side'}
+                      src={side.image_url || '/images/1.jpg'}
                       alt={side.name}
                       className="w-full h-full object-cover"
                     />
