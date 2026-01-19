@@ -18,14 +18,20 @@ const uploadImage = async (file: File): Promise<string | null> => {
     const cleanFileName = file.name
       .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace non-alphanumeric characters with underscore
       .replace(/_{2,}/g, '_') // Replace multiple underscores with single
-      .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
+      .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+      .toLowerCase(); // Convert to lowercase
     
     const fileName = `${Date.now()}-${cleanFileName}`;
 
     // Remove file if it already exists
-    await supabase.storage
-      .from('menu-images')
-      .remove([fileName]); // This won't cause an error if the file doesn't exist
+    try {
+      await supabase.storage
+        .from('menu-images')
+        .remove([fileName]); // This won't cause an error if the file doesn't exist
+    } catch (deleteError) {
+      console.warn('Error removing existing file (may not exist):', deleteError);
+      // Continue anyway since the file might not exist
+    }
 
     const { data, error } = await supabase.storage
       .from('menu-images')
@@ -41,10 +47,11 @@ const uploadImage = async (file: File): Promise<string | null> => {
 
     console.log('Upload successful:', data);
 
-    const { data: { publicUrl } } = supabase.storage
+    const { data: publicUrlData } = supabase.storage
       .from('menu-images')
-      .getPublicUrl(data.path);
+      .getPublicUrl(fileName);
 
+    const publicUrl = publicUrlData?.publicUrl || '';
     console.log('Public URL:', publicUrl);
     return publicUrl;
   } catch (error) {
@@ -264,15 +271,21 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
       const cleanFileName = profileImageFile.name
         .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace non-alphanumeric characters with underscore
         .replace(/_{2,}/g, '_') // Replace multiple underscores with single
-        .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
+        .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+        .toLowerCase(); // Convert to lowercase
       
       const fileName = `cafeteria-${Date.now()}-${cleanFileName}`;
 
       // Remove file if it already exists
-      await supabase
-        .storage
-        .from('vendor-logos') // Using same bucket as vendor logos
-        .remove([fileName]); // This won't cause an error if the file doesn't exist
+      try {
+        await supabase
+          .storage
+          .from('vendor-logos') // Using same bucket as vendor logos
+          .remove([fileName]); // This won't cause an error if the file doesn't exist
+      } catch (deleteError) {
+        console.warn('Error removing existing file (may not exist):', deleteError);
+        // Continue anyway since the file might not exist
+      }
 
       const { data: uploadData, error: uploadError } = await supabase
         .storage
@@ -294,7 +307,7 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
         .from('vendor-logos')
         .getPublicUrl(fileName);
 
-      finalImageUrl = publicUrlData.publicUrl;
+      finalImageUrl = publicUrlData?.publicUrl || '';
     }
 
     // Update cafeteria profile

@@ -89,15 +89,21 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       const cleanFileName = imageFile.name
         .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace non-alphanumeric characters with underscore
         .replace(/_{2,}/g, '_') // Replace multiple underscores with single
-        .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
+        .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+        .toLowerCase(); // Convert to lowercase
       
       const fileName = `food-${Date.now()}-${cleanFileName}`;
 
       // First, check if the file already exists and delete it if needed
-      const { error: deleteError } = await supabase
-        .storage
-        .from('menu-images')
-        .remove([fileName]); // This won't cause an error if the file doesn't exist
+      try {
+        await supabase
+          .storage
+          .from('menu-images')
+          .remove([fileName]); // This won't cause an error if the file doesn't exist
+      } catch (deleteError) {
+        console.warn('Error removing existing file (may not exist):', deleteError);
+        // Continue anyway since the file might not exist
+      }
 
       const { data: uploadData, error: uploadError } = await supabase
         .storage
@@ -119,7 +125,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         .from('menu-images')
         .getPublicUrl(fileName);
 
-      finalImageUrl = publicUrlData.publicUrl;
+      finalImageUrl = publicUrlData?.publicUrl || '';
     }
 
     const fullItemData = {
