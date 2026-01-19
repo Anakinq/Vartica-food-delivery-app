@@ -12,7 +12,7 @@ out/
 # Environment variables
 .env
 .env.local
-.env.*
+*.env.*
 
 # IDE files
 .vscode/
@@ -23,47 +23,67 @@ out/
 # Logs
 *.log
 
-# Temporary files
-*.tmp
-*.temp
-
-# Coverage reports
+# Coverage
 coverage/
 htmlcov/
 .coverage
 
-# Python specific
+# Temporary files
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
 *.so
-.Python
 *.egg-info/
 .eggs/
-.venv/
-venv/
-ENV/
-env/
+.mypy_cache/
+.pytest_cache/
+.tox/
+.coverage
+nosetests.xml
+.pytest_cache/
 
-# Node.js specific
+# Node.js
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-node_modules/
 
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-Icon?
+# Compiled files
+*.exe
+*.dll
+*.so
+*.a
+*.o
+*.obj
+*.out
+
+# Compressed files
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
 ```
-
-Wait, let me reconsider this. Looking at the modified files, they are just source code files (.tsx) and a config file (vercel.json). There are no build artifacts, dependencies, or temporary files in the changes shown.
-
-(empty)
