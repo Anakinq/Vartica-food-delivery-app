@@ -14,14 +14,24 @@ const uploadImage = async (file: File): Promise<string | null> => {
   try {
     console.log('Uploading file:', file.name);
 
-    // Sanitize the filename to handle special characters
-    const sanitizedFilename = file.name.trim().replace(/\s+/g, ' ').replace(/[<>:"/\\|?*]/g, '_');
+    // Sanitize the filename to remove problematic characters
+    const cleanFileName = file.name
+      .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace non-alphanumeric characters with underscore
+      .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+      .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
+    
+    const fileName = `${Date.now()}-${cleanFileName}`;
+
+    // Remove file if it already exists
+    await supabase.storage
+      .from('menu-images')
+      .remove([fileName]); // This won't cause an error if the file doesn't exist
 
     const { data, error } = await supabase.storage
       .from('menu-images')
-      .upload(`${Date.now()}-${sanitizedFilename}`, file, {
+      .upload(fileName, file, {
         cacheControl: '3600',
-        upsert: false
+        upsert: true // Allow overwriting
       });
 
     if (error) {
@@ -250,16 +260,31 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
 
     // Upload new profile image if provided
     if (profileImageFile) {
-      const fileName = `cafeteria-${Date.now()}-${profileImageFile.name}`;
+      // Sanitize the filename to remove problematic characters
+      const cleanFileName = profileImageFile.name
+        .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace non-alphanumeric characters with underscore
+        .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+        .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
+      
+      const fileName = `cafeteria-${Date.now()}-${cleanFileName}`;
+
+      // Remove file if it already exists
+      await supabase
+        .storage
+        .from('vendor-logos') // Using same bucket as vendor logos
+        .remove([fileName]); // This won't cause an error if the file doesn't exist
 
       const { data: uploadData, error: uploadError } = await supabase
         .storage
         .from('vendor-logos') // Using same bucket as vendor logos
-        .upload(fileName, profileImageFile);
+        .upload(fileName, profileImageFile, { 
+          cacheControl: '3600',
+          upsert: true // Overwrite if exists
+        });
 
       if (uploadError) {
         console.error('Cafeteria image upload failed:', uploadError);
-        alert('Failed to upload cafeteria image. Please try again.');
+        alert(`Failed to upload cafeteria image: ${uploadError.message}. Please try again.`);
         return;
       }
 
