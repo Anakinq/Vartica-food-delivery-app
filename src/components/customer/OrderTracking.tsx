@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { MessageCircle, Package, X, Navigation, Star } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { databaseService } from '../../services';
-import { Order } from '../../lib/supabase';
+import { Order } from '../../lib/supabase/types';
 import { ChatModal } from '../shared/ChatModal';
 import { LocationTracker } from '../shared/LocationTracker';
 import { DeliveryAgentRating } from '../shared/DeliveryAgentRating';
@@ -14,7 +14,7 @@ interface OrderTrackingProps {
 export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
   const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [selectedOrderForChat, setSelectedOrderForChat] = useState<Order | null>(null);
+  const [selectedOrderForChat, setSelectedOrderForChat] = useState<{ order: Order, chatWith: 'delivery' | 'vendor' } | null>(null);
   const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -103,7 +103,7 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
                       <div>
                         <h3 className="text-lg font-bold text-gray-900">{order.order_number}</h3>
                         <p className="text-sm text-gray-600">
-                          {new Date(order.created_at).toLocaleString()}
+                          {order.created_at ? new Date(order.created_at).toLocaleString() : ''}
                         </p>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-sm font-semibold #{getStatusColor(order.status)}`}>
@@ -121,23 +121,34 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
                       {order.delivery_agent_id && (
                         <>
                           <button
-                            onClick={() => setSelectedOrderForChat(order)}
+                            onClick={() => setSelectedOrderForChat({ order, chatWith: 'delivery' })}
                             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                           >
                             <MessageCircle className="h-4 w-4" />
-                            <span>Chat</span>
+                            <span>Chat with Delivery</span>
                           </button>
-
-                          {['accepted', 'preparing', 'ready', 'picked_up'].includes(order.status) && (
-                            <button
-                              onClick={() => setSelectedOrderForTracking(order)}
-                              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                            >
-                              <Navigation className="h-4 w-4" />
-                              <span>Track</span>
-                            </button>
-                          )}
                         </>
+                      )}
+
+                      {/* Add chat with vendor for vendor orders */}
+                      {(order.seller_type === 'vendor' || order.seller_type === 'late_night_vendor') && (
+                        <button
+                          onClick={() => setSelectedOrderForChat({ order, chatWith: 'vendor' })}
+                          className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                          <span>Chat with Vendor</span>
+                        </button>
+                      )}
+
+                      {['accepted', 'preparing', 'ready', 'picked_up'].includes(order.status) && (
+                        <button
+                          onClick={() => setSelectedOrderForTracking(order)}
+                          className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                        >
+                          <Navigation className="h-4 w-4" />
+                          <span>Track</span>
+                        </button>
                       )}
                     </div>
 
@@ -159,9 +170,9 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
 
       {selectedOrderForChat && (
         <ChatModal
-          orderId={selectedOrderForChat.id}
-          orderNumber={selectedOrderForChat.order_number}
-          recipientName="Delivery Agent"
+          orderId={selectedOrderForChat.order.id}
+          orderNumber={selectedOrderForChat.order.order_number}
+          recipientName={selectedOrderForChat.chatWith === 'delivery' ? "Delivery Agent" : "Vendor"}
           onClose={() => setSelectedOrderForChat(null)}
         />
       )}

@@ -38,6 +38,9 @@ export interface Vendor {
     available_until?: string;
     created_at?: string;
     location?: string;
+    matric_number?: string;
+    department?: string;
+    delivery_option?: 'offers_hostel_delivery' | 'does_not_offer_hostel_delivery';
 }
 
 export interface MenuItem {
@@ -85,6 +88,8 @@ export interface Order {
     scheduled_for?: string;
     created_at?: string;
     updated_at?: string;
+    platform_commission?: number;
+    agent_earnings?: number;
     // Added location tracking fields
     customer_location?: {
         latitude: number;

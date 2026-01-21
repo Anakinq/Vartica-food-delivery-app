@@ -556,9 +556,20 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                         aria-label={`Select ${vendor.store_name}`}
                         className={`bg-white rounded-xl overflow-hidden cursor-pointer relative transition-all duration-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${isSelected ? 'ring-2 ring-green-600' : 'hover:shadow-md'}`}
                       >
-                        <span className="absolute top-3 right-3 bg-blue-600 text-white text-xs px-3 py-1 rounded-full z-10 font-medium">
-                          Student
-                        </span>
+                        <div className="absolute top-3 right-3 flex flex-col items-end space-y-1">
+                          <span className="bg-blue-600 text-white text-xs px-3 py-1 rounded-full z-10 font-medium">
+                            Student
+                          </span>
+                          {vendor.delivery_option === 'offers_hostel_delivery' ? (
+                            <span className="bg-green-600 text-white text-xs px-2 py-1 rounded-full z-10 font-medium">
+                              Hostel Delivery
+                            </span>
+                          ) : (
+                            <span className="bg-gray-500 text-white text-xs px-2 py-1 rounded-full z-10 font-medium">
+                              Pickup Only
+                            </span>
+                          )}
+                        </div>
                         <img
                           src={vendor.image_url || getImagePath(vendor.id, 'vendor')}
                           alt={vendor.store_name}

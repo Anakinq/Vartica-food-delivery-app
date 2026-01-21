@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { LogOut, Plus, Edit2, ToggleLeft, ToggleRight, Menu, X, User, Camera, Save } from 'lucide-react';
+import { LogOut, Plus, Edit2, ToggleLeft, ToggleRight, Menu, X, User, Camera, Save, MessageCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, MenuItem } from '../../lib/supabase';
-import { Vendor } from '../../lib/supabase/types';
+import { Vendor, Order } from '../../lib/supabase/types';
 import { MenuItemForm } from '../shared/MenuItemForm';
+import { ChatModal } from '../shared/ChatModal';
 
 interface VendorDashboardProps {
   onShowProfile?: () => void;
@@ -23,9 +24,33 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   const [profileFormData, setProfileFormData] = useState({
     store_name: '',
     description: '',
+    delivery_option: 'offers_hostel_delivery' as 'offers_hostel_delivery' | 'does_not_offer_hostel_delivery',
   });
   const [approvalStatus, setApprovalStatus] = useState<boolean | null>(null);
   const [loadingApproval, setLoadingApproval] = useState(true);
+  const [myOrders, setMyOrders] = useState<Order[]>([]);
+  const [selectedOrderForChat, setSelectedOrderForChat] = useState<{ order: Order, chatWith: 'customer' | 'delivery' } | null>(null);
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [reviews, setReviews] = useState<any[]>([]); // Replace with proper type when available
+
+  const getStatusColor = (status: Order['status']) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-700';
+      case 'accepted':
+      case 'preparing':
+        return 'bg-blue-100 text-blue-700';
+      case 'ready':
+      case 'picked_up':
+        return 'bg-orange-100 text-orange-700';
+      case 'delivered':
+        return 'bg-green-100 text-green-700';
+      case 'cancelled':
+        return 'bg-red-100 text-red-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -174,6 +199,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         store_name: profileFormData.store_name,
         description: profileFormData.description,
         image_url: finalImageUrl,
+        delivery_option: profileFormData.delivery_option,
       })
       .eq('id', vendor.id);
 
@@ -227,6 +253,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       setProfileFormData({
         store_name: vendor.store_name,
         description: vendor.description || '',
+        delivery_option: vendor.delivery_option || 'offers_hostel_delivery',
       });
       setProfileImagePreview(vendor.image_url || '');
       setShowProfileModal(true);
@@ -292,6 +319,69 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       );
     }
   }
+
+  useEffect(() => {
+    if (vendor) {
+      fetchVendorOrders();
+    }
+  }, [vendor]);
+
+  const fetchVendorOrders = async () => {
+    if (!vendor) return;
+
+    const { data: ordersData, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('seller_id', vendor.id)
+      .order('created_at', { ascending: false });
+
+    if (ordersData) {
+      setMyOrders(ordersData);
+      calculateMetrics(ordersData);
+      fetchWalletInfo();
+      fetchReviews();
+    }
+  };
+
+  const fetchWalletInfo = async () => {
+    // In a real implementation, this would fetch vendor wallet info
+    // For now, we'll simulate a wallet balance
+    setWalletBalance(5000); // Example balance
+  };
+
+  const fetchReviews = async () => {
+    // In a real implementation, this would fetch reviews for the vendor
+    // For now, we'll simulate some reviews
+    setReviews([
+      { id: 1, customer: 'John Doe', rating: 5, comment: 'Great food and fast delivery!', date: '2023-05-15' },
+      { id: 2, customer: 'Jane Smith', rating: 4, comment: 'Delicious meals, will order again.', date: '2023-05-10' },
+      { id: 3, customer: 'Bob Johnson', rating: 5, comment: 'Excellent service and quality.', date: '2023-05-05' },
+    ]);
+  };
+
+  const [metrics, setMetrics] = useState({
+    totalOrders: 0,
+    totalRevenue: 0,
+    avgOrderValue: 0,
+    pendingOrders: 0,
+    completedOrders: 0,
+  });
+
+  const calculateMetrics = (orders: Order[]) => {
+    const totalOrders = orders.length;
+    const completedOrders = orders.filter(o => o.status === 'delivered').length;
+    const pendingOrders = orders.filter(o => ['pending', 'accepted', 'preparing', 'ready'].includes(o.status)).length;
+    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
+    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+    setMetrics({
+      totalOrders,
+      totalRevenue,
+      avgOrderValue,
+      pendingOrders,
+      completedOrders,
+    });
+  };
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -448,6 +538,96 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         )}
       </div>
 
+      {/* Performance Metrics Section */}
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">Total Orders</h3>
+          <p className="text-3xl font-bold text-blue-600">{metrics.totalOrders}</p>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">Total Revenue</h3>
+          <p className="text-3xl font-bold text-green-600">₦{metrics.totalRevenue.toFixed(2)}</p>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">Avg Order Value</h3>
+          <p className="text-3xl font-bold text-purple-600">₦{metrics.avgOrderValue.toFixed(2)}</p>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">Pending Orders</h3>
+          <p className="text-3xl font-bold text-yellow-600">{metrics.pendingOrders}</p>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">Completed</h3>
+          <p className="text-3xl font-bold text-green-600">{metrics.completedOrders}</p>
+        </div>
+      </div>
+
+      {/* Vendor Orders Section */}
+      <div className="mt-12">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">Recent Orders</h2>
+
+        {myOrders.length === 0 ? (
+          <div className="text-center py-8 bg-white rounded-xl">
+            <p className="text-gray-600">No orders received yet</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white rounded-xl overflow-hidden">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Order #</th>
+                  <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Customer</th>
+                  <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Date</th>
+                  <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Status</th>
+                  <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Total</th>
+                  <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {myOrders.map(order => (
+                  <tr key={order.id} className="hover:bg-gray-50">
+                    <td className="py-3 px-4 text-sm text-gray-900">{order.order_number}</td>
+                    <td className="py-3 px-4 text-sm text-gray-900">
+                      {/* Need to fetch customer name, showing ID for now */}
+                      Customer
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-600">
+                      {order.created_at ? new Date(order.created_at).toLocaleDateString() : ''}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                        {order.status}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-900">₦{order.total.toFixed(2)}</td>
+                    <td className="py-3 px-4">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => setSelectedOrderForChat({ order, chatWith: 'customer' })}
+                          className="flex items-center space-x-1 px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                          <span>Chat</span>
+                        </button>
+                        {order.delivery_agent_id && (
+                          <button
+                            onClick={() => setSelectedOrderForChat({ order, chatWith: 'delivery' })}
+                            className="flex items-center space-x-1 px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                            <span>Chat with DA</span>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {showForm && (
         <MenuItemForm
           item={editingItem}
@@ -547,6 +727,37 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
                   />
                 </div>
 
+                {/* Delivery Option */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Delivery Option
+                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        name="delivery_option"
+                        value="offers_hostel_delivery"
+                        checked={profileFormData.delivery_option === 'offers_hostel_delivery'}
+                        onChange={(e) => setProfileFormData({ ...profileFormData, delivery_option: e.target.value as 'offers_hostel_delivery' | 'does_not_offer_hostel_delivery' })}
+                        className="h-4 w-4 text-blue-600"
+                      />
+                      <span>Offers hostel delivery</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        name="delivery_option"
+                        value="does_not_offer_hostel_delivery"
+                        checked={profileFormData.delivery_option === 'does_not_offer_hostel_delivery'}
+                        onChange={(e) => setProfileFormData({ ...profileFormData, delivery_option: e.target.value as 'offers_hostel_delivery' | 'does_not_offer_hostel_delivery' })}
+                        className="h-4 w-4 text-blue-600"
+                      />
+                      <span>Does NOT offer hostel delivery</span>
+                    </label>
+                  </div>
+                </div>
+
 
 
                 <div className="flex justify-end space-x-3 pt-4">
@@ -568,6 +779,70 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
             </div>
           </div>
         </div>
+      )}
+
+      {/* Earnings/Wallet Section */}
+      <div className="mt-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-6 text-white">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+          <div>
+            <h2 className="text-2xl font-bold mb-2">Your Wallet</h2>
+            <p className="text-lg opacity-90">Manage your earnings and transactions</p>
+          </div>
+          <div className="mt-4 md:mt-0 text-right">
+            <p className="text-sm opacity-80">Available Balance</p>
+            <p className="text-3xl font-bold">₦{walletBalance.toFixed(2)}</p>
+          </div>
+        </div>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button className="px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100">
+            View Transactions
+          </button>
+          <button className="px-6 py-3 bg-blue-700 text-white rounded-lg font-semibold hover:bg-blue-800">
+            Withdraw Funds
+          </button>
+          <button className="px-6 py-3 bg-transparent border-2 border-white text-white rounded-lg font-semibold hover:bg-white hover:text-blue-600">
+            Transaction History
+          </button>
+        </div>
+      </div>
+
+      {/* Reviews Section */}
+      <div className="mt-12">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Customer Reviews</h2>
+          <span className="text-lg font-semibold text-yellow-600">⭐ 4.7 (24 reviews)</span>
+        </div>
+
+        {reviews.length === 0 ? (
+          <div className="text-center py-8 bg-white rounded-xl">
+            <p className="text-gray-600">No reviews yet</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {reviews.map(review => (
+              <div key={review.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <div className="flex justify-between items-start mb-3">
+                  <h3 className="font-semibold text-gray-900">{review.customer}</h3>
+                  <div className="flex items-center">
+                    {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
+                  </div>
+                </div>
+                <p className="text-gray-600 mb-3">{review.comment}</p>
+                <p className="text-sm text-gray-500">{review.date}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Chat Modal */}
+      {selectedOrderForChat && (
+        <ChatModal
+          orderId={selectedOrderForChat.order.id}
+          orderNumber={selectedOrderForChat.order.order_number}
+          recipientName={selectedOrderForChat.chatWith === 'customer' ? "Customer" : "Delivery Agent"}
+          onClose={() => setSelectedOrderForChat(null)}
+        />
       )}
     </div>
   );

@@ -19,6 +19,8 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
     phone: '',
     storeName: '',
     storeDescription: '',
+    matricNumber: '',
+    department: '',
 
     vendorType: (role === 'late_night_vendor' ? 'late_night' : 'student') as 'student' | 'late_night',
     availableFrom: '21:00',
@@ -207,6 +209,8 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
           image_url: publicUrl,
           vendor_type: formData.vendorType,
           is_active: true,
+          matric_number: formData.matricNumber,
+          department: formData.department,
         };
 
         if (role === 'late_night_vendor') {
@@ -561,6 +565,41 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
                       />
                     </div>
                   </div>
+                )}
+
+                {/* Matric Number and Department fields for student vendors */}
+                {role === 'vendor' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Matric Number *
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.matricNumber}
+                        onChange={(e) => setFormData({ ...formData, matricNumber: e.target.value })}
+                        required
+                        disabled={isLoading}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="e.g., UST/2020/12345"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Department *
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.department}
+                        onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                        required
+                        disabled={isLoading}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="e.g., Computer Science"
+                      />
+                    </div>
+                  </>
                 )}
               </>
             )}

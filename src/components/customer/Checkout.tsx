@@ -41,6 +41,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
     deliveryNotes: '',
     promoCode: '',
     scheduledFor: '',
+    deliveryOption: '', // Will be set based on vendor capability
   });
   const [discount, setDiscount] = useState(0);
   const [deliveryFeeDiscount, setDeliveryFeeDiscount] = useState(0);
@@ -129,9 +130,10 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const MIN_NGN = 100;
   const packPrice = 300.00;
   const packTotal = packPrice * packCount;
+  const platformCommission = 200.0; // Fixed ₦200 platform commission
   const effectiveDeliveryFee = Math.max(hostelBasedDeliveryFee - deliveryFeeDiscount, 0);
   const total = subtotal + packTotal + effectiveDeliveryFee - discount;
-  const effectiveTotal = Math.max(total, MIN_NGN);
+  const effectiveTotal = Math.max(total + platformCommission, MIN_NGN);
   const totalInKobo = Math.round(effectiveTotal * 100);
 
   const handleApplyPromo = async () => {
@@ -227,36 +229,49 @@ export const Checkout: React.FC<CheckoutProps> = ({
     if (!sellerId || !sellerType) throw new Error('Invalid seller info');
 
     // Calculate effective delivery fee after discount
+    const platformCommission = 200.0; // Fixed ₦200 platform commission
     const effectiveDeliveryFee = Math.max(hostelBasedDeliveryFee - deliveryFeeDiscount, 0);
     const total = subtotal + packTotal + effectiveDeliveryFee - discount;
-    const effectiveTotal = Math.max(total, MIN_NGN);
+    const effectiveTotal = Math.max(total + platformCommission, MIN_NGN);
 
     // Generate unique order number
     const orderNumber = `ORDER_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
-    // First, we need to assign a delivery agent to the order
-    // Find an available delivery agent (prioritize those with fewer active orders)
-    const { data: availableAgent, error: agentError } = await supabase
-      .from('delivery_agents')
-      .select('id, active_orders_count')
-      .eq('is_active', true)
-      .eq('is_available', true)
-      .order('active_orders_count', { ascending: true })
-      .limit(1)
+    // Check if the vendor offers hostel delivery
+    const { data: vendorData, error: vendorError } = await supabase
+      .from('vendors')
+      .select('delivery_option')
+      .eq('id', sellerId)
       .single();
 
-    if (agentError) {
-      console.error('Error finding delivery agent:', agentError);
-      // For now, we'll continue without an agent and assign one later
-    }
+    let deliveryAgentId = null;
 
+    // If vendor does NOT offer hostel delivery, try to assign a delivery agent
+    if (vendorData?.delivery_option === 'does_not_offer_hostel_delivery') {
+      const { data: availableAgent, error: agentError } = await supabase
+        .from('delivery_agents')
+        .select('id, active_orders_count')
+        .eq('is_active', true)
+        .eq('is_available', true)
+        .order('active_orders_count', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (agentError) {
+        console.error('Error finding delivery agent:', agentError);
+        // For now, we'll continue without an agent and assign one later
+      } else {
+        deliveryAgentId = availableAgent?.id || null;
+      }
+    }
+    // If vendor DOES offer hostel delivery, no delivery agent is needed
     // Create the order first
     const orderPayload = {
       order_number: orderNumber,
       user_id: user.id,
       seller_id: sellerId,
       seller_type: sellerType,
-      delivery_agent_id: availableAgent?.id || null, // Assign agent if available
+      delivery_agent_id: deliveryAgentId, // Assign agent if needed based on vendor delivery option
       status: 'pending',
       subtotal,
       delivery_fee: hostelBasedDeliveryFee,
@@ -270,8 +285,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
       delivery_address: formData.deliveryAddress.trim() || 'Hostel not selected',
       delivery_notes: formData.deliveryNotes || null,
       scheduled_for: formData.scheduledFor || null,
-      platform_commission: 300.0,
-      agent_earnings: 200.0,
+      platform_commission: 200.0,
+      agent_earnings: 0.0,
     };
 
     const { data: orderData, error: insertError } = await supabase
