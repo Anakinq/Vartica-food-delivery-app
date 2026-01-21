@@ -22,7 +22,11 @@ export const uploadPublicImagesToStorage = async () => {
 
         for (const filename of imageFiles) {
             // Sanitize the filename to handle special characters
-            const sanitizedFilename = filename.trim().replace(/\s+/g, ' ').replace(/[<>:"/\\|?*]/g, '_');
+            const sanitizedFilename = filename.trim()
+              .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace non-alphanumeric characters with underscore
+              .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+              .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+              .toLowerCase(); // Convert to lowercase
 
             // Check if the image already exists in storage
             const { data } = await supabase
@@ -78,7 +82,11 @@ export const uploadPublicImagesToStorage = async () => {
 // Function to get a public URL for an image that might be in Supabase storage or public directory
 export const getImageUrl = async (filename: string): Promise<string> => {
     // Clean the filename to handle special characters
-    const cleanFilename = filename.trim().replace(/\s+/g, ' ').replace(/[<>:"/\\|?*]/g, '_');
+    const cleanFilename = filename.trim()
+      .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace non-alphanumeric characters with underscore
+      .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+      .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+      .toLowerCase(); // Convert to lowercase
 
     // First, try to get the public URL from Supabase storage
     const { data } = await supabase

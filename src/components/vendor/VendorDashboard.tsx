@@ -110,16 +110,37 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
 
     // Upload new image if provided
     if (imageFile) {
-      const fileName = `food-${Date.now()}-${imageFile.name}`;
+      // Sanitize the filename to remove problematic characters
+      const cleanFileName = imageFile.name
+        .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace non-alphanumeric characters with underscore
+        .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+        .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+        .toLowerCase(); // Convert to lowercase
+      
+      const fileName = `food-${Date.now()}-${cleanFileName}`;
+
+      // First, check if the file already exists and delete it if needed
+      try {
+        await supabase
+          .storage
+          .from('menu-images')
+          .remove([fileName]); // This won't cause an error if the file doesn't exist
+      } catch (deleteError) {
+        console.warn('Error removing existing file (may not exist):', deleteError);
+        // Continue anyway since the file might not exist
+      }
 
       const { data: uploadData, error: uploadError } = await supabase
         .storage
         .from('menu-images')
-        .upload(fileName, imageFile);
+        .upload(fileName, imageFile, { 
+          cacheControl: '3600',
+          upsert: true // Overwrite if exists
+        });
 
       if (uploadError) {
         console.error('Image upload failed:', uploadError);
-        alert('Failed to upload image. Please try again.');
+        alert(`Failed to upload image: ${uploadError.message}. Please try again.`);
         return;
       }
 
@@ -129,7 +150,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         .from('menu-images')
         .getPublicUrl(fileName);
 
-      finalImageUrl = publicUrlData.publicUrl;
+      finalImageUrl = publicUrlData?.publicUrl || '';
     }
 
     const fullItemData = {
