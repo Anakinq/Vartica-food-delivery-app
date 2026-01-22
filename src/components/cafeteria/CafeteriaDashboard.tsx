@@ -12,12 +12,27 @@ interface CafeteriaDashboardProps {
 
 const uploadImage = async (file: File): Promise<string | null> => {
   try {
-    // Check if user is authenticated before attempting upload
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      console.error('User session not found for image upload. Please sign in again.');
-      alert('Session expired. Please sign in again to upload images.');
-      return null;
+    // Check and refresh session if needed before attempting upload
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (!session || sessionError) {
+      console.error('User session not found or expired for image upload. Attempting to refresh...');
+
+      // Try to refresh the session
+      try {
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshedSession) {
+          console.error('Session refresh failed during upload:', refreshError);
+          alert('Session expired. Please sign in again to upload images.');
+          return null;
+        }
+
+        // Session refreshed successfully
+        console.log('Session refreshed successfully for upload');
+      } catch (refreshErr) {
+        console.error('Error during session refresh for upload:', refreshErr);
+        alert('Session expired. Please sign in again to upload images.');
+        return null;
+      }
     }
 
     console.log('Uploading file:', file.name);
@@ -182,13 +197,29 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
       return;
     }
 
-    // Check if user is still authenticated
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      console.error('User session not found. Please sign in again.');
-      alert('Session expired. Please sign in again.');
-      signOut();
-      return;
+    // Check and refresh session if needed
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (!session || sessionError) {
+      console.error('User session not found or expired. Attempting to refresh...');
+
+      // Try to refresh the session
+      try {
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshedSession) {
+          console.error('Session refresh failed:', refreshError);
+          alert('Session expired. Please sign in again.');
+          signOut();
+          return;
+        }
+
+        // Session refreshed successfully
+        console.log('Session refreshed successfully');
+      } catch (refreshErr) {
+        console.error('Error during session refresh:', refreshErr);
+        alert('Session expired. Please sign in again.');
+        signOut();
+        return;
+      }
     }
 
     let finalData = { ...itemData };

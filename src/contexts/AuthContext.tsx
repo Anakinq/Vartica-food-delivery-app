@@ -21,6 +21,7 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
   checkApprovalStatus: (userId: string, role: string) => Promise<boolean | null>;
   linkAccountWithEmailPassword: (password: string) => Promise<{ data: any; error: Error | null } | { data: null; error: Error }>;
+  refreshSessionIfNeeded: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -173,6 +174,59 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const refreshSessionIfNeeded = async (): Promise<boolean> => {
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (!session || sessionError) {
+        console.log('No active session found, attempting refresh...');
+        
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshedSession) {
+          console.error('Session refresh failed:', refreshError);
+          return false;
+        }
+        
+        // Update user and profile with refreshed session
+        const userObj = refreshedSession.user ? {
+          id: refreshedSession.user.id,
+          email: refreshedSession.user.email || ''
+        } : null;
+        await fetchUserAndProfile(userObj, true);
+        console.log('Session refreshed successfully');
+        return true;
+      }
+      
+      // Check if session is close to expiring
+      const expiresAt = session.expires_at;
+      const now = Math.floor(Date.now() / 1000);
+      
+      // Refresh if token expires in less than 30 minutes
+      if (expiresAt && expiresAt - now < 1800) {
+        console.log('Session nearing expiration, refreshing...');
+        
+        const { data: { session: refreshedSession }, error } = await supabase.auth.refreshSession();
+        if (error) {
+          console.warn('Session refresh failed:', error);
+          return false;
+        } else if (refreshedSession) {
+          // Update user and profile with refreshed session
+          const userObj = refreshedSession.user ? {
+            id: refreshedSession.user.id,
+            email: refreshedSession.user.email || ''
+          } : null;
+          await fetchUserAndProfile(userObj, true);
+          console.log('Session refreshed successfully');
+          return true;
+        }
+      }
+      
+      return true; // Session is valid
+    } catch (error) {
+      console.error('Error during session refresh check:', error);
+      return false;
+    }
+  };
+
   const checkApprovalStatus = async (userId: string, role: string) => {
     if (!user) return null;
 
@@ -202,6 +256,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // 🔄 Sync auth state (initial + real-time)
   useEffect(() => {
     let isMounted = true;
+    let refreshInterval: NodeJS.Timeout;
+
     if (process.env.NODE_ENV === 'development') {
       console.log('AuthContext useEffect initialized');
     }
@@ -231,6 +287,48 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     initAuth();
+
+    // Set up periodic session refresh (every 15 minutes)
+    const setupPeriodicRefresh = () => {
+      refreshInterval = setInterval(async () => {
+        if (!isMounted) return;
+
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            // Refresh the session if it's close to expiring
+            const expiresAt = session.expires_at;
+            const now = Math.floor(Date.now() / 1000);
+
+            // Refresh if token expires in less than 30 minutes
+            if (expiresAt && expiresAt - now < 1800) {
+              if (process.env.NODE_ENV === 'development') {
+                console.log('Refreshing session automatically before expiration');
+              }
+
+              const { data: { session: refreshedSession }, error } = await supabase.auth.refreshSession();
+              if (error) {
+                console.warn('Automatic session refresh failed:', error);
+              } else if (refreshedSession) {
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('Session refreshed automatically');
+                }
+                // Update user and profile with refreshed session
+                const userObj = refreshedSession.user ? {
+                  id: refreshedSession.user.id,
+                  email: refreshedSession.user.email || ''
+                } : null;
+                await fetchUserAndProfile(userObj, true);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error during periodic session refresh:', error);
+        }
+      }, 15 * 60 * 1000); // 15 minutes
+    };
+
+    setupPeriodicRefresh();
 
     // 2️⃣ Real-time listener
     const { unsubscribe } = authService.onAuthStateChange(async (event) => {
@@ -372,6 +470,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => {
       console.log('AuthContext cleanup');
       isMounted = false;
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
       unsubscribe();
       subscription?.unsubscribe();
     };
@@ -574,6 +675,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         refreshProfile,
         checkApprovalStatus,
         linkAccountWithEmailPassword,
+        refreshSessionIfNeeded,
       }}
     >
       {children}

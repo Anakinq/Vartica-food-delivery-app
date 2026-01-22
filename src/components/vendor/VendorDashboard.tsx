@@ -62,13 +62,29 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   }, [profile]);
 
   const fetchData = async () => {
-    // Check if user is still authenticated
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      console.error('User session not found. Please sign in again.');
-      alert('Session expired. Please sign in again.');
-      signOut();
-      return;
+    // Check and refresh session if needed
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (!session || sessionError) {
+      console.error('User session not found or expired. Attempting to refresh...');
+
+      // Try to refresh the session
+      try {
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshedSession) {
+          console.error('Session refresh failed during fetch:', refreshError);
+          alert('Session expired. Please sign in again.');
+          signOut();
+          return;
+        }
+
+        // Session refreshed successfully
+        console.log('Session refreshed successfully for fetch');
+      } catch (refreshErr) {
+        console.error('Error during session refresh for fetch:', refreshErr);
+        alert('Session expired. Please sign in again.');
+        signOut();
+        return;
+      }
     }
 
     if (!profile) return;
@@ -102,13 +118,29 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   };
 
   const handleToggleAvailability = async (item: MenuItem) => {
-    // Check if user is still authenticated
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      console.error('User session not found. Please sign in again.');
-      alert('Session expired. Please sign in again.');
-      signOut();
-      return;
+    // Check and refresh session if needed
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (!session || sessionError) {
+      console.error('User session not found or expired. Attempting to refresh...');
+
+      // Try to refresh the session
+      try {
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshedSession) {
+          console.error('Session refresh failed during toggle:', refreshError);
+          alert('Session expired. Please sign in again.');
+          signOut();
+          return;
+        }
+
+        // Session refreshed successfully
+        console.log('Session refreshed successfully for toggle');
+      } catch (refreshErr) {
+        console.error('Error during session refresh for toggle:', refreshErr);
+        alert('Session expired. Please sign in again.');
+        signOut();
+        return;
+      }
     }
 
     const { error } = await supabase
@@ -138,13 +170,29 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       return;
     }
 
-    // Check if user is still authenticated
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      console.error('User session not found. Please sign in again.');
-      alert('Session expired. Please sign in again.');
-      signOut();
-      return;
+    // Check and refresh session if needed
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (!session || sessionError) {
+      console.error('User session not found or expired. Attempting to refresh...');
+
+      // Try to refresh the session
+      try {
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshedSession) {
+          console.error('Session refresh failed:', refreshError);
+          alert('Session expired. Please sign in again.');
+          signOut();
+          return;
+        }
+
+        // Session refreshed successfully
+        console.log('Session refreshed successfully');
+      } catch (refreshErr) {
+        console.error('Error during session refresh:', refreshErr);
+        alert('Session expired. Please sign in again.');
+        signOut();
+        return;
+      }
     }
 
     let finalImageUrl = itemData.image_url || '';
