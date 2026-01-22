@@ -179,13 +179,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (!session || sessionError) {
         console.log('No active session found, attempting refresh...');
-        
+
         const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
         if (refreshError || !refreshedSession) {
           console.error('Session refresh failed:', refreshError);
           return false;
         }
-        
+
         // Update user and profile with refreshed session
         const userObj = refreshedSession.user ? {
           id: refreshedSession.user.id,
@@ -195,15 +195,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.log('Session refreshed successfully');
         return true;
       }
-      
+
       // Check if session is close to expiring
       const expiresAt = session.expires_at;
       const now = Math.floor(Date.now() / 1000);
-      
+
       // Refresh if token expires in less than 30 minutes
       if (expiresAt && expiresAt - now < 1800) {
         console.log('Session nearing expiration, refreshing...');
-        
+
         const { data: { session: refreshedSession }, error } = await supabase.auth.refreshSession();
         if (error) {
           console.warn('Session refresh failed:', error);
@@ -219,7 +219,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           return true;
         }
       }
-      
+
       return true; // Session is valid
     } catch (error) {
       console.error('Error during session refresh check:', error);
