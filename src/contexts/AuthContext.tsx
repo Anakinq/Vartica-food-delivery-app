@@ -333,10 +333,47 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     });
 
+    // Listen for 401 errors globally and refresh session
+    const handleUnauthenticated = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.refreshSession();
+        if (error) {
+          console.warn('Session refresh failed, user may need to re-authenticate:', error);
+        } else if (session) {
+          // Update user and profile with refreshed session
+          const userObj = session.user ? {
+            id: session.user.id,
+            email: session.user.email || ''
+          } : null;
+          await fetchUserAndProfile(userObj, true); // skipUserSet=true to avoid redundant state update
+        }
+      } catch (refreshError) {
+        console.error('Error during session refresh:', refreshError);
+      }
+    };
+
+    // Subscribe to Supabase auth state changes to handle session expiration
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'TOKEN_REFRESHED') {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Token refreshed successfully');
+        }
+        // Update user and profile with new session
+        const userObj = session?.user ? {
+          id: session.user.id,
+          email: session.user.email || ''
+        } : null;
+        await fetchUserAndProfile(userObj, true);
+      } else if (event === 'SIGNED_OUT') {
+        // Already handled in authService listener above
+      }
+    });
+
     return () => {
       console.log('AuthContext cleanup');
       isMounted = false;
       unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 

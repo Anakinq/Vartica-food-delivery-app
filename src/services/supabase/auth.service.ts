@@ -8,6 +8,24 @@ import {
   AuthChangeEvent,
 } from '../auth.interface';
 
+// Utility function to handle 401 errors by refreshing session
+async function handleUnauthorizedError() {
+  try {
+    const { data: { session }, error } = await supabase.auth.refreshSession();
+    if (error) {
+      console.warn('Session refresh failed:', error);
+      return false;
+    }
+    if (session) {
+      // Session successfully refreshed
+      return true;
+    }
+  } catch (refreshError) {
+    console.warn('Session refresh error:', refreshError);
+  }
+  return false;
+}
+
 class SupabaseAuthService implements IAuthService {
   // ✅ Sign up with user metadata (trigger will auto-create profile)
   async signUp(params: SignUpParams) {

@@ -37,6 +37,15 @@ class SafeStorage {
             if (process.env.NODE_ENV === 'development') {
                 console.warn(`Failed to get item from storage:`, error);
             }
+            // Try alternative storage mechanisms if available
+            try {
+                // Attempt to use sessionStorage as fallback
+                if (typeof sessionStorage !== 'undefined') {
+                    return sessionStorage.getItem(key);
+                }
+            } catch (sessionError) {
+                // If both fail, return null
+            }
             return null;
         }
     }
@@ -46,6 +55,19 @@ class SafeStorage {
             if (this.storage) {
                 // Check if storage is full before setting
                 this.storage.setItem(key, value);
+            } else {
+                // Try alternative storage mechanisms if available
+                try {
+                    // Attempt to use sessionStorage as fallback
+                    if (typeof sessionStorage !== 'undefined') {
+                        sessionStorage.setItem(key, value);
+                    }
+                } catch (sessionError) {
+                    // If both fail, log the issue but don't crash the app
+                    if (process.env.NODE_ENV === 'development') {
+                        console.warn(`Failed to set item in any storage:`, sessionError);
+                    }
+                }
             }
         } catch (error) {
             // Check for specific error types
@@ -55,15 +77,44 @@ class SafeStorage {
                     // Clear oldest items or clear all if needed
                     this.clearOldItems();
                     try {
-                        this.storage?.setItem(key, value);
+                        if (this.storage) {
+                            this.storage.setItem(key, value);
+                        } else if (typeof sessionStorage !== 'undefined') {
+                            sessionStorage.setItem(key, value);
+                        }
                     } catch (retryError) {
                         console.warn('Failed to set item even after clearing storage:', retryError);
+                    }
+                } else if (error.name === 'SecurityError') {
+                    // This happens when storage is blocked by tracking prevention
+                    if (process.env.NODE_ENV === 'development') {
+                        console.warn('Storage access blocked by security/tracking prevention:', error);
+                    }
+                    // Attempt to use sessionStorage as fallback
+                    try {
+                        if (typeof sessionStorage !== 'undefined') {
+                            sessionStorage.setItem(key, value);
+                        }
+                    } catch (sessionError) {
+                        if (process.env.NODE_ENV === 'development') {
+                            console.warn(`Failed to set item in sessionStorage:`, sessionError);
+                        }
                     }
                 } else {
                     console.warn(`Storage error (type: ${error.name}):`, error);
                 }
             } else {
                 console.warn('Failed to set item in storage:', error);
+                // Attempt to use sessionStorage as fallback
+                try {
+                    if (typeof sessionStorage !== 'undefined') {
+                        sessionStorage.setItem(key, value);
+                    }
+                } catch (sessionError) {
+                    if (process.env.NODE_ENV === 'development') {
+                        console.warn(`Failed to set item in sessionStorage:`, sessionError);
+                    }
+                }
             }
         }
     }
@@ -72,9 +123,32 @@ class SafeStorage {
         try {
             if (this.storage) {
                 this.storage.removeItem(key);
+            } else {
+                // Try alternative storage mechanisms if available
+                try {
+                    // Attempt to use sessionStorage as fallback
+                    if (typeof sessionStorage !== 'undefined') {
+                        sessionStorage.removeItem(key);
+                    }
+                } catch (sessionError) {
+                    if (process.env.NODE_ENV === 'development') {
+                        console.warn(`Failed to remove item from sessionStorage:`, sessionError);
+                    }
+                }
             }
         } catch (error) {
             console.warn(`Failed to remove item from storage:`, error);
+            // Try alternative storage mechanisms if available
+            try {
+                // Attempt to use sessionStorage as fallback
+                if (typeof sessionStorage !== 'undefined') {
+                    sessionStorage.removeItem(key);
+                }
+            } catch (sessionError) {
+                if (process.env.NODE_ENV === 'development') {
+                    console.warn(`Failed to remove item from sessionStorage:`, sessionError);
+                }
+            }
         }
     }
 
@@ -82,7 +156,19 @@ class SafeStorage {
         try {
             return this.storage ? this.storage.key(index) : null;
         } catch (error) {
-            console.warn(`Failed to get key at index ${index} from storage:`, error);
+            if (process.env.NODE_ENV === 'development') {
+                console.warn(`Failed to get key at index ${index} from storage:`, error);
+            }
+            // Try alternative storage mechanisms if available
+            try {
+                if (typeof sessionStorage !== 'undefined') {
+                    return sessionStorage.key(index);
+                }
+            } catch (sessionError) {
+                if (process.env.NODE_ENV === 'development') {
+                    console.warn(`Failed to get key from sessionStorage:`, sessionError);
+                }
+            }
             return null;
         }
     }
@@ -91,7 +177,19 @@ class SafeStorage {
         try {
             return this.storage ? this.storage.length : 0;
         } catch (error) {
-            console.warn('Failed to get storage length:', error);
+            if (process.env.NODE_ENV === 'development') {
+                console.warn('Failed to get storage length:', error);
+            }
+            // Try alternative storage mechanisms if available
+            try {
+                if (typeof sessionStorage !== 'undefined') {
+                    return sessionStorage.length;
+                }
+            } catch (sessionError) {
+                if (process.env.NODE_ENV === 'development') {
+                    console.warn('Failed to get sessionStorage length:', sessionError);
+                }
+            }
             return 0;
         }
     }
@@ -100,9 +198,32 @@ class SafeStorage {
         try {
             if (this.storage) {
                 this.storage.clear();
+            } else {
+                // Try alternative storage mechanisms if available
+                try {
+                    if (typeof sessionStorage !== 'undefined') {
+                        sessionStorage.clear();
+                    }
+                } catch (sessionError) {
+                    if (process.env.NODE_ENV === 'development') {
+                        console.warn('Failed to clear sessionStorage:', sessionError);
+                    }
+                }
             }
         } catch (error) {
-            console.warn('Failed to clear storage:', error);
+            if (process.env.NODE_ENV === 'development') {
+                console.warn('Failed to clear storage:', error);
+            }
+            // Try alternative storage mechanisms if available
+            try {
+                if (typeof sessionStorage !== 'undefined') {
+                    sessionStorage.clear();
+                }
+            } catch (sessionError) {
+                if (process.env.NODE_ENV === 'development') {
+                    console.warn('Failed to clear sessionStorage:', sessionError);
+                }
+            }
         }
     }
 
@@ -111,9 +232,32 @@ class SafeStorage {
             if (this.storage) {
                 // Clear all items as a fallback when quota is exceeded
                 this.storage.clear();
+            } else {
+                // Try alternative storage mechanisms if available
+                try {
+                    if (typeof sessionStorage !== 'undefined') {
+                        sessionStorage.clear();
+                    }
+                } catch (sessionError) {
+                    if (process.env.NODE_ENV === 'development') {
+                        console.warn('Failed to clear sessionStorage:', sessionError);
+                    }
+                }
             }
         } catch (error) {
-            console.warn('Failed to clear storage:', error);
+            if (process.env.NODE_ENV === 'development') {
+                console.warn('Failed to clear storage:', error);
+            }
+            // Try alternative storage mechanisms if available
+            try {
+                if (typeof sessionStorage !== 'undefined') {
+                    sessionStorage.clear();
+                }
+            } catch (sessionError) {
+                if (process.env.NODE_ENV === 'development') {
+                    console.warn('Failed to clear sessionStorage:', sessionError);
+                }
+            }
         }
     }
 }

@@ -8,7 +8,31 @@ interface MenuItemCardProps {
 }
 
 export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, quantity, onQuantityChange }) => {
-  const imageUrl = item.image_url ? decodeURIComponent(item.image_url) : '/images/1.jpg';
+  // Properly format the image URL to handle special characters and ensure validity
+  let imageUrl = '/images/1.jpg';
+  if (item.image_url) {
+    try {
+      // Check if it's already a full URL
+      if (item.image_url.startsWith('http')) {
+        // For Supabase storage URLs, we need to make sure they're properly formatted
+        if (item.image_url.includes('supabase.co/storage/v1/object/public/')) {
+          // This is a direct storage URL that might need signing for public access
+          // For now, we'll use it as-is but with proper encoding
+          imageUrl = encodeURI(decodeURI(item.image_url));
+        } else {
+          // Regular HTTP URL
+          imageUrl = encodeURI(decodeURI(item.image_url));
+        }
+      } else {
+        // It's likely a relative path or storage path, try to construct a proper URL
+        // If it's a Supabase storage path, we may need to format it properly
+        imageUrl = item.image_url;
+      }
+    } catch (error) {
+      console.warn('Error processing image URL:', error);
+      imageUrl = '/images/1.jpg';
+    }
+  }
 
   const handleIncrement = () => {
     onQuantityChange(item.id, quantity + 1);
@@ -34,10 +58,10 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, quantity, onQu
             const currentSrc = target.src;
 
             // If the current src is not already the fallback, try the fallback
-            if (!currentSrc.includes('1.jpg')) {
+            if (!currentSrc.includes('1.jpg') && !currentSrc.includes('placehold.co')) {
               target.src = '/images/1.jpg';
-            } else {
-              // If already showing fallback, try the other fallback
+            } else if (currentSrc.includes('1.jpg') && !currentSrc.includes('placehold.co')) {
+              // If already showing the local fallback, try the online fallback
               target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
             }
           }}
