@@ -62,6 +62,15 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   }, [profile]);
 
   const fetchData = async () => {
+    // Check if user is still authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.error('User session not found. Please sign in again.');
+      alert('Session expired. Please sign in again.');
+      signOut();
+      return;
+    }
+
     if (!profile) return;
 
     // Only fetch data if vendor is approved
@@ -93,18 +102,50 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   };
 
   const handleToggleAvailability = async (item: MenuItem) => {
+    // Check if user is still authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.error('User session not found. Please sign in again.');
+      alert('Session expired. Please sign in again.');
+      signOut();
+      return;
+    }
+
     const { error } = await supabase
       .from('menu_items')
       .update({ is_available: !item.is_available })
       .eq('id', item.id);
 
-    if (!error) {
+    if (error) {
+      console.error('Toggle availability failed:', error);
+      // Check if it's an authentication error
+      if (error.message.includes('401') || error.message.includes('403') ||
+        error.message.toLowerCase().includes('auth') ||
+        error.message.toLowerCase().includes('permission') ||
+        error.message.toLowerCase().includes('unauthorized')) {
+        alert('Authentication failed. Please sign in again.');
+        signOut();
+      }
+    } else {
       setMenuItems(menuItems.map(i => i.id === item.id ? { ...i, is_available: !i.is_available } : i));
     }
   };
 
   const handleSaveItem = async (itemData: Partial<MenuItem>, imageFile?: File) => {
-    if (!vendor) return;
+    if (!vendor) {
+      console.error('No vendor found');
+      alert('No vendor found. Please refresh the page.');
+      return;
+    }
+
+    // Check if user is still authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.error('User session not found. Please sign in again.');
+      alert('Session expired. Please sign in again.');
+      signOut();
+      return;
+    }
 
     let finalImageUrl = itemData.image_url || '';
 
@@ -116,7 +157,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         .replace(/_{2,}/g, '_') // Replace multiple underscores with single
         .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
         .toLowerCase(); // Convert to lowercase
-      
+
       const fileName = `food-${Date.now()}-${cleanFileName}`;
 
       // First, check if the file already exists and delete it if needed
@@ -133,14 +174,23 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       const { data: uploadData, error: uploadError } = await supabase
         .storage
         .from('menu-images')
-        .upload(fileName, imageFile, { 
+        .upload(fileName, imageFile, {
           cacheControl: '3600',
           upsert: true // Overwrite if exists
         });
 
       if (uploadError) {
         console.error('Image upload failed:', uploadError);
-        alert(`Failed to upload image: ${uploadError.message}. Please try again.`);
+        // Check if it's an authentication/storage error
+        if (uploadError.message.toLowerCase().includes('auth') ||
+          uploadError.message.toLowerCase().includes('permission') ||
+          uploadError.message.toLowerCase().includes('unauthorized') ||
+          uploadError.message.includes('401') || uploadError.message.includes('403')) {
+          alert('Authentication failed during upload. Please sign in again.');
+          signOut();
+        } else {
+          alert(`Failed to upload image: ${uploadError.message}. Please try again.`);
+        }
         return;
       }
 
@@ -175,7 +225,16 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     const { error } = await query;
     if (error) {
       console.error('Save failed:', error);
-      alert('Failed to save menu item. Please try again.');
+      // Check if it's an authentication error based on the error message
+      if (error.message.includes('401') || error.message.includes('403') ||
+        error.message.toLowerCase().includes('auth') ||
+        error.message.toLowerCase().includes('permission') ||
+        error.message.toLowerCase().includes('unauthorized')) {
+        alert('Authentication failed. Please sign in again.');
+        signOut();
+      } else {
+        alert('Failed to save menu item. Please try again.');
+      }
     } else {
       await fetchData();
       setShowForm(false);

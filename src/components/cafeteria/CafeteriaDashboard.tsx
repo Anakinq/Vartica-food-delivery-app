@@ -12,6 +12,14 @@ interface CafeteriaDashboardProps {
 
 const uploadImage = async (file: File): Promise<string | null> => {
   try {
+    // Check if user is authenticated before attempting upload
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.error('User session not found for image upload. Please sign in again.');
+      alert('Session expired. Please sign in again to upload images.');
+      return null;
+    }
+
     console.log('Uploading file:', file.name);
 
     // Sanitize the filename to remove problematic characters
@@ -20,7 +28,7 @@ const uploadImage = async (file: File): Promise<string | null> => {
       .replace(/_{2,}/g, '_') // Replace multiple underscores with single
       .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
       .toLowerCase(); // Convert to lowercase
-    
+
     const fileName = `${Date.now()}-${cleanFileName}`;
 
     // Remove file if it already exists
@@ -42,6 +50,14 @@ const uploadImage = async (file: File): Promise<string | null> => {
 
     if (error) {
       console.error('Upload error:', error);
+      // Check if it's an authentication/storage error
+      if (error.message.toLowerCase().includes('auth') ||
+        error.message.toLowerCase().includes('permission') ||
+        error.message.toLowerCase().includes('unauthorized') ||
+        error.message.includes('401') || error.message.includes('403')) {
+        alert('Authentication failed during upload. Please sign in again.');
+        return null;
+      }
       return null;
     }
 
@@ -160,7 +176,20 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
   };
 
   const handleSaveItem = async (itemData: Partial<MenuItem>, file?: File) => {
-    if (!cafeteria) return;
+    if (!cafeteria) {
+      console.error('No cafeteria found');
+      alert('No cafeteria found. Please refresh the page.');
+      return;
+    }
+
+    // Check if user is still authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.error('User session not found. Please sign in again.');
+      alert('Session expired. Please sign in again.');
+      signOut();
+      return;
+    }
 
     let finalData = { ...itemData };
 
@@ -171,7 +200,8 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
       } else {
         // Handle upload failure
         console.error('Failed to upload image');
-        // You might want to show an error message to the user here
+        alert('Failed to upload image. Please try again.');
+        return;
       }
     }
 
@@ -183,7 +213,16 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
 
       if (menuItemError) {
         console.error('Error updating menu item:', menuItemError);
-        // You might want to show an error message to the user here
+        // Check if it's an authentication error based on the error message
+        if (menuItemError.message.includes('401') || menuItemError.message.includes('403') ||
+          menuItemError.message.toLowerCase().includes('auth') ||
+          menuItemError.message.toLowerCase().includes('permission') ||
+          menuItemError.message.toLowerCase().includes('unauthorized')) {
+          alert('Authentication failed. Please sign in again.');
+          signOut();
+        } else {
+          alert(`Error updating menu item: ${menuItemError.message}`);
+        }
         return;
       }
 
@@ -201,7 +240,16 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
 
       if (insertError) {
         console.error('Error inserting menu item:', insertError);
-        // You might want to show an error message to the user here
+        // Check if it's an authentication error based on the error message
+        if (insertError.message.includes('401') || insertError.message.includes('403') ||
+          insertError.message.toLowerCase().includes('auth') ||
+          insertError.message.toLowerCase().includes('permission') ||
+          insertError.message.toLowerCase().includes('unauthorized')) {
+          alert('Authentication failed. Please sign in again.');
+          signOut();
+        } else {
+          alert(`Error inserting menu item: ${insertError.message}`);
+        }
         return;
       }
 
@@ -273,7 +321,7 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
         .replace(/_{2,}/g, '_') // Replace multiple underscores with single
         .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
         .toLowerCase(); // Convert to lowercase
-      
+
       const fileName = `cafeteria-${Date.now()}-${cleanFileName}`;
 
       // Remove file if it already exists
@@ -290,7 +338,7 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
       const { data: uploadData, error: uploadError } = await supabase
         .storage
         .from('vendor-logos') // Using same bucket as vendor logos
-        .upload(fileName, profileImageFile, { 
+        .upload(fileName, profileImageFile, {
           cacheControl: '3600',
           upsert: true // Overwrite if exists
         });
