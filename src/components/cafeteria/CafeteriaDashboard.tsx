@@ -180,7 +180,7 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
   const handleSaveItem = async (itemData: Partial<MenuItem>, file?: File) => {
     if (!cafeteria) {
       console.error('No cafeteria found');
-      alert('No cafeteria found. Please refresh the page.');
+      // Silently return without alert
       return;
     }
 
@@ -295,15 +295,46 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
       const result = await seedCafeteriaMenu(cafeteria.id);
       if (result.success) {
         await fetchData(); // Refresh the menu items
-        alert(result.message);
+        console.log(result.message);
       } else {
-        alert('Error seeding menu: ' + result.message);
+        console.error('Error seeding menu: ' + result.message);
       }
     } catch (error) {
       console.error('Error seeding menu:', error);
-      alert('Error seeding menu: ' + (error as Error).message);
+      console.error('Error seeding menu: ' + (error as Error).message);
     } finally {
       setSeedingMenu(false);
+    }
+  };
+
+  // Bulk upload function for menu items
+  const handleBulkUploadMenu = async (menuItems: { name: string; price: number; category?: string }[]) => {
+    if (!cafeteria) return;
+
+    try {
+      // Prepare items with seller info
+      const itemsToInsert = menuItems.map(item => ({
+        ...item,
+        seller_id: cafeteria.id,
+        seller_type: 'cafeteria' as const,
+        is_available: true,
+      }));
+
+      // Insert all items at once
+      const { error } = await supabase
+        .from('menu_items')
+        .insert(itemsToInsert);
+
+      if (error) {
+        console.error('Error uploading menu items:', error);
+        return { success: false, message: `Failed to upload menu items: ${error.message}` };
+      }
+
+      await fetchData(); // Refresh the menu items
+      return { success: true, message: `${itemsToInsert.length} menu items uploaded successfully!` };
+    } catch (error) {
+      console.error('Unexpected error uploading menu items:', error);
+      return { success: false, message: `Unexpected error: ${error instanceof Error ? error.message : String(error)}` };
     }
   };
 
@@ -323,14 +354,14 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
 
       if (error) {
         console.error('Error clearing menu:', error);
-        alert('Error clearing menu: ' + error.message);
+        console.error('Error clearing menu: ' + error.message);
       } else {
         await fetchData(); // Refresh the menu items
-        alert('Menu cleared successfully!');
+        console.log('Menu cleared successfully!');
       }
     } catch (error) {
       console.error('Error clearing menu:', error);
-      alert('Error clearing menu: ' + (error as Error).message);
+      console.error('Error clearing menu: ' + (error as Error).message);
     } finally {
       setClearingMenu(false);
     }
@@ -374,7 +405,7 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
 
       if (uploadError) {
         console.error('Cafeteria image upload failed:', uploadError);
-        alert(`Failed to upload cafeteria image: ${uploadError.message}. Please try again.`);
+        // Silently return without alert
         return;
       }
 
@@ -399,7 +430,7 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
 
     if (error) {
       console.error('Update failed:', error);
-      alert('Failed to update cafeteria profile. Please try again.');
+      // Silently handle error without alert
     } else {
       // Update local state
       setCafeteria({
@@ -411,7 +442,7 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
       setShowProfileModal(false);
       setProfileImageFile(null);
       setProfileImagePreview('');
-      alert('Cafeteria profile updated successfully!');
+      // Silently handle success without alert
     }
   };
 
@@ -420,11 +451,11 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) { // 2MB limit
-        alert('Image file must be less than 2MB');
+        console.error('Image file must be less than 2MB');
         return;
       }
       if (!file.type.startsWith('image/')) {
-        alert('Please upload an image file');
+        console.error('Please upload an image file');
         return;
       }
       setProfileImageFile(file);
@@ -603,14 +634,14 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
           <div className="flex items-center space-x-3">
             <button
               onClick={handleClearMenu}
-              disabled={clearingMenu}
+              disabled={clearingMenu || !cafeteria}
               className="flex items-center space-x-2 px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 disabled:opacity-70"
             >
               <span>{clearingMenu ? 'Clearing...' : 'Clear Menu'}</span>
             </button>
             <button
               onClick={handleSeedMenu}
-              disabled={seedingMenu}
+              disabled={seedingMenu || !cafeteria}
               className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-70"
             >
               <Upload className="h-5 w-5" />
@@ -621,10 +652,44 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
                 setEditingItem(null);
                 setShowForm(true);
               }}
-              className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+              disabled={!cafeteria}
+              className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="h-5 w-5" />
               <span>Add Item</span>
+            </button>
+            <button
+              onClick={() => {
+                // Predefined Cafeteria 2 menu items
+                const cafeteria2Menu = [
+                  { name: 'Rice', price: 400, category: 'Main Course' },
+                  { name: 'Jollof fried rice', price: 400, category: 'Main Course' },
+                  { name: 'Porridge white beans', price: 500, category: 'Protein' },
+                  { name: 'White jollof spag', price: 400, category: 'Main Course' },
+                  { name: 'Macaroni', price: 400, category: 'Main Course' },
+                  { name: 'Beef fish', price: 500, category: 'Protein' },
+                  { name: 'Egg', price: 300, category: 'Protein' },
+                  { name: 'Swallow', price: 500, category: 'Swallow' },
+                  { name: 'Soup', price: 300, category: 'Soup' },
+                  { name: 'Ofada sauce', price: 300, category: 'Side' },
+                  { name: 'Ofada rice', price: 400, category: 'Main Course' },
+                  { name: 'Stew', price: 200, category: 'Side' },
+                  { name: 'Chicken sauce', price: 1000, category: 'Side' },
+                  { name: 'Fish sauce', price: 600, category: 'Side' },
+                  { name: 'Chinese Basmati rice', price: 700, category: 'Main Course' },
+                  { name: 'Oyster rice', price: 600, category: 'Main Course' },
+                  { name: 'Carbonara rice', price: 700, category: 'Main Course' },
+                  { name: 'Singapore & stir fry spag', price: 500, category: 'Main Course' },
+                  { name: 'White spag', price: 400, category: 'Main Course' },
+                  { name: 'Jollof spag', price: 400, category: 'Main Course' },
+                ];
+                handleBulkUploadMenu(cafeteria2Menu);
+              }}
+              disabled={!cafeteria}
+              className="flex items-center space-x-2 px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-70"
+            >
+              <Upload className="h-5 w-5" />
+              <span>Upload Cafeteria 2 Menu</span>
             </button>
           </div>
         </div>
@@ -633,8 +698,13 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
           <div className="text-center py-16 bg-white rounded-xl">
             <p className="text-gray-600 text-lg mb-4">No menu items yet</p>
             <button
-              onClick={() => setShowForm(true)}
-              className="text-blue-600 hover:text-blue-700 font-semibold"
+              onClick={() => {
+                if (cafeteria) {
+                  setShowForm(true);
+                }
+              }}
+              disabled={!cafeteria}
+              className="text-blue-600 hover:text-blue-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Add your first item
             </button>
