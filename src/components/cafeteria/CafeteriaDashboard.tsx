@@ -10,87 +10,6 @@ interface CafeteriaDashboardProps {
   onShowProfile?: () => void;
 }
 
-const uploadImage = async (file: File): Promise<string | null> => {
-  try {
-    // Check and refresh session if needed before attempting upload
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (!session || sessionError) {
-      console.error('User session not found or expired for image upload. Attempting to refresh...');
-
-      // Try to refresh the session
-      try {
-        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !refreshedSession) {
-          console.error('Session refresh failed during upload:', refreshError);
-          alert('Session expired. Please sign in again to upload images.');
-          return null;
-        }
-
-        // Session refreshed successfully
-        console.log('Session refreshed successfully for upload');
-      } catch (refreshErr) {
-        console.error('Error during session refresh for upload:', refreshErr);
-        alert('Session expired. Please sign in again to upload images.');
-        return null;
-      }
-    }
-
-    console.log('Uploading file:', file.name);
-
-    // Sanitize the filename to remove problematic characters
-    const cleanFileName = file.name
-      .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace non-alphanumeric characters with underscore
-      .replace(/_{2,}/g, '_') // Replace multiple underscores with single
-      .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
-      .toLowerCase(); // Convert to lowercase
-
-    const fileName = `${Date.now()}-${cleanFileName}`;
-
-    // Remove file if it already exists
-    try {
-      await supabase.storage
-        .from('menu-images')
-        .remove([fileName]); // This won't cause an error if the file doesn't exist
-    } catch (deleteError) {
-      console.warn('Error removing existing file (may not exist):', deleteError);
-      // Continue anyway since the file might not exist
-    }
-
-    const { data, error } = await supabase.storage
-      .from('menu-images')
-      .upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: true // Allow overwriting
-      });
-
-    if (error) {
-      console.error('Upload error:', error);
-      // Check if it's an authentication/storage error
-      if (error.message.toLowerCase().includes('auth') ||
-        error.message.toLowerCase().includes('permission') ||
-        error.message.toLowerCase().includes('unauthorized') ||
-        error.message.includes('401') || error.message.includes('403')) {
-        alert('Authentication failed during upload. Please sign in again.');
-        return null;
-      }
-      return null;
-    }
-
-    console.log('Upload successful:', data);
-
-    const { data: publicUrlData } = supabase.storage
-      .from('menu-images')
-      .getPublicUrl(fileName);
-
-    const publicUrl = publicUrlData?.publicUrl || '';
-    console.log('Public URL:', publicUrl);
-    return publicUrl;
-  } catch (error) {
-    console.error('Unexpected error during upload:', error);
-    return null;
-  }
-};
-
 export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowProfile }) => {
   const { profile, signOut, checkApprovalStatus } = useAuth();
   const [approvalStatus, setApprovalStatus] = useState<boolean | null>(null);
@@ -111,6 +30,75 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
     name: '',
     description: '',
   });
+
+  // Define uploadImage function inside the component to access profile prop
+  const uploadImage = async (file: File): Promise<string | null> => {
+    try {
+      // Refresh session before upload to ensure authentication is valid
+      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+
+      if (!currentSession || sessionError) {
+        // Attempt to refresh the session
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+
+        if (refreshError || !refreshedSession) {
+          console.error('Session refresh failed during upload:', refreshError);
+          alert('Session expired. Please sign in again to upload images.');
+          return null;
+        }
+
+        console.log('Session refreshed successfully for upload');
+      }
+
+      console.log('Uploading file:', file.name);
+
+      // Sanitize the filename to remove problematic characters
+      const cleanFileName = file.name
+        .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace non-alphanumeric characters with underscore
+        .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+        .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+        .toLowerCase(); // Convert to lowercase
+
+      // Create a unique filename with user ID to comply with storage policy
+      const fileName = `${profile?.id || 'anonymous'}/${Date.now()}-${cleanFileName}`;
+
+      const { data, error } = await supabase.storage
+        .from('menu-images')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: true // Allow overwriting
+        });
+
+      if (error) {
+        console.error('Upload error:', error);
+        // Check if it's an authentication/storage error
+        if (error.message.toLowerCase().includes('auth') ||
+          error.message.toLowerCase().includes('permission') ||
+          error.message.toLowerCase().includes('unauthorized') ||
+          error.message.includes('401') || error.message.includes('403')) {
+          alert('Authentication failed during upload. Please sign in again.');
+          return null;
+        }
+        // More specific error handling
+        alert(`Upload failed: ${error.message}`);
+        return null;
+      }
+
+      console.log('Upload successful:', data);
+
+      const { data: publicUrlData } = supabase.storage
+        .from('menu-images')
+        .getPublicUrl(fileName);
+
+      const publicUrl = publicUrlData?.publicUrl || '';
+      console.log('Public URL:', publicUrl);
+      return publicUrl;
+    } catch (error) {
+      console.error('Unexpected error during upload:', error);
+      alert('An unexpected error occurred during upload. Please try again.');
+      return null;
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -197,31 +185,6 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
       return;
     }
 
-    // Check and refresh session if needed
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (!session || sessionError) {
-      console.error('User session not found or expired. Attempting to refresh...');
-
-      // Try to refresh the session
-      try {
-        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !refreshedSession) {
-          console.error('Session refresh failed:', refreshError);
-          alert('Session expired. Please sign in again.');
-          signOut();
-          return;
-        }
-
-        // Session refreshed successfully
-        console.log('Session refreshed successfully');
-      } catch (refreshErr) {
-        console.error('Error during session refresh:', refreshErr);
-        alert('Session expired. Please sign in again.');
-        signOut();
-        return;
-      }
-    }
-
     let finalData = { ...itemData };
 
     if (file) {
@@ -249,12 +212,29 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
           menuItemError.message.toLowerCase().includes('auth') ||
           menuItemError.message.toLowerCase().includes('permission') ||
           menuItemError.message.toLowerCase().includes('unauthorized')) {
-          alert('Authentication failed. Please sign in again.');
-          signOut();
+          // Try to refresh session and retry once
+          const { error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError) {
+            alert('Authentication failed. Please sign in again.');
+            signOut();
+            return;
+          }
+          // Retry the update operation
+          const { error: retryError } = await supabase
+            .from('menu_items')
+            .update(finalData)
+            .eq('id', editingItem.id);
+
+          if (retryError) {
+            console.error('Retry update failed:', retryError);
+            alert('Authentication failed. Please sign in again.');
+            signOut();
+            return;
+          }
         } else {
           alert(`Error updating menu item: ${menuItemError.message}`);
+          return;
         }
-        return;
       }
 
       await fetchData();
@@ -276,12 +256,32 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
           insertError.message.toLowerCase().includes('auth') ||
           insertError.message.toLowerCase().includes('permission') ||
           insertError.message.toLowerCase().includes('unauthorized')) {
-          alert('Authentication failed. Please sign in again.');
-          signOut();
+          // Try to refresh session and retry once
+          const { error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError) {
+            alert('Authentication failed. Please sign in again.');
+            signOut();
+            return;
+          }
+          // Retry the insert operation
+          const { error: retryError } = await supabase
+            .from('menu_items')
+            .insert({
+              ...finalData,
+              seller_id: cafeteria.id,
+              seller_type: 'cafeteria',
+            });
+
+          if (retryError) {
+            console.error('Retry insert failed:', retryError);
+            alert('Authentication failed. Please sign in again.');
+            signOut();
+            return;
+          }
         } else {
           alert(`Error inserting menu item: ${insertError.message}`);
+          return;
         }
-        return;
       }
 
       await fetchData();
