@@ -149,6 +149,23 @@ const getFixedPrice = (foodName: string): number => {
 // Function to clear existing cafeteria menu items
 const clearCafeteriaMenu = async (cafeteriaId: string) => {
     try {
+        console.log('Starting clear operation for cafeteria:', cafeteriaId);
+        
+        // Check and refresh session if needed
+        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (!currentSession || sessionError) {
+            console.log('No valid session found for clear operation, attempting to refresh...');
+            const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+            
+            if (refreshError || !refreshedSession) {
+                console.error('Session refresh failed during clear operation:', refreshError);
+                return { success: false, error: refreshError || new Error('Session refresh failed') };
+            }
+            
+            console.log('Session refreshed successfully for clear operation');
+        }
+
         const { error } = await supabase
             .from('menu_items')
             .delete()
@@ -157,6 +174,14 @@ const clearCafeteriaMenu = async (cafeteriaId: string) => {
 
         if (error) {
             console.error('Error clearing cafeteria menu:', error);
+            // Check if it's an authentication error
+            if (error.message.includes('401') || error.message.includes('403') ||
+                error.message.toLowerCase().includes('auth') ||
+                error.message.toLowerCase().includes('permission') ||
+                error.message.toLowerCase().includes('unauthorized')) {
+                console.error('Authentication error during clear operation');
+                return { success: false, error: new Error('Authentication failed. Please sign in again.') };
+            }
             return { success: false, error };
         }
 
@@ -171,12 +196,33 @@ const clearCafeteriaMenu = async (cafeteriaId: string) => {
 // Function to seed cafeteria menu with the requested food items
 export const seedCafeteriaMenu = async (cafeteriaId: string): Promise<{ success: boolean; message: string; error?: any }> => {
     try {
+        console.log('Starting seed operation for cafeteria:', cafeteriaId);
+        
+        // Check and refresh session if needed before seeding
+        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (!currentSession || sessionError) {
+            console.log('No valid session found for seed operation, attempting to refresh...');
+            const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+            
+            if (refreshError || !refreshedSession) {
+                console.error('Session refresh failed during seed operation:', refreshError);
+                return {
+                    success: false,
+                    message: 'Authentication failed. Please sign in again.',
+                    error: refreshError || new Error('Session refresh failed')
+                };
+            }
+            
+            console.log('Session refreshed successfully for seed operation');
+        }
+
         // First, clear existing menu items
         const clearResult = await clearCafeteriaMenu(cafeteriaId);
         if (!clearResult.success) {
             return {
                 success: false,
-                message: 'Failed to clear existing menu items',
+                message: 'Failed to clear existing menu items: ' + (clearResult.error ? (clearResult.error as Error).message : 'Unknown error'),
                 error: clearResult.error
             };
         }
@@ -221,6 +267,7 @@ export const seedCafeteriaMenu = async (cafeteriaId: string): Promise<{ success:
 
         console.log(`Adding ${uniqueFoodItems.length} unique food items to cafeteria ${cafeteriaId}...`);
 
+        // Process each food item with session refresh checks
         for (const foodName of uniqueFoodItems) {
             const lowerName = foodName.toLowerCase();
             const imageFilename = foodItemImages[lowerName] || 'food-placeholder.png';
@@ -228,6 +275,25 @@ export const seedCafeteriaMenu = async (cafeteriaId: string): Promise<{ success:
 
             const price = getFixedPrice(foodName);
             const category = categorizeFood(foodName);
+
+            // Check current session before each operation
+            const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+            
+            if (!currentSession || sessionError) {
+                console.log('Session expired during seeding, attempting to refresh...');
+                const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+                
+                if (refreshError || !refreshedSession) {
+                    console.error('Session refresh failed during item insertion:', refreshError);
+                    return {
+                        success: false,
+                        message: 'Authentication failed during menu seeding. Please sign in again.',
+                        error: refreshError || new Error('Session refresh failed')
+                    };
+                }
+                
+                console.log('Session refreshed successfully during seeding');
+            }
 
             // Check if item already exists to avoid duplicates
             const { data: existingItem } = await supabase
@@ -260,6 +326,18 @@ export const seedCafeteriaMenu = async (cafeteriaId: string): Promise<{ success:
 
             if (error) {
                 console.error(`Error adding ${foodName}:`, error);
+                // Check if it's an authentication error
+                if (error.message.includes('401') || error.message.includes('403') ||
+                    error.message.toLowerCase().includes('auth') ||
+                    error.message.toLowerCase().includes('permission') ||
+                    error.message.toLowerCase().includes('unauthorized')) {
+                    console.error('Authentication error during item insertion');
+                    return {
+                        success: false,
+                        message: 'Authentication failed during menu seeding. Please sign in again.',
+                        error: new Error('Authentication failed')
+                    };
+                }
             } else {
                 console.log(`Successfully added ${foodName} to menu`);
             }

@@ -292,16 +292,52 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
 
     setSeedingMenu(true);
     try {
+      console.log('Starting seed menu operation...');
+      console.log('Cafeteria ID:', cafeteria.id);
+
+      // Check current session and refresh if needed before seeding
+      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+
+      if (!currentSession || sessionError) {
+        console.log('No valid session found for seed operation, attempting to refresh...');
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+
+        if (refreshError || !refreshedSession) {
+          console.error('Session refresh failed during seed operation:', refreshError);
+          console.error('Authentication failed during menu seed operation');
+          signOut();
+          return;
+        }
+
+        console.log('Session refreshed successfully for seed operation');
+      }
+
       const result = await seedCafeteriaMenu(cafeteria.id);
       if (result.success) {
         await fetchData(); // Refresh the menu items
         console.log(result.message);
       } else {
         console.error('Error seeding menu: ' + result.message);
+        // Check if it's an authentication error
+        if (result.message.includes('401') || result.message.includes('403') ||
+          result.message.toLowerCase().includes('auth') ||
+          result.message.toLowerCase().includes('permission') ||
+          result.message.toLowerCase().includes('unauthorized')) {
+          console.error('Authentication error detected during seed operation');
+          signOut();
+        }
       }
     } catch (error) {
       console.error('Error seeding menu:', error);
       console.error('Error seeding menu: ' + (error as Error).message);
+      // Check if it's an authentication error
+      if ((error as Error).message.includes('401') || (error as Error).message.includes('403') ||
+        (error as Error).message.toLowerCase().includes('auth') ||
+        (error as Error).message.toLowerCase().includes('permission') ||
+        (error as Error).message.toLowerCase().includes('unauthorized')) {
+        console.error('Authentication error caught in seed operation');
+        signOut();
+      }
     } finally {
       setSeedingMenu(false);
     }
@@ -312,6 +348,25 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
     if (!cafeteria) return;
 
     try {
+      console.log('Starting bulk upload for Cafeteria 2 menu...');
+      console.log('Cafeteria ID:', cafeteria.id);
+      console.log('Menu items to upload:', menuItems.length);
+
+      // Check current session and refresh if needed
+      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+
+      if (!currentSession || sessionError) {
+        console.log('No valid session found, attempting to refresh...');
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+
+        if (refreshError || !refreshedSession) {
+          console.error('Session refresh failed during bulk upload:', refreshError);
+          return { success: false, message: 'Authentication failed. Please sign in again.' };
+        }
+
+        console.log('Session refreshed successfully for bulk upload');
+      }
+
       // Prepare items with seller info
       const itemsToInsert = menuItems.map(item => ({
         ...item,
@@ -320,20 +375,68 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
         is_available: true,
       }));
 
-      // Insert all items at once
-      const { error } = await supabase
-        .from('menu_items')
-        .insert(itemsToInsert);
+      console.log('Attempting to insert', itemsToInsert.length, 'menu items');
 
-      if (error) {
-        console.error('Error uploading menu items:', error);
-        return { success: false, message: `Failed to upload menu items: ${error.message}` };
+      // Insert all items at once with retry logic
+      let retryCount = 3;
+      let lastError: any = null;
+
+      while (retryCount > 0) {
+        try {
+          const { error } = await supabase
+            .from('menu_items')
+            .insert(itemsToInsert);
+
+          if (!error) {
+            console.log('Menu items uploaded successfully!');
+            await fetchData(); // Refresh the menu items
+            return { success: true, message: `${itemsToInsert.length} menu items uploaded successfully!` };
+          }
+
+          lastError = error;
+          console.error(`Upload attempt failed (retry ${4 - retryCount}/3):`, error.message);
+
+          // Check if it's an authentication error
+          if (error.message.includes('401') || error.message.includes('403') ||
+            error.message.toLowerCase().includes('auth') ||
+            error.message.toLowerCase().includes('permission') ||
+            error.message.toLowerCase().includes('unauthorized')) {
+
+            if (retryCount > 1) {
+              console.log('Authentication error detected, refreshing session and retrying...');
+              const { error: refreshError } = await supabase.auth.refreshSession();
+              if (refreshError) {
+                console.error('Session refresh failed:', refreshError);
+                signOut();
+                return { success: false, message: 'Authentication failed. Please sign in again.' };
+              }
+              console.log('Session refreshed, retrying upload...');
+            } else {
+              console.error('Final retry failed with authentication error');
+              signOut();
+              return { success: false, message: 'Authentication failed. Please sign in again.' };
+            }
+          } else {
+            // Non-authentication error, don't retry
+            console.error('Non-authentication error occurred:', error.message);
+            return { success: false, message: `Failed to upload menu items: ${error.message}` };
+          }
+        } catch (insertError) {
+          lastError = insertError;
+          console.error(`Exception during upload attempt ${4 - retryCount}:`, insertError);
+        }
+
+        retryCount--;
+        if (retryCount > 0) {
+          // Small delay before retry
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       }
 
-      await fetchData(); // Refresh the menu items
-      return { success: true, message: `${itemsToInsert.length} menu items uploaded successfully!` };
+      console.error('All retry attempts failed. Last error:', lastError?.message || lastError);
+      return { success: false, message: `Failed to upload menu items after all retries: ${lastError?.message || 'Unknown error'}` };
     } catch (error) {
-      console.error('Unexpected error uploading menu items:', error);
+      console.error('Unexpected error during bulk upload:', error);
       return { success: false, message: `Unexpected error: ${error instanceof Error ? error.message : String(error)}` };
     }
   };
@@ -346,22 +449,89 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
 
     setClearingMenu(true);
     try {
-      const { error } = await supabase
-        .from('menu_items')
-        .delete()
-        .eq('seller_id', cafeteria.id)
-        .eq('seller_type', 'cafeteria');
+      console.log('Starting menu clear operation...');
+      console.log('Cafeteria ID:', cafeteria.id);
 
-      if (error) {
-        console.error('Error clearing menu:', error);
-        console.error('Error clearing menu: ' + error.message);
-      } else {
-        await fetchData(); // Refresh the menu items
-        console.log('Menu cleared successfully!');
+      // Check current session and refresh if needed
+      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+
+      if (!currentSession || sessionError) {
+        console.log('No valid session found for clear operation, attempting to refresh...');
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+
+        if (refreshError || !refreshedSession) {
+          console.error('Session refresh failed during clear operation:', refreshError);
+          console.error('Authentication failed during menu clear operation');
+          signOut();
+          return;
+        }
+
+        console.log('Session refreshed successfully for clear operation');
       }
+
+      // Attempt to clear menu with retry logic
+      let retryCount = 3;
+      let lastError: any = null;
+
+      while (retryCount > 0) {
+        try {
+          const { error } = await supabase
+            .from('menu_items')
+            .delete()
+            .eq('seller_id', cafeteria.id)
+            .eq('seller_type', 'cafeteria');
+
+          if (!error) {
+            console.log('Menu cleared successfully!');
+            await fetchData(); // Refresh the menu items
+            return;
+          }
+
+          lastError = error;
+          console.error(`Clear attempt failed (retry ${4 - retryCount}/3):`, error.message);
+
+          // Check if it's an authentication error
+          if (error.message.includes('401') || error.message.includes('403') ||
+            error.message.toLowerCase().includes('auth') ||
+            error.message.toLowerCase().includes('permission') ||
+            error.message.toLowerCase().includes('unauthorized')) {
+
+            if (retryCount > 1) {
+              console.log('Authentication error detected during clear, refreshing session and retrying...');
+              const { error: refreshError } = await supabase.auth.refreshSession();
+              if (refreshError) {
+                console.error('Session refresh failed during clear:', refreshError);
+                signOut();
+                return;
+              }
+              console.log('Session refreshed, retrying clear operation...');
+            } else {
+              console.error('Final retry failed with authentication error during clear');
+              signOut();
+              return;
+            }
+          } else {
+            // Non-authentication error
+            console.error('Non-authentication error during clear:', error.message);
+            break; // Don't retry non-auth errors
+          }
+        } catch (clearError) {
+          lastError = clearError;
+          console.error(`Exception during clear attempt ${4 - retryCount}:`, clearError);
+        }
+
+        retryCount--;
+        if (retryCount > 0) {
+          // Small delay before retry
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
+      console.error('Menu clear operation failed after all retries. Last error:', lastError?.message || lastError);
+      console.error('Error clearing menu after all retries: ' + (lastError?.message || 'Unknown error'));
     } catch (error) {
-      console.error('Error clearing menu:', error);
-      console.error('Error clearing menu: ' + (error as Error).message);
+      console.error('Unexpected error during menu clear:', error);
+      console.error('Unexpected error clearing menu: ' + (error as Error).message);
     } finally {
       setClearingMenu(false);
     }
