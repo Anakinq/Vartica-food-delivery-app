@@ -308,7 +308,7 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
   };
 
   // Bulk upload function for menu items
-  const handleBulkUploadMenu = async (menuItems: { name: string; price: number; category?: string }[]) => {
+  const handleBulkUploadMenu = async (menuItems: { name: string; price: number; category?: string; image_url?: string }[]) => {
     if (!cafeteria) return;
 
     try {
@@ -662,26 +662,34 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
               onClick={() => {
                 // Predefined Cafeteria 2 menu items
                 const cafeteria2Menu = [
-                  { name: 'Rice', price: 400, category: 'Main Course' },
-                  { name: 'Jollof fried rice', price: 400, category: 'Main Course' },
-                  { name: 'Porridge white beans', price: 500, category: 'Protein' },
-                  { name: 'White jollof spag', price: 400, category: 'Main Course' },
-                  { name: 'Macaroni', price: 400, category: 'Main Course' },
-                  { name: 'Beef fish', price: 500, category: 'Protein' },
-                  { name: 'Egg', price: 300, category: 'Protein' },
-                  { name: 'Swallow', price: 500, category: 'Swallow' },
-                  { name: 'Soup', price: 300, category: 'Soup' },
-                  { name: 'Ofada sauce', price: 300, category: 'Side' },
-                  { name: 'Ofada rice', price: 400, category: 'Main Course' },
-                  { name: 'Stew', price: 200, category: 'Side' },
-                  { name: 'Chicken sauce', price: 1000, category: 'Side' },
-                  { name: 'Fish sauce', price: 600, category: 'Side' },
-                  { name: 'Chinese Basmati rice', price: 700, category: 'Main Course' },
-                  { name: 'Oyster rice', price: 600, category: 'Main Course' },
-                  { name: 'Carbonara rice', price: 700, category: 'Main Course' },
-                  { name: 'Singapore & stir fry spag', price: 500, category: 'Main Course' },
-                  { name: 'White spag', price: 400, category: 'Main Course' },
-                  { name: 'Jollof spag', price: 400, category: 'Main Course' },
+                  { name: 'White Rice', price: 400, category: 'Main Course', image_url: '' },
+                  { name: 'Jollof rice', price: 400, category: 'Main Course', image_url: '' },
+                  { name: 'Fried rice', price: 400, category: 'Main Course', image_url: '' },
+                  { name: 'Porridge beans', price: 500, category: 'Main Course', image_url: '' },
+                  { name: 'White beans', price: 500, category: 'Main Course', image_url: '' },
+                  { name: 'White spag', price: 400, category: 'Main Course', image_url: '' },
+                  { name: 'Jollof spag', price: 400, category: 'Main Course', image_url: '' },
+                  { name: 'Macaroni', price: 400, category: 'Main Course', image_url: '' },
+                  { name: 'Beef fish', price: 500, category: 'Protein', image_url: '' },
+                  { name: 'Egg', price: 300, category: 'Protein', image_url: '' },
+                  { name: 'Eba', price: 500, category: 'Swallow', image_url: '' },
+                  { name: 'Semo', price: 500, category: 'Swallow', image_url: '' },
+                  { name: 'Pounded Yam', price: 500, category: 'Swallow', image_url: '' },
+                  { name: 'Amala', price: 500, category: 'Swallow', image_url: '' },
+                  { name: 'Fufu', price: 500, category: 'Swallow', image_url: '' },
+                  { name: 'Soup', price: 300, category: 'Side', image_url: '' },
+                  { name: 'Ofada sauce', price: 300, category: 'Side', image_url: '' },
+                  { name: 'Ofada rice', price: 400, category: 'Main Course', image_url: '' },
+                  { name: 'Stew', price: 200, category: 'Side', image_url: '' },
+                  { name: 'Chicken sauce', price: 1000, category: 'Side', image_url: '' },
+                  { name: 'Fish sauce', price: 600, category: 'Side', image_url: '' },
+                  { name: 'Basmati rice', price: 700, category: 'Main Course', image_url: '' },
+                  { name: 'Oyster rice', price: 600, category: 'Main Course', image_url: '' },
+                  { name: 'Carbonara rice', price: 700, category: 'Main Course', image_url: '' },
+                  { name: 'Singapore spag', price: 500, category: 'Main Course', image_url: '' },
+                  { name: 'Stir fry spag', price: 500, category: 'Main Course', image_url: '' },
+                  { name: 'White spag', price: 400, category: 'Main Course', image_url: '' },
+                  { name: 'Jollof spag', price: 400, category: 'Main Course', image_url: '' },
                 ];
                 handleBulkUploadMenu(cafeteria2Menu);
               }}

@@ -10,6 +10,19 @@ const foodItemImages: Record<string, string> = {
     'white beans': 'porridge beans.jpg',
     'porridge beans': 'porridge beans.jpg',
     'white spag': 'white spag.jpg',
+    'jollof spag': 'jollof spag.jpg',
+    'macaroni': 'macaroni.jpg',
+    'beef fish': 'beef fish.jpg',
+    'ofada sauce': 'ofada sauce.jpg',
+    'ofada rice': 'ofada rice.jpg',
+    'basmati rice': 'basmati rice.jpg',
+    'oyster rice': 'oyster rice.jpg',
+    'carbonara rice': 'carbonara rice.jpg',
+    'singapore spag': 'singapore spag.jpg',
+    'stir fry spag': 'stir fry spag.jpg',
+    'chicken sauce': 'chicken sauce.jpg',
+    'fish sauce': 'fish sauce.jpg',
+    'amala': 'amala.jpg',
     'moimoi': 'moimoi.jpg',
     'egg': 'boiled egg.jpg',
     'beef': 'beef.jpg',
@@ -34,27 +47,43 @@ const foodItemImages: Record<string, string> = {
     'ewedu': 'ewedu.jpg',
     'vegetable': 'vegetable soup.jpg',
     'egusi': 'egusi soup.jpg',
+    'soup': 'soup.jpg',
+    'stew': 'stew.jpg',
 };
 
 // Define the fixed prices for each food item
 const foodItemPrices: Record<string, number> = {
-    'jollof rice': 500,
-    'white rice': 500,
-    'fried rice': 500,
-    'porridge yam': 500,
-    'white beans': 500,
+    'jollof rice': 400,
+    'white rice': 400,
+    'fried rice': 400,
     'porridge beans': 500,
-    'white spag': 500,
-    'moimoi': 500,
+    'white beans': 500,
+    'white spag': 400,
+    'jollof spag': 400,
+    'macaroni': 400,
+    'beef fish': 500,
     'egg': 300,
+    'eba': 500,
+    'semo': 500,
+    'pounded yam': 500,
+    'amala': 500,
+    'fufu': 500,
+    'soup': 300,
+    'ofada sauce': 300,
+    'ofada rice': 400,
+    'stew': 200,
+    'chicken sauce': 1000,
+    'fish sauce': 600,
+    'basmati rice': 700,
+    'oyster rice': 600,
+    'carbonara rice': 700,
+    'singapore spag': 500,
+    'stir fry spag': 500,
+    'moimoi': 500,
     'beef': 400,
     'fish': 400,
     'plantain (3)': 300,
     'chicken': 2500,
-    'eba': 300,
-    'semo': 300,
-    'fufu': 300,
-    'pounded yam': 500,
     'pancake': 400,
     'waffles': 400,
     'ponmo': 300,
@@ -76,23 +105,23 @@ const categorizeFood = (foodName: string): string => {
     const lowerName = foodName.toLowerCase();
 
     // Main food category
-    if (['jollof rice', 'white rice', 'fried rice', 'porridge yam', 'white beans', 'porridge beans', 'white spag'].includes(lowerName)) {
-        return 'Main Food';
+    if (['jollof rice', 'white rice', 'fried rice', 'porridge yam', 'white beans', 'porridge beans', 'white spag', 'jollof spag', 'macaroni', 'ofada rice', 'basmati rice', 'oyster rice', 'carbonara rice', 'singapore spag', 'stir fry spag'].includes(lowerName)) {
+        return 'Main Course';
     }
 
     // Protein category
-    if (['moimoi', 'egg', 'beef', 'fish', 'plantain (3)', 'chicken'].includes(lowerName)) {
+    if (['moimoi', 'egg', 'beef', 'fish', 'plantain (3)', 'chicken', 'beef fish', 'chicken sauce', 'fish sauce'].includes(lowerName)) {
         return 'Protein';
     }
 
     // Swallow category
-    if (['eba', 'semo', 'fufu', 'pounded yam'].includes(lowerName)) {
+    if (['eba', 'semo', 'fufu', 'pounded yam', 'amala'].includes(lowerName)) {
         return 'Swallow';
     }
 
-    // Soup category
-    if (['afang', 'okro', 'bitter leaf', 'chicken pepper soup', 'ewedu', 'vegetable', 'egusi', 'soup'].includes(lowerName)) {
-        return 'Soup';
+    // Side/Soup category
+    if (['afang', 'okro', 'bitter leaf', 'chicken pepper soup', 'ewedu', 'vegetable', 'egusi', 'soup', 'ofada sauce', 'stew'].includes(lowerName)) {
+        return 'Side';
     }
 
     // Other category
@@ -155,39 +184,34 @@ export const seedCafeteriaMenu = async (cafeteriaId: string): Promise<{ success:
         console.log('Cleared existing menu items, now adding new ones...');
         // List of all food items to add with exact specifications
         const foodItems = [
-            'Jollof Rice',
             'White Rice',
-            'Fried Rice',
-            'Porridge yam',
-            'White beans',
+            'Jollof rice',
+            'Fried rice',
             'Porridge beans',
-            'White Spag',
-            'White Spag', // Added twice as requested
-            'Moimoi',
+            'White beans',
+            'White spag',
+            'Jollof spag',
+            'Macaroni',
+            'Beef fish',
             'Egg',
-            'Beef',
-            'Fish',
-            'Plantain (3)', // Updated as requested
-            'Chicken',
             'Eba',
             'Semo',
+            'Pounded Yam',
+            'Amala',
             'Fufu',
-            'Pounded yam',
-            'Pancake',
-            'Waffles',
-            'Ponmo',
-            'Indomie',
-            'Shawarma',
-            'Toast',
-            'Syrup',
-            'The special soups',
-            'Afang',
-            'Okro',
-            'Bitter leaf',
-            'Chicken pepper soup',
-            'Ewedu',
-            'Vegetable',
-            'Egusi',
+            'Soup',
+            'Ofada sauce',
+            'Ofada rice',
+            'Stew',
+            'Chicken sauce',
+            'Fish sauce',
+            'Basmati rice',
+            'Oyster rice',
+            'Carbonara rice',
+            'Singapore spag',
+            'Stir fry spag',
+            'White spag',
+            'Jollof spag',
         ];
 
         // Remove duplicates while preserving order
