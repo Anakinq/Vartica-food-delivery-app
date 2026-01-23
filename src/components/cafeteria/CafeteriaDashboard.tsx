@@ -43,7 +43,7 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
 
         if (refreshError || !refreshedSession) {
           console.error('Session refresh failed during upload:', refreshError);
-          alert('Session expired. Please sign in again to upload images.');
+          // Instead of alerting user, return null to indicate failure
           return null;
         }
 
@@ -76,11 +76,11 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
           error.message.toLowerCase().includes('permission') ||
           error.message.toLowerCase().includes('unauthorized') ||
           error.message.includes('401') || error.message.includes('403')) {
-          alert('Authentication failed during upload. Please sign in again.');
+          console.error('Authentication failed during upload:', error.message);
           return null;
         }
         // More specific error handling
-        alert(`Upload failed: ${error.message}`);
+        console.error('Upload failed:', error.message);
         return null;
       }
 
@@ -95,7 +95,6 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
       return publicUrl;
     } catch (error) {
       console.error('Unexpected error during upload:', error);
-      alert('An unexpected error occurred during upload. Please try again.');
       return null;
     }
   };
@@ -194,7 +193,6 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
       } else {
         // Handle upload failure
         console.error('Failed to upload image');
-        alert('Failed to upload image. Please try again.');
         return;
       }
     }
@@ -215,7 +213,7 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
           // Try to refresh session and retry once
           const { error: refreshError } = await supabase.auth.refreshSession();
           if (refreshError) {
-            alert('Authentication failed. Please sign in again.');
+            console.error('Session refresh failed:', refreshError);
             signOut();
             return;
           }
@@ -227,12 +225,12 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
 
           if (retryError) {
             console.error('Retry update failed:', retryError);
-            alert('Authentication failed. Please sign in again.');
+            // Silent signout without alert
             signOut();
             return;
           }
         } else {
-          alert(`Error updating menu item: ${menuItemError.message}`);
+          console.error(`Error updating menu item: ${menuItemError.message}`);
           return;
         }
       }
@@ -259,7 +257,7 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
           // Try to refresh session and retry once
           const { error: refreshError } = await supabase.auth.refreshSession();
           if (refreshError) {
-            alert('Authentication failed. Please sign in again.');
+            console.error('Session refresh failed:', refreshError);
             signOut();
             return;
           }
@@ -274,12 +272,12 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
 
           if (retryError) {
             console.error('Retry insert failed:', retryError);
-            alert('Authentication failed. Please sign in again.');
+            // Silent signout without alert
             signOut();
             return;
           }
         } else {
-          alert(`Error inserting menu item: ${insertError.message}`);
+          console.error(`Error inserting menu item: ${insertError.message}`);
           return;
         }
       }
