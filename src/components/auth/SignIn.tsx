@@ -26,13 +26,7 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
     admin: 'Admin',
   }[role];
 
-  // ✅ Redirect on auth success
-  useEffect(() => {
-    if (user && profile && profile.role !== role) {
-      setError(`This account is registered as a ${profile.role}, not a ${role}.`);
-    }
-    // Note: No need to reload - AuthContext + App.tsx handle routing automatically
-  }, [user, profile, role]);
+  // No role checking during login - let route guards handle authorization
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -23,7 +23,6 @@ function AppContent() {
   const [authView, setAuthView] = useState<AuthView>('signin');
   const [showProfile, setShowProfile] = useState(false);
   const [justSignedUp, setJustSignedUp] = useState(false); // Track if user just signed up
-  const [profileLoadTimeout, setProfileLoadTimeout] = useState(false);
 
   // Check for stored OAuth role after redirect from OAuth flow
   useEffect(() => {
@@ -59,20 +58,8 @@ function AppContent() {
       }
     };
   }, []);
-  
-  // Effect to handle profile loading timeout
-  useEffect(() => {
-    if (user && !profile) {
-      const timer = setTimeout(() => {
-        setProfileLoadTimeout(true);
-      }, 10000); // 10 seconds timeout
-      
-      return () => clearTimeout(timer);
-    } else {
-      // Reset timeout when profile is loaded or user changes
-      setProfileLoadTimeout(false);
-    }
-  }, [user, profile]);
+
+  // No manual profile loading timeout - let Supabase handle auth state
 
   // Listen for user signup event
   useEffect(() => {
@@ -163,25 +150,8 @@ function AppContent() {
     }
   }
 
-  // ✅ Authed user, but profile still loading (rare, but possible)
-  if (user && !profile) { // Removed !justSignedUp condition to allow profile loading after email confirmation
-    if (profileLoadTimeout) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-red-50">
-          <div className="text-center p-6">
-            <h2 className="text-xl font-bold text-red-700">Profile Loading Error</h2>
-            <p className="mt-2 text-red-600">We couldn't load your profile. Please try signing out and signing in again.</p>
-            <button
-              onClick={signOut}
-              className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-            >
-              Sign Out
-            </button>
-          </div>
-        </div>
-      );
-    }
-    
+  // ✅ Authed user, but profile still loading
+  if (user && !profile && loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
