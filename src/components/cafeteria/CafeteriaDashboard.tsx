@@ -7,7 +7,12 @@ import { MenuItemForm } from '../shared/MenuItemForm';
 import { seedCafeteriaMenu } from '../../utils/cafeteriaMenuSeeder';
 import { checkApprovalStatus } from '../../services/supabase/database.service';
 
-const CafeteriaDashboard: React.FC<{ profile: Profile }> = ({ profile }) => {
+interface CafeteriaDashboardProps {
+  profile: Profile;
+  onShowProfile?: () => void;
+}
+
+const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ profile, onShowProfile }) => {
   const [cafeteria, setCafeteria] = useState<Cafeteria | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);

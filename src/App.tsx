@@ -6,7 +6,7 @@ import { LandingPage } from './components/LandingPage';
 import { SignIn } from './components/auth/SignIn';
 import { SignUp } from './components/auth/SignUp';
 import { CustomerHome } from './components/customer/CustomerHome';
-import { CafeteriaDashboard } from './components/cafeteria/CafeteriaDashboard';
+import CafeteriaDashboard from './components/cafeteria/CafeteriaDashboard';
 import { DeliveryDashboard } from './components/delivery/DeliveryDashboard';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { ProfileDashboard } from './components/shared/ProfileDashboard';
