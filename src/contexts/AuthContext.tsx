@@ -149,7 +149,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     } catch (err) {
       console.error('Error fetching user and profile:', err);
-      // Error fetching user and profile
+      // Set a minimal profile to prevent indefinite loading state
+      const minimalProfile: Profile = {
+        id: sessionUser.id,
+        email: sessionUser.email || '',
+        full_name: 'User',
+        role: 'customer', // Default role
+        phone: undefined,
+        created_at: new Date().toISOString(),
+      };
+      setProfile(minimalProfile);
       setLoading(false);
     }
   };
