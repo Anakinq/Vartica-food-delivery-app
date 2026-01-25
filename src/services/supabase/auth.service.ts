@@ -92,7 +92,13 @@ class SupabaseAuthService implements IAuthService {
           if (process.env.NODE_ENV === 'development') {
             console.error('Supabase email signUp error:', error);
           }
-          return { user: null, error };
+
+          // Enhance error with more specific messages
+          const enhancedError = new Error(this.getEnhancedErrorMessage(error.message, 'signup'));
+          (enhancedError as any).originalError = error;
+          (enhancedError as any).code = error.code;
+
+          return { user: null, error: enhancedError };
         }
 
         const user: User | null = data.user
@@ -133,7 +139,13 @@ class SupabaseAuthService implements IAuthService {
         if (process.env.NODE_ENV === 'development') {
           console.error('Supabase signIn error:', error);
         }
-        return { user: null, error };
+
+        // Enhance error with more specific messages
+        const enhancedError = new Error(this.getEnhancedErrorMessage(error.message, 'signin'));
+        (enhancedError as any).originalError = error;
+        (enhancedError as any).code = error.code;
+
+        return { user: null, error: enhancedError };
       }
 
       const user: User | null = data.user
@@ -173,7 +185,13 @@ class SupabaseAuthService implements IAuthService {
         if (process.env.NODE_ENV === 'development') {
           console.error('Supabase signInWithGoogle error:', error);
         }
-        return { error };
+
+        // Enhance error with more specific messages
+        const enhancedError = new Error(this.getEnhancedErrorMessage(error.message, 'google_signin'));
+        (enhancedError as any).originalError = error;
+        (enhancedError as any).code = error.code;
+
+        return { error: enhancedError };
       }
 
       return { error: null };
@@ -221,7 +239,13 @@ class SupabaseAuthService implements IAuthService {
         if (process.env.NODE_ENV === 'development') {
           console.error('Supabase signUpWithGoogle error:', error);
         }
-        return { error };
+
+        // Enhance error with more specific messages
+        const enhancedError = new Error(this.getEnhancedErrorMessage(error.message, 'google_signin'));
+        (enhancedError as any).originalError = error;
+        (enhancedError as any).code = error.code;
+
+        return { error: enhancedError };
       }
 
       return { error: null };
@@ -339,6 +363,37 @@ class SupabaseAuthService implements IAuthService {
     return {
       unsubscribe: () => data.subscription.unsubscribe(),
     };
+  }
+
+  // Helper method to enhance error messages with more user-friendly descriptions
+  private getEnhancedErrorMessage(message: string, operation: 'signin' | 'signup' | 'forgot_password' | 'google_signin' = 'signin'): string {
+    const lowerMessage = message.toLowerCase();
+
+    // Common Supabase error patterns
+    if (lowerMessage.includes('invalid login credentials')) {
+      return 'Invalid email or password. Please try again.';
+    } else if (lowerMessage.includes('email not confirmed')) {
+      return 'Email not confirmed. Please check your email for a confirmation link.';
+    } else if (lowerMessage.includes('email not found')) {
+      return 'Email not found. Please check the email address or sign up for an account.';
+    } else if (lowerMessage.includes('network')) {
+      return 'Network error. Please check your connection and try again.';
+    } else if (lowerMessage.includes('timeout')) {
+      return 'Request timed out. Please try again.';
+    } else if (lowerMessage.includes('access denied')) {
+      return 'Access denied. You must grant permission to continue.';
+    } else if (lowerMessage.includes('popup')) {
+      return 'Popup blocked. Please allow popups for this site and try again.';
+    } else if (lowerMessage.includes('rate limit')) {
+      return 'Too many requests. Please wait a moment and try again.';
+    } else if (lowerMessage.includes('weak password')) {
+      return 'Password is too weak. Please use a stronger password.';
+    } else if (lowerMessage.includes('email taken')) {
+      return 'Email is already taken. Please use a different email or try signing in.';
+    } else {
+      // Return original message if no specific enhancement is available
+      return message;
+    }
   }
 }
 

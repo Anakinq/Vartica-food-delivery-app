@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { getImageUrl } from './imageUploader';
+import { withAuth } from './authWrapper';
 
 // Define the mapping of food items to their corresponding image files in the public directory
 const foodItemImages: Record<string, string> = {
@@ -148,205 +149,174 @@ const getFixedPrice = (foodName: string): number => {
 
 // Function to clear existing cafeteria menu items
 const clearCafeteriaMenu = async (cafeteriaId: string) => {
-    try {
-        console.log('Starting clear operation for cafeteria:', cafeteriaId);
-        
-        // Check and refresh session if needed
-        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (!currentSession || sessionError) {
-            console.log('No valid session found for clear operation, attempting to refresh...');
-            const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-            
-            if (refreshError || !refreshedSession) {
-                console.error('Session refresh failed during clear operation:', refreshError);
-                return { success: false, error: refreshError || new Error('Session refresh failed') };
-            }
-            
-            console.log('Session refreshed successfully for clear operation');
-        }
+    const result = await withAuth(async () => {
+        try {
+            console.log('Starting clear operation for cafeteria:', cafeteriaId);
 
-        const { error } = await supabase
-            .from('menu_items')
-            .delete()
-            .eq('seller_id', cafeteriaId)
-            .eq('seller_type', 'cafeteria');
-
-        if (error) {
-            console.error('Error clearing cafeteria menu:', error);
-            // Check if it's an authentication error
-            if (error.message.includes('401') || error.message.includes('403') ||
-                error.message.toLowerCase().includes('auth') ||
-                error.message.toLowerCase().includes('permission') ||
-                error.message.toLowerCase().includes('unauthorized')) {
-                console.error('Authentication error during clear operation');
-                return { success: false, error: new Error('Authentication failed. Please sign in again.') };
-            }
-            return { success: false, error };
-        }
-
-        console.log('Cafeteria menu cleared successfully');
-        return { success: true };
-    } catch (error) {
-        console.error('Error clearing cafeteria menu:', error);
-        return { success: false, error };
-    }
-};
-
-// Function to seed cafeteria menu with the requested food items
-export const seedCafeteriaMenu = async (cafeteriaId: string): Promise<{ success: boolean; message: string; error?: any }> => {
-    try {
-        console.log('Starting seed operation for cafeteria:', cafeteriaId);
-        
-        // Check and refresh session if needed before seeding
-        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (!currentSession || sessionError) {
-            console.log('No valid session found for seed operation, attempting to refresh...');
-            const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-            
-            if (refreshError || !refreshedSession) {
-                console.error('Session refresh failed during seed operation:', refreshError);
-                return {
-                    success: false,
-                    message: 'Authentication failed. Please sign in again.',
-                    error: refreshError || new Error('Session refresh failed')
-                };
-            }
-            
-            console.log('Session refreshed successfully for seed operation');
-        }
-
-        // First, clear existing menu items
-        const clearResult = await clearCafeteriaMenu(cafeteriaId);
-        if (!clearResult.success) {
-            return {
-                success: false,
-                message: 'Failed to clear existing menu items: ' + (clearResult.error ? (clearResult.error as Error).message : 'Unknown error'),
-                error: clearResult.error
-            };
-        }
-
-        console.log('Cleared existing menu items, now adding new ones...');
-        // List of all food items to add with exact specifications
-        const foodItems = [
-            'White Rice',
-            'Jollof rice',
-            'Fried rice',
-            'Porridge beans',
-            'White beans',
-            'White spag',
-            'Jollof spag',
-            'Macaroni',
-            'Beef fish',
-            'Egg',
-            'Eba',
-            'Semo',
-            'Pounded Yam',
-            'Amala',
-            'Fufu',
-            'Soup',
-            'Ofada sauce',
-            'Ofada rice',
-            'Stew',
-            'Chicken sauce',
-            'Fish sauce',
-            'Basmati rice',
-            'Oyster rice',
-            'Carbonara rice',
-            'Singapore spag',
-            'Stir fry spag',
-            'White spag',
-            'Jollof spag',
-        ];
-
-        // Remove duplicates while preserving order
-        const uniqueFoodItems = Array.from(new Set(foodItems.map(item => item.toLowerCase())))
-            .map(name => foodItems.find(item => item.toLowerCase() === name)!)
-            .filter(item => item.toLowerCase() !== 'the special soups'); // Remove the generic "special soups" entry
-
-        console.log(`Adding ${uniqueFoodItems.length} unique food items to cafeteria ${cafeteriaId}...`);
-
-        // Process each food item with session refresh checks
-        for (const foodName of uniqueFoodItems) {
-            const lowerName = foodName.toLowerCase();
-            const imageFilename = foodItemImages[lowerName] || 'food-placeholder.png';
-            const imageUrl = await getImageUrl(imageFilename);
-
-            const price = getFixedPrice(foodName);
-            const category = categorizeFood(foodName);
-
-            // Check current session before each operation
-            const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
-            
-            if (!currentSession || sessionError) {
-                console.log('Session expired during seeding, attempting to refresh...');
-                const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-                
-                if (refreshError || !refreshedSession) {
-                    console.error('Session refresh failed during item insertion:', refreshError);
-                    return {
-                        success: false,
-                        message: 'Authentication failed during menu seeding. Please sign in again.',
-                        error: refreshError || new Error('Session refresh failed')
-                    };
-                }
-                
-                console.log('Session refreshed successfully during seeding');
-            }
-
-            // Check if item already exists to avoid duplicates
-            const { data: existingItem } = await supabase
-                .from('menu_items')
-                .select('*')
-                .eq('seller_id', cafeteriaId)
-                .eq('seller_type', 'cafeteria')
-                .eq('name', foodName)
-                .single();
-
-            if (existingItem) {
-                console.log(`Item ${foodName} already exists, skipping...`);
-                continue;
-            }
-
-            // Insert the new menu item
             const { error } = await supabase
                 .from('menu_items')
-                .insert([{
-                    name: foodName,
-                    description: `Delicious ${foodName} prepared with the finest ingredients`,
-                    price: price,
-                    category: category,
-                    image_url: imageUrl,
-                    seller_id: cafeteriaId,
-                    seller_type: 'cafeteria',
-                    is_available: true,
-                    created_at: new Date().toISOString(),
-                }]);
+                .delete()
+                .eq('seller_id', cafeteriaId)
+                .eq('seller_type', 'cafeteria');
 
             if (error) {
-                console.error(`Error adding ${foodName}:`, error);
+                console.error('Error clearing cafeteria menu:', error);
                 // Check if it's an authentication error
                 if (error.message.includes('401') || error.message.includes('403') ||
                     error.message.toLowerCase().includes('auth') ||
                     error.message.toLowerCase().includes('permission') ||
                     error.message.toLowerCase().includes('unauthorized')) {
-                    console.error('Authentication error during item insertion');
-                    return {
-                        success: false,
-                        message: 'Authentication failed during menu seeding. Please sign in again.',
-                        error: new Error('Authentication failed')
-                    };
+                    console.error('Authentication error during clear operation');
+                    return { success: false, error: new Error('Authentication failed. Please sign in again.') };
                 }
-            } else {
-                console.log(`Successfully added ${foodName} to menu`);
+                return { success: false, error };
             }
-        }
 
-        console.log('Cafeteria menu seeding completed!');
-        return { success: true, message: `Added ${uniqueFoodItems.length} food items to cafeteria menu` };
-    } catch (error) {
-        console.error('Error seeding cafeteria menu:', error);
-        return { success: false, message: 'Failed to seed cafeteria menu', error };
+            console.log('Cafeteria menu cleared successfully');
+            return { success: true };
+        } catch (error) {
+            console.error('Error clearing cafeteria menu:', error);
+            return { success: false, error };
+        }
+    }, 'clearCafeteriaMenu');
+
+    // If authentication failed (result is null), return an appropriate error response
+    if (result === null) {
+        return { success: false, error: new Error('Authentication failed. Please sign in again.') };
     }
+
+    return result;
+};
+
+// Function to seed cafeteria menu with the requested food items
+export const seedCafeteriaMenu = async (cafeteriaId: string): Promise<{ success: boolean; message: string; error?: any }> => {
+    const result = await withAuth(async () => {
+        try {
+            console.log('Starting seed operation for cafeteria:', cafeteriaId);
+
+            // First, clear existing menu items
+            const clearResult = await clearCafeteriaMenu(cafeteriaId);
+            if (!clearResult.success) {
+                return {
+                    success: false,
+                    message: 'Failed to clear existing menu items: ' + (clearResult.error ? (clearResult.error as Error).message : 'Unknown error'),
+                    error: clearResult.error
+                };
+            }
+
+            console.log('Cleared existing menu items, now adding new ones...');
+            // List of all food items to add with exact specifications
+            const foodItems = [
+                'White Rice',
+                'Jollof rice',
+                'Fried rice',
+                'Porridge beans',
+                'White beans',
+                'White spag',
+                'Jollof spag',
+                'Macaroni',
+                'Beef fish',
+                'Egg',
+                'Eba',
+                'Semo',
+                'Pounded Yam',
+                'Amala',
+                'Fufu',
+                'Soup',
+                'Ofada sauce',
+                'Ofada rice',
+                'Stew',
+                'Chicken sauce',
+                'Fish sauce',
+                'Basmati rice',
+                'Oyster rice',
+                'Carbonara rice',
+                'Singapore spag',
+                'Stir fry spag',
+                'White spag',
+                'Jollof spag',
+            ];
+
+            // Remove duplicates while preserving order
+            const uniqueFoodItems = Array.from(new Set(foodItems.map(item => item.toLowerCase())))
+                .map(name => foodItems.find(item => item.toLowerCase() === name)!)
+                .filter(item => item.toLowerCase() !== 'the special soups'); // Remove the generic "special soups" entry
+
+            console.log(`Adding ${uniqueFoodItems.length} unique food items to cafeteria ${cafeteriaId}...`);
+
+            // Process each food item
+            for (const foodName of uniqueFoodItems) {
+                const lowerName = foodName.toLowerCase();
+                const imageFilename = foodItemImages[lowerName] || 'food-placeholder.png';
+                const imageUrl = await getImageUrl(imageFilename);
+
+                const price = getFixedPrice(foodName);
+                const category = categorizeFood(foodName);
+
+                // Check if item already exists to avoid duplicates
+                const { data: existingItem } = await supabase
+                    .from('menu_items')
+                    .select('*')
+                    .eq('seller_id', cafeteriaId)
+                    .eq('seller_type', 'cafeteria')
+                    .eq('name', foodName)
+                    .single();
+
+                if (existingItem) {
+                    console.log(`Item ${foodName} already exists, skipping...`);
+                    continue;
+                }
+
+                // Insert the new menu item
+                const { error } = await supabase
+                    .from('menu_items')
+                    .insert([{
+                        name: foodName,
+                        description: `Delicious ${foodName} prepared with the finest ingredients`,
+                        price: price,
+                        category: category,
+                        image_url: imageUrl,
+                        seller_id: cafeteriaId,
+                        seller_type: 'cafeteria',
+                        is_available: true,
+                        created_at: new Date().toISOString(),
+                    }]);
+
+                if (error) {
+                    console.error(`Error adding ${foodName}:`, error);
+                    // Check if it's an authentication error
+                    if (error.message.includes('401') || error.message.includes('403') ||
+                        error.message.toLowerCase().includes('auth') ||
+                        error.message.toLowerCase().includes('permission') ||
+                        error.message.toLowerCase().includes('unauthorized')) {
+                        console.error('Authentication error during item insertion');
+                        return {
+                            success: false,
+                            message: 'Authentication failed during menu seeding. Please sign in again.',
+                            error: new Error('Authentication failed')
+                        };
+                    }
+                } else {
+                    console.log(`Successfully added ${foodName} to menu`);
+                }
+            }
+
+            console.log('Cafeteria menu seeding completed!');
+            return { success: true, message: `Added ${uniqueFoodItems.length} food items to cafeteria menu` };
+        } catch (error) {
+            console.error('Error seeding cafeteria menu:', error);
+            return { success: false, message: 'Failed to seed cafeteria menu', error };
+        }
+    }, 'seedCafeteriaMenu');
+
+    // If authentication failed (result is null), return an appropriate error response
+    if (result === null) {
+        return {
+            success: false,
+            message: 'Authentication failed during menu seeding. Please sign in again.',
+            error: new Error('Authentication failed')
+        };
+    }
+
+    return result;
 };

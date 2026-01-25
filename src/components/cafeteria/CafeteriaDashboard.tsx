@@ -5,6 +5,7 @@ import { MenuItem, Cafeteria, Profile } from '../../lib/supabase';
 import { supabase } from '../../lib/supabase/client';
 import { MenuItemForm } from '../shared/MenuItemForm';
 import { seedCafeteriaMenu } from '../../utils/cafeteriaMenuSeeder';
+import { withAuth, withStorageAuth } from '../../utils/authWrapper';
 
 interface CafeteriaDashboardProps {
   onShowProfile?: () => void;
@@ -31,25 +32,54 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
     description: '',
   });
 
-  // Define uploadImage function inside the component to access profile prop
-  const uploadImage = async (file: File): Promise<string | null> => {
+  // Enhanced authentication wrapper with better error handling
+  const withAuth = async <T,>(
+    operation: () => Promise<T>,
+    operationName: string
+  ): Promise<T | null> => {
     try {
-      // Refresh session before upload to ensure authentication is valid
-      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+      // Check current session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-      if (!currentSession || sessionError) {
-        // Attempt to refresh the session
+      if (!session || sessionError) {
+        console.log(`${operationName}: No valid session found, attempting to refresh...`);
+
         const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
 
         if (refreshError || !refreshedSession) {
-          console.error('Session refresh failed during upload:', refreshError);
-          // Instead of alerting user, return null to indicate failure
+          console.error(`${operationName}: Session refresh failed`, refreshError);
+          signOut();
           return null;
         }
 
-        console.log('Session refreshed successfully for upload');
+        console.log(`${operationName}: Session refreshed successfully`);
       }
 
+      // Execute the operation
+      const result = await operation();
+      return result;
+    } catch (error) {
+      console.error(`${operationName}: Operation failed`, error);
+
+      // Check if it's an authentication error
+      if (error instanceof Error &&
+        (error.message.includes('401') ||
+          error.message.includes('403') ||
+          error.message.toLowerCase().includes('auth') ||
+          error.message.toLowerCase().includes('permission') ||
+          error.message.toLowerCase().includes('unauthorized'))) {
+        console.error(`${operationName}: Authentication error detected, signing out`);
+        signOut();
+        return null;
+      }
+
+      throw error;
+    }
+  };
+
+  // Define uploadImage function inside the component to access profile prop
+  const uploadImage = async (file: File): Promise<string | null> => {
+    return withStorageAuth(async () => {
       console.log('Uploading file:', file.name);
 
       // Sanitize the filename to remove problematic characters
@@ -93,10 +123,7 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
       const publicUrl = publicUrlData?.publicUrl || '';
       console.log('Public URL:', publicUrl);
       return publicUrl;
-    } catch (error) {
-      console.error('Unexpected error during upload:', error);
-      return null;
-    }
+    }, 'uploadImage');
   };
 
   useEffect(() => {
@@ -106,7 +133,19 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
     if (profile && profile.role === 'vendor') {
       checkVendorApproval();
     }
-  }, [profile]);
+
+    // Add event listener for auth errors
+    const handleAuthError = () => {
+      signOut();
+    };
+
+    window.addEventListener('authError', handleAuthError);
+
+    // Cleanup event listener
+    return () => {
+      window.removeEventListener('authError', handleAuthError);
+    };
+  }, [profile, signOut]);
 
   const checkVendorApproval = async () => {
     if (profile && profile.role === 'vendor') {
@@ -144,37 +183,43 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
   const fetchData = async () => {
     if (!profile) return;
 
-    const { data: cafeteriaData } = await supabase
-      .from('cafeterias')
-      .select('*')
-      .eq('user_id', profile.id)
-      .maybeSingle();
-
-    if (cafeteriaData) {
-      setCafeteria(cafeteriaData);
-
-      const { data: items } = await supabase
-        .from('menu_items')
+    return withAuth(async () => {
+      const { data: cafeteriaData } = await supabase
+        .from('cafeterias')
         .select('*')
-        .eq('seller_id', cafeteriaData.id)
-        .eq('seller_type', 'cafeteria')
-        .order('name');
+        .eq('user_id', profile.id)
+        .maybeSingle();
 
-      if (items) setMenuItems(items);
-    }
+      if (cafeteriaData) {
+        setCafeteria(cafeteriaData);
 
-    setLoading(false);
+        const { data: items } = await supabase
+          .from('menu_items')
+          .select('*')
+          .eq('seller_id', cafeteriaData.id)
+          .eq('seller_type', 'cafeteria')
+          .order('name');
+
+        if (items) setMenuItems(items);
+      }
+
+      setLoading(false);
+    }, 'fetchData');
   };
 
   const handleToggleAvailability = async (item: MenuItem) => {
-    const { error } = await supabase
-      .from('menu_items')
-      .update({ is_available: !item.is_available })
-      .eq('id', item.id);
+    return withAuth(async () => {
+      const { error } = await supabase
+        .from('menu_items')
+        .update({ is_available: !item.is_available })
+        .eq('id', item.id);
 
-    if (!error) {
-      setMenuItems(menuItems.map(i => i.id === item.id ? { ...i, is_available: !i.is_available } : i));
-    }
+      if (!error) {
+        setMenuItems(menuItems.map(i => i.id === item.id ? { ...i, is_available: !i.is_available } : i));
+      } else {
+        console.error('Error toggling availability:', error);
+      }
+    }, 'handleToggleAvailability');
   };
 
   const handleSaveItem = async (itemData: Partial<MenuItem>, file?: File) => {
@@ -184,107 +229,59 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
       return;
     }
 
-    let finalData = { ...itemData };
+    const result = await withAuth(async () => {
+      let finalData = { ...itemData };
 
-    if (file) {
-      const imageUrl = await uploadImage(file);
-      if (imageUrl) {
-        finalData = { ...finalData, image_url: imageUrl };
+      if (file) {
+        const imageUrl = await uploadImage(file);
+        if (imageUrl) {
+          finalData = { ...finalData, image_url: imageUrl };
+        } else {
+          // Handle upload failure
+          console.error('Failed to upload image');
+          return false; // Return false to indicate failure
+        }
+      }
+
+      if (editingItem) {
+        const { error: menuItemError } = await supabase
+          .from('menu_items')
+          .update(finalData)
+          .eq('id', editingItem.id);
+
+        if (menuItemError) {
+          console.error('Error updating menu item:', menuItemError);
+          return false; // Return false to indicate failure
+        } else {
+          await fetchData();
+          setShowForm(false);
+          setEditingItem(null);
+        }
       } else {
-        // Handle upload failure
-        console.error('Failed to upload image');
-        return;
-      }
-    }
+        const { error: insertError } = await supabase
+          .from('menu_items')
+          .insert({
+            ...finalData,
+            seller_id: cafeteria.id,
+            seller_type: 'cafeteria',
+          });
 
-    if (editingItem) {
-      const { error: menuItemError } = await supabase
-        .from('menu_items')
-        .update(finalData)
-        .eq('id', editingItem.id);
-
-      if (menuItemError) {
-        console.error('Error updating menu item:', menuItemError);
-        // Check if it's an authentication error based on the error message
-        if (menuItemError.message.includes('401') || menuItemError.message.includes('403') ||
-          menuItemError.message.toLowerCase().includes('auth') ||
-          menuItemError.message.toLowerCase().includes('permission') ||
-          menuItemError.message.toLowerCase().includes('unauthorized')) {
-          // Try to refresh session and retry once
-          const { error: refreshError } = await supabase.auth.refreshSession();
-          if (refreshError) {
-            console.error('Session refresh failed:', refreshError);
-            signOut();
-            return;
-          }
-          // Retry the update operation
-          const { error: retryError } = await supabase
-            .from('menu_items')
-            .update(finalData)
-            .eq('id', editingItem.id);
-
-          if (retryError) {
-            console.error('Retry update failed:', retryError);
-            // Silent signout without alert
-            signOut();
-            return;
-          }
+        if (insertError) {
+          console.error('Error inserting menu item:', insertError);
+          return false; // Return false to indicate failure
         } else {
-          console.error(`Error updating menu item: ${menuItemError.message}`);
-          return;
+          await fetchData();
+          setShowForm(false);
         }
       }
+      return true; // Return true to indicate success
+    }, 'handleSaveItem');
 
-      await fetchData();
-      setShowForm(false);
-      setEditingItem(null);
-    } else {
-      const { error: insertError } = await supabase
-        .from('menu_items')
-        .insert({
-          ...finalData,
-          seller_id: cafeteria.id,
-          seller_type: 'cafeteria',
-        });
-
-      if (insertError) {
-        console.error('Error inserting menu item:', insertError);
-        // Check if it's an authentication error based on the error message
-        if (insertError.message.includes('401') || insertError.message.includes('403') ||
-          insertError.message.toLowerCase().includes('auth') ||
-          insertError.message.toLowerCase().includes('permission') ||
-          insertError.message.toLowerCase().includes('unauthorized')) {
-          // Try to refresh session and retry once
-          const { error: refreshError } = await supabase.auth.refreshSession();
-          if (refreshError) {
-            console.error('Session refresh failed:', refreshError);
-            signOut();
-            return;
-          }
-          // Retry the insert operation
-          const { error: retryError } = await supabase
-            .from('menu_items')
-            .insert({
-              ...finalData,
-              seller_id: cafeteria.id,
-              seller_type: 'cafeteria',
-            });
-
-          if (retryError) {
-            console.error('Retry insert failed:', retryError);
-            // Silent signout without alert
-            signOut();
-            return;
-          }
-        } else {
-          console.error(`Error inserting menu item: ${insertError.message}`);
-          return;
-        }
-      }
-
-      await fetchData();
-      setShowForm(false);
+    if (result === null) {
+      // Authentication error occurred and user was signed out
+      return; // Just return without further action
     }
+    // Otherwise, operation completed successfully or failed with error logging
   };
 
   const handleSeedMenu = async () => {
@@ -541,79 +538,81 @@ export const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ onShowPr
   const handleUpdateCafeteriaProfile = async () => {
     if (!cafeteria) return;
 
-    let finalImageUrl = cafeteria.image_url || '';
+    return withAuth(async () => {
+      let finalImageUrl = cafeteria.image_url || '';
 
-    // Upload new profile image if provided
-    if (profileImageFile) {
-      // Sanitize the filename to remove problematic characters
-      const cleanFileName = profileImageFile.name
-        .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace non-alphanumeric characters with underscore
-        .replace(/_{2,}/g, '_') // Replace multiple underscores with single
-        .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
-        .toLowerCase(); // Convert to lowercase
+      // Upload new profile image if provided
+      if (profileImageFile) {
+        // Sanitize the filename to remove problematic characters
+        const cleanFileName = profileImageFile.name
+          .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace non-alphanumeric characters with underscore
+          .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+          .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+          .toLowerCase(); // Convert to lowercase
 
-      const fileName = `cafeteria-${Date.now()}-${cleanFileName}`;
+        const fileName = `cafeteria-${Date.now()}-${cleanFileName}`;
 
-      // Remove file if it already exists
-      try {
-        await supabase
+        // Remove file if it already exists
+        try {
+          await supabase
+            .storage
+            .from('vendor-logos') // Using same bucket as vendor logos
+            .remove([fileName]); // This won't cause an error if the file doesn't exist
+        } catch (deleteError) {
+          console.warn('Error removing existing file (may not exist):', deleteError);
+          // Continue anyway since the file might not exist
+        }
+
+        const { data: uploadData, error: uploadError } = await supabase
           .storage
           .from('vendor-logos') // Using same bucket as vendor logos
-          .remove([fileName]); // This won't cause an error if the file doesn't exist
-      } catch (deleteError) {
-        console.warn('Error removing existing file (may not exist):', deleteError);
-        // Continue anyway since the file might not exist
+          .upload(fileName, profileImageFile, {
+            cacheControl: '3600',
+            upsert: true // Overwrite if exists
+          });
+
+        if (uploadError) {
+          console.error('Cafeteria image upload failed:', uploadError);
+          // Silently return without alert
+          return;
+        }
+
+        // Get public URL
+        const { data: publicUrlData } = supabase
+          .storage
+          .from('vendor-logos')
+          .getPublicUrl(fileName);
+
+        finalImageUrl = publicUrlData?.publicUrl || '';
       }
 
-      const { data: uploadData, error: uploadError } = await supabase
-        .storage
-        .from('vendor-logos') // Using same bucket as vendor logos
-        .upload(fileName, profileImageFile, {
-          cacheControl: '3600',
-          upsert: true // Overwrite if exists
+      // Update cafeteria profile
+      const { error } = await supabase
+        .from('cafeterias')
+        .update({
+          name: profileFormData.name,
+          description: profileFormData.description,
+          image_url: finalImageUrl,
+        })
+        .eq('id', cafeteria.id);
+
+      if (error) {
+        console.error('Update failed:', error);
+        // Silently handle error without alert
+      } else {
+        // Update local state
+        setCafeteria({
+          ...cafeteria,
+          name: profileFormData.name,
+          description: profileFormData.description,
+          image_url: finalImageUrl,
         });
-
-      if (uploadError) {
-        console.error('Cafeteria image upload failed:', uploadError);
-        // Silently return without alert
-        return;
+        setShowProfileModal(false);
+        setProfileImageFile(null);
+        setProfileImagePreview('');
+        // Silently handle success without alert
       }
-
-      // Get public URL
-      const { data: publicUrlData } = supabase
-        .storage
-        .from('vendor-logos')
-        .getPublicUrl(fileName);
-
-      finalImageUrl = publicUrlData?.publicUrl || '';
-    }
-
-    // Update cafeteria profile
-    const { error } = await supabase
-      .from('cafeterias')
-      .update({
-        name: profileFormData.name,
-        description: profileFormData.description,
-        image_url: finalImageUrl,
-      })
-      .eq('id', cafeteria.id);
-
-    if (error) {
-      console.error('Update failed:', error);
-      // Silently handle error without alert
-    } else {
-      // Update local state
-      setCafeteria({
-        ...cafeteria,
-        name: profileFormData.name,
-        description: profileFormData.description,
-        image_url: finalImageUrl,
-      });
-      setShowProfileModal(false);
-      setProfileImageFile(null);
-      setProfileImagePreview('');
-      // Silently handle success without alert
-    }
+    }, 'handleUpdateCafeteriaProfile');
   };
 
   // Function to handle profile image change

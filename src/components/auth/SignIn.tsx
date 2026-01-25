@@ -45,7 +45,31 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
       if (process.env.NODE_ENV === 'development') {
         console.error('Sign in error:', err);
       }
-      setError(err instanceof Error ? err.message : 'Failed to sign in');
+
+      // Provide more specific error messages
+      let errorMessage = 'Failed to sign in';
+
+      if (err instanceof Error) {
+        const error = err as any; // Cast to any to access Supabase-specific properties
+
+        // Check for specific error codes/messages
+        if (error.message) {
+          if (error.message.toLowerCase().includes('invalid login credentials')) {
+            errorMessage = 'Invalid email or password. Please try again.';
+          } else if (error.message.toLowerCase().includes('email not confirmed')) {
+            errorMessage = 'Email not confirmed. Please check your email for a confirmation link.';
+          } else if (error.message.toLowerCase().includes('network')) {
+            errorMessage = 'Network error. Please check your connection and try again.';
+          } else if (error.message.toLowerCase().includes('timeout')) {
+            errorMessage = 'Request timed out. Please try again.';
+          } else {
+            // Use the original error message if it's descriptive
+            errorMessage = error.message;
+          }
+        }
+      }
+
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -62,7 +86,29 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
       if (process.env.NODE_ENV === 'development') {
         console.error('Google sign in error:', err);
       }
-      setError(err instanceof Error ? err.message : 'Failed to sign in with Google');
+
+      // Provide more specific error messages for Google sign-in
+      let errorMessage = 'Failed to sign in with Google';
+
+      if (err instanceof Error) {
+        const error = err as any; // Cast to any to access Supabase-specific properties
+
+        // Check for specific error codes/messages
+        if (error.message) {
+          if (error.message.toLowerCase().includes('access denied')) {
+            errorMessage = 'Access denied. You must grant permission to continue with Google.';
+          } else if (error.message.toLowerCase().includes('network')) {
+            errorMessage = 'Network error. Please check your connection and try again.';
+          } else if (error.message.toLowerCase().includes('popup')) {
+            errorMessage = 'Popup blocked. Please allow popups for this site and try again.';
+          } else {
+            // Use the original error message if it's descriptive
+            errorMessage = error.message;
+          }
+        }
+      }
+
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -85,7 +131,9 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
         redirectTo: `${window.location.origin}/update-password`,
       });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       alert('✅ Password reset email sent! Check your inbox (and spam folder).');
       setForgotPasswordMode(false);
@@ -93,7 +141,27 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
       if (process.env.NODE_ENV === 'development') {
         console.error('Forgot password error:', err);
       }
-      setError(err instanceof Error ? err.message : 'Failed to send reset email');
+
+      // Provide more specific error messages for forgot password
+      let errorMessage = 'Failed to send reset email';
+
+      if (err instanceof Error) {
+        const error = err as any; // Cast to any to access Supabase-specific properties
+
+        // Check for specific error codes/messages
+        if (error.message) {
+          if (error.message.toLowerCase().includes('email not found')) {
+            errorMessage = 'Email not found. Please check the email address and try again.';
+          } else if (error.message.toLowerCase().includes('network')) {
+            errorMessage = 'Network error. Please check your connection and try again.';
+          } else {
+            // Use the original error message if it's descriptive
+            errorMessage = error.message;
+          }
+        }
+      }
+
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
     }

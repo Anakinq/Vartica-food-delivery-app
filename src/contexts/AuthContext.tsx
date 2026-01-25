@@ -467,6 +467,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     });
 
+    // Add event listener for auth errors
+    const handleAuthError = () => {
+      if (isMounted) {
+        signOut();
+      }
+    };
+
+    window.addEventListener('authError', handleAuthError);
+
     return () => {
       console.log('AuthContext cleanup');
       isMounted = false;
@@ -475,6 +484,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       unsubscribe();
       subscription?.unsubscribe();
+      window.removeEventListener('authError', handleAuthError);
     };
   }, []);
 
