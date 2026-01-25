@@ -5,7 +5,7 @@ import { MenuItem, Cafeteria, Profile } from '../../lib/supabase';
 import { supabase } from '../../lib/supabase/client';
 import { MenuItemForm } from '../shared/MenuItemForm';
 import { seedCafeteriaMenu } from '../../utils/cafeteriaMenuSeeder';
-import { checkApprovalStatus } from '../../services/database.service';
+import { checkApprovalStatus } from '../../services/supabase/database.service';
 
 const CafeteriaDashboard: React.FC<{ profile: Profile }> = ({ profile }) => {
   const [cafeteria, setCafeteria] = useState<Cafeteria | null>(null);

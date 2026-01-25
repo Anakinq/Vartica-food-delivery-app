@@ -306,3 +306,30 @@ class SupabaseDatabaseService implements IDatabaseService {
 }
 
 export const databaseService = new SupabaseDatabaseService();
+
+// Helper function to check approval status
+export const checkApprovalStatus = async (userId: string, role: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('vendor_approved, delivery_approved')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error checking approval status:', error);
+      return null;
+    }
+
+    if (role === 'vendor') {
+      return data.vendor_approved ?? null;
+    } else if (role === 'delivery_agent') {
+      return data.delivery_approved ?? null;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error in checkApprovalStatus:', error);
+    return null;
+  }
+};
