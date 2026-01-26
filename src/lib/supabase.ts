@@ -1,5 +1,7 @@
 import { supabase } from './supabase/client';
 
+export { supabase };
+
 export type UserRole = 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin';
 
 export interface Profile {
