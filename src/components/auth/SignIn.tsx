@@ -44,21 +44,19 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
       let errorMessage = 'Failed to sign in';
 
       if (err instanceof Error) {
-        const error = err as any; // Cast to any to access Supabase-specific properties
-
         // Check for specific error codes/messages
-        if (error.message) {
-          if (error.message.toLowerCase().includes('invalid login credentials')) {
+        if (err.message) {
+          if (err.message.toLowerCase().includes('invalid login credentials')) {
             errorMessage = 'Invalid email or password. Please try again.';
-          } else if (error.message.toLowerCase().includes('email not confirmed')) {
+          } else if (err.message.toLowerCase().includes('email not confirmed')) {
             errorMessage = 'Email not confirmed. Please check your email for a confirmation link.';
-          } else if (error.message.toLowerCase().includes('network')) {
+          } else if (err.message.toLowerCase().includes('network')) {
             errorMessage = 'Network error. Please check your connection and try again.';
-          } else if (error.message.toLowerCase().includes('timeout')) {
+          } else if (err.message.toLowerCase().includes('timeout')) {
             errorMessage = 'Request timed out. Please try again.';
           } else {
             // Use the original error message if it's descriptive
-            errorMessage = error.message;
+            errorMessage = err.message;
           }
         }
       }
@@ -85,19 +83,17 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
       let errorMessage = 'Failed to sign in with Google';
 
       if (err instanceof Error) {
-        const error = err as any; // Cast to any to access Supabase-specific properties
-
         // Check for specific error codes/messages
-        if (error.message) {
-          if (error.message.toLowerCase().includes('access denied')) {
+        if (err.message) {
+          if (err.message.toLowerCase().includes('access denied')) {
             errorMessage = 'Access denied. You must grant permission to continue with Google.';
-          } else if (error.message.toLowerCase().includes('network')) {
+          } else if (err.message.toLowerCase().includes('network')) {
             errorMessage = 'Network error. Please check your connection and try again.';
-          } else if (error.message.toLowerCase().includes('popup')) {
+          } else if (err.message.toLowerCase().includes('popup')) {
             errorMessage = 'Popup blocked. Please allow popups for this site and try again.';
           } else {
             // Use the original error message if it's descriptive
-            errorMessage = error.message;
+            errorMessage = err.message;
           }
         }
       }
@@ -140,17 +136,15 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
       let errorMessage = 'Failed to send reset email';
 
       if (err instanceof Error) {
-        const error = err as any; // Cast to any to access Supabase-specific properties
-
         // Check for specific error codes/messages
-        if (error.message) {
-          if (error.message.toLowerCase().includes('email not found')) {
+        if (err.message) {
+          if (err.message.toLowerCase().includes('email not found')) {
             errorMessage = 'Email not found. Please check the email address and try again.';
-          } else if (error.message.toLowerCase().includes('network')) {
+          } else if (err.message.toLowerCase().includes('network')) {
             errorMessage = 'Network error. Please check your connection and try again.';
           } else {
             // Use the original error message if it's descriptive
-            errorMessage = error.message;
+            errorMessage = err.message;
           }
         }
       }

@@ -1,6 +1,6 @@
 // src/components/shared/MenuItemCardSimple.tsx
 import React, { useState } from 'react';
-import { MenuItem } from '../../lib/supabase';
+import { MenuItem } from '../../lib/supabase/types';
 
 interface MenuItemCardSimpleProps {
   item: MenuItem;

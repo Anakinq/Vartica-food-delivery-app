@@ -40,29 +40,87 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Fetch profile only (no user reconstruction)
   const fetchProfile = async (supabaseUser: any) => {
+    console.log('fetchProfile called with user:', supabaseUser);
     if (!supabaseUser) {
+      console.log('No user provided, setting profile to null');
       setProfile(null);
-      setLoading(false);
       return;
     }
 
     try {
-      const { data: profileData, error } = await databaseService.selectSingle<Profile>({
-        table: 'profiles',
-        match: { id: supabaseUser.id },
-      });
+      console.log('Fetching profile for user ID:', supabaseUser.id);
+      // Try multiple times with delays to handle potential race conditions
+      let attempts = 0;
+      let profileData = null;
+      let error = null;
 
+      while (attempts < 5 && !profileData) {
+        attempts++;
+        console.log(`Attempt ${attempts} to fetch profile for user:`, supabaseUser.id);
+
+        const result = await databaseService.selectSingle<Profile>({
+          table: 'profiles',
+          match: { id: supabaseUser.id },
+        });
+
+        profileData = result.data;
+        error = result.error;
+
+        if (!profileData && attempts < 5) {
+          console.log(`Profile not found yet (attempt ${attempts}), waiting 500ms...`);
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+
+      console.log('Final profile fetch result after', attempts, 'attempts:', { profileData, error });
       if (error || !profileData) {
-        console.warn('Profile not found for user:', supabaseUser.id);
-        setProfile(null);
+        console.warn('Profile not found for user after all attempts:', supabaseUser.id, error);
+
+        // Try to get user details from auth to see if we can create a basic profile
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user && user.id === supabaseUser.id) {
+            // User exists in auth, but profile doesn't exist in DB
+            // This might happen if email was confirmed but trigger didn't run
+            console.log('User exists in auth but not in profiles table, attempting to create profile...');
+
+            // Try to create a basic profile record
+            const basicProfile = {
+              id: user.id,
+              email: user.email || '',
+              full_name: user.user_metadata?.full_name || 'User',
+              role: user.user_metadata?.role || 'customer',
+              phone: user.user_metadata?.phone,
+              created_at: new Date().toISOString(),
+            };
+
+            // Attempt to insert the profile
+            const insertResult = await databaseService.insert({
+              table: 'profiles',
+              data: basicProfile
+            });
+
+            if (insertResult.data) {
+              console.log('Profile created successfully:', insertResult.data[0]);
+              setProfile(insertResult.data[0]);
+            } else {
+              console.error('Failed to create profile:', insertResult.error);
+              setProfile(null);
+            }
+          } else {
+            setProfile(null);
+          }
+        } catch (profileCreationErr) {
+          console.error('Error during profile creation fallback:', profileCreationErr);
+          setProfile(null);
+        }
       } else {
+        console.log('Profile found and set:', profileData);
         setProfile(profileData);
       }
     } catch (err) {
       console.error('Error fetching profile:', err);
       setProfile(null);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -104,33 +162,68 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return null;
   };
 
-  // Single auth state listener - the only source of truth
+  // Load initial session and set up auth state listener
   useEffect(() => {
     let isMounted = true;
 
+    // Load initial session first
+    const loadInitialSession = async () => {
+      console.log('Loading initial session...');
+      try {
+        const { data } = await supabase.auth.getSession();
+        console.log('Initial session data:', data);
+        if (!isMounted) return;
+
+        // Convert Supabase user to our format
+        const userData = data.session?.user ? {
+          id: data.session.user.id,
+          email: data.session.user.email || null,
+        } : null;
+
+        console.log('Setting user data:', userData);
+        setUser(userData);
+        // Don't wait for profile to load, just fetch it async
+        if (userData) {
+          fetchProfile(data.session?.user ?? null);
+        } else {
+          setProfile(null);
+        }
+      } catch (err) {
+        console.error('Error loading initial session:', err);
+      } finally {
+        if (isMounted) {
+          console.log('Setting loading to false after initial session load');
+          setLoading(false);
+        }
+      }
+    };
+
+    loadInitialSession();
+
     // Supabase auth state listener (ONE listener total)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session);
       if (!isMounted) return;
 
-      console.log('Auth state changed:', event);
+      // Convert Supabase user to our format
+      const userData = session?.user ? {
+        id: session.user.id,
+        email: session.user.email || null,
+      } : null;
 
-      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-        // Set user from session (real Supabase user object)
-        setUser(session?.user ?? null);
-        // Fetch profile separately
-        await fetchProfile(session?.user ?? null);
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
+      console.log('Processing auth state change - setting user:', userData);
+      // Handle all auth events consistently
+      setUser(userData);
+      // Don't wait for profile to load, just fetch it async
+      if (userData) {
+        fetchProfile(session?.user ?? null);
+      } else {
         setProfile(null);
-        setLoading(false);
-      } else if (event === 'INITIAL_SESSION') {
-        // Handle initial session on app load
-        setUser(session?.user ?? null);
-        await fetchProfile(session?.user ?? null);
       }
     });
 
     return () => {
+      console.log('Cleaning up auth state listener');
       isMounted = false;
       subscription?.unsubscribe();
     };
@@ -138,15 +231,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Sign in
   const signIn = async (email: string, password: string) => {
+    console.log('signIn function called with email:', email);
     setLoading(true);
     try {
-      const { error } = await authService.signIn({ email, password });
+      console.log('Attempting to sign in with Supabase...');
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      console.log('Supabase signIn result:', { data, error });
+
       if (error) {
+        console.error('Supabase signIn error:', error);
         setLoading(false);
         throw error;
       }
+
+      console.log('Sign in successful, waiting for auth state change...');
       // Let the auth state listener handle user/profile updates
     } catch (err) {
+      console.error('Error in signIn function:', err);
       setLoading(false);
       throw err;
     }
@@ -156,7 +257,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const signInWithGoogle = async () => {
     setLoading(true);
     try {
-      const { error } = await authService.signInWithGoogle();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
       if (error) {
         setLoading(false);
         throw error;
@@ -178,18 +284,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   ) => {
     setLoading(true);
     try {
-      const { user: newUser, error: signUpError } = await authService.signUp({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        fullName,
-        role,
-        phone,
+        options: {
+          data: {
+            full_name: fullName,
+            role,
+            phone: phone || null,
+          },
+        },
       });
 
-      setLoading(false);
       if (signUpError) {
+        setLoading(false);
         throw signUpError;
       }
+
+      // If no error, the auth state listener will handle user/profile updates
     } catch (err) {
       setLoading(false);
       throw err;
@@ -200,7 +312,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const signUpWithGoogle = async (role: 'customer' | 'vendor' | 'delivery_agent', phone?: string) => {
     setLoading(true);
     try {
-      const { error } = await authService.signUpWithGoogle(role, phone);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            role,
+            phone: phone || '',
+          },
+        },
+      });
       if (error) {
         setLoading(false);
         throw error;
@@ -234,14 +355,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Sign out
   const signOut = async () => {
+    console.log('Sign out initiated');
     setLoading(true);
     try {
-      const { error } = await authService.signOut();
+      const { error } = await supabase.auth.signOut();
       if (error) {
+        console.error('Sign out error:', error);
         throw error;
       }
+      console.log('Sign out successful, auth state listener will handle cleanup');
       // Let the auth state listener handle cleanup
     } catch (err) {
+      console.error('Error during sign out:', err);
       setLoading(false);
       throw err;
     }

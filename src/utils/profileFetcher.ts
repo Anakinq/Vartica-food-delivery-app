@@ -4,7 +4,7 @@
  */
 
 import { supabase } from '../lib/supabase/client';
-import type { Profile } from '../lib/supabase';
+import type { Profile } from '../lib/supabase/types';
 
 interface ProfileResult {
     data: Profile | null;

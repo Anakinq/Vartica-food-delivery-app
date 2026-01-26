@@ -112,7 +112,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
     }
 
     // Validate vendor fields
-    if ((role === 'vendor' || role === 'late_night_vendor')) {
+    if (role === 'vendor' || role === 'late_night_vendor') {
       if (!formData.storeName.trim()) {
         if (process.env.NODE_ENV === 'development') {
           console.log('Validation failed: Store name required');
@@ -184,12 +184,27 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
       // If vendor, upload logo and create vendor profile
       if ((role === 'vendor' || role === 'late_night_vendor') && logoFile) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('User not found after signup');
+        // Wait for the user to be available after signup
+        let currentUser = null;
+        let maxRetries = 10; // Maximum retries
+        let retryCount = 0;
+        
+        while (!currentUser && retryCount < maxRetries) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            currentUser = user;
+            break;
+          }
+          // Wait 200ms before retrying
+          await new Promise(resolve => setTimeout(resolve, 200));
+          retryCount++;
+        }
+        
+        if (!currentUser) throw new Error('User not found after signup');
 
         // Upload logo to Supabase storage
         const fileExt = logoFile.name.split('.').pop();
-        const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+        const fileName = `${currentUser.id}-${Date.now()}.${fileExt}`;
         const { error: uploadError, data: uploadData } = await supabase.storage
           .from('vendor-logos')
           .upload(fileName, logoFile);
@@ -203,7 +218,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
         // Create vendor profile
         const vendorData: any = {
-          user_id: user.id,
+          user_id: currentUser.id,
           store_name: formData.storeName,
           description: formData.storeDescription || null,
           image_url: publicUrl,
@@ -246,7 +261,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
         });
       }
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Signup error:', err);
       if (process.env.NODE_ENV === 'development') {
         console.error('Signup error details:', err);
@@ -254,17 +269,17 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
       // Get the detailed error message from our enhanced error handling
       let errorMessage = 'Failed to create account';
-      if (err.message) {
+      
+      if (err instanceof Error) {
+        // If there's an original error with more details, log it
+        if ((err as any).originalError) {
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Original signup error:', (err as any).originalError);
+          }
+        }
         errorMessage = err.message;
       } else if (typeof err === 'string') {
         errorMessage = err;
-      }
-
-      // If there's an original error with more details, log it
-      if (err.originalError) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Original signup error:', err.originalError);
-        }
       }
 
       setError(errorMessage);

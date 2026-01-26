@@ -1,4 +1,4 @@
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase/client';
 
 interface WalletBalance {
     food_wallet_balance: string;

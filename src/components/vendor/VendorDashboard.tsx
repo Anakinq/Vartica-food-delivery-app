@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { LogOut, Plus, Edit2, ToggleLeft, ToggleRight, Menu, X, User, Camera, Save, MessageCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase, MenuItem } from '../../lib/supabase';
+import { MenuItem } from '../../lib/supabase/types';
+import { supabase } from '../../lib/supabase/client';
 import { Vendor, Order } from '../../lib/supabase/types';
 import { MenuItemForm } from '../shared/MenuItemForm';
 import { ChatModal } from '../shared/ChatModal';
@@ -758,7 +759,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
 
       {showForm && (
         <MenuItemForm
-          item={editingItem}
+          item={editingItem as any}
           onSave={handleSaveItem}
           onClose={() => {
             setShowForm(false);
