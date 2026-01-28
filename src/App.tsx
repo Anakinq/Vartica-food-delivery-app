@@ -13,6 +13,7 @@ import { ProfileDashboard } from './components/shared/ProfileDashboard';
 import { PaymentSuccess } from './components/customer/PaymentSuccess';
 import { VendorDashboard } from './components/vendor/VendorDashboard';
 import AuthCallback from './components/auth/AuthCallback';
+import { Analytics } from '@vercel/analytics/react';
 
 type Role = 'customer' | 'cafeteria' | 'vendor' | 'late_night_vendor' | 'delivery_agent' | 'admin';
 type AuthView = 'signin' | 'signup';
@@ -249,6 +250,7 @@ function App() {
           {/* For error messages */}
         </div>
         <AppContent />
+        <Analytics />
       </div>
     </AuthProvider>
   );
