@@ -258,7 +258,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         'Cafeteria 2': 'caf 2',
         'Med Cafeteria': 'med caf',
         'Smoothie Shack': 'smoothie shack',
-        'Staff Cafeteria': 'caf 3'
+        'Staff Cafeteria': 'staff caf',
+        'Captain Cook': 'captain cook'
         // Seasons Deli will use default numbering
       };
 
@@ -269,7 +270,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         const extensionMap: Record<string, string> = {
           'caf 1': '.png',
           'caf 2': '.png',
-          'caf 3': '.png',
+          'staff caf': '.png',
+          'captain cook': '.png',
           'med caf': '.jpeg',
           'smoothie shack': '.png'
         };
@@ -547,7 +549,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
                             // If the current src is not already a named fallback, try the name-based fallback
                             if (!currentSrc.includes('caf 1.png') && !currentSrc.includes('caf 2.png') && !currentSrc.includes('med caf.jpeg') &&
-                              !currentSrc.includes('smoothie shack.png') && !currentSrc.includes('caf 3.png') && !currentSrc.includes('placehold.co')) {
+                              !currentSrc.includes('smoothie shack.png') && !currentSrc.includes('staff caf.png') && !currentSrc.includes('captain cook.png') && !currentSrc.includes('placehold.co')) {
                               // Try name-based fallback first
                               const imagePath = getImagePath(cafeteria.id, 'cafeteria', cafeteria.name);
                               console.log('Trying alternative path:', imagePath);
