@@ -242,14 +242,31 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     return true;
   };
 
-  const getImagePath = (sellerId: string, sellerType: 'cafeteria' | 'vendor') => {
+  const getImagePath = (sellerId: string, sellerType: 'cafeteria' | 'vendor', sellerName?: string) => {
     // Check if this is a late night vendor
     const isLateNightVendor = lateNightVendors.some(v => v.id === sellerId);
     if (isLateNightVendor && sellerType === 'vendor') {
       return '/images/latenightvendor.jpg';
     }
 
-    // For cafeterias, use their position in the cafeteria array
+    // For cafeterias, use name-based mapping
+    if (sellerType === 'cafeteria' && sellerName) {
+      const nameMap: Record<string, string> = {
+        'Cafeteria 1': 'caf 1',
+        'Cafeteria 2': 'caf 2',
+        'Med Cafeteria': 'med caf',
+        'Smoothie Shack': 'smoothie shack',
+        'Staff Cafeteria': 'caf 3'
+        // Seasons Deli will use default numbering
+      };
+
+      const mappedName = nameMap[sellerName];
+      if (mappedName) {
+        return `/images/${mappedName}.jpg`;
+      }
+    }
+
+    // For cafeterias without custom mapping, use their position in the cafeteria array
     if (sellerType === 'cafeteria') {
       const index = cafeterias.findIndex(c => c.id === sellerId);
       if (index !== -1) {
@@ -502,15 +519,23 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                         className={`bg-white rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${isSelected ? 'ring-2 ring-green-600' : 'hover:shadow-md'}`}
                       >
                         <img
-                          src={cafeteria.image_url || getImagePath(cafeteria.id, 'cafeteria')}
+                          src={cafeteria.image_url || getImagePath(cafeteria.id, 'cafeteria', cafeteria.name)}
                           alt={cafeteria.name}
                           className="w-full h-40 object-cover"
                           onError={(e) => {
                             const target = e.currentTarget;
                             const currentSrc = target.src;
 
-                            // If the current src is not already the fallback, try the fallback
-                            if (!currentSrc.includes('1.jpg') && !currentSrc.includes('placehold.co')) {
+                            // If the current src is not already a named fallback, try the name-based fallback
+                            if (!currentSrc.includes('caf 1.jpg') && !currentSrc.includes('caf 2.jpg') && !currentSrc.includes('med caf.jpg') &&
+                              !currentSrc.includes('smoothie shack.jpg') && !currentSrc.includes('caf 3.jpg') && !currentSrc.includes('placehold.co')) {
+                              // Try name-based fallback first
+                              const imagePath = getImagePath(cafeteria.id, 'cafeteria', cafeteria.name);
+                              if (imagePath !== currentSrc) {
+                                target.src = imagePath;
+                                return;
+                              }
+                              // Fallback to numbered image
                               target.src = '/images/1.jpg';
                             } else {
                               // If already showing fallback, try another fallback
