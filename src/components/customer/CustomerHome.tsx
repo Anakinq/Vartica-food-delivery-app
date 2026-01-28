@@ -106,6 +106,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     ]);
 
     if (cafeteriasRes.data) {
+      console.log('Fetched cafeterias:', cafeteriasRes.data);
       setCafeterias(cafeteriasRes.data);
       // Initialize cafeteria status (default to open for all)
       const initialStatus: Record<string, boolean> = {};
@@ -251,6 +252,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
     // For cafeterias, use name-based mapping
     if (sellerType === 'cafeteria' && sellerName) {
+      console.log('Getting image for cafeteria:', sellerName);
       const nameMap: Record<string, string> = {
         'Cafeteria 1': 'caf 1',
         'Cafeteria 2': 'caf 2',
@@ -262,7 +264,19 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
       const mappedName = nameMap[sellerName];
       if (mappedName) {
-        return `/images/${mappedName}.jpg`;
+        console.log('Mapped name:', mappedName);
+        // Map to correct file extensions based on your actual files
+        const extensionMap: Record<string, string> = {
+          'caf 1': '.png',
+          'caf 2': '.png',
+          'caf 3': '.png',
+          'med caf': '.jpeg',
+          'smoothie shack': '.png'
+        };
+        const ext = extensionMap[mappedName] || '.jpg';
+        const imagePath = `/images/${mappedName}${ext}`;
+        console.log('Returning image path:', imagePath);
+        return imagePath;
       }
     }
 
@@ -519,18 +533,24 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                         className={`bg-white rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${isSelected ? 'ring-2 ring-green-600' : 'hover:shadow-md'}`}
                       >
                         <img
-                          src={cafeteria.image_url || getImagePath(cafeteria.id, 'cafeteria', cafeteria.name)}
+                          src={cafeteria.image_url || (() => {
+                            const path = getImagePath(cafeteria.id, 'cafeteria', cafeteria.name);
+                            console.log(`Using image path for ${cafeteria.name}:`, path);
+                            return path;
+                          })()}
                           alt={cafeteria.name}
                           className="w-full h-40 object-cover"
                           onError={(e) => {
                             const target = e.currentTarget;
                             const currentSrc = target.src;
+                            console.log('Image error for:', cafeteria.name, 'Current src:', currentSrc);
 
                             // If the current src is not already a named fallback, try the name-based fallback
-                            if (!currentSrc.includes('caf 1.jpg') && !currentSrc.includes('caf 2.jpg') && !currentSrc.includes('med caf.jpg') &&
-                              !currentSrc.includes('smoothie shack.jpg') && !currentSrc.includes('caf 3.jpg') && !currentSrc.includes('placehold.co')) {
+                            if (!currentSrc.includes('caf 1.png') && !currentSrc.includes('caf 2.png') && !currentSrc.includes('med caf.jpeg') &&
+                              !currentSrc.includes('smoothie shack.png') && !currentSrc.includes('caf 3.png') && !currentSrc.includes('placehold.co')) {
                               // Try name-based fallback first
                               const imagePath = getImagePath(cafeteria.id, 'cafeteria', cafeteria.name);
+                              console.log('Trying alternative path:', imagePath);
                               if (imagePath !== currentSrc) {
                                 target.src = imagePath;
                                 return;
