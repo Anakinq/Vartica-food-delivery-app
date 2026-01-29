@@ -84,15 +84,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             // This might happen if email was confirmed but trigger didn't run
             console.log('User exists in auth but not in profiles table, attempting to create profile...');
 
+            // Check for OAuth role in sessionStorage
+            let oauthRole: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin' = 'customer';
+            let oauthPhone = null;
+
+            try {
+              if (typeof window !== 'undefined' && window.sessionStorage) {
+                const storedRole = window.sessionStorage.getItem('oauth_role');
+                if (storedRole === 'vendor' || storedRole === 'delivery_agent' || storedRole === 'customer' || storedRole === 'cafeteria' || storedRole === 'admin') {
+                  oauthRole = storedRole as 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin';
+                }
+                oauthPhone = window.sessionStorage.getItem('oauth_phone');
+                console.log('Found OAuth data - role:', oauthRole, 'phone:', oauthPhone);
+
+                // Clear the sessionStorage after use
+                window.sessionStorage.removeItem('oauth_role');
+                window.sessionStorage.removeItem('oauth_phone');
+              }
+            } catch (storageError) {
+              console.warn('Error accessing sessionStorage:', storageError);
+            }
+
             // Try to create a basic profile record
             const basicProfile = {
               id: user.id,
               email: user.email || '',
-              full_name: user.user_metadata?.full_name || 'User',
-              role: user.user_metadata?.role || 'customer',
-              phone: user.user_metadata?.phone,
+              full_name: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
+              role: oauthRole, // Use OAuth role if available
+              phone: oauthPhone || user.user_metadata?.phone,
               created_at: new Date().toISOString(),
             };
+
+            console.log('Creating profile with data:', basicProfile);
 
             // Attempt to insert the profile
             const insertResult = await databaseService.insert({

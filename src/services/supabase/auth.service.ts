@@ -231,6 +231,8 @@ class SupabaseAuthService implements IAuthService {
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
+            role, // Pass role as query parameter
+            phone: phone || '',
           },
         },
       });
