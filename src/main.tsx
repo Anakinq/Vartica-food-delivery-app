@@ -3,15 +3,15 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import { AuthProvider } from './contexts/AuthContext'; // ✅ Adjust path if needed
 import './index.css';
-import { SpeedInsights } from '@vercel/speed-insights/react';
-import { Analytics } from '@vercel/analytics/react';
+// import { SpeedInsights } from '@vercel/speed-insights/react';
+// import { Analytics } from '@vercel/analytics/react';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AuthProvider>
       <App />
-      <SpeedInsights />
-      <Analytics />
+      {/* <SpeedInsights /> */}
+      {/* <Analytics /> */}
     </AuthProvider>
   </StrictMode>
 );

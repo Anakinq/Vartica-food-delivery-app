@@ -51,15 +51,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const calculateDeliveryFee = (hostel: string): number => {
     // Define delivery fees based on hostel location
     const hostelDeliveryFees: Record<string, number> = {
-      'Med caf': 1000, // Med side to med side
       'New Female Hostel 1': 1500,
       'New Female Hostel 2': 1500,
-      'Caf 2': 1500,
-      'Caf 1': 1000,
-      'Smoothie Shack': 1000,
-      'Captain Cook': 1000,
-      'Staff Caf': 1000,
-      'Seasons': 1500,
       'Abuad Hostel': 700,
       'Wema Hostel': 700,
       'Male Hostel 1': 1500,
@@ -508,13 +501,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 <option value="">Select your hostel</option>
                 <option value="New Female Hostel 1">New Female Hostel 1</option>
                 <option value="New Female Hostel 2">New Female Hostel 2</option>
-                <option value="Caf 2">Caf 2</option>
-                <option value="Caf 1">Caf 1</option>
-                <option value="Smoothie Shack">Smoothie Shack</option>
-                <option value="Captain Cook">Captain Cook</option>
-                <option value="Staff Caf">Staff Caf</option>
-                <option value="Med caf">Med caf</option>
-                <option value="Seasons">Seasons</option>
+
                 <option value="Abuad Hostel">Abuad Hostel</option>
                 <option value="Wema Hostel">Wema Hostel</option>
                 <option value="Male Hostel 1">Male Hostel 1</option>
