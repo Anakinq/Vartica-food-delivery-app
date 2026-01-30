@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Supabase Signup Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+    <h1>Supabase Signup Test</h1>
+    <div id="result"></div>
+
+    <script>
+        // Configuration from your environment
+        const supabaseUrl = 'https://jbqhbuogmxqzotlorahn.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpicWhidW9nbXhxem90bG9yYWhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzOTc2NDgsImV4cCI6MjA3NDk3MzY0OH0.APsgWNwZnGnBZpBZTGqL61O3pPLKu4eDmfpsFvk2XMQ';
+
+        const supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+        async function testSignup() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing signup...';
+
+            try {
+                // Test signup with minimal data
+                const { data, error } = await supabase.auth.signUp({
+                    email: 'test@example.com',
+                    password: 'password123',
+                    options: {
+                        data: {
+                            full_name: 'Test User',
+                            role: 'customer'
+                        }
+                    }
+                });
+
+                if (error) {
+                    resultDiv.innerHTML = `<div style="color: red;"><h2>Error:</h2><pre>${JSON.stringify(error, null, 2)}</pre></div>`;
+                    console.error('Signup error:', error);
+                } else {
+                    resultDiv.innerHTML = `<div style="color: green;"><h2>Success!</h2><pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+                    console.log('Signup success:', data);
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `<div style="color: red;"><h2>Exception:</h2><pre>${err.message}</pre></div>`;
+                console.error('Signup exception:', err);
+            }
+        }
+
+        // Run the test immediately
+        testSignup();
+    </script>
+</body>
+
+</html>

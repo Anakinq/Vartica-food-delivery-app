@@ -9,6 +9,7 @@ import { MenuItemCard } from './MenuItemCard';
 import { Cart } from './Cart';
 import { Checkout } from './Checkout';
 import { OrderTracking } from './OrderTracking';
+import { VendorUpgradeModal } from './VendorUpgradeModal';
 
 interface CartItem extends MenuItem {
   quantity: number;
@@ -52,6 +53,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [cartPackCount, setCartPackCount] = useState(0);
   const [showCheckout, setShowCheckout] = useState(false);
+  const [showVendorUpgrade, setShowVendorUpgrade] = useState(false);
 
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const toastId = useRef(0);
@@ -446,6 +448,14 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
               </button>
 
               <button
+                onClick={() => setShowVendorUpgrade(true)}
+                className="p-2 text-gray-700 hover:text-blue-600 transition-colors duration-200 bg-blue-50 hover:bg-blue-100 rounded-lg"
+                aria-label="Become a Vendor"
+                title="Become a Vendor"
+              >
+                <User className="h-5 w-5" />
+              </button>
+              <button
                 onClick={signOut}
                 className="p-2 text-gray-700 hover:text-red-600 transition-colors duration-200"
                 aria-label="Sign out"
@@ -781,6 +791,17 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       }
 
       {showOrders && <OrderTracking onClose={() => setShowOrders(false)} />}
+
+      <VendorUpgradeModal
+        isOpen={showVendorUpgrade}
+        onClose={() => setShowVendorUpgrade(false)}
+        onSuccess={() => {
+          showToast('Vendor application submitted successfully!');
+          setShowVendorUpgrade(false);
+          // Refresh data to show updated role
+          setTimeout(() => window.location.reload(), 2000);
+        }}
+      />
     </div >
   );
 };

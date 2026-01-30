@@ -97,12 +97,21 @@ class SupabaseAuthService implements IAuthService {
         });
 
         if (process.env.NODE_ENV === 'development') {
+          console.log('AuthService: Attempting signup with params:', params);
           console.log('Supabase email signUp result:', { data, error });
         }
         if (error) {
           if (process.env.NODE_ENV === 'development') {
             console.error('Supabase email signUp error:', error);
           }
+
+          // Log the full error details for debugging
+          console.error('Full error details:', {
+            message: error.message,
+            code: error.code,
+            status: error.status,
+            name: error.name
+          });
 
           // Enhance error with more specific messages
           const enhancedError = new Error(this.getEnhancedErrorMessage(error.message, 'signup'));

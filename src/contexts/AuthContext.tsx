@@ -323,6 +323,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   ) => {
     setLoading(true);
     try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('AuthContext: signUp called with params:', {
+          email,
+          password,
+          fullName,
+          role,
+          phone,
+          storeName,
+          storeDescription,
+          matricNumber,
+          department,
+          availableFrom,
+          availableUntil
+        });
+      }
+
       const { user: userData, error: signUpError } = await authService.signUp({
         email,
         password,

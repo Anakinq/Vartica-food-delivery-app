@@ -218,6 +218,20 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
       console.error('Signup error:', err);
       if (process.env.NODE_ENV === 'development') {
         console.error('Signup error details:', err);
+
+        // Log additional error information
+        if (err instanceof Error) {
+          console.error('Error name:', err.name);
+          console.error('Error message:', err.message);
+          console.error('Error stack:', err.stack);
+
+          // If there's an original error with more details, log it
+          if ((err as any).originalError) {
+            console.error('Original signup error:', (err as any).originalError);
+            console.error('Original error code:', (err as any).originalError.code);
+            console.error('Original error status:', (err as any).originalError.status);
+          }
+        }
       }
 
       // Get the detailed error message from our enhanced error handling
