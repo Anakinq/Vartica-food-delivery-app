@@ -77,9 +77,20 @@ class SupabaseAuthService implements IAuthService {
               phone: params.phone || null,
               ...(params.role === 'vendor' && {
                 vendor_type: 'student', // Default to student vendor type
+                store_name: params.storeName || (params.fullName ? params.fullName + "'s Store" : 'New Vendor'),
+                description: params.storeDescription || null,
+                matric_number: params.matricNumber || null,
+                department: params.department || null,
               }),
               ...(params.role === 'delivery_agent' && {
                 vehicle_type: 'Bike', // Default to bike
+              }),
+              ...(params.role === 'late_night_vendor' && {
+                vendor_type: 'late_night',
+                store_name: params.storeName || (params.fullName ? params.fullName + "'s Store" : 'New Late Night Vendor'),
+                description: params.storeDescription || null,
+                available_from: params.availableFrom || '21:00',
+                available_until: params.availableUntil || '03:00',
               }),
             },
           },

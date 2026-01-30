@@ -62,6 +62,34 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     }
   }, [profile]);
 
+  // Show welcome message for new vendors who haven't uploaded a logo yet
+  useEffect(() => {
+    if (vendor && vendor.image_url && vendor.image_url.includes('placehold.co')) {
+      // Show a subtle notification encouraging logo upload
+      const showLogoPrompt = () => {
+        const shouldShow = localStorage.getItem('vendorLogoPromptShown') !== 'true';
+        if (shouldShow && vendor) {
+          const shouldPrompt = confirm(
+            `Welcome ${vendor.store_name}! \n\n` +
+            `Your store has been created successfully. \n` +
+            `To make your store stand out, consider uploading your business logo. \n\n` +
+            `Would you like to upload your logo now?`
+          );
+
+          if (shouldPrompt) {
+            openProfileModal();
+          }
+
+          localStorage.setItem('vendorLogoPromptShown', 'true');
+        }
+      };
+
+      // Show prompt after a short delay to ensure UI is loaded
+      const timer = setTimeout(showLogoPrompt, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [vendor]);
+
   const fetchData = async () => {
     // Check and refresh session if needed
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();

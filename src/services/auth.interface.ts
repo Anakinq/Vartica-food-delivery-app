@@ -14,6 +14,14 @@ export interface SignUpParams {
   fullName?: string;
   role?: string;
   phone?: string;
+  // Vendor-specific fields
+  storeName?: string;
+  storeDescription?: string;
+  matricNumber?: string;
+  department?: string;
+  // Late night vendor fields
+  availableFrom?: string;
+  availableUntil?: string;
 }
 
 export interface SignInParams {

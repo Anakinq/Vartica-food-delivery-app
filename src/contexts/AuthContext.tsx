@@ -13,8 +13,16 @@ interface AuthContextType {
     email: string,
     password: string,
     fullName: string,
-    role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin',
-    phone?: string
+    role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin' | 'late_night_vendor',
+    phone?: string,
+    // Vendor-specific fields
+    storeName?: string,
+    storeDescription?: string,
+    matricNumber?: string,
+    department?: string,
+    // Late night vendor fields
+    availableFrom?: string,
+    availableUntil?: string
   ) => Promise<void>;
   signUpWithGoogle: (role: 'customer' | 'vendor' | 'delivery_agent', phone?: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -302,21 +310,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     email: string,
     password: string,
     fullName: string,
-    role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin',
-    phone?: string
+    role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin' | 'late_night_vendor',
+    phone?: string,
+    // Vendor-specific fields
+    storeName?: string,
+    storeDescription?: string,
+    matricNumber?: string,
+    department?: string,
+    // Late night vendor fields
+    availableFrom?: string,
+    availableUntil?: string
   ) => {
     setLoading(true);
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const { user: userData, error: signUpError } = await authService.signUp({
         email,
         password,
-        options: {
-          data: {
-            full_name: fullName,
-            role,
-            phone: phone || null,
-          },
-        },
+        fullName,
+        role,
+        phone,
+        storeName,
+        storeDescription,
+        matricNumber,
+        department,
+        availableFrom,
+        availableUntil
       });
 
       if (signUpError) {
@@ -325,6 +343,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       // If no error, the auth state listener will handle user/profile updates
+      // The user data is already handled by the auth state listener
     } catch (err) {
       setLoading(false);
       throw err;

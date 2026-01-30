@@ -175,70 +175,23 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
         formData.email,
         formData.password,
         formData.fullName,
-        role === 'late_night_vendor' ? 'vendor' : role,
-        normalizedPhone
+        role === 'late_night_vendor' ? 'late_night_vendor' : role,
+        normalizedPhone,
+        // Vendor-specific data
+        formData.storeName,
+        formData.storeDescription,
+        formData.matricNumber,
+        formData.department,
+        // Late night vendor data
+        formData.availableFrom,
+        formData.availableUntil
       );
       if (process.env.NODE_ENV === 'development') {
         console.log('authSignUp completed successfully'); // Debug log
       }
 
-      // If vendor, upload logo and create vendor profile
-      if ((role === 'vendor' || role === 'late_night_vendor') && logoFile) {
-        // Wait for the user to be available after signup
-        let currentUser = null;
-        let maxRetries = 10; // Maximum retries
-        let retryCount = 0;
-        
-        while (!currentUser && retryCount < maxRetries) {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            currentUser = user;
-            break;
-          }
-          // Wait 200ms before retrying
-          await new Promise(resolve => setTimeout(resolve, 200));
-          retryCount++;
-        }
-        
-        if (!currentUser) throw new Error('User not found after signup');
-
-        // Upload logo to Supabase storage
-        const fileExt = logoFile.name.split('.').pop();
-        const fileName = `${currentUser.id}-${Date.now()}.${fileExt}`;
-        const { error: uploadError, data: uploadData } = await supabase.storage
-          .from('vendor-logos')
-          .upload(fileName, logoFile);
-
-        if (uploadError) throw uploadError;
-
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('vendor-logos')
-          .getPublicUrl(fileName);
-
-        // Create vendor profile
-        const vendorData: any = {
-          user_id: currentUser.id,
-          store_name: formData.storeName,
-          description: formData.storeDescription || null,
-          image_url: publicUrl,
-          vendor_type: formData.vendorType,
-          is_active: true,
-          matric_number: formData.matricNumber,
-          department: formData.department,
-        };
-
-        if (role === 'late_night_vendor') {
-          vendorData.available_from = formData.availableFrom;
-          vendorData.available_until = formData.availableUntil;
-        }
-
-        const { error: vendorError } = await supabase
-          .from('vendors')
-          .insert([vendorData]);
-
-        if (vendorError) throw vendorError;
-      }
+      // Vendor profile will be created automatically by the database trigger
+      // Logo upload will be handled after email confirmation when user is logged in
 
       // Only show confirmation screen after successful signup
       if (process.env.NODE_ENV === 'development') {
@@ -269,7 +222,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
 
       // Get the detailed error message from our enhanced error handling
       let errorMessage = 'Failed to create account';
-      
+
       if (err instanceof Error) {
         // If there's an original error with more details, log it
         if ((err as any).originalError) {

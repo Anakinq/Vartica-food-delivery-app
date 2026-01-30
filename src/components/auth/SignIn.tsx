@@ -38,6 +38,10 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
     } catch (err: unknown) {
       if (process.env.NODE_ENV === 'development') {
         console.error('Sign in error:', err);
+        if (err instanceof Error) {
+          console.error('Actual error message:', err.message);
+          console.error('Error type:', typeof err.message);
+        }
       }
 
       // Provide more specific error messages
@@ -46,7 +50,14 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
       if (err instanceof Error) {
         // Check for specific error codes/messages
         if (err.message) {
-          if (err.message.toLowerCase().includes('invalid login credentials')) {
+          const lowerMessage = err.message.toLowerCase();
+          console.log('Lowercase error message:', lowerMessage); // Debug log
+
+          if (lowerMessage.includes('invalid login credentials') ||
+            lowerMessage.includes('invalid credentials') ||
+            lowerMessage.includes('wrong password') ||
+            lowerMessage.includes('incorrect password') ||
+            (lowerMessage.includes('invalid') && lowerMessage.includes('credentials'))) {
             errorMessage = 'Invalid email or password. Please try again.';
           } else if (err.message.toLowerCase().includes('email not confirmed')) {
             errorMessage = 'Email not confirmed. Please check your email for a confirmation link.';
