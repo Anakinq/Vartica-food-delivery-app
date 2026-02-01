@@ -338,7 +338,14 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
 
     // Upload new profile image if provided
     if (profileImageFile) {
-      const fileName = `store-${Date.now()}-${profileImageFile.name}`;
+      // Sanitize the filename to remove problematic characters
+      const cleanFileName = profileImageFile.name
+        .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace non-alphanumeric characters with underscore
+        .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+        .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+        .toLowerCase(); // Convert to lowercase
+
+      const fileName = `store-${Date.now()}-${cleanFileName}`;
 
       const { data: uploadData, error: uploadError } = await supabase
         .storage
@@ -358,6 +365,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         .getPublicUrl(fileName);
 
       finalImageUrl = publicUrlData.publicUrl;
+      console.log('Uploaded store image URL:', finalImageUrl);
     }
 
     // Update vendor profile

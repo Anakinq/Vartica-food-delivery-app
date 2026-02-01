@@ -710,6 +710,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                         <img
                           src={(() => {
                             const supabaseUrl = getSupabaseImageUrl(vendor.image_url || null, 'vendor-logos', 'vendor-logos');
+                            console.log('Vendor image processing:', { original: vendor.image_url, processed: supabaseUrl });
                             return supabaseUrl || vendor.image_url || getImagePath(vendor.id, 'vendor');
                           })()}
                           alt={vendor.store_name}
