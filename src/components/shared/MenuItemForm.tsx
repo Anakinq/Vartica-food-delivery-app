@@ -41,6 +41,11 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
     e.preventDefault();
     setIsUploading(true);
     setError(null);
+
+    console.log('Form data being submitted:', formData);
+    console.log('Image file being submitted:', imageFile);
+    console.log('Has image file:', !!imageFile);
+
     try {
       await onSave(formData, imageFile || undefined);
     } catch (err) {
@@ -53,14 +58,21 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
+    console.log('Image file selected:', file);
+    console.log('File name:', file?.name);
+    console.log('File size:', file?.size);
+    console.log('File type:', file?.type);
+
     setImageFile(file);
     if (file) {
       const url = URL.createObjectURL(file);
       setImagePreview(url);
+      console.log('Image preview URL created:', url);
       // Clean up later (optional but good practice)
       // We can't easily useEffect here, so we rely on browser cleanup
     } else {
       setImagePreview(item?.image_url || null);
+      console.log('No file selected, using existing image URL:', item?.image_url);
     }
   };
 

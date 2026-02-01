@@ -151,6 +151,15 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         .in('seller_type', ['vendor', 'late_night_vendor'])
         .order('name');
 
+      console.log('Fetched menu items for vendor:', vendorData.id);
+      console.log('Menu items data:', items);
+      console.log('Menu items with images:', items?.map(item => ({
+        id: item.id,
+        name: item.name,
+        image_url: item.image_url,
+        has_image: !!item.image_url
+      })));
+
       if (items) setMenuItems(items);
     }
 
@@ -209,6 +218,9 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       alert('No vendor found. Please refresh the page.');
       return;
     }
+
+    console.log('Saving menu item:', { itemData, hasImageFile: !!imageFile });
+    console.log('Vendor data:', vendor);
 
     // Check and refresh session if needed
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -289,6 +301,8 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         .getPublicUrl(fileName);
 
       finalImageUrl = publicUrlData?.publicUrl || '';
+      console.log('Uploaded image URL:', finalImageUrl);
+      console.log('Public URL data:', publicUrlData);
     }
 
     const fullItemData = {
@@ -297,6 +311,9 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       seller_id: vendor.id,
       seller_type: vendor.vendor_type === 'late_night' ? 'late_night_vendor' : 'vendor',
     };
+
+    console.log('Full item data to save:', fullItemData);
+    console.log('Final image URL being saved:', finalImageUrl);
 
     let query;
     if (editingItem) {
@@ -324,6 +341,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         alert('Failed to save menu item. Please try again.');
       }
     } else {
+      console.log('Menu item saved successfully');
       await fetchData();
       setShowForm(false);
       setEditingItem(null);
@@ -687,48 +705,78 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {menuItems.map(item => (
-              <div key={item.id} className={`bg-white rounded-xl shadow-md p-6 ${!item.is_available ? 'opacity-60' : ''}`}>
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900">{item.name}</h3>
-                    <p className="text-xl font-bold text-blue-600 mt-1">₦{item.price.toFixed(2)}</p>
+            {menuItems.map(item => {
+              console.log('Rendering menu item:', {
+                id: item.id,
+                name: item.name,
+                image_url: item.image_url,
+                has_image: !!item.image_url
+              });
+
+              return (
+                <div key={item.id} className={`bg-white rounded-xl shadow-md p-6 ${!item.is_available ? 'opacity-60' : ''}`}>
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-gray-900">{item.name}</h3>
+                      <p className="text-xl font-bold text-blue-600 mt-1">₦{item.price.toFixed(2)}</p>
+                    </div>
+                    <button
+                      onClick={() => handleToggleAvailability(item)}
+                      className={`p-2 rounded-lg ${item.is_available ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`}
+                    >
+                      {item.is_available ? <ToggleRight className="h-6 w-6" /> : <ToggleLeft className="h-6 w-6" />}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => handleToggleAvailability(item)}
-                    className={`p-2 rounded-lg ${item.is_available ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`}
-                  >
-                    {item.is_available ? <ToggleRight className="h-6 w-6" /> : <ToggleLeft className="h-6 w-6" />}
-                  </button>
+
+                  {item.description && (
+                    <p className="text-sm text-gray-600 mb-3">{item.description}</p>
+                  )}
+
+                  {item.category && (
+                    <span className="inline-block px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full mb-3">
+                      {item.category}
+                    </span>
+                  )}
+
+                  {/* Image display section */}
+                  {item.image_url && (
+                    <div className="mb-3">
+                      <p className="text-xs text-gray-500 mb-1">Image URL: {item.image_url}</p>
+                      <img
+                        src={item.image_url}
+                        alt={item.name}
+                        className="w-full h-32 object-cover rounded-md border"
+                        onError={(e) => {
+                          console.error('Image failed to load:', item.image_url);
+                          console.error('Error event:', e);
+                          const target = e.currentTarget;
+                          target.style.display = 'none';
+                        }}
+                        onLoad={(e) => {
+                          console.log('Image loaded successfully:', item.image_url);
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                    <span className={`text-sm font-medium ${item.is_available ? 'text-green-600' : 'text-red-600'}`}>
+                      {item.is_available ? 'In Stock' : 'Out of Stock'}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setEditingItem(item);
+                        setShowForm(true);
+                      }}
+                      className="flex items-center space-x-1 text-blue-600 hover:text-blue-700"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                      <span>Edit</span>
+                    </button>
+                  </div>
                 </div>
-
-                {item.description && (
-                  <p className="text-sm text-gray-600 mb-3">{item.description}</p>
-                )}
-
-                {item.category && (
-                  <span className="inline-block px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full mb-3">
-                    {item.category}
-                  </span>
-                )}
-
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-                  <span className={`text-sm font-medium ${item.is_available ? 'text-green-600' : 'text-red-600'}`}>
-                    {item.is_available ? 'In Stock' : 'Out of Stock'}
-                  </span>
-                  <button
-                    onClick={() => {
-                      setEditingItem(item);
-                      setShowForm(true);
-                    }}
-                    className="flex items-center space-x-1 text-blue-600 hover:text-blue-700"
-                  >
-                    <Edit2 className="h-4 w-4" />
-                    <span>Edit</span>
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
