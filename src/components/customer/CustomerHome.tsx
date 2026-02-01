@@ -301,12 +301,11 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const getSupabaseImageUrl = (imageUrl: string | null, bucket: string, folder: string) => {
     if (!imageUrl) return null;
 
-    // If it's already a full URL, return as is
+    // If it's already a full URL
     if (imageUrl.startsWith('http')) {
-      // Check if it's already a Supabase public URL
+      // Only encode Supabase URLs
       if (imageUrl.includes('supabase.co')) {
-        // Decode any URL-encoded characters that might cause 400 errors
-        return decodeURIComponent(imageUrl);
+        return encodeURI(imageUrl); // ✅ encode spaces & special chars
       }
       return imageUrl;
     }
@@ -319,7 +318,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     // It's likely a file name that needs to be converted to a public URL
     const filePath = `${folder}/${imageUrl}`;
     const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
-    return data.publicUrl;
+    if (!data || !data.publicUrl) return null;
+    return encodeURI(data.publicUrl); // ✅ encode here too
   };
 
   const getImagePath = (sellerId: string, sellerType: 'cafeteria' | 'vendor', sellerName?: string) => {
