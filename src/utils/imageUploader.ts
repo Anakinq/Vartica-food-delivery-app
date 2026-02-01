@@ -101,3 +101,59 @@ export const getImageUrl = async (filename: string): Promise<string> => {
     // If not in storage, return the public directory URL
     return `/images/${cleanFilename}`;
 };
+
+// Function to upload vendor images with proper sanitization
+export const uploadVendorImage = async (file: File, bucket: 'vendor-logos' | 'menu-images' = 'menu-images'): Promise<string | null> => {
+    try {
+        // Sanitize the filename to remove problematic characters
+        const cleanFileName = file.name
+            .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace non-alphanumeric characters with underscore
+            .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+            .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+            .toLowerCase(); // Convert to lowercase
+
+        // Add timestamp prefix to ensure uniqueness
+        const timestamp = Date.now();
+        const fileName = `${bucket === 'vendor-logos' ? 'store' : 'food'}-${timestamp}-${cleanFileName}`.replace(/\s+/g, '-');
+
+        console.log('Uploading file:', { originalName: file.name, cleanName: cleanFileName, finalName: fileName });
+
+        // First, check if the file already exists and delete it if needed
+        try {
+            await supabase
+                .storage
+                .from(bucket)
+                .remove([fileName]); // This won't cause an error if the file doesn't exist
+        } catch (deleteError) {
+            console.warn('Error removing existing file (may not exist):', deleteError);
+            // Continue anyway since the file might not exist
+        }
+
+        const { data: uploadData, error: uploadError } = await supabase
+            .storage
+            .from(bucket)
+            .upload(fileName, file, {
+                cacheControl: '3600',
+                upsert: true // Overwrite if exists
+            });
+
+        if (uploadError) {
+            console.error('Image upload failed:', uploadError);
+            return null;
+        }
+
+        // Get public URL
+        const { data: publicUrlData } = supabase
+            .storage
+            .from(bucket)
+            .getPublicUrl(fileName);
+
+        const imageUrl = publicUrlData?.publicUrl || '';
+        console.log('Uploaded image URL:', imageUrl);
+
+        return imageUrl;
+    } catch (error) {
+        console.error('Error in uploadVendorImage:', error);
+        return null;
+    }
+};

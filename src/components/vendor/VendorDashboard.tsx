@@ -7,6 +7,7 @@ import { Vendor, Order } from '../../lib/supabase/types';
 import { MenuItemForm } from '../shared/MenuItemForm';
 import { ChatModal } from '../shared/ChatModal';
 import { RoleSwitcher } from '../shared/RoleSwitcher';
+import { uploadVendorImage } from '../../utils/imageUploader';
 
 interface VendorDashboardProps {
   onShowProfile?: () => void;
@@ -251,58 +252,13 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
 
     // Upload new image if provided
     if (imageFile) {
-      // Sanitize the filename to remove problematic characters
-      const cleanFileName = imageFile.name
-        .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace non-alphanumeric characters with underscore
-        .replace(/_{2,}/g, '_') // Replace multiple underscores with single
-        .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
-        .toLowerCase(); // Convert to lowercase
-
-      const fileName = `food-${Date.now()}-${cleanFileName}`;
-
-      // First, check if the file already exists and delete it if needed
-      try {
-        await supabase
-          .storage
-          .from('menu-images')
-          .remove([fileName]); // This won't cause an error if the file doesn't exist
-      } catch (deleteError) {
-        console.warn('Error removing existing file (may not exist):', deleteError);
-        // Continue anyway since the file might not exist
-      }
-
-      const { data: uploadData, error: uploadError } = await supabase
-        .storage
-        .from('menu-images')
-        .upload(fileName, imageFile, {
-          cacheControl: '3600',
-          upsert: true // Overwrite if exists
-        });
-
-      if (uploadError) {
-        console.error('Image upload failed:', uploadError);
-        // Check if it's an authentication/storage error
-        if (uploadError.message.toLowerCase().includes('auth') ||
-          uploadError.message.toLowerCase().includes('permission') ||
-          uploadError.message.toLowerCase().includes('unauthorized') ||
-          uploadError.message.includes('401') || uploadError.message.includes('403')) {
-          alert('Authentication failed during upload. Please sign in again.');
-          signOut();
-        } else {
-          alert(`Failed to upload image: ${uploadError.message}. Please try again.`);
-        }
+      const uploadedUrl = await uploadVendorImage(imageFile, 'menu-images');
+      if (uploadedUrl) {
+        finalImageUrl = uploadedUrl;
+      } else {
+        alert('Failed to upload image. Please try again.');
         return;
       }
-
-      // Get public URL
-      const { data: publicUrlData } = supabase
-        .storage
-        .from('menu-images')
-        .getPublicUrl(fileName);
-
-      finalImageUrl = publicUrlData?.publicUrl || '';
-      console.log('Uploaded image URL:', finalImageUrl);
-      console.log('Public URL data:', publicUrlData);
     }
 
     const fullItemData = {
@@ -356,34 +312,13 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
 
     // Upload new profile image if provided
     if (profileImageFile) {
-      // Sanitize the filename to remove problematic characters
-      const cleanFileName = profileImageFile.name
-        .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace non-alphanumeric characters with underscore
-        .replace(/_{2,}/g, '_') // Replace multiple underscores with single
-        .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
-        .toLowerCase(); // Convert to lowercase
-
-      const fileName = `store-${Date.now()}-${cleanFileName}`;
-
-      const { data: uploadData, error: uploadError } = await supabase
-        .storage
-        .from('vendor-logos')
-        .upload(fileName, profileImageFile);
-
-      if (uploadError) {
-        console.error('Store image upload failed:', uploadError);
+      const uploadedUrl = await uploadVendorImage(profileImageFile, 'vendor-logos');
+      if (uploadedUrl) {
+        finalImageUrl = uploadedUrl;
+      } else {
         alert('Failed to upload store image. Please try again.');
         return;
       }
-
-      // Get public URL
-      const { data: publicUrlData } = supabase
-        .storage
-        .from('vendor-logos')
-        .getPublicUrl(fileName);
-
-      finalImageUrl = publicUrlData.publicUrl;
-      console.log('Uploaded store image URL:', finalImageUrl);
     }
 
     // Update vendor profile
