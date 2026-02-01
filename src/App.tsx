@@ -25,6 +25,23 @@ function AppContent() {
   const [showProfile, setShowProfile] = useState(false);
   const [justSignedUp, setJustSignedUp] = useState(false); // Track if user just signed up
 
+  // Debug logging for authentication state
+  useEffect(() => {
+    console.log('=== APP AUTH STATE UPDATE ===');
+    console.log('User:', user);
+    console.log('Profile:', profile);
+    console.log('Loading:', loading);
+    console.log('Just signed up:', justSignedUp);
+    if (user) {
+      console.log('User ID:', user.id);
+      console.log('User email:', user.email);
+    }
+    if (profile) {
+      console.log('Profile role:', profile.role);
+      console.log('Profile ID:', profile.id);
+    }
+  }, [user, profile, loading, justSignedUp]);
+
   // Check for stored OAuth role after redirect from OAuth flow
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;

@@ -35,6 +35,13 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [reviews, setReviews] = useState<any[]>([]); // Replace with proper type when available
   const [preferredRole, setPreferredRole] = useState<'customer' | 'vendor'>('vendor');
+  const [metrics, setMetrics] = useState({
+    totalOrders: 0,
+    totalRevenue: 0,
+    avgOrderValue: 0,
+    pendingOrders: 0,
+    completedOrders: 0,
+  });
 
   const getStatusColor = (status: Order['status']) => {
     switch (status) {
@@ -57,7 +64,9 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
 
   useEffect(() => {
     fetchData();
+  }, [profile]);
 
+  useEffect(() => {
     // Check approval status for vendors
     if (profile && profile.role === 'vendor') {
       checkVendorApproval();
@@ -451,14 +460,18 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     alert(`Switched to ${newRole === 'customer' ? 'Customer' : 'Vendor'} view`);
   };
 
-  // Check if user is a vendor and hasn't been approved yet
+  // Guard UI pattern to handle approval status without breaking hook rules
+  let guardUI: React.ReactNode | null = null;
+
   if (profile && ['vendor', 'late_night_vendor'].includes(profile.role)) {
     if (loadingApproval) {
-      return <div className="min-h-screen flex items-center justify-center">Checking approval status...</div>;
-    }
-
-    if (approvalStatus === false) {
-      return (
+      guardUI = (
+        <div className="min-h-screen flex items-center justify-center">
+          Checking approval status...
+        </div>
+      );
+    } else if (approvalStatus === false) {
+      guardUI = (
         <div className="min-h-screen flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-red-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -477,10 +490,8 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
           </div>
         </div>
       );
-    }
-
-    if (approvalStatus === null) {
-      return (
+    } else if (approvalStatus === null) {
+      guardUI = (
         <div className="min-h-screen flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-yellow-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -503,10 +514,12 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   }
 
   useEffect(() => {
-    if (vendor) {
-      fetchVendorOrders();
-    }
+    if (!vendor) return;
+    fetchVendorOrders();
   }, [vendor]);
+
+  // Return guard UI if needed (hooks already ran)
+  if (guardUI) return guardUI;
 
   const fetchVendorOrders = async () => {
     if (!vendor) return;
@@ -540,14 +553,6 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       { id: 3, customer: 'Bob Johnson', rating: 5, comment: 'Excellent service and quality.', date: '2023-05-05' },
     ]);
   };
-
-  const [metrics, setMetrics] = useState({
-    totalOrders: 0,
-    totalRevenue: 0,
-    avgOrderValue: 0,
-    pendingOrders: 0,
-    completedOrders: 0,
-  });
 
   const calculateMetrics = (orders: Order[]) => {
     const totalOrders = orders.length;

@@ -30,11 +30,16 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('=== SIGN IN ATTEMPT STARTED ===');
+    console.log('Email:', email);
+    console.log('Password length:', password.length);
     setError('');
     setSubmitting(true);
 
     try {
+      console.log('Calling signIn function from AuthContext...');
       await signIn(email, password);
+      console.log('SignIn function completed successfully');
     } catch (err: unknown) {
       if (process.env.NODE_ENV === 'development') {
         console.error('Sign in error:', err);

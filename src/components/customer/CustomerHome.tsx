@@ -297,6 +297,30 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     return true;
   };
 
+  // Helper function to generate Supabase public URLs
+  const getSupabaseImageUrl = (imageUrl: string | null, bucket: string, folder: string) => {
+    if (!imageUrl) return null;
+
+    // If it's already a full URL, return as is
+    if (imageUrl.startsWith('http')) {
+      // Check if it's already a Supabase public URL
+      if (imageUrl.includes('supabase.co')) {
+        return imageUrl;
+      }
+      return imageUrl;
+    }
+
+    // If it's a relative path starting with /images/, return as is
+    if (imageUrl.startsWith('/images/')) {
+      return imageUrl;
+    }
+
+    // It's likely a file name that needs to be converted to a public URL
+    const filePath = `${folder}/${imageUrl}`;
+    const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
   const getImagePath = (sellerId: string, sellerType: 'cafeteria' | 'vendor', sellerName?: string) => {
     // Check if this is a late night vendor
     const isLateNightVendor = lateNightVendors.some(v => v.id === sellerId);
@@ -597,10 +621,13 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                         className={`bg-white rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${isSelected ? 'ring-2 ring-green-600' : 'hover:shadow-md'}`}
                       >
                         <img
-                          src={cafeteria.image_url || (() => {
-                            const path = getImagePath(cafeteria.id, 'cafeteria', cafeteria.name);
-                            console.log(`Using image path for ${cafeteria.name}:`, path);
-                            return path;
+                          src={(() => {
+                            const supabaseUrl = getSupabaseImageUrl(cafeteria.image_url || null, 'vendor-logos', 'vendor-logos');
+                            return supabaseUrl || cafeteria.image_url || (() => {
+                              const path = getImagePath(cafeteria.id, 'cafeteria', cafeteria.name);
+                              console.log(`Using image path for ${cafeteria.name}:`, path);
+                              return path;
+                            })();
                           })()}
                           alt={cafeteria.name}
                           className="w-full h-40 object-cover"
@@ -680,7 +707,10 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                           )}
                         </div>
                         <img
-                          src={vendor.image_url || getImagePath(vendor.id, 'vendor')}
+                          src={(() => {
+                            const supabaseUrl = getSupabaseImageUrl(vendor.image_url || null, 'vendor-logos', 'vendor-logos');
+                            return supabaseUrl || vendor.image_url || getImagePath(vendor.id, 'vendor');
+                          })()}
                           alt={vendor.store_name}
                           className="w-full h-40 object-cover"
                           onError={(e) => {
@@ -734,7 +764,10 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                         <Moon className="h-3 w-3 mr-1" /> Late Night
                       </span>
                       <img
-                        src={vendor.image_url || getImagePath(vendor.id, 'vendor')}
+                        src={(() => {
+                          const supabaseUrl = getSupabaseImageUrl(vendor.image_url || null, 'vendor-logos', 'vendor-logos');
+                          return supabaseUrl || vendor.image_url || getImagePath(vendor.id, 'vendor');
+                        })()}
                         alt={vendor.store_name}
                         className="w-20 h-20 rounded-xl object-cover mb-4"
                         onError={(e) => {
@@ -841,7 +874,19 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       )}
 
       {showOrders && <OrderTracking onClose={() => setShowOrders(false)} />}
-      {/* VendorUpgradeModal temporarily disabled due to syntax issues */}
+
+      {showVendorUpgrade && (
+        <VendorUpgradeModal
+          isOpen={showVendorUpgrade}
+          onClose={() => setShowVendorUpgrade(false)}
+          onSuccess={() => {
+            setShowVendorUpgrade(false);
+            showToast('Application submitted successfully! Awaiting approval.');
+            // Refresh the page or update the UI as needed
+            window.location.reload();
+          }}
+        />
+      )}
     </div >
   );
 }

@@ -66,13 +66,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         attempts++;
         console.log(`Attempt ${attempts} to fetch profile for user:`, supabaseUser.id);
 
+        console.log('Making database call to profiles table with ID:', supabaseUser.id);
         const result = await databaseService.selectSingle<Profile>({
           table: 'profiles',
           match: { id: supabaseUser.id },
         });
 
+        console.log('=== DATABASE QUERY RESULT ===');
+        console.log('Full result object:', result);
+        console.log('Profile data from DB:', result.data);
+        console.log('Database error:', result.error);
+        console.log('Result type:', typeof result);
+        console.log('Has data property:', 'data' in result);
+        console.log('Has error property:', 'error' in result);
+
         profileData = result.data;
         error = result.error;
+
+        console.log('=== PROFILE DATA ASSIGNMENT ===');
+        console.log('profileData after assignment:', profileData);
+        console.log('profileData type:', typeof profileData);
+        console.log('profileData is null:', profileData === null);
+        console.log('profileData is undefined:', profileData === undefined);
+        console.log('profileData truthiness:', !!profileData);
+        console.log('error:', error);
+        console.log('error truthiness:', !!error);
 
         if (!profileData && attempts < 5) {
           console.log(`Profile not found yet (attempt ${attempts}), waiting 500ms...`);
@@ -81,12 +99,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       console.log('Final profile fetch result after', attempts, 'attempts:', { profileData, error });
+      console.log('=== FINAL CONDITION CHECK ===');
+      console.log('error condition:', !!error);
+      console.log('profileData condition:', !profileData);
+      console.log('Combined condition (error || !profileData):', (error || !profileData));
       if (error || !profileData) {
         console.warn('Profile not found for user after all attempts:', supabaseUser.id, error);
 
         // Try to get user details from auth to see if we can create a basic profile
+        console.log('Attempting profile fallback creation...');
         try {
+          console.log('Fetching user from Supabase auth...');
           const { data: { user } } = await supabase.auth.getUser();
+          console.log('Supabase auth user:', user);
+
           if (user && user.id === supabaseUser.id) {
             // User exists in auth, but profile doesn't exist in DB
             // This might happen if email was confirmed but trigger didn't run
@@ -126,10 +152,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.log('Creating profile with data:', basicProfile);
 
             // Attempt to insert the profile
+            console.log('Attempting to insert profile into database...');
+            console.log('Profile data being inserted:', basicProfile);
             const insertResult = await databaseService.insert({
               table: 'profiles',
               data: basicProfile
             });
+
+            console.log('=== PROFILE INSERT RESULT ===');
+            console.log('Insert result:', insertResult);
+            console.log('Insert data:', insertResult.data);
+            console.log('Insert error:', insertResult.error);
+            console.log('Insert success:', !!insertResult.data);
 
             if (insertResult.data) {
               console.log('Profile created successfully:', insertResult.data[0]);
@@ -233,8 +267,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Supabase auth state listener (ONE listener total)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session);
-      if (!isMounted) return;
+      console.log('=== AUTH STATE CHANGED ===');
+      console.log('Event type:', event);
+      console.log('Session data:', session);
+      console.log('User in session:', session?.user);
+      console.log('Session expires at:', session?.expires_at);
+      if (!isMounted) {
+        console.log('Component not mounted, ignoring auth state change');
+        return;
+      }
 
       // Convert Supabase user to our format
       const userData = session?.user ? {
@@ -243,12 +284,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } : null;
 
       console.log('Processing auth state change - setting user:', userData);
+      console.log('User ID:', userData?.id);
+      console.log('User email:', userData?.email);
       // Handle all auth events consistently
       setUser(userData);
       // Don't wait for profile to load, just fetch it async
       if (userData) {
+        console.log('Fetching profile for user:', userData.id);
         fetchProfile(session?.user ?? null);
       } else {
+        console.log('No user data, setting profile to null');
         setProfile(null);
       }
     });
@@ -262,23 +307,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Sign in
   const signIn = async (email: string, password: string) => {
-    console.log('signIn function called with email:', email);
+    console.log('=== AUTHCONTEXT SIGNIN FUNCTION STARTED ===');
+    console.log('Email parameter:', email);
+    console.log('Password parameter length:', password.length);
     setLoading(true);
     try {
       console.log('Attempting to sign in with Supabase...');
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       console.log('Supabase signIn result:', { data, error });
+      console.log('Session data:', data?.session);
+      console.log('User data from Supabase:', data?.user);
 
       if (error) {
-        console.error('Supabase signIn error:', error);
+        console.error('❌ Supabase signIn error:', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
         setLoading(false);
         throw error;
       }
 
-      console.log('Sign in successful, waiting for auth state change...');
+      console.log('✅ Sign in successful, waiting for auth state change...');
+      console.log('User ID from response:', data?.user?.id);
+      console.log('User email from response:', data?.user?.email);
       // Let the auth state listener handle user/profile updates
     } catch (err) {
-      console.error('Error in signIn function:', err);
+      console.error('❌ Error in signIn function:', err);
       setLoading(false);
       throw err;
     }

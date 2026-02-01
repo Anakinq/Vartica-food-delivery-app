@@ -91,9 +91,12 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
     e.preventDefault();
     e.stopPropagation();
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Signup form submitted with data:', formData); // Debug log
-    }
+    console.log('=== SIGN UP ATTEMPT STARTED ===');
+    console.log('Form data:', formData);
+    console.log('Email:', formData.email);
+    console.log('Password length:', formData.password.length);
+    console.log('Full name:', formData.fullName);
+    console.log('Role:', role);
     setError('');
 
     if (formData.password !== formData.confirmPassword) {
@@ -171,6 +174,13 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
         }
       }
 
+      console.log('Calling authSignUp with parameters:');
+      console.log('Email:', formData.email);
+      console.log('Password length:', formData.password.length);
+      console.log('Full name:', formData.fullName);
+      console.log('Role:', role === 'late_night_vendor' ? 'late_night_vendor' : role);
+      console.log('Phone:', normalizedPhone);
+
       await authSignUp(
         formData.email,
         formData.password,
@@ -186,6 +196,8 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
         formData.availableFrom,
         formData.availableUntil
       );
+
+      console.log('authSignUp completed successfully');
       if (process.env.NODE_ENV === 'development') {
         console.log('authSignUp completed successfully'); // Debug log
       }
