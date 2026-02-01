@@ -1,104 +1,116 @@
 import { supabase } from '../lib/supabase/client';
 
+// Helper function to sanitize filenames
+const sanitizeFilename = (filename: string) =>
+    filename.trim()
+        .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace non-alphanumeric characters
+        .replace(/_{2,}/g, '_')           // Replace multiple underscores with single
+        .replace(/^_+|_+$/g, '')          // Remove leading/trailing underscores
+        .toLowerCase();                    // Convert to lowercase
+
 // Function to upload all public images to Supabase storage
 export const uploadPublicImagesToStorage = async () => {
-    try {
-        // List of image filenames in the public/images directory
-        const imageFiles = [
-            '1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg', '7.jpg',
-            'JOLLOF RICE.jpg', 'afang soup.jpg', 'beef.jpg', 'bitter leaf soup.jpg',
-            'boiled egg.jpg', 'chicken pepper soup.jpg', 'chicken.jpg',
-            'chocolate syrup.jpg', 'cocacola.jpg', 'eba.jpg', 'egusi soup.jpg',
-            'ewedu.jpg', 'fanta.jpg', 'fried fish.jpg', 'fried rice.jpg', 'fufu.jpg',
-            'image.webp', 'indomie.jpg', 'jollof spag.jpg', 'maple syrup.jpg',
-            'moimoi.jpg', 'okro soup.jpg', 'pancakes.jpg', 'plantain.jpg', 'ponmo.jpg',
-            'porridge beans.jpg', 'porridge yam.jpg', 'pounded yam.jpg', 'puff puff.jpg',
-            'semo.jpg', 'sharwama.jpg', 'sprite.jpg', 'stawberry syrup.jpg',
-            'toast bread.jpg', 'vegetable soup.jpg', 'waffles.jpg', 'white rice.jpg',
-            'white spag.jpg', 'food-placeholder.png'
-        ];
+    const imageFiles = [
+        '1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg', '7.jpg',
+        'JOLLOF RICE.jpg', 'afang soup.jpg', 'beef.jpg', 'bitter leaf soup.jpg',
+        'boiled egg.jpg', 'chicken pepper soup.jpg', 'chicken.jpg',
+        'chocolate syrup.jpg', 'cocacola.jpg', 'eba.jpg', 'egusi soup.jpg',
+        'ewedu.jpg', 'fanta.jpg', 'fried fish.jpg', 'fried rice.jpg', 'fufu.jpg',
+        'image.webp', 'indomie.jpg', 'jollof spag.jpg', 'maple syrup.jpg',
+        'moimoi.jpg', 'okro soup.jpg', 'pancakes.jpg', 'plantain.jpg', 'ponmo.jpg',
+        'porridge beans.jpg', 'porridge yam.jpg', 'pounded yam.jpg', 'puff puff.jpg',
+        'semo.jpg', 'sharwama.jpg', 'sprite.jpg', 'stawberry syrup.jpg',
+        'toast bread.jpg', 'vegetable soup.jpg', 'waffles.jpg', 'white rice.jpg',
+        'white spag.jpg', 'food-placeholder.png'
+    ];
 
-        console.log(`Uploading ${imageFiles.length} images to Supabase storage...`);
+    console.log(`Uploading ${imageFiles.length} images...`);
 
-        for (const filename of imageFiles) {
-            // Sanitize the filename to handle special characters
-            const sanitizedFilename = filename.trim()
-                .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace non-alphanumeric characters with underscore
-                .replace(/_{2,}/g, '_') // Replace multiple underscores with single
-                .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
-                .toLowerCase(); // Convert to lowercase
+    for (const filename of imageFiles) {
+        const sanitizedFilename = sanitizeFilename(filename);
 
-            // Check if the image already exists in storage
-            const { data } = await supabase
-                .storage
-                .from('menu-images')
-                .getPublicUrl(sanitizedFilename);
+        // Check if file exists in Supabase storage
+        const { data: existingFiles } = await supabase
+            .storage
+            .from('menu-images')
+            .list('', { search: sanitizedFilename });
 
-            // If the URL exists, the image is already uploaded
-            if (data?.publicUrl) {
-                console.log(`Image ${filename} already exists in storage`);
+        if (existingFiles?.length) {
+            console.log(`✅ Image "${filename}" already exists, skipping.`);
+            continue;
+        }
+
+        try {
+            // Fetch the original file from public folder
+            const response = await fetch(`/images/${filename}`);
+            if (!response.ok) {
+                console.warn(`⚠️ Could not fetch public image: ${filename}`);
                 continue;
             }
 
-            // If not, we need to fetch the public image and upload it
-            try {
-                // Fetch the public image
-                const response = await fetch(`/images/${sanitizedFilename}`);
-                if (!response.ok) {
-                    console.warn(`Could not fetch public image: /images/${sanitizedFilename}`);
-                    continue;
-                }
+            const blob = await response.blob();
+            const file = new File([blob], filename, { type: blob.type });
 
-                const blob = await response.blob();
-                const file = new File([blob], filename, { type: blob.type });
+            // Upload to Supabase
+            const { error } = await supabase
+                .storage
+                .from('menu-images')
+                .upload(sanitizedFilename, file, { cacheControl: '3600', upsert: false });
 
-                // Upload to Supabase storage
-                const { data: uploadData, error } = await supabase
-                    .storage
-                    .from('menu-images')
-                    .upload(sanitizedFilename, file, {
-                        cacheControl: '3600',
-                        upsert: false
-                    });
-
-                if (error) {
-                    console.error(`Error uploading ${filename}:`, error);
-                } else {
-                    console.log(`Successfully uploaded ${filename} to storage`);
-                }
-            } catch (error) {
-                console.error(`Error processing public image ${filename}:`, error);
+            if (error) {
+                console.error(`❌ Error uploading "${filename}":`, error);
+            } else {
+                console.log(`✅ Uploaded "${filename}" successfully.`);
             }
+        } catch (err) {
+            console.error(`❌ Error processing "${filename}":`, err);
         }
-
-        console.log('Image upload process completed!');
-        return { success: true, message: `Processed ${imageFiles.length} images` };
-    } catch (error) {
-        console.error('Error uploading public images:', error);
-        return { success: false, message: 'Failed to upload public images', error };
     }
+
+    console.log('✅ All images processed!');
 };
 
-// Function to get a public URL for an image that might be in Supabase storage or public directory
+// Improved function to get image URL that works with both storage and public folder
 export const getImageUrl = async (filename: string): Promise<string> => {
     // Clean the filename to handle special characters
-    const cleanFilename = filename.trim()
-        .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace non-alphanumeric characters with underscore
-        .replace(/_{2,}/g, '_') // Replace multiple underscores with single
-        .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
-        .toLowerCase(); // Convert to lowercase
+    const cleanFilename = sanitizeFilename(filename);
 
     // First, try to get the public URL from Supabase storage
-    const { data } = await supabase
+    const { data: storageData } = await supabase
         .storage
         .from('menu-images')
         .getPublicUrl(cleanFilename);
 
-    if (data?.publicUrl) {
-        return data.publicUrl;
+    if (storageData?.publicUrl) {
+        // Check if the URL is accessible by making a HEAD request
+        try {
+            const response = await fetch(storageData.publicUrl, { method: 'HEAD' });
+            if (response.ok) {
+                return storageData.publicUrl;
+            }
+        } catch (error) {
+            console.warn(`Storage URL not accessible, falling back to public:`, error);
+        }
     }
 
-    // If not in storage, return the public directory URL
+    // If not in storage or not accessible, return the public directory URL
+    // Try original filename first (in case it has special characters)
+    try {
+        const originalResponse = await fetch(`/images/${filename}`, { method: 'HEAD' });
+        if (originalResponse.ok) {
+            return `/images/${filename}`;
+        }
+    } catch (error) {
+        // Continue to fallback
+    }
+
+    // Finally, try the sanitized filename in public directory
+    const sanitizedResponse = await fetch(`/images/${cleanFilename}`, { method: 'HEAD' });
+    if (sanitizedResponse.ok) {
+        return `/images/${cleanFilename}`;
+    }
+
+    // If all else fails, return the sanitized public URL as fallback
     return `/images/${cleanFilename}`;
 };
 
