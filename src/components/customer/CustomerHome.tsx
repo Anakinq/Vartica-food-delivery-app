@@ -305,7 +305,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     if (imageUrl.startsWith('http')) {
       // Check if it's already a Supabase public URL
       if (imageUrl.includes('supabase.co')) {
-        return imageUrl;
+        // Decode any URL-encoded characters that might cause 400 errors
+        return decodeURIComponent(imageUrl);
       }
       return imageUrl;
     }
