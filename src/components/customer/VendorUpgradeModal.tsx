@@ -1,5 +1,5 @@
 // src/components/customer/VendorUpgradeModal.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Store, Clock, Truck, FileText, AlertCircle, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase/client';
@@ -26,6 +26,20 @@ export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
     onClose,
     onSuccess
 }) => {
+    // Reset state when modal closes
+    useEffect(() => {
+        if (!isOpen) {
+            setStep(1);
+            setFormData({
+                storeName: '',
+                description: '',
+                vendorType: 'student',
+                deliveryOption: 'does_not_offer_hostel_delivery'
+            });
+            setError('');
+            setApplicationSubmitted(false);
+        }
+    }, [isOpen]);
     const { profile } = useAuth();
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState<FormData>({
@@ -36,6 +50,7 @@ export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [applicationSubmitted, setApplicationSubmitted] = useState(false);
 
     if (!isOpen) return null;
 
@@ -101,8 +116,14 @@ export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
                 throw new Error(data.error);
             }
 
-            onSuccess();
-            onClose();
+            // Set application submitted state
+            setApplicationSubmitted(true);
+
+            // Close modal after delay to show success message
+            setTimeout(() => {
+                onSuccess();
+                onClose();
+            }, 3000);
 
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to submit vendor application');
@@ -145,25 +166,42 @@ export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
                         </div>
                     )}
 
-                    <div className="mb-6">
-                        <div className="flex items-center justify-center space-x-4 mb-6">
-                            <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
-                                }`}>
-                                1
+                    {applicationSubmitted && (
+                        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-center">
+                            <div className="flex justify-center mb-3">
+                                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
                             </div>
-                            <div className={`h-1 w-16 rounded ${step >= 2 ? 'bg-blue-600' : 'bg-gray-200'
-                                }`}></div>
-                            <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
-                                }`}>
-                                2
-                            </div>
+                            <h3 className="font-semibold text-green-800 mb-1">Application Submitted!</h3>
+                            <p className="text-green-700 text-sm">Your vendor application has been submitted successfully. Our team will review it shortly.</p>
+                            <p className="text-green-600 text-xs mt-2">You can continue using your account normally while we process your application.</p>
                         </div>
-                        <p className="text-center text-sm text-gray-600">
-                            {step === 1 ? 'Basic Information' : 'Business Details'}
-                        </p>
-                    </div>
+                    )}
 
-                    {step === 1 && (
+                    {!applicationSubmitted && (
+                        <div className="mb-6">
+                            <div className="flex items-center justify-center space-x-4 mb-6">
+                                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
+                                    }`}>
+                                    1
+                                </div>
+                                <div className={`h-1 w-16 rounded ${step >= 2 ? 'bg-blue-600' : 'bg-gray-200'
+                                    }`}></div>
+                                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
+                                    }`}>
+                                    2
+                                </div>
+                            </div>
+                            <p className="text-center text-sm text-gray-600">
+                                {step === 1 ? 'Basic Information' : 'Business Details'}
+                            </p>
+                        </div>
+                    )}
+
+                    {!applicationSubmitted && step === 1 && (
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -265,7 +303,7 @@ export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
                         </div>
                     )}
 
-                    {step === 2 && (
+                    {!applicationSubmitted && step === 2 && (
                         <div className="space-y-4">
                             {formData.vendorType === 'student' && (
                                 <>
@@ -342,36 +380,38 @@ export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
                         </div>
                     )}
 
-                    <div className="flex space-x-3 pt-6">
-                        {step === 2 && (
-                            <button
-                                type="button"
-                                onClick={prevStep}
-                                className="flex-1 py-3 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
-                            >
-                                Previous
-                            </button>
-                        )}
+                    {!applicationSubmitted && (
+                        <div className="flex space-x-3 pt-6">
+                            {step === 2 && (
+                                <button
+                                    type="button"
+                                    onClick={prevStep}
+                                    className="flex-1 py-3 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+                                >
+                                    Previous
+                                </button>
+                            )}
 
-                        {step === 1 ? (
-                            <button
-                                type="button"
-                                onClick={nextStep}
-                                className="flex-1 py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
-                            >
-                                Next
-                            </button>
-                        ) : (
-                            <button
-                                type="button"
-                                onClick={handleSubmit}
-                                disabled={loading}
-                                className="flex-1 py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {loading ? 'Processing...' : 'Submit Application'}
-                            </button>
-                        )}
-                    </div>
+                            {step === 1 ? (
+                                <button
+                                    type="button"
+                                    onClick={nextStep}
+                                    className="flex-1 py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                                >
+                                    Next
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={handleSubmit}
+                                    disabled={loading}
+                                    className="flex-1 py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {loading ? 'Processing...' : 'Submit Application'}
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

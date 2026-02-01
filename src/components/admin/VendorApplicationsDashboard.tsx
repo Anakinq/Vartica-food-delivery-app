@@ -61,11 +61,24 @@ export const VendorApplicationsDashboard: React.FC = () => {
     const handleReview = async (vendorId: string, action: 'approve' | 'reject', reason?: string) => {
         setProcessing(vendorId);
         try {
-            // In a real implementation, you'd call the RPC function
-            // For now, we'll simulate the review process
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Get current user ID for reviewer identification
+            const { data: { user } } = await supabase.auth.getUser();
 
-            // Update local state
+            // Call the actual RPC function to update the database
+            const { data, error } = await supabase.rpc('review_vendor_application', {
+                p_vendor_id: vendorId,
+                p_action: action,
+                p_reviewer_id: user?.id,
+                p_rejection_reason: reason || null
+            });
+
+            if (error) throw new Error(error.message);
+
+            if (data && !data.success) {
+                throw new Error(data.error);
+            }
+
+            // Update local state to reflect the change
             setApplications(prev => prev.map(app =>
                 app.id === vendorId
                     ? {
@@ -77,8 +90,12 @@ export const VendorApplicationsDashboard: React.FC = () => {
                     : app
             ));
 
+            // Show success message
+            alert(`${action === 'approve' ? 'Approved' : 'Rejected'} vendor application successfully!`);
+
         } catch (err) {
             console.error('Error reviewing application:', err);
+            alert(`Error: ${(err as Error).message}`);
         } finally {
             setProcessing(null);
         }

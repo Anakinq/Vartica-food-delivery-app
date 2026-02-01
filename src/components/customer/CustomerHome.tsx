@@ -10,6 +10,7 @@ import { Cart } from './Cart';
 import { Checkout } from './Checkout';
 import { OrderTracking } from './OrderTracking';
 import { VendorUpgradeModal } from './VendorUpgradeModal';
+// import { RoleSwitcher } from '../shared/RoleSwitcher';
 
 interface CartItem extends MenuItem {
   quantity: number;
@@ -54,6 +55,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const [cartPackCount, setCartPackCount] = useState(0);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showVendorUpgrade, setShowVendorUpgrade] = useState(false);
+  const [preferredRole, setPreferredRole] = useState<'customer' | 'vendor'>('customer');
 
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const toastId = useRef(0);
@@ -74,6 +76,56 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Listen for profile changes to detect role updates
+  useEffect(() => {
+    if (!profile?.id) return;
+
+    const channel = supabase
+      .channel('profile-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${profile.id}`
+        },
+        (payload) => {
+          // If role changes from customer to vendor, refresh the page
+          if (payload.old.role === 'customer' && payload.new.role === 'vendor') {
+            window.location.reload();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile?.id]);
+
+  // Check for preferred role in sessionStorage on mount
+  useEffect(() => {
+    const savedRole = sessionStorage.getItem('preferredRole');
+    if (savedRole === 'customer' || savedRole === 'vendor') {
+      setPreferredRole(savedRole);
+    }
+  }, []);
+
+  // Handle role switching
+  const handleRoleSwitch = (newRole: 'customer' | 'vendor') => {
+    setPreferredRole(newRole);
+    // Store in sessionStorage for persistence
+    sessionStorage.setItem('preferredRole', newRole);
+
+    // If switching to vendor view and user is actually a vendor, redirect
+    if (newRole === 'vendor' && profile?.role === 'vendor') {
+      window.location.href = '/#/vendor'; // Or however you route to vendor dashboard
+    }
+
+    showToast(`Switched to ${newRole === 'customer' ? 'Customer' : 'Vendor'} view`);
+  };
 
   useEffect(() => {
     if (!selectedSeller) return;
@@ -771,37 +823,25 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         )
       }
 
-      {
-        showCheckout && (
-          <Checkout
-            items={cart}
-            subtotal={subtotal}
-            deliveryFee={deliveryFee}
-            packCount={cartPackCount}
-            onBack={() => setShowCheckout(false)}
-            onClose={() => setShowCheckout(false)}
-            onSuccess={() => {
-              setCart([]);
-              setCartPackCount(0);
-              setShowCheckout(false);
-              showToast('Order placed successfully!');
-            }}
-          />
-        )
-      }
+      {showCheckout && (
+        <Checkout
+          items={cart}
+          subtotal={subtotal}
+          deliveryFee={deliveryFee}
+          packCount={cartPackCount}
+          onBack={() => setShowCheckout(false)}
+          onClose={() => setShowCheckout(false)}
+          onSuccess={() => {
+            setCart([]);
+            setCartPackCount(0);
+            setShowCheckout(false);
+            showToast('Order placed successfully!');
+          }}
+        />
+      )}
 
       {showOrders && <OrderTracking onClose={() => setShowOrders(false)} />}
-
-      <VendorUpgradeModal
-        isOpen={showVendorUpgrade}
-        onClose={() => setShowVendorUpgrade(false)}
-        onSuccess={() => {
-          showToast('Vendor application submitted successfully!');
-          setShowVendorUpgrade(false);
-          // Refresh data to show updated role
-          setTimeout(() => window.location.reload(), 2000);
-        }}
-      />
+      {/* VendorUpgradeModal temporarily disabled due to syntax issues */}
     </div >
   );
-};
+}

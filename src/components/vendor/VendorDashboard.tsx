@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase/client';
 import { Vendor, Order } from '../../lib/supabase/types';
 import { MenuItemForm } from '../shared/MenuItemForm';
 import { ChatModal } from '../shared/ChatModal';
+import { RoleSwitcher } from '../shared/RoleSwitcher';
 
 interface VendorDashboardProps {
   onShowProfile?: () => void;
@@ -33,6 +34,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   const [selectedOrderForChat, setSelectedOrderForChat] = useState<{ order: Order, chatWith: 'customer' | 'delivery' } | null>(null);
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [reviews, setReviews] = useState<any[]>([]); // Replace with proper type when available
+  const [preferredRole, setPreferredRole] = useState<'customer' | 'vendor'>('vendor');
 
   const getStatusColor = (status: Order['status']) => {
     switch (status) {
@@ -424,6 +426,29 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       setApprovalStatus(status);
       setLoadingApproval(false);
     }
+  };
+
+  // Check for preferred role in sessionStorage
+  useEffect(() => {
+    const savedRole = sessionStorage.getItem('preferredRole');
+    if (savedRole === 'customer' || savedRole === 'vendor') {
+      setPreferredRole(savedRole);
+    }
+  }, []);
+
+  // Handle role switching
+  const handleRoleSwitch = (newRole: 'customer' | 'vendor') => {
+    setPreferredRole(newRole);
+    // Store in sessionStorage for persistence
+    sessionStorage.setItem('preferredRole', newRole);
+
+    // If switching to customer view, redirect
+    if (newRole === 'customer') {
+      window.location.href = '/#/customer'; // Or however you route to customer dashboard
+    }
+
+    // Show a toast or notification
+    alert(`Switched to ${newRole === 'customer' ? 'Customer' : 'Vendor'} view`);
   };
 
   // Check if user is a vendor and hasn't been approved yet
@@ -1001,6 +1026,16 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
           onClose={() => setSelectedOrderForChat(null)}
         />
       )}
+
+      {/* Role Switcher - only show if user has both customer and vendor capabilities */}
+      {profile && (
+        ['customer', 'vendor', 'late_night_vendor'].includes(profile.role)
+      ) && (
+          <RoleSwitcher
+            currentRole={profile.role}
+            onRoleSwitch={handleRoleSwitch}
+          />
+        )}
     </div>
   );
 };
