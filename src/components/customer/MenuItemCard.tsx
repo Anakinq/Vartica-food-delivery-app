@@ -11,22 +11,24 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, quantity, onQu
   // Properly format the image URL to handle special characters and ensure validity
   let imageUrl = '/images/1.jpg';
   if (item.image_url) {
+    console.log('Processing menu item image URL:', item.image_url);
     try {
       // Check if it's already a full URL
       if (item.image_url.startsWith('http')) {
-        // For Supabase storage URLs, we need to make sure they're properly formatted
+        // For Supabase storage URLs, decode any URL-encoded characters
         if (item.image_url.includes('supabase.co/storage/v1/object/public/')) {
-          // This is a direct storage URL that might need signing for public access
-          // For now, we'll use it as-is but with proper encoding
-          imageUrl = encodeURI(decodeURI(item.image_url));
+          // Decode URL-encoded characters that might cause 400 errors
+          imageUrl = decodeURIComponent(item.image_url);
+          console.log('Decoded Supabase URL:', imageUrl);
         } else {
-          // Regular HTTP URL
-          imageUrl = encodeURI(decodeURI(item.image_url));
+          // Regular HTTP URL - decode to handle any encoded characters
+          imageUrl = decodeURIComponent(item.image_url);
+          console.log('Decoded regular URL:', imageUrl);
         }
       } else {
-        // It's likely a relative path or storage path, try to construct a proper URL
-        // If it's a Supabase storage path, we may need to format it properly
+        // It's likely a relative path or storage path
         imageUrl = item.image_url;
+        console.log('Using relative path:', imageUrl);
       }
     } catch (error) {
       console.warn('Error processing image URL:', error);
