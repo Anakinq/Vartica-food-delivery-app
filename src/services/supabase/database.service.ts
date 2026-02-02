@@ -8,6 +8,16 @@ import {
   QueryResult,
   RealtimeCallback,
 } from '../database.interface';
+import { Profile, Vendor } from '../../lib/supabase';
+
+// Enhanced types for real-time vendor data
+export interface ProfileWithVendor extends Profile {
+  vendor?: Vendor | null;
+  vendor_status?: {
+    is_active: boolean;
+    application_status: string;
+  } | null;
+}
 
 class SupabaseDatabaseService implements IDatabaseService {
   async select<T>(params: SelectParams): Promise<QueryResult<T[]>> {
@@ -134,7 +144,7 @@ class SupabaseDatabaseService implements IDatabaseService {
     callback: RealtimeCallback<T>,
     filter?: Record<string, unknown>
   ) {
-    let channel = supabase.channel(`#{table}-changes`).on(
+    let channel = supabase.channel(`${table}-changes`).on(
       'postgres_changes',
       {
         event: '*',
@@ -142,7 +152,7 @@ class SupabaseDatabaseService implements IDatabaseService {
         table: table,
         filter: filter
           ? Object.entries(filter)
-            .map(([key, value]) => `#{key}=eq.#{value}`)
+            .map(([key, value]) => `${key}=eq.${value}`)
             .join(',')
           : undefined,
       },
@@ -162,6 +172,169 @@ class SupabaseDatabaseService implements IDatabaseService {
         channel.unsubscribe();
       },
     };
+  }
+
+  // Enhanced real-time subscription for profile + vendor data
+  subscribeProfileWithVendor(
+    userId: string,
+    callback: (profile: ProfileWithVendor | null, error?: Error) => void
+  ) {
+    try {
+      console.log('Setting up profile+vendor subscription for user:', userId);
+
+      // Subscribe to profile changes
+      const profileSubscription = this.subscribe<Profile>(
+        'profiles',
+        (payload) => {
+          if (payload.new?.id === userId) {
+            console.log('Profile change detected for user:', userId);
+            this.fetchProfileWithVendor(userId)
+              .then(result => {
+                if (result.error) {
+                  console.error('Error fetching updated profile for user', userId, ':', result.error);
+                  callback(null, new Error(result.error.message));
+                } else {
+                  console.log('Successfully fetched updated profile for user:', userId);
+                  callback(result.data);
+                }
+              })
+              .catch(err => {
+                console.error('Error in profile subscription callback for user', userId, ':', err);
+                callback(null, err);
+              });
+          }
+        },
+        { id: userId }
+      );
+
+      // Subscribe to vendor changes for this user
+      const vendorSubscription = this.subscribe<Vendor>(
+        'vendors',
+        (payload) => {
+          if (payload.new?.user_id === userId) {
+            console.log('Vendor change detected for user:', userId);
+            this.fetchProfileWithVendor(userId)
+              .then(result => {
+                if (result.error) {
+                  console.error('Error fetching updated vendor data for user', userId, ':', result.error);
+                  callback(null, new Error(result.error.message));
+                } else {
+                  console.log('Successfully fetched updated vendor data for user:', userId);
+                  callback(result.data);
+                }
+              })
+              .catch(err => {
+                console.error('Error in vendor subscription callback for user', userId, ':', err);
+                callback(null, err);
+              });
+          }
+        },
+        { user_id: userId }
+      );
+
+      console.log('Profile+vendor subscription successfully set up for user:', userId);
+
+      return {
+        unsubscribe: () => {
+          try {
+            console.log('Unsubscribing from profile+vendor changes for user:', userId);
+            profileSubscription.unsubscribe();
+            vendorSubscription.unsubscribe();
+            console.log('Successfully unsubscribed from profile+vendor changes for user:', userId);
+          } catch (err) {
+            console.error('Error unsubscribing from profile+vendor changes for user', userId, ':', err);
+          }
+        }
+      };
+    } catch (err) {
+      console.error('Error setting up profile+vendor subscription for user', userId, ':', err);
+      throw err;
+    }
+  };
+
+  // Consolidated fetch for profile + vendor data
+  async fetchProfileWithVendor(userId: string): Promise<QueryResult<ProfileWithVendor>> {
+    try {
+      console.log('Fetching profile with vendor data for user:', userId);
+
+      // Fetch profile with related vendor data
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select(`
+          *,
+          vendors:user_id (
+            id,
+            store_name,
+            description,
+            image_url,
+            vendor_type,
+            is_active,
+            available_from,
+            available_until,
+            location,
+            matric_number,
+            department,
+            delivery_option,
+            application_status
+          )
+        `)
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error('Profile fetch error for user', userId, ':', profileError);
+        return {
+          data: null,
+          error: { message: profileError.message, code: profileError.code }
+        };
+      }
+
+      if (!profileData) {
+        console.log('No profile data found for user:', userId);
+        return {
+          data: null,
+          error: null
+        };
+      }
+
+      console.log('Raw profile data for user', userId, ':', profileData);
+
+      // Transform the data to match our interface
+      const vendorArray = profileData.vendors;
+      const vendorData = vendorArray && Array.isArray(vendorArray)
+        ? vendorArray[0] || null
+        : vendorArray || null;
+
+      console.log('Extracted vendor data for user', userId, ':', vendorData);
+
+      const profileWithVendor: ProfileWithVendor = {
+        ...profileData,
+        vendor: vendorData,
+        vendor_status: vendorData && typeof vendorData === 'object' ? {
+          is_active: (vendorData as any).is_active ?? false,
+          application_status: (vendorData as any).application_status || 'pending'
+        } : null
+      };
+
+      // Remove the nested vendors property to avoid confusion
+      delete (profileWithVendor as any).vendors;
+
+      console.log('Final profile+vendor data for user', userId, ':', profileWithVendor);
+
+      return {
+        data: profileWithVendor,
+        error: null
+      };
+    } catch (err) {
+      console.error('Error in fetchProfileWithVendor for user', userId, ':', err);
+      if (err instanceof Error) {
+        console.error('Error details:', err.name, err.message, err.stack);
+      }
+      return {
+        data: null,
+        error: { message: (err as Error).message }
+      };
+    }
   }
 
   async getPendingApprovals() {
@@ -303,6 +476,58 @@ class SupabaseDatabaseService implements IDatabaseService {
     }
 
     return { data, error: null };
+  }
+
+  // Enhanced vendor status with real-time capability
+  async getVendorStatusWithRealtime(userId: string, callback?: (status: boolean | null) => void) {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('vendor_approved, vendors:user_id(is_active, application_status)')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching vendor status with realtime:', error);
+        throw error;
+      }
+
+      if (!data) {
+        callback?.(null);
+        return { data: null, error: null };
+      }
+
+      // Extract vendor status from either profile or vendor record
+      const profileApproved = data.vendor_approved;
+      const vendorArray = data.vendors;
+      const vendorData = vendorArray && Array.isArray(vendorArray)
+        ? vendorArray[0]
+        : vendorArray;
+
+      const vendorActive = vendorData && typeof vendorData === 'object' ? (vendorData as any).is_active ?? false : false;
+      const vendorStatus = vendorData && typeof vendorData === 'object' ? (vendorData as any).application_status || 'pending' : 'pending';
+
+      // Vendor is considered "approved" if either:
+      // 1. Profile has vendor_approved = true, OR
+      // 2. Vendor record exists and is active
+      const isApproved = profileApproved === true || (vendorData && vendorActive);
+
+      callback?.(isApproved);
+
+      return {
+        data: {
+          approved: isApproved,
+          profile_approved: profileApproved,
+          vendor_active: vendorActive,
+          vendor_status: vendorStatus
+        },
+        error: null
+      };
+    } catch (err) {
+      console.error('Error in getVendorStatusWithRealtime:', err);
+      callback?.(null);
+      return { data: null, error: err as Error };
+    }
   }
 
   async getDeliveryAgentStatus(userId: string) {

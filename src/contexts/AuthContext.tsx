@@ -1,12 +1,15 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
 import { authService, databaseService, User as ServiceUser } from '../services';
 import { Profile } from '../lib/supabase';
 import { supabase } from '../lib/supabase/client';
+import { ProfileWithVendor } from '../services/supabase/database.service';
 
 interface AuthContextType {
   user: any | null;
-  profile: Profile | null;
+  profile: ProfileWithVendor | null;
   loading: boolean;
+  authLoading: boolean;
+  vendorDataLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signUp: (
@@ -43,8 +46,11 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<any | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<ProfileWithVendor | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [vendorDataLoading, setVendorDataLoading] = useState(false);
+  const subscriptionRef = useRef<ReturnType<typeof databaseService.subscribeProfileWithVendor> | null>(null);
 
   // Fetch profile only (no user reconstruction)
   const fetchProfile = async (supabaseUser: any) => {
@@ -189,17 +195,120 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Enhanced fetch profile with real-time subscription
+  const enhancedFetchProfile = async (supabaseUser: any) => {
+    console.log('enhancedFetchProfile called with user:', supabaseUser);
+    if (!supabaseUser) {
+      console.log('No user provided, setting profile to null');
+      setProfile(null);
+      setVendorDataLoading(false);
+      return;
+    }
+
+    setVendorDataLoading(true);
+
+    try {
+      console.log('Fetching profile with vendor data for user ID:', supabaseUser.id);
+
+      // Use the enhanced consolidated fetch method
+      const result = await databaseService.fetchProfileWithVendor(supabaseUser.id);
+
+      console.log('=== CONSOLIDATED FETCH RESULT ===');
+      console.log('Full result object:', result);
+      console.log('Profile+Vendor data:', result.data);
+      console.log('Error:', result.error);
+
+      if (result.error) {
+        console.error('Error fetching profile with vendor:', result.error);
+        // Fallback to existing fetchProfile method
+        await fetchProfile(supabaseUser);
+      } else if (result.data) {
+        console.log('Profile with vendor data found and set:', result.data);
+        setProfile(result.data);
+
+        // Set up real-time subscription for this user
+        setupRealTimeSubscription(supabaseUser.id);
+      } else {
+        console.warn('No profile data found for user:', supabaseUser.id);
+        // Fallback to existing fetchProfile method
+        await fetchProfile(supabaseUser);
+      }
+    } catch (err) {
+      console.error('Error in enhanced fetchProfile:', err);
+      // More detailed error logging
+      if (err instanceof Error) {
+        console.error('Error name:', err.name);
+        console.error('Error message:', err.message);
+        console.error('Error stack:', err.stack);
+      }
+      setProfile(null);
+      // Fallback to existing fetchProfile method
+      await fetchProfile(supabaseUser);
+    } finally {
+      setVendorDataLoading(false);
+      // Set overall loading to false when both auth and vendor data are loaded
+      if (!authLoading) {
+        setLoading(false);
+      }
+    }
+  };
+
+  // Set up real-time subscription for profile and vendor changes
+  const setupRealTimeSubscription = (userId: string) => {
+    try {
+      // Clean up existing subscription
+      if (subscriptionRef.current) {
+        console.log('Cleaning up existing subscription for user:', userId);
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
+
+      console.log('Setting up real-time subscription for user:', userId);
+
+      // Set up new subscription
+      subscriptionRef.current = databaseService.subscribeProfileWithVendor(
+        userId,
+        (updatedProfile, error) => {
+          if (error) {
+            console.error('Real-time subscription error for user', userId, ':', error);
+            // Handle subscription errors - maybe retry or notify user
+            return;
+          }
+
+          if (updatedProfile) {
+            console.log('Profile updated via real-time subscription for user', userId, ':', updatedProfile);
+            setProfile(updatedProfile);
+          } else {
+            console.log('Profile deleted or no longer exists for user:', userId);
+            setProfile(null);
+          }
+        }
+      );
+
+      console.log('Real-time subscription successfully set up for user:', userId);
+    } catch (err) {
+      console.error('Error setting up real-time subscription for user', userId, ':', err);
+      // Don't let subscription errors break the main flow
+      if (err instanceof Error) {
+        console.error('Subscription error details:', err.name, err.message);
+      }
+    }
+  };
+
+  // Cleanup subscription on unmount
+  useEffect(() => {
+    return () => {
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
+    };
+  }, []);
+
   const refreshProfile = async () => {
     if (user) {
-      const { data, error } = await databaseService.selectSingle<Profile>({
-        table: 'profiles',
-        match: { id: user.id },
-      });
-      if (!error) {
-        setProfile(data);
-      } else {
-        console.error('Error refreshing profile:', error);
-      }
+      // Use enhanced fetch for real-time updates
+      await enhancedFetchProfile(user);
     }
   };
 
@@ -249,16 +358,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(userData);
         // Don't wait for profile to load, just fetch it async
         if (userData) {
-          fetchProfile(data.session?.user ?? null);
+          enhancedFetchProfile(data.session?.user ?? null);
         } else {
           setProfile(null);
+          setVendorDataLoading(false);
         }
       } catch (err) {
         console.error('Error loading initial session:', err);
       } finally {
         if (isMounted) {
-          console.log('Setting loading to false after initial session load');
-          setLoading(false);
+          console.log('Setting auth loading to false after initial session load');
+          setAuthLoading(false);
+          // Keep overall loading true until vendor data is loaded
+          if (!vendorDataLoading) {
+            setLoading(false);
+          }
         }
       }
     };
@@ -290,11 +404,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(userData);
       // Don't wait for profile to load, just fetch it async
       if (userData) {
-        console.log('Fetching profile for user:', userData.id);
-        fetchProfile(session?.user ?? null);
+        console.log('Fetching enhanced profile for user:', userData.id);
+        enhancedFetchProfile(session?.user ?? null);
       } else {
         console.log('No user data, setting profile to null');
         setProfile(null);
+        setVendorDataLoading(false);
       }
     });
 
@@ -468,7 +583,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const signOut = async () => {
     console.log('Sign out initiated');
     setLoading(true);
+    setAuthLoading(true);
+    setVendorDataLoading(true);
+
     try {
+      // Clean up real-time subscription
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
+
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('Sign out error:', error);
@@ -479,6 +603,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (err) {
       console.error('Error during sign out:', err);
       setLoading(false);
+      setAuthLoading(false);
+      setVendorDataLoading(false);
       throw err;
     }
   };
@@ -489,6 +615,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         user,
         profile,
         loading,
+        authLoading,
+        vendorDataLoading,
         signIn,
         signInWithGoogle,
         signUp,
