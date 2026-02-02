@@ -669,9 +669,13 @@ const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ profile, onShow
                 {item.image_url && (
                   <div className="mt-2 mb-3">
                     <img
-                      src={item.image_url}
+                      src={decodeURIComponent(item.image_url)}
                       alt={item.name}
                       className="w-16 h-16 object-cover rounded-md"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/images/1.jpg';
+                      }}
                     />
                   </div>
                 )}

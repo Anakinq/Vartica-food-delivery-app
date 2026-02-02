@@ -132,9 +132,13 @@ export const MenuItemDetail: React.FC<MenuItemDetailProps> = ({
                 <div key={side.id} className="bg-gray-50 rounded-lg p-2 text-center">
                   <div className="h-16 w-full rounded-md bg-gray-200 overflow-hidden mb-2">
                     <img
-                      src={side.image_url || '/images/1.jpg'}
+                      src={side.image_url ? decodeURIComponent(side.image_url) : '/images/1.jpg'}
                       alt={side.name}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/images/1.jpg';
+                      }}
                     />
                   </div>
                   <p className="text-xs font-medium text-gray-800 line-clamp-1">{side.name}</p>

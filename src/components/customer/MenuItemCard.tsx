@@ -15,14 +15,14 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, quantity, onQu
     try {
       // Check if it's already a full URL
       if (item.image_url.startsWith('http')) {
-        // For Supabase storage URLs, encode any special characters properly
+        // For Supabase storage URLs, decode any special characters properly
         if (item.image_url.includes('supabase.co/storage/v1/object/public/')) {
-          // Encode URL to ensure it's a valid HTTP request
-          imageUrl = encodeURI(item.image_url);
-          console.log('Encoded Supabase URL:', imageUrl);
+          // Decode URL to ensure it's properly formatted
+          imageUrl = decodeURIComponent(item.image_url);
+          console.log('Decoded Supabase URL:', imageUrl);
         } else {
-          // Regular HTTP URL
-          imageUrl = item.image_url;
+          // Regular HTTP URL - decode any encoded characters
+          imageUrl = decodeURIComponent(item.image_url);
           console.log('Using regular URL:', imageUrl);
         }
       } else {
