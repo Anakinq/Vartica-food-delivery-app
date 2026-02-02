@@ -262,7 +262,7 @@ class SupabaseDatabaseService implements IDatabaseService {
         .from('profiles')
         .select(`
           *,
-          vendors:user_id (
+          vendors!user_id (
             id,
             store_name,
             description,
@@ -483,7 +483,7 @@ class SupabaseDatabaseService implements IDatabaseService {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('vendor_approved, vendors:user_id(is_active, application_status)')
+        .select('vendor_approved, vendors!user_id(is_active, application_status)')
         .eq('id', userId)
         .maybeSingle();
 
