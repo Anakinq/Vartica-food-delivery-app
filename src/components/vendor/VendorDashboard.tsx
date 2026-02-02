@@ -8,13 +8,14 @@ import { MenuItemForm } from '../shared/MenuItemForm';
 import { ChatModal } from '../shared/ChatModal';
 import { RoleSwitcher } from '../shared/RoleSwitcher';
 import { uploadVendorImage } from '../../utils/imageUploader';
+import { ProfileWithVendor } from '../../services/supabase/database.service';
 
 interface VendorDashboardProps {
   onShowProfile?: () => void;
 }
 
 export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile }) => {
-  const { profile, signOut, checkApprovalStatus } = useAuth();
+  const { profile, signOut, checkApprovalStatus, authLoading, vendorDataLoading } = useAuth();
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -64,7 +65,9 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   };
 
   useEffect(() => {
-    fetchData();
+    if (profile && ['vendor', 'late_night_vendor'].includes(profile.role)) {
+      fetchData();
+    }
   }, [profile]);
 
   useEffect(() => {
@@ -102,32 +105,23 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     }
   }, [vendor]);
 
-  const fetchData = async () => {
-    // Check and refresh session if needed
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (!session || sessionError) {
-      console.error('User session not found or expired. Attempting to refresh...');
-
-      // Try to refresh the session
-      try {
-        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !refreshedSession) {
-          console.error('Session refresh failed during fetch:', refreshError);
-          alert('Session expired. Please sign in again.');
-          signOut();
-          return;
-        }
-
-        // Session refreshed successfully
-        console.log('Session refreshed successfully for fetch');
-      } catch (refreshErr) {
-        console.error('Error during session refresh for fetch:', refreshErr);
+  // Helper function to ensure session is valid
+  const ensureSession = async () => {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (!session || error) {
+      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !refreshedSession) {
+        console.error('Session refresh failed:', refreshError);
         alert('Session expired. Please sign in again.');
         signOut();
-        return;
+        return false;
       }
+      console.log('Session refreshed successfully');
     }
+    return true;
+  };
 
+  const fetchData = async () => {
     if (!profile) return;
 
     // Only fetch data if vendor is approved
@@ -136,13 +130,9 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       return;
     }
 
-    const { data: vendorData } = await supabase
-      .from('vendors')
-      .select('*')
-      .eq('user_id', profile.id)
-      .maybeSingle();
-
-    if (vendorData) {
+    // Use the enhanced profile with vendor data from auth context
+    if ('vendor' in profile && profile.vendor) {
+      const vendorData = profile.vendor;
       setVendor(vendorData);
 
       const { data: items } = await supabase
@@ -162,36 +152,35 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       })));
 
       if (items) setMenuItems(items);
+    } else {
+      // Fallback: fetch vendor data separately if not available in profile
+      const { data: vendorData } = await supabase
+        .from('vendors')
+        .select('*')
+        .eq('user_id', profile.id)
+        .maybeSingle();
+
+      if (vendorData) {
+        setVendor(vendorData);
+
+        const { data: items } = await supabase
+          .from('menu_items')
+          .select('*')
+          .eq('seller_id', vendorData.id)
+          .in('seller_type', ['vendor', 'late_night_vendor'])
+          .order('name');
+
+        if (items) setMenuItems(items);
+      }
     }
 
     setLoading(false);
   };
 
   const handleToggleAvailability = async (item: MenuItem) => {
-    // Check and refresh session if needed
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (!session || sessionError) {
-      console.error('User session not found or expired. Attempting to refresh...');
-
-      // Try to refresh the session
-      try {
-        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !refreshedSession) {
-          console.error('Session refresh failed during toggle:', refreshError);
-          alert('Session expired. Please sign in again.');
-          signOut();
-          return;
-        }
-
-        // Session refreshed successfully
-        console.log('Session refreshed successfully for toggle');
-      } catch (refreshErr) {
-        console.error('Error during session refresh for toggle:', refreshErr);
-        alert('Session expired. Please sign in again.');
-        signOut();
-        return;
-      }
-    }
+    // Ensure session is valid
+    const sessionValid = await ensureSession();
+    if (!sessionValid) return;
 
     const { error } = await supabase
       .from('menu_items')
@@ -223,30 +212,9 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     console.log('Saving menu item:', { itemData, hasImageFile: !!imageFile });
     console.log('Vendor data:', vendor);
 
-    // Check and refresh session if needed
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (!session || sessionError) {
-      console.error('User session not found or expired. Attempting to refresh...');
-
-      // Try to refresh the session
-      try {
-        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !refreshedSession) {
-          console.error('Session refresh failed:', refreshError);
-          alert('Session expired. Please sign in again.');
-          signOut();
-          return;
-        }
-
-        // Session refreshed successfully
-        console.log('Session refreshed successfully');
-      } catch (refreshErr) {
-        console.error('Error during session refresh:', refreshErr);
-        alert('Session expired. Please sign in again.');
-        signOut();
-        return;
-      }
-    }
+    // Ensure session is valid
+    const sessionValid = await ensureSession();
+    if (!sessionValid) return;
 
     let finalImageUrl = itemData.image_url || '';
 
@@ -412,11 +380,6 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     // Store in sessionStorage for persistence
     sessionStorage.setItem('preferredRole', newRole);
 
-    // If switching to customer view, redirect
-    if (newRole === 'customer') {
-      window.location.href = '/#/customer'; // Or however you route to customer dashboard
-    }
-
     // Show a toast or notification
     alert(`Switched to ${newRole === 'customer' ? 'Customer' : 'Vendor'} view`);
   };
@@ -479,17 +442,31 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     fetchVendorOrders();
   }, [vendor]);
 
-  // Return guard UI if needed (hooks already ran)
-  if (guardUI) return guardUI;
-
   const fetchVendorOrders = async () => {
     if (!vendor) return;
+
+    // Ensure session is valid
+    const sessionValid = await ensureSession();
+    if (!sessionValid) return;
 
     const { data: ordersData, error } = await supabase
       .from('orders')
       .select('*')
       .eq('seller_id', vendor.id)
       .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching vendor orders:', error);
+      // Check if it's an authentication error
+      if (error.message.includes('401') || error.message.includes('403') ||
+        error.message.toLowerCase().includes('auth') ||
+        error.message.toLowerCase().includes('permission') ||
+        error.message.toLowerCase().includes('unauthorized')) {
+        alert('Authentication failed. Please sign in again.');
+        signOut();
+        return;
+      }
+    }
 
     if (ordersData) {
       setMyOrders(ordersData);
@@ -498,6 +475,11 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       fetchReviews();
     }
   };
+
+  // Return guard UI if needed (hooks already ran)
+  if (guardUI) return guardUI;
+
+
 
   const fetchWalletInfo = async () => {
     // In a real implementation, this would fetch vendor wallet info
@@ -531,7 +513,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     });
   };
 
-  if (loading) {
+  if (loading || authLoading || vendorDataLoading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
