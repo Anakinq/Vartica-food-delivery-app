@@ -188,34 +188,102 @@ class SupabaseDatabaseService implements IDatabaseService {
     return { data, error: null };
   }
 
-  async updateApproval(userId: string, role: 'vendor' | 'delivery_agent', approved: boolean) {
-    let updateData = {};
-    if (role === 'vendor') {
-      updateData = { vendor_approved: approved };
-    } else if (role === 'delivery_agent') {
-      updateData = { delivery_approved: approved };
-    }
-
-    const { error } = await supabase
-      .from('profiles')
-      .update(updateData)
-      .eq('id', userId);
-
-    if (error) {
-      console.error('Error updating approval:', error);
-      throw error;
-    }
-
-    // Update the vendor's is_active status based on approval status
-    if (role === 'vendor') {
-      const { error: vendorError } = await supabase
+  async updateApproval(userId: string, role: 'vendor' | 'delivery_agent', approved: boolean, adminId?: string) {
+    if (role === 'vendor' && adminId) {
+      // For vendor approvals, use the dedicated review function
+      // First, get the vendor ID from the user ID
+      const { data: vendorData, error: vendorFetchError } = await supabase
         .from('vendors')
-        .update({ is_active: approved })
-        .eq('user_id', userId);
+        .select('id')
+        .eq('user_id', userId)
+        .single();
 
-      if (vendorError) {
-        console.error('Error updating vendor active status:', vendorError);
-        throw vendorError;
+      if (vendorFetchError) {
+        console.error('Error fetching vendor record:', vendorFetchError);
+        // Fall back to direct update
+        const updateData = { vendor_approved: approved };
+        const { error } = await supabase
+          .from('profiles')
+          .update(updateData)
+          .eq('id', userId);
+
+        if (error) {
+          console.error('Error updating approval in profiles:', error);
+          throw error;
+        }
+
+        // Update the vendor's is_active status based on approval status
+        const { error: vendorError } = await supabase
+          .from('vendors')
+          .update({
+            is_active: approved,
+            application_status: approved ? 'approved' : 'rejected'
+          })
+          .eq('user_id', userId);
+
+        if (vendorError) {
+          console.error('Error updating vendor active status:', vendorError);
+          throw vendorError;
+        }
+      } else if (vendorData && vendorData.id) {
+        // Use the RPC function for proper vendor application review
+        const { error: rpcError } = await supabase.rpc('review_vendor_application', {
+          p_vendor_id: vendorData.id,
+          p_action: approved ? 'approve' : 'reject',
+          p_reviewer_id: adminId,
+        });
+
+        if (rpcError) {
+          console.error('Error using review_vendor_application RPC:', rpcError);
+          throw rpcError;
+        }
+      }
+    } else if (role === 'delivery_agent') {
+      // For delivery agents, use the existing logic
+      const updateData = { delivery_approved: approved };
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', userId);
+
+      if (error) {
+        console.error('Error updating approval:', error);
+        throw error;
+      }
+    } else {
+      // For general cases where adminId is not provided
+      let updateData = {};
+      if (role === 'vendor') {
+        updateData = { vendor_approved: approved };
+      } else if (role === 'delivery_agent') {
+        updateData = { delivery_approved: approved };
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', userId);
+
+      if (error) {
+        console.error('Error updating approval:', error);
+        throw error;
+      }
+
+      // Update the vendor's is_active status based on approval status
+      if (role === 'vendor') {
+        const { error: vendorError } = await supabase
+          .from('vendors')
+          .update({
+            is_active: approved,
+            application_status: approved ? 'approved' : 'rejected'
+          })
+          .eq('user_id', userId);
+
+        if (vendorError) {
+          console.error('Error updating vendor active status:', vendorError);
+          throw vendorError;
+        }
       }
     }
 

@@ -119,10 +119,12 @@ export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
             // Set application submitted state
             setApplicationSubmitted(true);
 
-            // Close modal after delay to show success message
+            // Update the profile to reflect the role change and close modal
             setTimeout(() => {
                 onSuccess();
                 onClose();
+                // Refresh the profile to reflect the role change
+                window.location.reload(); // This will refresh the page and reflect the new role
             }, 3000);
 
         } catch (err) {

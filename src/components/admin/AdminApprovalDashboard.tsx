@@ -42,7 +42,7 @@ export const AdminApprovalDashboard: React.FC = () => {
   const handleApproval = async (userId: string, role: 'vendor' | 'delivery_agent', approved: boolean) => {
     try {
       setApprovingId(userId);
-      const result = await databaseService.updateApproval(userId, role, approved);
+      const result = await databaseService.updateApproval(userId, role, approved, user?.id);
       if (result.success) {
         // Refresh the list after successful approval
         fetchApprovalRequests();

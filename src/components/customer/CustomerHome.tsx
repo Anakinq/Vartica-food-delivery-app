@@ -92,9 +92,9 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
           filter: `id=eq.${profile.id}`
         },
         (payload) => {
-          // If role changes from customer to vendor, refresh the page
+          // If role changes from customer to vendor, just refresh the profile
           if (payload.old.role === 'customer' && payload.new.role === 'vendor') {
-            window.location.reload();
+            // The profile will be updated automatically by the auth context
           }
         }
       )
@@ -884,7 +884,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
           onSuccess={() => {
             setShowVendorUpgrade(false);
             showToast('Application submitted successfully! Awaiting approval.');
-            // Refresh the page or update the UI as needed
+            // Refresh the page to reflect the role change
             window.location.reload();
           }}
         />
