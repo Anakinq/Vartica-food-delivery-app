@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { LogOut, Plus, Edit2, ToggleLeft, ToggleRight, Menu, X, User, Camera, Save, MessageCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { MenuItem } from '../../lib/supabase/types';
@@ -9,6 +9,7 @@ import { ChatModal } from '../shared/ChatModal';
 import { RoleSwitcher } from '../shared/RoleSwitcher';
 import { uploadVendorImage } from '../../utils/imageUploader';
 import { ProfileWithVendor } from '../../services/supabase/database.service';
+import { useToast } from '../../contexts/ToastContext';
 
 interface VendorDashboardProps {
   onShowProfile?: () => void;
@@ -16,6 +17,7 @@ interface VendorDashboardProps {
 
 export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile }) => {
   const { profile, signOut, checkApprovalStatus, authLoading, vendorDataLoading } = useAuth();
+  const { showToast } = useToast();
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -44,6 +46,26 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     pendingOrders: 0,
     completedOrders: 0,
   });
+
+  // Memoize expensive computations
+  const filteredOrders = useMemo(() => {
+    return myOrders.filter(order => order.seller_id === vendor?.id);
+  }, [myOrders, vendor]);
+
+  const computedMetrics = useMemo(() => {
+    return {
+      totalOrders: myOrders.length,
+      totalRevenue: myOrders.reduce((sum, order) => sum + order.total, 0),
+      avgOrderValue: myOrders.length > 0 ? myOrders.reduce((sum, order) => sum + order.total, 0) / myOrders.length : 0,
+      pendingOrders: myOrders.filter(order => ['pending', 'accepted', 'preparing', 'ready'].includes(order.status)).length,
+      completedOrders: myOrders.filter(order => order.status === 'delivered').length,
+    };
+  }, [myOrders]);
+
+  // Update metrics when computed metrics change
+  useEffect(() => {
+    setMetrics(computedMetrics);
+  }, [computedMetrics]);
 
   const getStatusColor = (status: Order['status']) => {
     switch (status) {
@@ -380,8 +402,21 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     // Store in sessionStorage for persistence
     sessionStorage.setItem('preferredRole', newRole);
 
-    // Show a toast or notification
-    alert(`Switched to ${newRole === 'customer' ? 'Customer' : 'Vendor'} view`);
+    // Show a toast notification
+    const message = `Switching to ${newRole === 'customer' ? 'Customer' : 'Vendor'} view...`;
+    showToast({ type: 'info', message });
+
+    // If switching to customer view, redirect by clearing the hash
+    if (newRole === 'customer') {
+      window.location.hash = '';
+      window.location.reload();
+    }
+
+    // If switching to vendor view and user is actually a vendor, ensure hash is set
+    if (newRole === 'vendor' && profile?.role && ['vendor', 'late_night_vendor'].includes(profile.role)) {
+      window.location.hash = '#/vendor';
+      window.location.reload();
+    }
   };
 
   // Guard UI pattern to handle approval status without breaking hook rules
@@ -1031,10 +1066,10 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
 
       {/* Role Switcher - only show if user has both customer and vendor capabilities */}
       {profile && (
-        ['customer', 'vendor', 'late_night_vendor'].includes(profile.role)
+        ['customer', 'vendor', 'late_night_vendor'].includes(profile.role as string)
       ) && (
           <RoleSwitcher
-            currentRole={profile.role}
+            currentRole={preferredRole}
             onRoleSwitch={handleRoleSwitch}
           />
         )}

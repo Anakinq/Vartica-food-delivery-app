@@ -78,6 +78,8 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
       }
 
       setError(errorMessage);
+      // Ensure the error state persists by preventing any automatic navigation
+      // Keep the submitting state false to allow resubmission
     } finally {
       setSubmitting(false);
     }

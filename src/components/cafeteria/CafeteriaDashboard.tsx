@@ -32,6 +32,8 @@ const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ profile, onShow
   const [isCafeteriaOpen, setIsCafeteriaOpen] = useState(true);
   const [approvalStatus, setApprovalStatus] = useState<boolean | null>(null);
   const [loadingApproval, setLoadingApproval] = useState(true);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const { signOut } = useAuth();
 
   const uploadImage = async (file: File): Promise<string> => {
@@ -204,8 +206,7 @@ const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ profile, onShow
       console.log('Starting seed menu operation...');
       console.log('Cafeteria ID:', cafeteria.id);
 
-      const seeder = new CafeteriaMenuSeeder(supabase);
-      await seeder.seedCafeteriaMenu(cafeteria.id);
+      await seedCafeteriaMenu(cafeteria.id);
       await fetchData();
       setSeedingSuccess(true);
       setTimeout(() => setSeedingSuccess(false), 3000);
@@ -359,7 +360,12 @@ const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ profile, onShow
           description: profileFormData.description,
           image_url: finalImageUrl,
         });
-        setShowProfileModal(false);
+        setProfileFormData({
+          name: profileFormData.name,
+          description: profileFormData.description,
+        });
+        setProfileImageFile(null);
+        setProfileImagePreview('');
         setProfileImageFile(null);
         setProfileImagePreview('');
       }
@@ -409,6 +415,8 @@ const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ profile, onShow
   // Function to close profile modal
   const closeProfileModal = () => {
     setShowProfileModal(false);
+    setProfileImageFile(null);
+    setProfileImagePreview('');
     setProfileImageFile(null);
     setProfileImagePreview('');
   };

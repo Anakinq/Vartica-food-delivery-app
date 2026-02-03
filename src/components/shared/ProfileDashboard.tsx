@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, HelpCircle, CreditCard, MapPin, MessageCircle, Camera } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, HelpCircle, CreditCard, MapPin, MessageCircle, Camera, Store, ArrowLeftRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase/client';
 import { CustomerSupportModal } from './CustomerSupportModal';
 import { ExtendedProfile } from '../../types';
+import { VendorUpgradeModal } from '../customer/VendorUpgradeModal';
 
 export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => void }> = ({ onBack, onSignOut }) => {
   const [showSupportModal, setShowSupportModal] = useState(false);
+  const [showVendorUpgrade, setShowVendorUpgrade] = useState(false);
   const { profile, refreshProfile } = useAuth();
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || '',
@@ -346,24 +348,53 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-6 border-t border-gray-200 dark:border-gray-700">
+                <div className="pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
+                  {/* Sign Out Button */}
                   <button
                     type="button"
                     onClick={onSignOut}
-                    className="flex items-center px-6 py-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl font-semibold hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                    className="flex items-center px-6 py-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl font-semibold hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors w-full justify-center"
                   >
                     <LogOut className="h-5 w-5 mr-2" />
                     Sign Out
                   </button>
 
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="flex items-center px-8 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 disabled:opacity-50 transition-all shadow-lg"
-                  >
-                    {loading ? 'Saving...' : success ? 'Saved!' : 'Save Changes'}
-                    {!loading && !success && <Save className="h-5 w-5 ml-2" />}
-                  </button>
+                  {/* Role-related buttons */}
+                  {profile?.role === 'customer' && (
+                    <button
+                      type="button"
+                      onClick={() => setShowVendorUpgrade(true)}
+                      className="flex items-center px-6 py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors w-full justify-center"
+                    >
+                      <Store className="h-5 w-5 mr-2" />
+                      Become a Vendor
+                    </button>
+                  )}
+
+                  {(profile?.role === 'vendor' || profile?.role === 'late_night_vendor') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Switch to vendor view by changing the hash
+                        window.location.hash = '#/vendor';
+                      }}
+                      className="flex items-center px-6 py-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-xl font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors w-full justify-center"
+                    >
+                      <ArrowLeftRight className="h-5 w-5 mr-2" />
+                      Switch to Vendor View
+                    </button>
+                  )}
+
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="flex items-center px-8 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 disabled:opacity-50 transition-all shadow-lg"
+                    >
+                      {loading ? 'Saving...' : success ? 'Saved!' : 'Save Changes'}
+                      {!loading && !success && <Save className="h-5 w-5 ml-2" />}
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>
@@ -464,6 +495,19 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
       {showSupportModal && (
         <CustomerSupportModal
           onClose={() => setShowSupportModal(false)}
+        />
+      )}
+
+      {/* Vendor Upgrade Modal */}
+      {showVendorUpgrade && (
+        <VendorUpgradeModal
+          isOpen={showVendorUpgrade}
+          onClose={() => setShowVendorUpgrade(false)}
+          onSuccess={() => {
+            setShowVendorUpgrade(false);
+            // Refresh the page to reflect the role change
+            window.location.reload();
+          }}
         />
       )}
     </>

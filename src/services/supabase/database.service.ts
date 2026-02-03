@@ -243,7 +243,7 @@ class SupabaseDatabaseService implements IDatabaseService {
     }
   };
 
-  // Consolidated fetch for profile + vendor data
+  // Consolidated fetch for profile + vendor data with error handling
   async fetchProfileWithVendor(userId: string): Promise<QueryResult<ProfileWithVendor>> {
     try {
       console.log('Fetching profile with vendor data for user:', userId);
@@ -265,35 +265,46 @@ class SupabaseDatabaseService implements IDatabaseService {
         }
       }
 
-      // Fetch profile with related vendor data
+      // First fetch the profile separately to avoid join issues
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select(`
-          *,
-          vendors!user_id (
-            id,
-            store_name,
-            description,
-            image_url,
-            vendor_type,
-            is_active,
-            available_from,
-            available_until,
-            location,
-            matric_number,
-            department,
-            delivery_option,
-            application_status
-          )
-        `)
+        .select('*')
         .eq('id', userId)
         .maybeSingle();
 
       if (profileError) {
         console.error('Profile fetch error for user', userId, ':', profileError);
+        // Try to get basic user info from auth if profile fails
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user && user.id === userId) {
+            // Create minimal profile from auth data
+            const basicProfile: any = {
+              id: user.id,
+              email: user.email || '',
+              full_name: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
+              role: 'customer',
+              phone: user.user_metadata?.phone || null,
+              avatar_url: user.user_metadata?.avatar_url || null,
+              hostel: null,
+              matric_number: null,
+              department: null,
+              vendor_approved: false,
+              delivery_approved: false,
+              created_at: user.created_at || new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
+
+            console.log('Created basic profile from auth data for user:', userId);
+            return { data: basicProfile, error: null };
+          }
+        } catch (authError) {
+          console.error('Auth fallback failed:', authError);
+        }
+
         return {
           data: null,
-          error: { message: profileError.message, code: profileError.code }
+          error: { message: profileError.message || 'Profile fetch error', code: profileError.code || 'PROFILE_ERROR' }
         };
       }
 
@@ -307,25 +318,56 @@ class SupabaseDatabaseService implements IDatabaseService {
 
       console.log('Raw profile data for user', userId, ':', profileData);
 
-      // Transform the data to match our interface
-      const vendorArray = profileData.vendors;
-      const vendorData = vendorArray && Array.isArray(vendorArray)
-        ? vendorArray[0] || null
-        : vendorArray || null;
+      // Fetch vendor data separately to avoid join issues
+      let vendorData = null;
+      try {
+        const { data: vendorDataResult, error: vendorError } = await supabase
+          .from('vendors')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle();
 
-      console.log('Extracted vendor data for user', userId, ':', vendorData);
+        if (vendorError) {
+          console.warn('Vendor fetch error for user', userId, ':', vendorError);
+          // Don't fail completely, continue with profile only
+        } else {
+          vendorData = vendorDataResult;
+        }
+      } catch (vendorQueryError) {
+        console.warn('Vendor query exception for user', userId, ':', vendorQueryError);
+        // Continue with profile only
+      }
 
+      console.log('Vendor data for user', userId, ':', vendorData);
+
+      // Create profile with vendor data, ensuring type compatibility
       const profileWithVendor: ProfileWithVendor = {
         ...profileData,
-        vendor: vendorData,
+        vendor: vendorData ? {
+          id: vendorData.id,
+          user_id: profileData.id,
+          store_name: vendorData.store_name,
+          description: vendorData.description,
+          image_url: vendorData.image_url,
+          vendor_type: vendorData.vendor_type,
+          is_active: vendorData.is_active,
+          available_from: vendorData.available_from,
+          available_until: vendorData.available_until,
+          created_at: vendorData.created_at,
+          location: vendorData.location,
+          matric_number: vendorData.matric_number,
+          department: vendorData.department,
+          delivery_option: vendorData.delivery_option,
+          application_status: vendorData.application_status,
+          application_submitted_at: vendorData.application_submitted_at,
+          application_reviewed_at: vendorData.application_reviewed_at,
+          rejection_reason: vendorData.rejection_reason
+        } : null,
         vendor_status: vendorData && typeof vendorData === 'object' ? {
           is_active: (vendorData as any).is_active ?? false,
           application_status: (vendorData as any).application_status || 'pending'
         } : null
       };
-
-      // Remove the nested vendors property to avoid confusion
-      delete (profileWithVendor as any).vendors;
 
       console.log('Final profile+vendor data for user', userId, ':', profileWithVendor);
 

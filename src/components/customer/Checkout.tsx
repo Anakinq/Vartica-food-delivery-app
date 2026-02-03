@@ -1,6 +1,6 @@
 // src/components/customer/Checkout.tsx
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Check } from 'lucide-react';
+import { ArrowLeft, Check, AlertCircle } from 'lucide-react';
 import { supabase, MenuItem } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -94,7 +94,9 @@ export const Checkout: React.FC<CheckoutProps> = ({
   useEffect(() => {
     // Load JS only (avoid CSS which causes CSP violations)
     const scriptId = 'paystack-inline-js';
-    if (document.getElementById(scriptId)) {
+
+    // Check if script already exists and Paystack is available
+    if (document.getElementById(scriptId) && (window as any).PaystackPop) {
       setPaystackScriptLoaded(true);
       return;
     }
@@ -104,22 +106,25 @@ export const Checkout: React.FC<CheckoutProps> = ({
     script.src = 'https://js.paystack.co/v1/inline.js';
     script.async = true;
     script.setAttribute('crossorigin', 'anonymous');
-    script.onload = () => {
-      // Set a flag to indicate Paystack is ready
-      setPaystackScriptLoaded(true);
 
-      // Check if Paystack is available and add privacy-friendly initialization
+    script.onload = () => {
+      console.log('Paystack script loaded successfully');
+      // Check if Paystack is available
       if ((window as any).PaystackPop) {
-        // Add a small delay to ensure all Paystack components are loaded
-        setTimeout(() => {
-          setPaystackScriptLoaded(true);
-        }, 100);
+        setPaystackScriptLoaded(true);
+        setError(''); // Clear any previous errors
+      } else {
+        console.error('PaystackPop not available after script load');
+        setError('Payment system failed to initialize. Please refresh the page.');
       }
     };
+
     script.onerror = () => {
       console.error('Failed to load Paystack script');
-      setError('Payment system failed to load. Please try again later.');
+      setError('Payment system failed to load. Please check your internet connection and try again.');
+      setPaystackScriptLoaded(false);
     };
+
     document.head.appendChild(script);
 
     return () => {
@@ -599,18 +604,29 @@ export const Checkout: React.FC<CheckoutProps> = ({
               <div className="flex justify-between text-xl font-bold text-black pt-3 border-t border-gray-200"><span>Total</span><span>₦{effectiveTotal.toFixed(2)}</span></div>
             </div>
 
+            {/* Error Display */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+                <div className="flex items-center">
+                  <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+                  <p className="text-red-700 text-sm">{error}</p>
+                </div>
+              </div>
+            )}
+
             {/* Pay Button */}
             {!paystackScriptLoaded ? (
-              <button type="button" disabled className="w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg opacity-75">
-                Loading payment gateway...
+              <button type="button" disabled className="w-full bg-gray-400 text-white py-4 rounded-full font-bold text-lg cursor-not-allowed">
+                {error ? 'Payment System Unavailable' : 'Loading payment gateway...'}
               </button>
             ) : (
               <button
                 type="button"
                 onClick={initializePaystackPayment}
-                className="w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-colors shadow-lg"
+                disabled={loading}
+                className="w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Pay Now • ₦{effectiveTotal.toFixed(2)}
+                {loading ? 'Processing...' : `Pay Now • ₦${effectiveTotal.toFixed(2)}`}
               </button>
             )}
           </form>

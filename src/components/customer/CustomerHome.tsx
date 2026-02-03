@@ -10,7 +10,10 @@ import { Cart } from './Cart';
 import { Checkout } from './Checkout';
 import { OrderTracking } from './OrderTracking';
 import { VendorUpgradeModal } from './VendorUpgradeModal';
-import { RoleSwitcher } from '../shared/RoleSwitcher';
+
+import { CardSkeleton, ListSkeleton } from '../shared/LoadingSkeleton';
+import { Skeleton } from '../shared/LoadingSkeleton';
+import { useToast } from '../../contexts/ToastContext';
 
 interface CartItem extends MenuItem {
   quantity: number;
@@ -36,6 +39,7 @@ const SkeletonCard = () => (
 
 export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => {
   const { profile, signOut } = useAuth();
+  const { showToast } = useToast();
   const [cafeterias, setCafeterias] = useState<Cafeteria[]>([]);
   const [studentVendors, setStudentVendors] = useState<Vendor[]>([]);
   const [lateNightVendors, setLateNightVendors] = useState<Vendor[]>([]);
@@ -60,18 +64,57 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const toastId = useRef(0);
 
-  const showToast = (message: string) => {
-    const id = toastId.current++;
-    const newToast: Toast = { id, message, isVisible: true };
-    setToasts(prev => [...prev, newToast]);
+  // Define groupMenuItemsByCategory function before it's used in useMemo
+  const groupMenuItemsByCategory = (itemsToGroup: MenuItem[] = menuItems) => {
+    // Get all unique categories from menu items
+    const uniqueCategories = Array.from(new Set(itemsToGroup.map(item => item.category).filter(Boolean) as string[]));
 
-    setTimeout(() => {
-      setToasts(prev => prev.map(t => t.id === id ? { ...t, isVisible: false } : t));
-      setTimeout(() => {
-        setToasts(prev => prev.filter(t => t.id !== id));
-      }, 300);
-    }, 2000);
+    // Define priority order for categories
+    const priorityCategories = [
+      'Main Food', 'Protein', 'Swallow', 'Soup', 'Other',
+      'Rice & Pasta', 'Proteins & Sides', 'Drinks', 'Meals', 'Main Course', 'Sides', 'Snacks', 'Salad'
+    ];
+
+    // Sort categories by priority
+    const sortedCategories = [
+      ...priorityCategories.filter(cat => uniqueCategories.includes(cat)),
+      ...uniqueCategories.filter(cat => !priorityCategories.includes(cat))
+    ];
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Grouping menu items by categories:', sortedCategories);
+      console.log('Current menu items:', itemsToGroup);
+    }
+
+    const result = sortedCategories.map(category => {
+      const items = itemsToGroup.filter(item => item.category === category);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Items in category ${category}:`, items);
+      }
+      return { category, items };
+    }).filter(group => group.items.length > 0);
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Grouped categories result:', result);
+    }
+    return result;
   };
+
+  // Memoize expensive computations
+  const groupedMenuItems = useMemo(() => {
+    return groupMenuItemsByCategory(menuItems);
+  }, [menuItems]);
+
+  // Debounced search
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(globalSearchQuery);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(globalSearchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [globalSearchQuery]);
+
+
 
   useEffect(() => {
     fetchData();
@@ -123,36 +166,47 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     if (newRole === 'vendor' && profile?.role && ['vendor', 'late_night_vendor'].includes(profile.role)) {
       // This will cause the App component to render VendorDashboard
       window.location.hash = '#/vendor';
-      window.location.reload();
     }
 
-    showToast(`Switched to ${newRole === 'customer' ? 'Customer' : 'Vendor'} view`);
+    // If switching to customer view, ensure we're on the customer view
+    if (newRole === 'customer') {
+      window.location.hash = '';
+    }
+
+    // Reload the page to trigger the route change
+    window.location.reload();
+
+    // Show toast using the ToastContext
+    const toastMessage = `Switched to ${newRole === 'customer' ? 'Customer' : 'Vendor'} view`;
+    showToast({ type: 'info', message: toastMessage });
   };
+
+  const handleScroll = useCallback(() => {
+    if (!selectedSeller) return;
+
+    const scrollPosition = window.scrollY + 200;
+    const categories = groupMenuItemsByCategory();
+
+    for (let i = categories.length - 1; i >= 0; i--) {
+      const cat = categories[i];
+      const el = categoryRefs.current[cat.category];
+      if (el) {
+        const { offsetTop } = el;
+        if (scrollPosition >= offsetTop) {
+          setActiveCategory(cat.category);
+          break;
+        }
+      }
+    }
+  }, [selectedSeller, menuItems]);
 
   useEffect(() => {
     if (!selectedSeller) return;
 
-    const handleScroll = () => {
-      const scrollPosition = window.scrollY + 200;
-      const categories = groupMenuItemsByCategory();
-
-      for (let i = categories.length - 1; i >= 0; i--) {
-        const cat = categories[i];
-        const el = categoryRefs.current[cat.category];
-        if (el) {
-          const { offsetTop } = el;
-          if (scrollPosition >= offsetTop) {
-            setActiveCategory(cat.category);
-            break;
-          }
-        }
-      }
-    };
-
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [selectedSeller, menuItems]);
+  }, [selectedSeller, handleScroll]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -164,7 +218,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
       if (cafeteriasRes.error) {
         console.error('Error fetching cafeterias:', cafeteriasRes.error);
-        showToast('Failed to load cafeterias. Please try again.');
+        showToast({ type: 'error', message: 'Failed to load cafeterias. Please try again.' });
       } else if (cafeteriasRes.data) {
         console.log('Fetched cafeterias:', cafeteriasRes.data);
         setCafeterias(cafeteriasRes.data);
@@ -178,7 +232,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
       if (vendorsRes.error) {
         console.error('Error fetching vendors:', vendorsRes.error);
-        showToast('Failed to load vendors. Please try again.');
+        showToast({ type: 'error', message: 'Failed to load vendors. Please try again.' });
       } else if (vendorsRes.data) {
         const students = vendorsRes.data.filter(v => v.vendor_type === 'student');
         const lateNight = vendorsRes.data.filter(v => v.vendor_type === 'late_night');
@@ -187,7 +241,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       }
     } catch (error) {
       console.error('Unexpected error in fetchData:', error);
-      showToast('Failed to load data. Please check your connection and try again.');
+      showToast({ type: 'error', message: 'Failed to load data. Please check your connection and try again.' });
     } finally {
       setLoading(false);
     }
@@ -226,41 +280,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
   const handleClearCart = () => {
     setCart([]);
-  };
-
-  const groupMenuItemsByCategory = (itemsToGroup: MenuItem[] = menuItems) => {
-    // Get all unique categories from menu items
-    const uniqueCategories = Array.from(new Set(itemsToGroup.map(item => item.category).filter(Boolean) as string[]));
-
-    // Define priority order for categories
-    const priorityCategories = [
-      'Main Food', 'Protein', 'Swallow', 'Soup', 'Other',
-      'Rice & Pasta', 'Proteins & Sides', 'Drinks', 'Meals', 'Main Course', 'Sides', 'Snacks', 'Salad'
-    ];
-
-    // Sort categories by priority
-    const sortedCategories = [
-      ...priorityCategories.filter(cat => uniqueCategories.includes(cat)),
-      ...uniqueCategories.filter(cat => !priorityCategories.includes(cat))
-    ];
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Grouping menu items by categories:', sortedCategories);
-      console.log('Current menu items:', itemsToGroup);
-    }
-
-    const result = sortedCategories.map(category => {
-      const items = itemsToGroup.filter(item => item.category === category);
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`Items in category ${category}:`, items);
-      }
-      return { category, items };
-    }).filter(group => group.items.length > 0);
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Grouped categories result:', result);
-    }
-    return result;
   };
 
   const filteredCafeterias = useMemo(() => {
@@ -451,7 +470,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
     if (newQuantity > oldQuantity) {
       const added = newQuantity - oldQuantity;
-      showToast(`${added} ${added === 1 ? 'item' : 'items'} added`);
+      showToast({ type: 'info', message: `${added} ${added === 1 ? 'item' : 'items'} added` });
     }
 
     if (newQuantity === 0) {
@@ -475,7 +494,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 w-full max-w-full">
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -488,7 +507,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                 Vartica
               </button>
               {selectedSeller && (
-                <span className="text-gray-500">/ {selectedSeller.name}</span>
+                <span className="text-gray-500 text-sm truncate max-w-[100px] sm:max-w-[200px]">/ {selectedSeller.name}</span>
               )}
             </div>
 
@@ -499,7 +518,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                 title="My Orders"
                 aria-label="View orders"
               >
-                <Package className="h-6 w-6" />
+                <Package className="h-5 w-5 sm:h-6 sm:w-6" />
               </button>
 
               <button
@@ -507,7 +526,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                 className="relative p-2 text-gray-700 hover:text-green-600 transition-colors duration-200"
                 aria-label={`Cart, ${cartCount} items`}
               >
-                <ShoppingCart className="h-6 w-6" />
+                <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6" />
                 {cartCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-green-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
                     {cartCount}
@@ -517,14 +536,14 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
               <button
                 onClick={onShowProfile}
-                className="flex items-center space-x-2 text-gray-700 hover:text-green-600 transition-colors duration-200"
+                className="flex items-center space-x-1 sm:space-x-2 text-gray-700 hover:text-green-600 transition-colors duration-200"
                 aria-label="View profile"
               >
                 {(profile as any)?.avatar_url ? (
                   <img
                     src={(profile as any).avatar_url}
                     alt="Profile"
-                    className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-gray-200"
                     onError={(e) => {
                       const target = e.currentTarget;
                       target.onerror = null; // prevents looping
@@ -532,50 +551,43 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                     }}
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white text-xs sm:text-sm font-bold">
                     {profile?.full_name?.charAt(0).toUpperCase() || 'U'}
                   </div>
                 )}
-                <span className="hidden sm:inline">{profile?.full_name}</span>
+                <span className="hidden sm:inline text-sm">{profile?.full_name}</span>
               </button>
 
-              <button
-                onClick={() => setShowVendorUpgrade(true)}
-                className="p-2 text-gray-700 hover:text-blue-600 transition-colors duration-200 bg-blue-50 hover:bg-blue-100 rounded-lg"
-                aria-label="Become a Vendor"
-                title="Become a Vendor"
-              >
-                <User className="h-5 w-5" />
-              </button>
+
               <button
                 onClick={signOut}
                 className="p-2 text-gray-700 hover:text-red-600 transition-colors duration-200"
                 aria-label="Sign out"
               >
-                <LogOut className="h-5 w-5" />
+                <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
             </div>
           </div>
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="mb-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        <div className="mb-4 sm:mb-6">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
             <input
               type="text"
               value={globalSearchQuery}
               onChange={(e) => setGlobalSearchQuery(e.target.value)}
-              placeholder="Search for food, vendors, or cafeterias..."
-              className="w-full pl-12 pr-4 py-4 bg-gray-100 border-0 rounded-full focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
-              aria-label="Search food or vendors"
+              placeholder={selectedSeller ? "Search menu items..." : "Search for food, vendors, or cafeterias..."}
+              className="w-full pl-10 pr-4 py-3 sm:py-4 bg-gray-100 border-0 rounded-full focus:ring-2 focus:ring-green-500 focus:bg-white transition-all text-sm sm:text-base"
+              aria-label={selectedSeller ? "Search menu items" : "Search food or vendors"}
             />
           </div>
         </div>
 
         {selectedSeller && menuItems.length > 0 && (
-          <div className="sticky top-20 z-30 bg-gray-50 py-3 mb-6 -mx-4 px-4 border-b border-gray-200">
+          <div className="sticky top-16 sm:top-20 z-30 bg-gray-50 py-3 mb-4 -mx-4 px-4 border-b border-gray-200">
             <div className="flex flex-col space-y-3">
               <div className="flex overflow-x-auto pb-1 space-x-3 hide-scrollbar">
                 {groupedCategories.map(({ category }) => (
@@ -583,7 +595,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                     key={category}
                     onClick={() => handleCategoryClick(category)}
                     className={`
-                      whitespace-nowrap px-5 py-2 rounded-full text-sm font-medium transition-all duration-200
+                      whitespace-nowrap px-3 sm:px-5 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200
                       ${pulseCategory === category
                         ? 'bg-black text-white scale-105'
                         : activeCategory === category
@@ -595,19 +607,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                   </button>
                 ))}
               </div>
-
-              {/* Combined search bar for menu items */}
-              <div className="relative">
-                <input
-                  type="text"
-                  value={globalSearchQuery}
-                  onChange={(e) => setGlobalSearchQuery(e.target.value)}
-                  placeholder="Search menu items..."
-                  className="w-full pl-10 pr-4 py-2 bg-gray-100 border-0 rounded-full focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
-                  aria-label="Search menu items"
-                />
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              </div>
             </div>
           </div>
         )}
@@ -615,13 +614,13 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         {!selectedSeller ? (
           <>
             <section className="mb-12">
-              <h2 className="text-2xl font-bold text-black mb-6">Cafeterias</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-black mb-4 sm:mb-6">Cafeterias</h2>
               {loading ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                   {filteredCafeterias.map((cafeteria: Cafeteria) => {
                     const isSelected = selectedSeller !== null &&
                       (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === cafeteria.id &&
@@ -646,7 +645,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                             })();
                           })()}
                           alt={cafeteria.name}
-                          className="w-full h-40 object-cover"
+                          className="w-full h-32 sm:h-40 object-cover"
                           onError={(e) => {
                             const target = e.currentTarget;
                             const currentSrc = target.src;
@@ -672,12 +671,12 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                         />
                         <div className="p-4">
                           <div className="flex items-center space-x-2">
-                            <h3 className="font-bold text-black text-lg">{cafeteria.name}</h3>
+                            <h3 className="font-bold text-black text-base sm:text-lg truncate">{cafeteria.name}</h3>
                             <span className={`px-2 py-1 rounded-full text-xs font-semibold ${isCafeteriaOpen(cafeteria.id) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                               {isCafeteriaOpen(cafeteria.id) ? 'Open' : 'Closed'}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-600 mt-1 line-clamp-1">{cafeteria.description}</p>
+                          <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-1">{cafeteria.description}</p>
                         </div>
                       </div>
                     );
@@ -687,13 +686,13 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
             </section>
 
             <section className="mb-12">
-              <h2 className="text-2xl font-bold text-black mb-6">Student Vendors</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-black mb-4 sm:mb-6">Student Vendors</h2>
               {loading ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
                 </div>
               ) : filteredVendors.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                   {filteredVendors.map((vendor: Vendor) => {
                     const isSelected = selectedSeller !== null &&
                       (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === vendor.id &&
@@ -708,7 +707,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                         aria-label={`Select ${vendor.store_name}`}
                         className={`bg-white rounded-xl overflow-hidden cursor-pointer relative transition-all duration-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${isSelected ? 'ring-2 ring-green-600' : 'hover:shadow-md'}`}
                       >
-                        <div className="absolute top-3 right-3 flex flex-col items-end space-y-1">
+                        <div className="absolute top-2 right-2 sm:top-3 sm:right-3 flex flex-col items-end space-y-1">
                           <span className="bg-blue-600 text-white text-xs px-3 py-1 rounded-full z-10 font-medium">
                             Student
                           </span>
@@ -729,7 +728,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                             return supabaseUrl || vendor.image_url || getImagePath(vendor.id, 'vendor');
                           })()}
                           alt={vendor.store_name}
-                          className="w-full h-40 object-cover"
+                          className="w-full h-32 sm:h-40 object-cover"
                           onError={(e) => {
                             const target = e.currentTarget;
                             const currentSrc = target.src;
@@ -744,8 +743,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                           }}
                         />
                         <div className="p-4">
-                          <h3 className="font-bold text-black text-lg">{vendor.store_name}</h3>
-                          <p className="text-sm text-gray-600 mt-1 line-clamp-1">{vendor.description}</p>
+                          <h3 className="font-bold text-black text-base sm:text-lg truncate">{vendor.store_name}</h3>
+                          <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-1">{vendor.description}</p>
                         </div>
                       </div>
                     );
@@ -760,11 +759,11 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
             {lateNightVendors.length > 0 && (
               <section className="mb-12">
-                <div className="flex items-center space-x-2 mb-6">
-                  <Moon className="h-6 w-6 text-stone-700" />
-                  <h2 className="text-2xl font-bold text-stone-800">Late-Night Vendors</h2>
+                <div className="flex items-center space-x-2 mb-4 sm:mb-6">
+                  <Moon className="h-5 w-5 sm:h-6 sm:w-6 text-stone-700" />
+                  <h2 className="text-xl sm:text-2xl font-bold text-stone-800">Late-Night Vendors</h2>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                   {lateNightVendors.map(vendor => (
                     <div
                       key={vendor.id}
@@ -786,7 +785,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                           return supabaseUrl || vendor.image_url || getImagePath(vendor.id, 'vendor');
                         })()}
                         alt={vendor.store_name}
-                        className="w-20 h-20 rounded-xl object-cover mb-4"
+                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover mb-3 sm:mb-4"
                         onError={(e) => {
                           const target = e.currentTarget;
                           const currentSrc = target.src;
@@ -800,8 +799,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                           }
                         }}
                       />
-                      <h3 className="font-bold text-stone-800">{vendor.store_name}</h3>
-                      <p className="text-sm text-stone-600 mt-1 line-clamp-2">{vendor.description}</p>
+                      <h3 className="font-bold text-stone-800 text-base sm:text-lg truncate">{vendor.store_name}</h3>
+                      <p className="text-xs sm:text-sm text-stone-600 mt-1 line-clamp-2">{vendor.description}</p>
                     </div>
                   ))}
                 </div>
@@ -812,7 +811,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
           <section>
             <button
               onClick={() => setSelectedSeller(null)}
-              className="mb-6 text-orange-600 hover:text-orange-700 font-medium transition-colors duration-200"
+              className="mb-4 sm:mb-6 text-orange-600 hover:text-orange-700 font-medium transition-colors duration-200 text-sm sm:text-base"
               aria-label="Go back to vendors"
             >
               ← Back to vendors
@@ -826,7 +825,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                     ref={(el) => (categoryRefs.current[category] = el)}
                     className="mb-10"
                   >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                       {items.map(item => (
                         <MenuItemCard
                           key={item.id}
@@ -885,7 +884,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
             setCart([]);
             setCartPackCount(0);
             setShowCheckout(false);
-            showToast('Order placed successfully!');
+            showToast({ type: 'success', message: 'Order placed successfully!' });
           }}
         />
       )}
@@ -898,20 +897,13 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
           onClose={() => setShowVendorUpgrade(false)}
           onSuccess={() => {
             setShowVendorUpgrade(false);
-            showToast('Application submitted successfully! Awaiting approval.');
+            showToast({ type: 'success', message: 'Application submitted successfully! Awaiting approval.' });
             // Refresh the page to reflect the role change
             window.location.reload();
           }}
         />
       )}
 
-      {/* Role Switcher - only show if user can switch roles */}
-      {profile && profile.role && ['customer', 'vendor', 'late_night_vendor'].includes(profile.role) && (
-        <RoleSwitcher
-          currentRole={preferredRole}
-          onRoleSwitch={handleRoleSwitch}
-        />
-      )}
     </div >
   );
 }
