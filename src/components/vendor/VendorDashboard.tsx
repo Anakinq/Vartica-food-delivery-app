@@ -482,9 +482,33 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
 
 
   const fetchWalletInfo = async () => {
-    // In a real implementation, this would fetch vendor wallet info
-    // For now, we'll simulate a wallet balance
-    setWalletBalance(5000); // Example balance
+    try {
+      // Calculate vendor earnings based on completed orders
+      if (vendor) {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('total, platform_commission')
+          .eq('seller_id', vendor.id)
+          .in('status', ['delivered', 'completed']); // Only completed orders contribute to earnings
+
+        if (error) {
+          console.error('Error fetching vendor orders for earnings calculation:', error);
+          setWalletBalance(0);
+        } else if (data) {
+          // Calculate total earnings (total minus platform commission)
+          const totalEarnings = data.reduce((sum, order) => {
+            const commission = order.platform_commission || 0;
+            return sum + (order.total - commission);
+          }, 0);
+          setWalletBalance(totalEarnings);
+        } else {
+          setWalletBalance(0);
+        }
+      }
+    } catch (error) {
+      console.error('Unexpected error calculating vendor earnings:', error);
+      setWalletBalance(0);
+    }
   };
 
   const fetchReviews = async () => {
@@ -941,27 +965,27 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         </div>
       )}
 
-      {/* Earnings/Wallet Section */}
+      {/* Earnings Summary Section */}
       <div className="mt-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-6 text-white">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
           <div>
-            <h2 className="text-2xl font-bold mb-2">Your Wallet</h2>
-            <p className="text-lg opacity-90">Manage your earnings and transactions</p>
+            <h2 className="text-2xl font-bold mb-2">Your Earnings</h2>
+            <p className="text-lg opacity-90">Track your sales and revenue</p>
           </div>
           <div className="mt-4 md:mt-0 text-right">
-            <p className="text-sm opacity-80">Available Balance</p>
+            <p className="text-sm opacity-80">Total Earnings (Net)</p>
             <p className="text-3xl font-bold">₦{walletBalance.toFixed(2)}</p>
           </div>
         </div>
         <div className="mt-6 flex flex-wrap gap-3">
-          <button className="px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100">
-            View Transactions
+          <button className="px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100" disabled>
+            View Sales Reports
           </button>
-          <button className="px-6 py-3 bg-blue-700 text-white rounded-lg font-semibold hover:bg-blue-800">
-            Withdraw Funds
+          <button className="px-6 py-3 bg-blue-700 text-white rounded-lg font-semibold hover:bg-blue-800" disabled>
+            Request Payout
           </button>
-          <button className="px-6 py-3 bg-transparent border-2 border-white text-white rounded-lg font-semibold hover:bg-white hover:text-blue-600">
-            Transaction History
+          <button className="px-6 py-3 bg-transparent border-2 border-white text-white rounded-lg font-semibold hover:bg-white hover:text-blue-600" disabled>
+            Earnings History
           </button>
         </div>
       </div>

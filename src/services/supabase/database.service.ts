@@ -9,6 +9,7 @@ import {
   RealtimeCallback,
 } from '../database.interface';
 import { Profile, Vendor } from '../../lib/supabase';
+import { retryOperation, DATABASE_RETRY_OPTIONS } from '../../utils/retry';
 
 // Enhanced types for real-time vendor data
 export interface ProfileWithVendor extends Profile {
@@ -21,7 +22,7 @@ export interface ProfileWithVendor extends Profile {
 
 class SupabaseDatabaseService implements IDatabaseService {
   async select<T>(params: SelectParams): Promise<QueryResult<T[]>> {
-    try {
+    return retryOperation(async () => {
       let query = supabase.from(params.table).select(params.columns || '*');
 
       if (params.match) {
@@ -44,16 +45,11 @@ class SupabaseDatabaseService implements IDatabaseService {
         data: data as T[] | null,
         error: error ? { message: error.message, code: error.code } : null,
       };
-    } catch (err) {
-      return {
-        data: null,
-        error: { message: (err as Error).message },
-      };
-    }
+    }, DATABASE_RETRY_OPTIONS);
   }
 
   async selectSingle<T>(params: SelectParams): Promise<QueryResult<T>> {
-    try {
+    return retryOperation(async () => {
       let query = supabase.from(params.table).select(params.columns || '*');
 
       if (params.match) {
@@ -68,12 +64,7 @@ class SupabaseDatabaseService implements IDatabaseService {
         data: data as T | null,
         error: error ? { message: error.message, code: error.code } : null,
       };
-    } catch (err) {
-      return {
-        data: null,
-        error: { message: (err as Error).message },
-      };
-    }
+    }, DATABASE_RETRY_OPTIONS);
   }
 
   async insert<T>(params: InsertParams<T>): Promise<QueryResult<T[]>> {
@@ -257,6 +248,23 @@ class SupabaseDatabaseService implements IDatabaseService {
     try {
       console.log('Fetching profile with vendor data for user:', userId);
 
+      // Use a cache to avoid repeated API calls for the same user
+      const cacheKey = `profile_with_vendor_${userId}`;
+      const cachedResult = sessionStorage.getItem(cacheKey);
+
+      if (cachedResult) {
+        try {
+          const parsedCache = JSON.parse(cachedResult);
+          // Cache for 5 minutes
+          if (Date.now() - parsedCache.timestamp < 5 * 60 * 1000) {
+            console.log('Returning cached profile with vendor data for user:', userId);
+            return { data: parsedCache.data, error: null };
+          }
+        } catch (cacheError) {
+          console.warn('Cache parsing error:', cacheError);
+        }
+      }
+
       // Fetch profile with related vendor data
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
@@ -320,6 +328,12 @@ class SupabaseDatabaseService implements IDatabaseService {
       delete (profileWithVendor as any).vendors;
 
       console.log('Final profile+vendor data for user', userId, ':', profileWithVendor);
+
+      // Cache the result
+      sessionStorage.setItem(cacheKey, JSON.stringify({
+        data: profileWithVendor,
+        timestamp: Date.now()
+      }));
 
       return {
         data: profileWithVendor,

@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import { splitVendorChunkPlugin } from 'vite';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -8,16 +9,31 @@ export default defineConfig(({ mode }) => {
   const isProduction = mode === 'production';
 
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      splitVendorChunkPlugin(), // Add automatic vendor chunk splitting
+    ],
     base: '/', // Keep as '/' for Vercel deployment
     optimizeDeps: {
       exclude: ['lucide-react'],
+      include: ['@supabase/supabase-js'], // Pre-bundle dependencies
     },
     define: {
       // Make process.env available in the browser
       'process.env': env,
     },
     build: {
+      sourcemap: !isProduction, // Generate source maps in development
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Split vendor chunks to improve caching
+            'react-vendor': ['react', 'react-dom'],
+            'supabase-vendor': ['@supabase/supabase-js'],
+            'ui-vendor': ['lucide-react'],
+          },
+        },
+      },
       minify: 'terser',
       terserOptions: isProduction
         ? {

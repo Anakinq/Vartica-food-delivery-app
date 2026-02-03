@@ -1,9 +1,6 @@
 // src/lib/supabase/client.ts
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
 // Create a storage wrapper that handles tracking prevention
 // Implements the Supabase AuthStorage interface
 class SafeStorage {
@@ -264,31 +261,35 @@ class SafeStorage {
 
 const safeStorage = new SafeStorage();
 
-// Validate required environment variables in development
-if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('Missing Supabase configuration. Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your environment variables.');
+// Get Supabase configuration from environment variables
+function getSupabaseConfig() {
+    const url = import.meta.env.VITE_SUPABASE_URL || '';
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-    // In production builds, we'll set default empty values to allow build to proceed
-    // The actual error handling will happen at runtime
-    if (typeof window !== 'undefined') {
-        // Only throw error in browser environment, not during build
-        if (process.env.NODE_ENV === 'development') {
-            throw new Error(
-                'Missing Supabase configuration. Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your environment variables.'
-            );
-        }
-    }
-} else if (supabaseUrl && !supabaseUrl.startsWith('https://')) {
-    throw new Error('VITE_SUPABASE_URL must be a valid HTTPS URL');
+    return { url, key };
 }
 
+const { url: supabaseUrl, key: supabaseAnonKey } = getSupabaseConfig();
+
+// Validate configuration at build time - never expose config details in browser
+if (!supabaseUrl || !supabaseAnonKey) {
+    if (process.env.NODE_ENV === 'development') {
+        console.error('❌ Missing Supabase configuration. Please check your environment variables.');
+        console.error('Required: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
+    }
+    // In production, fail gracefully without exposing config details
+    throw new Error('Application configuration error');
+}
+
+// Create Supabase client with secure configuration
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
         persistSession: true,
         detectSessionInUrl: true,
         flowType: 'pkce',
         storage: safeStorage,
-        storageKey: 'vartica-auth-token'
+        storageKey: 'vartica-auth-token',
+        autoRefreshToken: true
     },
     global: {
         headers: {
@@ -296,3 +297,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         }
     }
 });
+
+// Export configuration check function for runtime validation
+export function isSupabaseConfigured(): boolean {
+    return !!(supabaseUrl && supabaseAnonKey);
+}

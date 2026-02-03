@@ -3,6 +3,7 @@ import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, Help
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase/client';
 import { CustomerSupportModal } from './CustomerSupportModal';
+import { ExtendedProfile } from '../../types';
 
 export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => void }> = ({ onBack, onSignOut }) => {
   const [showSupportModal, setShowSupportModal] = useState(false);
@@ -11,8 +12,8 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
     full_name: profile?.full_name || '',
     phone: profile?.phone || '',
   });
-  const [hostelLocation, setHostelLocation] = useState((profile as any)?.hostel_location || '');
-  const [avatarUrl, setAvatarUrl] = useState((profile as any)?.avatar_url || '');
+  const [hostelLocation, setHostelLocation] = useState((profile as ExtendedProfile)?.hostel_location || '');
+  const [avatarUrl, setAvatarUrl] = useState((profile as ExtendedProfile)?.avatar_url || '');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,8 +39,8 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
         full_name: profile.full_name || '',
         phone: profile.phone || '',
       });
-      setHostelLocation((profile as any).hostel_location || '');
-      setAvatarUrl((profile as any).avatar_url || '');
+      setHostelLocation((profile as ExtendedProfile).hostel_location || '');
+      setAvatarUrl((profile as ExtendedProfile).avatar_url || '');
     }
   }, [profile]);
 

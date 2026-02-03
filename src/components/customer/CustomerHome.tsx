@@ -10,7 +10,7 @@ import { Cart } from './Cart';
 import { Checkout } from './Checkout';
 import { OrderTracking } from './OrderTracking';
 import { VendorUpgradeModal } from './VendorUpgradeModal';
-// import { RoleSwitcher } from '../shared/RoleSwitcher';
+import { RoleSwitcher } from '../shared/RoleSwitcher';
 
 interface CartItem extends MenuItem {
   quantity: number;
@@ -119,9 +119,11 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     // Store in sessionStorage for persistence
     sessionStorage.setItem('preferredRole', newRole);
 
-    // If switching to vendor view and user is actually a vendor, redirect
-    if (newRole === 'vendor' && profile?.role === 'vendor') {
-      window.location.href = '/#/vendor'; // Or however you route to vendor dashboard
+    // If switching to vendor view and user is actually a vendor, redirect to vendor dashboard
+    if (newRole === 'vendor' && profile?.role && ['vendor', 'late_night_vendor'].includes(profile.role)) {
+      // This will cause the App component to render VendorDashboard
+      window.location.hash = '#/vendor';
+      window.location.reload();
     }
 
     showToast(`Switched to ${newRole === 'customer' ? 'Customer' : 'Vendor'} view`);
@@ -154,28 +156,41 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
   const fetchData = async () => {
     setLoading(true);
-    const [cafeteriasRes, vendorsRes] = await Promise.all([
-      supabase.from('cafeterias').select('*').eq('is_active', true).order('name'),
-      supabase.from('vendors').select('*').eq('is_active', true).order('store_name'),
-    ]);
+    try {
+      const [cafeteriasRes, vendorsRes] = await Promise.all([
+        supabase.from('cafeterias').select('*').eq('is_active', true).order('name'),
+        supabase.from('vendors').select('*').eq('is_active', true).order('store_name'),
+      ]);
 
-    if (cafeteriasRes.data) {
-      console.log('Fetched cafeterias:', cafeteriasRes.data);
-      setCafeterias(cafeteriasRes.data);
-      // Initialize cafeteria status (default to open for all)
-      const initialStatus: Record<string, boolean> = {};
-      cafeteriasRes.data.forEach(cafeteria => {
-        initialStatus[cafeteria.id] = true; // Default to open
-      });
-      setCafeteriaStatus(initialStatus);
+      if (cafeteriasRes.error) {
+        console.error('Error fetching cafeterias:', cafeteriasRes.error);
+        showToast('Failed to load cafeterias. Please try again.');
+      } else if (cafeteriasRes.data) {
+        console.log('Fetched cafeterias:', cafeteriasRes.data);
+        setCafeterias(cafeteriasRes.data);
+        // Initialize cafeteria status (default to open for all)
+        const initialStatus: Record<string, boolean> = {};
+        cafeteriasRes.data.forEach(cafeteria => {
+          initialStatus[cafeteria.id] = true; // Default to open
+        });
+        setCafeteriaStatus(initialStatus);
+      }
+
+      if (vendorsRes.error) {
+        console.error('Error fetching vendors:', vendorsRes.error);
+        showToast('Failed to load vendors. Please try again.');
+      } else if (vendorsRes.data) {
+        const students = vendorsRes.data.filter(v => v.vendor_type === 'student');
+        const lateNight = vendorsRes.data.filter(v => v.vendor_type === 'late_night');
+        setStudentVendors(students);
+        setLateNightVendors(lateNight);
+      }
+    } catch (error) {
+      console.error('Unexpected error in fetchData:', error);
+      showToast('Failed to load data. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
     }
-    if (vendorsRes.data) {
-      const students = vendorsRes.data.filter(v => v.vendor_type === 'student');
-      const lateNight = vendorsRes.data.filter(v => v.vendor_type === 'late_night');
-      setStudentVendors(students);
-      setLateNightVendors(lateNight);
-    }
-    setLoading(false);
   };
 
   const fetchMenuItems = async (sellerId: string, sellerType: 'cafeteria' | 'vendor') => {
@@ -887,6 +902,14 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
             // Refresh the page to reflect the role change
             window.location.reload();
           }}
+        />
+      )}
+
+      {/* Role Switcher - only show if user can switch roles */}
+      {profile && profile.role && ['customer', 'vendor', 'late_night_vendor'].includes(profile.role) && (
+        <RoleSwitcher
+          currentRole={preferredRole}
+          onRoleSwitch={handleRoleSwitch}
         />
       )}
     </div >

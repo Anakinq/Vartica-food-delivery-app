@@ -3,9 +3,23 @@ import { authService, databaseService, User as ServiceUser } from '../services';
 import { Profile } from '../lib/supabase';
 import { supabase } from '../lib/supabase/client';
 import { ProfileWithVendor } from '../services/supabase/database.service';
+import { validateSignupForm, validateLoginForm } from '../utils/validation';
+import { RATE_LIMITS, checkRateLimit, RateLimitError, createRateLimiter } from '../utils/rateLimiter';
+
+// Define proper user type for the app
+export interface AppUser {
+  id: string;
+  email: string | null;
+  created_at?: string;
+  user_metadata?: {
+    full_name?: string;
+    role?: string;
+    phone?: string;
+  };
+}
 
 interface AuthContextType {
-  user: any | null;
+  user: AppUser | null;
   profile: ProfileWithVendor | null;
   loading: boolean;
   authLoading: boolean;
@@ -31,7 +45,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   checkApprovalStatus: (userId: string, role: string) => Promise<boolean | null>;
-  linkAccountWithEmailPassword: (password: string) => Promise<{ data: any; error: Error | null } | { data: null; error: Error }>;
+  linkAccountWithEmailPassword: (password: string) => Promise<{ data: { user: ServiceUser | null }; error: Error | null } | { data: null; error: Error }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -45,7 +59,7 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [profile, setProfile] = useState<ProfileWithVendor | null>(null);
   const [loading, setLoading] = useState(true);
   const [authLoading, setAuthLoading] = useState(true);
@@ -63,67 +77,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     try {
       console.log('Fetching profile for user ID:', supabaseUser.id);
-      // Try multiple times with delays to handle potential race conditions
-      let attempts = 0;
-      let profileData = null;
-      let error = null;
 
-      while (attempts < 5 && !profileData) {
-        attempts++;
-        console.log(`Attempt ${attempts} to fetch profile for user:`, supabaseUser.id);
+      // Single attempt with shorter timeout to avoid blocking
+      const result = await databaseService.selectSingle<Profile>({
+        table: 'profiles',
+        match: { id: supabaseUser.id },
+      });
 
-        console.log('Making database call to profiles table with ID:', supabaseUser.id);
-        const result = await databaseService.selectSingle<Profile>({
-          table: 'profiles',
-          match: { id: supabaseUser.id },
-        });
+      console.log('Database query result:', result);
 
-        console.log('=== DATABASE QUERY RESULT ===');
-        console.log('Full result object:', result);
-        console.log('Profile data from DB:', result.data);
-        console.log('Database error:', result.error);
-        console.log('Result type:', typeof result);
-        console.log('Has data property:', 'data' in result);
-        console.log('Has error property:', 'error' in result);
+      if (result.error) {
+        console.warn('Profile fetch error:', result.error);
+        setProfile(null);
+      } else if (result.data) {
+        console.log('Profile found and set:', result.data);
+        setProfile(result.data);
+      } else {
+        console.warn('No profile data found for user:', supabaseUser.id);
 
-        profileData = result.data;
-        error = result.error;
-
-        console.log('=== PROFILE DATA ASSIGNMENT ===');
-        console.log('profileData after assignment:', profileData);
-        console.log('profileData type:', typeof profileData);
-        console.log('profileData is null:', profileData === null);
-        console.log('profileData is undefined:', profileData === undefined);
-        console.log('profileData truthiness:', !!profileData);
-        console.log('error:', error);
-        console.log('error truthiness:', !!error);
-
-        if (!profileData && attempts < 5) {
-          console.log(`Profile not found yet (attempt ${attempts}), waiting 500ms...`);
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      }
-
-      console.log('Final profile fetch result after', attempts, 'attempts:', { profileData, error });
-      console.log('=== FINAL CONDITION CHECK ===');
-      console.log('error condition:', !!error);
-      console.log('profileData condition:', !profileData);
-      console.log('Combined condition (error || !profileData):', (error || !profileData));
-      if (error || !profileData) {
-        console.warn('Profile not found for user after all attempts:', supabaseUser.id, error);
-
-        // Try to get user details from auth to see if we can create a basic profile
-        console.log('Attempting profile fallback creation...');
+        // Create basic profile from auth data if needed
         try {
-          console.log('Fetching user from Supabase auth...');
           const { data: { user } } = await supabase.auth.getUser();
-          console.log('Supabase auth user:', user);
-
           if (user && user.id === supabaseUser.id) {
-            // User exists in auth, but profile doesn't exist in DB
-            // This might happen if email was confirmed but trigger didn't run
-            console.log('User exists in auth but not in profiles table, attempting to create profile...');
-
             // Check for OAuth role in sessionStorage
             let oauthRole: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin' = 'customer';
             let oauthPhone = null;
@@ -135,7 +110,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                   oauthRole = storedRole as 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin';
                 }
                 oauthPhone = window.sessionStorage.getItem('oauth_phone');
-                console.log('Found OAuth data - role:', oauthRole, 'phone:', oauthPhone);
 
                 // Clear the sessionStorage after use
                 window.sessionStorage.removeItem('oauth_role');
@@ -145,49 +119,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               console.warn('Error accessing sessionStorage:', storageError);
             }
 
-            // Try to create a basic profile record
             const basicProfile = {
               id: user.id,
               email: user.email || '',
               full_name: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
-              role: oauthRole, // Use OAuth role if available
+              role: oauthRole,
               phone: oauthPhone || user.user_metadata?.phone,
               created_at: new Date().toISOString(),
             };
 
-            console.log('Creating profile with data:', basicProfile);
-
-            // Attempt to insert the profile
-            console.log('Attempting to insert profile into database...');
-            console.log('Profile data being inserted:', basicProfile);
-            const insertResult = await databaseService.insert({
-              table: 'profiles',
-              data: basicProfile
-            });
-
-            console.log('=== PROFILE INSERT RESULT ===');
-            console.log('Insert result:', insertResult);
-            console.log('Insert data:', insertResult.data);
-            console.log('Insert error:', insertResult.error);
-            console.log('Insert success:', !!insertResult.data);
-
-            if (insertResult.data) {
-              console.log('Profile created successfully:', insertResult.data[0]);
-              setProfile(insertResult.data[0]);
-            } else {
-              console.error('Failed to create profile:', insertResult.error);
-              setProfile(null);
-            }
+            setProfile(basicProfile as ProfileWithVendor);
           } else {
             setProfile(null);
           }
         } catch (profileCreationErr) {
-          console.error('Error during profile creation fallback:', profileCreationErr);
+          console.error('Error during profile fallback:', profileCreationErr);
           setProfile(null);
         }
-      } else {
-        console.log('Profile found and set:', profileData);
-        setProfile(profileData);
       }
     } catch (err) {
       console.error('Error fetching profile:', err);
@@ -340,12 +288,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     let isMounted = true;
 
+    // Guard: Exit if Supabase is not initialized
+    if (!supabase) {
+      console.warn('Supabase client not initialized');
+      setLoading(false);
+      setAuthLoading(false);
+      return;
+    }
+
     // Load initial session first
     const loadInitialSession = async () => {
-      console.log('Loading initial session...');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Loading initial session...');
+      }
       try {
         const { data } = await supabase.auth.getSession();
-        console.log('Initial session data:', data);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Initial session data:', data);
+        }
         if (!isMounted) return;
 
         // Convert Supabase user to our format
@@ -354,7 +314,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           email: data.session.user.email || null,
         } : null;
 
-        console.log('Setting user data:', userData);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Setting user data:', userData);
+        }
         setUser(userData);
         // Don't wait for profile to load, just fetch it async
         if (userData) {
@@ -367,7 +329,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.error('Error loading initial session:', err);
       } finally {
         if (isMounted) {
-          console.log('Setting auth loading to false after initial session load');
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Setting auth loading to false after initial session load');
+          }
           setAuthLoading(false);
           // Keep overall loading true until vendor data is loaded
           if (!vendorDataLoading) {
@@ -420,13 +384,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, []);
 
-  // Sign in
+  // Sign in with rate limiting
   const signIn = async (email: string, password: string) => {
     console.log('=== AUTHCONTEXT SIGNIN FUNCTION STARTED ===');
     console.log('Email parameter:', email);
     console.log('Password parameter length:', password.length);
     setLoading(true);
+
     try {
+      // Apply rate limiting for login attempts
+      const loginLimiter = createRateLimiter('login', RATE_LIMITS.LOGIN);
+      const rateLimitResult = loginLimiter.check(email);
+
+      if (!rateLimitResult.allowed) {
+        setLoading(false);
+        const error = new RateLimitError(
+          `Too many login attempts. Please try again in ${rateLimitResult.retryAfter} seconds.`,
+          rateLimitResult.retryAfter!,
+          rateLimitResult.resetTime
+        );
+        throw error;
+      }
+
+      // Validate form data
+      const formData = { email, password };
+      const validationErrors = validateLoginForm(formData);
+      if (validationErrors.length > 0) {
+        setLoading(false);
+        const error = new Error(validationErrors[0].message);
+        (error as any).validationErrors = validationErrors;
+        throw error;
+      }
+
       console.log('Attempting to sign in with Supabase...');
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       console.log('Supabase signIn result:', { data, error });
@@ -491,6 +480,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   ) => {
     setLoading(true);
     try {
+      // Validate form data
+      const formData = {
+        email,
+        password,
+        fullName,
+        role,
+        phone,
+        storeName,
+        matricNumber,
+        department
+      };
+
+      const validationErrors = validateSignupForm(formData);
+      if (validationErrors.length > 0) {
+        setLoading(false);
+        const error = new Error(validationErrors[0].message);
+        (error as any).validationErrors = validationErrors;
+        throw error;
+      }
+
       if (process.env.NODE_ENV === 'development') {
         console.log('AuthContext: signUp called with params:', {
           email,
@@ -560,7 +569,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // Link Google account with email/password
-  const linkAccountWithEmailPassword = async (password: string) => {
+  const linkAccountWithEmailPassword = async (password: string): Promise<{ data: { user: ServiceUser | null }; error: Error | null } | { data: null; error: Error }> => {
     try {
       const { data, error } = await supabase.auth.updateUser({
         password: password,
@@ -568,11 +577,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (error) {
         console.error('Error updating user password:', error);
-        throw error;
+        return { data: null, error };
       }
 
-      console.log('Account linked with email/password successfully');
-      return { data, error: null };
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Account linked with email/password successfully');
+      }
+
+      // Cast to match our User interface
+      const user: ServiceUser | null = data.user ? {
+        id: data.user.id,
+        email: data.user.email || '',
+      } : null;
+
+      return { data: { user }, error: null };
     } catch (err) {
       console.error('Error linking account with email/password:', err);
       return { data: null, error: err as Error };

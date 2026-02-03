@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.23.0';
+import { crypto } from 'https://deno.land/std@0.177.0/crypto/mod.ts';
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -16,31 +17,24 @@ const AGENT_EARNINGS_PERCENTAGE = 0.06; // 6% agent earnings from total amount
 
 // Helper function to verify Paystack webhook signature
 function verifyPaystackSignature(payload: string, signature: string): boolean {
-  const crypto = globalThis.crypto.subtle;
-  const encoder = new TextEncoder();
+  try {
+    // For Deno environment, we'll use a simpler approach
+    // In production, you should use proper crypto libraries
+    const crypto = require('crypto');
 
-  const keyBuffer = encoder.encode(PAYSTACK_SECRET);
-  const payloadBuffer = encoder.encode(payload);
+    const expectedSignature = crypto
+      .createHmac('sha512', PAYSTACK_SECRET)
+      .update(payload)
+      .digest('hex');
 
-  const keyPromise = crypto.importKey(
-    'raw',
-    keyBuffer,
-    { name: 'HMAC', hash: 'SHA256' },
-    false,
-    ['sign']
-  );
-
-  return keyPromise.then(key =>
-    crypto.sign('HMAC', key, payloadBuffer)
-  ).then(mac => {
-    const hexMac = Array.from(new Uint8Array(mac))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-    return crypto.subtle.timingSafeEqual(
-      new TextEncoder().encode(hexMac),
-      new TextEncoder().encode(signature)
+    return crypto.timingSafeEqual(
+      Buffer.from(signature, 'hex'),
+      Buffer.from(expectedSignature, 'hex')
     );
-  });
+  } catch (error) {
+    console.error('Error verifying webhook signature:', error);
+    return false;
+  }
 }
 
 // Function to process payment splits and update wallets
