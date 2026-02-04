@@ -23,6 +23,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [vendorLoading, setVendorLoading] = useState(true); // Explicit loading state for vendor fetch
   const [showMenu, setShowMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
@@ -144,18 +145,38 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   };
 
   const fetchData = async () => {
-    if (!profile) return;
+    if (!profile) {
+      setVendorLoading(false);
+      return;
+    }
 
-    // Only fetch data if vendor is approved
-    if (['vendor', 'late_night_vendor'].includes(profile.role) && approvalStatus !== true) {
+    // Set explicit loading state
+    setVendorLoading(true);
+    setLoading(true);
+
+    // Wait for approval status if it's still loading
+    if (['vendor', 'late_night_vendor'].includes(profile.role) && approvalStatus === null) {
+      // Approval status is still loading, wait for it
+      console.log('[Vendor] Waiting for approval status...');
+      // Don't return yet - wait for checkVendorApproval to set it
+    }
+
+    // Only check approval if it's been loaded (not null)
+    if (['vendor', 'late_night_vendor'].includes(profile.role) && approvalStatus !== null && approvalStatus !== true) {
+      setVendorLoading(false);
       setLoading(false);
       return;
     }
 
+    console.log('[Vendor] Fetching vendor data for user:', profile.id);
+
     // Use the enhanced profile with vendor data from auth context
     if ('vendor' in profile && profile.vendor) {
+      console.log('[Vendor] Found vendor in profile:', profile.vendor.id);
       const vendorData = profile.vendor;
       setVendor(vendorData);
+      setVendorLoading(false);
+      setLoading(false);
 
       const { data: items } = await supabase
         .from('menu_items')
@@ -173,16 +194,27 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         has_image: !!item.image_url
       })));
 
-      if (items) setMenuItems(items);
+      if (items) {
+        setMenuItems(items);
+        console.log('[Vendor] Menu items loaded:', items.length);
+      }
+      setVendorLoading(false);
+      setLoading(false);
     } else {
       // Fallback: fetch vendor data separately if not available in profile
-      const { data: vendorData } = await supabase
+      console.log('[Vendor] Vendor not in profile, fetching separately...');
+      const { data: vendorData, error } = await supabase
         .from('vendors')
         .select('*')
         .eq('user_id', profile.id)
         .maybeSingle();
 
+      if (error) {
+        console.error('[Vendor] Error fetching vendor:', error);
+      }
+
       if (vendorData) {
+        console.log('[Vendor] Found vendor:', vendorData.id);
         setVendor(vendorData);
 
         const { data: items } = await supabase
@@ -193,10 +225,12 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
           .order('name');
 
         if (items) setMenuItems(items);
+      } else {
+        console.log('[Vendor] No vendor found for user:', profile.id);
       }
+      setVendorLoading(false);
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const handleToggleAvailability = async (item: MenuItem) => {
@@ -383,8 +417,14 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     if (profile && ['vendor', 'late_night_vendor'].includes(profile.role)) {
       setLoadingApproval(true);
       const status = await checkApprovalStatus(profile.id, 'vendor');
+      console.log('[Vendor] Approval status determined:', status);
       setApprovalStatus(status);
       setLoadingApproval(false);
+      
+      // If approved, fetch vendor data
+      if (status === true) {
+        fetchData();
+      }
     }
   };
 
@@ -572,16 +612,31 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     });
   };
 
-  if (loading || authLoading || vendorDataLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  // Show loading state while auth or vendor data is loading
+  if (loading || authLoading || vendorLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your vendor data...</p>
+        </div>
+      </div>
+    );
   }
 
+  // Vendor truly doesn't exist (not just loading)
   if (!vendor) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">No Vendor Store Found</h2>
-          <p className="text-gray-600">Your account is not linked to a vendor store.</p>
+          <p className="text-gray-600 mb-4">Your account is not linked to a vendor store.</p>
+          <button
+            onClick={() => fetchData()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Refresh
+          </button>
         </div>
       </div>
     );
