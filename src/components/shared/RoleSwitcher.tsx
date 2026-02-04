@@ -18,34 +18,63 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
     const [showConfirmation, setShowConfirmation] = useState(false);
 
     // Check if user has both customer and vendor capabilities
-    const canSwitchRoles = profile &&
+    // User can switch TO vendor view if:
+    // 1. They have a profile
+    // 2. Their role includes vendor capability
+    // 3. They have an approved vendor record OR their role is 'vendor' (pending approval)
+    const canSwitchToVendor = profile &&
         (['customer', 'vendor', 'late_night_vendor'].includes(profile.role)) &&
-        // User must have a vendor record to switch to vendor view
-        (currentRole === 'customer' ?
-            // Check if user has vendor application/approval
-            true : // For now, assume they can switch back to customer
-            true);
+        // Check if vendor record exists (vendor_id is present or role is vendor with no vendor_id)
+        (profile.vendor_id || profile.role === 'vendor' || profile.role === 'late_night_vendor');
+
+    // User can switch TO customer view if:
+    // 1. They have a profile
+    // 2. Their current role is vendor (with or without vendor record)
+    const canSwitchToCustomer = profile &&
+        (currentRole === 'vendor' || currentRole === 'late_night_vendor');
+
+    // Can switch if switching to a valid role for this user
+    const canSwitchRoles = currentRole === 'customer' ? canSwitchToVendor : canSwitchToCustomer;
 
     const handleRoleSwitch = async () => {
-        if (!profile || !canSwitchRoles) return;
+        console.log('[RoleSwitch] Starting switch...');
+        console.log('[RoleSwitch] Current profile:', profile);
+        console.log('[RoleSwitch] Current role:', currentRole);
+        console.log('[RoleSwitch] Has vendor_id:', profile?.vendor_id);
+        console.log('[RoleSwitch] Profile role:', profile?.role);
+
+        if (!profile) {
+            console.error('[RoleSwitch] ERROR: No profile found!');
+            alert('Please sign in to switch roles.');
+            return;
+        }
 
         setIsSwitching(true);
         try {
-            // For this implementation, we'll use a temporary session-based approach
-            // In a real app, you might want to store this preference in the database
             const newRole = currentRole === 'customer' ? 'vendor' : 'customer';
+            console.log('[RoleSwitch] Switching to role:', newRole);
 
             // Store the preferred role in sessionStorage
             sessionStorage.setItem('preferredRole', newRole);
 
+            // If switching to customer and no vendor record exists, clear any vendor-related state
+            if (newRole === 'customer' && !profile.vendor_id) {
+                console.log('[RoleSwitch] No vendor record exists, clearing vendor state...');
+            }
+
             // Trigger the role switch callback
             onRoleSwitch(newRole as 'customer' | 'vendor');
 
+            // Refresh profile to ensure we have latest data
+            await refreshProfile();
+            console.log('[RoleSwitch] Profile refreshed, new state:', profile);
+
             // Close confirmation dialog
             setShowConfirmation(false);
+            console.log('[RoleSwitch] Switch completed successfully!');
 
         } catch (error) {
-            console.error('Error switching roles:', error);
+            console.error('[RoleSwitch] Error during switch:', error);
             alert('Failed to switch roles. Please try again.');
         } finally {
             setIsSwitching(false);
@@ -80,7 +109,16 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
     const targetRole = currentRole === 'customer' ? 'vendor' : 'customer';
     const targetRoleInfo = getRoleDisplayInfo(targetRole);
 
-    if (!canSwitchRoles) {
+    // Determine if switch is allowed
+    const isSwitchAllowed = currentRole === 'customer' ? canSwitchToVendor : canSwitchToCustomer;
+
+    // Show warning if no vendor record exists
+    const showNoVendorWarning = currentRole === 'customer' &&
+        profile &&
+        !profile.vendor_id &&
+        (profile.role === 'vendor' || profile.role === 'late_night_vendor');
+
+    if (!isSwitchAllowed) {
         return null;
     }
 
@@ -113,6 +151,17 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
                             </h3>
 
                             <div className="space-y-4 mb-6">
+                                {/* Warning if no vendor record exists */}
+                                {showNoVendorWarning && (
+                                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                        <p className="text-sm text-yellow-800">
+                                            <strong>Note:</strong> You don't have an approved vendor record yet.
+                                            You'll be able to browse as a customer but not access vendor features.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Customer view */}
                                 <div className="text-left p-3 bg-gray-50 rounded-lg">
                                     <div className="flex items-center space-x-2 mb-1">
                                         {React.createElement(currentRoleInfo.icon, { className: "h-4 w-4 text-gray-600" })}
@@ -125,12 +174,32 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
                                     <ArrowLeftRight className="h-5 w-5 text-gray-400" />
                                 </div>
 
-                                <div className="text-left p-3 bg-blue-50 rounded-lg border border-blue-100">
+                                {/* Target view */}
+                                <div className={`text-left p-3 rounded-lg border ${targetRole === 'vendor' && !canSwitchToVendor
+                                        ? 'bg-red-50 border-red-200'
+                                        : 'bg-blue-50 border-blue-100'
+                                    }`}>
                                     <div className="flex items-center space-x-2 mb-1">
-                                        {React.createElement(targetRoleInfo.icon, { className: "h-4 w-4 text-blue-600" })}
-                                        <span className="font-medium text-blue-900">{targetRoleInfo.label}</span>
+                                        {React.createElement(targetRoleInfo.icon, {
+                                            className: `h-4 w-4 ${targetRole === 'vendor' && !canSwitchToVendor ? 'text-red-600' : 'text-blue-600'}`
+                                        })}
+                                        <span className={`font-medium ${targetRole === 'vendor' && !canSwitchToVendor
+                                                ? 'text-red-900'
+                                                : 'text-blue-900'
+                                            }`}>
+                                            {targetRole === 'vendor' && !canSwitchToVendor
+                                                ? 'Cannot Switch to Vendor'
+                                                : targetRoleInfo.label}
+                                        </span>
                                     </div>
-                                    <p className="text-sm text-blue-700">{targetRoleInfo.description}</p>
+                                    <p className={`text-sm ${targetRole === 'vendor' && !canSwitchToVendor
+                                            ? 'text-red-700'
+                                            : 'text-blue-700'
+                                        }`}>
+                                        {targetRole === 'vendor' && !canSwitchToVendor
+                                            ? 'No vendor record linked to this account'
+                                            : targetRoleInfo.description}
+                                    </p>
                                 </div>
                             </div>
 
@@ -143,8 +212,11 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
                                 </button>
                                 <button
                                     onClick={handleRoleSwitch}
-                                    disabled={isSwitching}
-                                    className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors disabled:opacity-50 flex items-center justify-center"
+                                    disabled={isSwitching || (targetRole === 'vendor' && !canSwitchToVendor)}
+                                    className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center ${targetRole === 'vendor' && !canSwitchToVendor
+                                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                                        }`}
                                 >
                                     {isSwitching ? (
                                         <>
@@ -152,7 +224,9 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
                                             Switching...
                                         </>
                                     ) : (
-                                        'Confirm Switch'
+                                        targetRole === 'vendor' && !canSwitchToVendor
+                                            ? 'Vendor Record Required'
+                                            : 'Confirm Switch'
                                     )}
                                 </button>
                             </div>
