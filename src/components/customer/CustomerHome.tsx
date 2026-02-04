@@ -46,7 +46,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
   // State to track cafeteria open status
   const [cafeteriaStatus, setCafeteriaStatus] = useState<Record<string, boolean>>({});
-  const [selectedSeller, setSelectedSeller] = useState<{ id: string; type: 'cafeteria' | 'vendor'; name: string } | null>(null);
+  const [selectedSeller, setSelectedSeller] = useState<{ id: string; type: 'cafeteria' | 'vendor' | 'late_night_vendor'; name: string } | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -247,7 +247,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     }
   };
 
-  const fetchMenuItems = async (sellerId: string, sellerType: 'cafeteria' | 'vendor') => {
+  const fetchMenuItems = async (sellerId: string, sellerType: 'cafeteria' | 'vendor' | 'late_night_vendor') => {
     console.log('Fetching menu items for:', { sellerId, sellerType });
     const { data, error } = await supabase
       .from('menu_items')
@@ -265,7 +265,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     }
   };
 
-  const handleSellerClick = async (id: string, type: 'cafeteria' | 'vendor', name: string) => {
+  const handleSellerClick = async (id: string, type: 'cafeteria' | 'vendor' | 'late_night_vendor', name: string) => {
     setSelectedSeller({ id, type, name });
     await fetchMenuItems(id, type);
   };

@@ -19,9 +19,8 @@ const getImageUrl = (imageUrl: string | null | undefined): string => {
   try {
     // Check if it's already a full URL
     if (imageUrl.startsWith('http')) {
-      if (imageUrl.includes('supabase.co/storage/v1/object/public/')) {
-        return decodeURIComponent(imageUrl);
-      }
+      // Supabase storage URLs don't include /public/ in the path
+      // URL format: https://project.supabase.co/storage/v1/object/menu-images/filename
       return decodeURIComponent(imageUrl);
     }
     return imageUrl;
