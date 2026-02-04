@@ -24,9 +24,6 @@
 
   <!-- ✅ Content Security Policy now managed by server (vercel.json) -->
 
-  <link rel="manifest" href="/manifest.json" />
-  <link rel="apple-touch-icon" href="/icon-192.png" />
-
   <!-- Service Worker for PWA -->
   <script>
     if ("serviceWorker" in navigator) {
@@ -48,10 +45,91 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Vartica" />
 
+  <!-- iOS Splash Screen Images - Multiple sizes for different devices -->
+  <!-- iPhone SE, iPhone 8, etc. (750x1334) -->
+  <link rel="apple-touch-startup-image"
+    media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)"
+    href="/splash/splash-750x1334.png" />
+  <!-- iPhone 14 Pro, iPhone 13 Pro, etc. (1170x2532) -->
+  <link rel="apple-touch-startup-image"
+    media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)"
+    href="/splash/splash-1170x2532.png" />
+  <!-- iPhone 14 Pro Max, iPhone 13 Pro Max, etc. (1284x2778) -->
+  <link rel="apple-touch-startup-image"
+    media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)"
+    href="/splash/splash-1284x2778.png" />
+  <!-- iPad Pro 11" (1668x2388) -->
+  <link rel="apple-touch-startup-image"
+    media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)"
+    href="/splash/splash-1668x2388.png" />
+  <!-- iPad Pro 12.9" (2048x2732) -->
+  <link rel="apple-touch-startup-image"
+    media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)"
+    href="/splash/splash-2048x2732.png" />
+
+  <!-- Android Splash Screen -->
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="background-color" content="#ffffff" />
+
+  <!-- PWA Link Relations -->
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <link rel="apple-touch-icon-precomposed" href="/icon-192.png" />
+
   <title>Vartica Campus Food Delivery PWA</title>
 </head>
 
 <body>
+  <!-- Splash Screen Loading Overlay -->
+  <div id="splash-screen"
+    style="position: fixed; inset: 0; background: white; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+    <div
+      style="width: 300px; height: 300px; animation: bounce 1s ease infinite; display: flex; align-items: center; justify-content: center;">
+      <img src="/images/logo.png" alt="Vartica Logo" style="width: 100%; height: 100%; object-fit: contain;" />
+    </div>
+    <div style="margin-top: 40px; display: flex; gap: 12px;">
+      <div
+        style="width: 14px; height: 14px; background: #f59e0b; border-radius: 50%; animation: bounce 1.4s ease-in-out infinite; animation-delay: 0s;">
+      </div>
+      <div
+        style="width: 14px; height: 14px; background: #f59e0b; border-radius: 50%; animation: bounce 1.4s ease-in-out infinite; animation-delay: 0.2s;">
+      </div>
+      <div
+        style="width: 14px; height: 14px; background: #f59e0b; border-radius: 50%; animation: bounce 1.4s ease-in-out infinite; animation-delay: 0.4s;">
+      </div>
+    </div>
+  </div>
+
+  <style>
+    @keyframes bounce {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-20px);
+      }
+    }
+  </style>
+
+  <!-- Hide splash screen when app loads -->
+  <script>
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        const splashScreen = document.getElementById('splash-screen');
+        if (splashScreen) {
+          splashScreen.style.transition = 'opacity 0.5s ease-out';
+          splashScreen.style.opacity = '0';
+          setTimeout(function () {
+            splashScreen.style.display = 'none';
+          }, 500);
+        }
+      }, 1500); // Show splash for 1.5 seconds
+    });
+  </script>
+
   <div id="root"></div>
 
   <!-- Main React/TypeScript entry -->

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MenuItem } from '../../lib/supabase';
+import { LazyImage } from '../shared/LazyImage';
 
 interface MenuItemCardProps {
   item: MenuItem;
@@ -7,108 +8,113 @@ interface MenuItemCardProps {
   onQuantityChange: (itemId: string, newQuantity: number) => void;
 }
 
-export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, quantity, onQuantityChange }) => {
-  // Properly format the image URL to handle special characters and ensure validity
-  let imageUrl = '/images/1.jpg';
-  if (item.image_url) {
-    console.log('Processing menu item image URL:', item.image_url);
-    try {
-      // Check if it's already a full URL
-      if (item.image_url.startsWith('http')) {
-        // For Supabase storage URLs, decode any special characters properly
-        if (item.image_url.includes('supabase.co/storage/v1/object/public/')) {
-          // Decode URL to ensure it's properly formatted
-          imageUrl = decodeURIComponent(item.image_url);
-          console.log('Decoded Supabase URL:', imageUrl);
-        } else {
-          // Regular HTTP URL - decode any encoded characters
-          imageUrl = decodeURIComponent(item.image_url);
-          console.log('Using regular URL:', imageUrl);
-        }
-      } else {
-        // It's likely a relative path or storage path
-        imageUrl = item.image_url;
-        console.log('Using relative path:', imageUrl);
+// Fallback image URL
+const FALLBACK_IMAGE = '/images/1.jpg';
+const PLACEHOLDER_IMAGE = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
+
+// Properly format the image URL to handle special characters and ensure validity
+const getImageUrl = (imageUrl: string | null | undefined): string => {
+  if (!imageUrl) return FALLBACK_IMAGE;
+
+  try {
+    // Check if it's already a full URL
+    if (imageUrl.startsWith('http')) {
+      if (imageUrl.includes('supabase.co/storage/v1/object/public/')) {
+        return decodeURIComponent(imageUrl);
       }
-    } catch (error) {
-      console.warn('Error processing image URL:', error);
-      imageUrl = '/images/1.jpg';
+      return decodeURIComponent(imageUrl);
     }
+    return imageUrl;
+  } catch (error) {
+    console.warn('Error processing image URL:', error);
+    return FALLBACK_IMAGE;
   }
+};
+
+export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, quantity, onQuantityChange }) => {
+  const [isAnimating, setIsAnimating] = useState<'increment' | 'decrement' | null>(null);
+  const imageUrl = getImageUrl(item.image_url);
 
   const handleIncrement = () => {
+    setIsAnimating('increment');
     onQuantityChange(item.id, quantity + 1);
+    setTimeout(() => setIsAnimating(null), 200);
   };
 
   const handleDecrement = () => {
     if (quantity > 0) {
+      setIsAnimating('decrement');
       onQuantityChange(item.id, quantity - 1);
+      setTimeout(() => setIsAnimating(null), 200);
     }
   };
 
   const totalPrice = item.price * quantity;
 
   return (
-    <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
+    <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300">
+      {/* Image with Lazy Loading */}
       <div className="relative h-48 w-full overflow-hidden bg-gray-100">
-        <img
+        <LazyImage
           src={imageUrl}
           alt={item.name}
-          className="absolute inset-0 w-full h-full object-cover"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            const currentSrc = target.src;
-
-            // If the current src is not already the fallback, try the fallback
-            if (!currentSrc.includes('1.jpg') && !currentSrc.includes('placehold.co')) {
-              target.src = '/images/1.jpg';
-            } else if (currentSrc.includes('1.jpg') && !currentSrc.includes('placehold.co')) {
-              // If already showing the local fallback, try the online fallback
-              target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
-            }
-          }}
+          aspectRatio="16/9"
+          objectFit="cover"
         />
+
+        {/* Quantity Badge Overlay */}
+        {quantity > 0 && (
+          <div className="absolute top-3 right-3 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+            {quantity} in cart
+          </div>
+        )}
       </div>
 
       <div className="p-4">
+        {/* Item Name */}
         <h3 className="font-bold text-black text-lg leading-tight line-clamp-1">{item.name}</h3>
 
-        {/* Unit price */}
-        <p className="text-green-600 font-bold mt-1">₦{item.price.toLocaleString()}</p>
+        {/* Unit Price */}
+        <p className="text-orange-600 font-bold text-xl mt-1">₦{item.price.toLocaleString()}</p>
 
         {/* Quantity Controls */}
-        <div className="flex items-center mt-3">
+        <div className="flex items-center mt-4">
           <button
             onClick={handleDecrement}
             disabled={quantity === 0}
-            className={`w-9 h-9 rounded-full flex items-center justify-center text-lg font-bold transition-all duration-200 ${quantity === 0
+            className={`relative w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold transition-all duration-200 ${quantity === 0
               ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
               : 'bg-gray-200 text-black hover:bg-gray-300 active:scale-95'
               }`}
             aria-label="Decrease quantity"
           >
-            –
+            <span className={isAnimating === 'decrement' ? 'scale-75' : ''}>–</span>
           </button>
 
-          <span className="mx-4 text-lg font-bold min-w-[24px] text-center text-black">
+          <span
+            className={`mx-4 text-xl font-bold min-w-[32px] text-center text-black transition-transform duration-200 ${isAnimating ? 'scale-125 text-orange-500' : ''
+              }`}
+          >
             {quantity}
           </span>
 
           <button
             onClick={handleIncrement}
-            className="w-9 h-9 rounded-full bg-green-600 text-white flex items-center justify-center text-lg font-bold hover:bg-green-700 active:scale-95 transition-all duration-200"
+            className="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center text-xl font-bold hover:bg-orange-600 active:scale-95 transition-all duration-200 shadow-lg hover:shadow-orange-500/30"
             aria-label="Increase quantity"
           >
-            +
+            <span className={isAnimating === 'increment' ? 'scale-75' : ''}>+</span>
           </button>
         </div>
 
-        {/* Total price when quantity > 0 */}
+        {/* Total Price */}
         {quantity > 0 && (
-          <p className="text-gray-600 text-sm mt-2 leading-tight">
-            ₦{item.price.toLocaleString()} × {quantity} ={' '}
-            <span className="font-bold text-black">₦{totalPrice.toLocaleString()}</span>
-          </p>
+          <div className="mt-3 bg-orange-50 rounded-lg p-3">
+            <p className="text-gray-700 text-sm">
+              <span className="font-medium">₦{item.price.toLocaleString()}</span> × {quantity} ={' '}
+              <span className="font-bold text-black text-lg">₦{totalPrice.toLocaleString()}</span>
+            </p>
+          </div>
         )}
       </div>
     </div>

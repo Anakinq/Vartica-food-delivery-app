@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vartica</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #f59e0b 0%, #ea580c 50%, #f59e0b 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .splash-container {
+            text-align: center;
+            padding: 20px;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .logo {
+            width: 200px;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            animation: bounce 1s ease infinite;
+        }
+
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .loader {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 30px;
+        }
+
+        .loader span {
+            width: 14px;
+            height: 14px;
+            background: white;
+            border-radius: 50%;
+            animation: bounce 1.4s ease-in-out infinite, pulse 2s ease-in-out infinite;
+        }
+
+        .loader span:nth-child(1) {
+            animation-delay: 0s;
+        }
+
+        .loader span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .loader span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-20px);
+            }
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .decorations {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .decoration {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .decoration:nth-child(1) {
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .decoration:nth-child(2) {
+            top: 20%;
+            right: 15%;
+            animation-delay: 1s;
+        }
+
+        .decoration:nth-child(3) {
+            bottom: 15%;
+            left: 20%;
+            animation-delay: 2s;
+        }
+
+        .decoration:nth-child(4) {
+            bottom: 25%;
+            right: 10%;
+            animation-delay: 3s;
+        }
+
+        .decoration:nth-child(5) {
+            top: 50%;
+            left: 5%;
+            animation-delay: 4s;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0) rotate(0deg);
+            }
+
+            50% {
+                transform: translateY(-40px) rotate(180deg);
+            }
+        }
+
+        /* Responsive Design */
+        @media (min-width: 768px) {
+            .logo {
+                width: 280px;
+                height: 280px;
+            }
+
+            .loader span {
+                width: 16px;
+                height: 16px;
+            }
+
+            .decoration {
+                width: 140px;
+                height: 140px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .logo {
+                width: 350px;
+                height: 350px;
+            }
+
+            .loader span {
+                width: 18px;
+                height: 18px;
+            }
+
+            .decoration {
+                width: 180px;
+                height: 180px;
+            }
+        }
+
+        /* Reduced motion for accessibility */
+        @media (prefers-reduced-motion: reduce) {
+
+            .logo,
+            .loader span,
+            .decoration {
+                animation: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="decorations">
+        <div class="decoration"></div>
+        <div class="decoration"></div>
+        <div class="decoration"></div>
+        <div class="decoration"></div>
+        <div class="decoration"></div>
+    </div>
+
+    <div class="splash-container">
+        <div class="logo">
+            <img src="/images/logo.png" alt="Vartica Logo">
+        </div>
+        <div class="loader">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </div>
+
+    <script>
+        // Show splash screen for 2 seconds before redirecting
+        setTimeout(function () {
+            window.location.href = '/';
+        }, 2000);
+    </script>
+</body>
+
+</html>

@@ -15,22 +15,41 @@ const PAYSTACK_SECRET = Deno.env.get('PAYSTACK_SECRET_KEY')!;
 const PLATFORM_FEE_PERCENTAGE = 0.04; // 4% platform fee
 const AGENT_EARNINGS_PERCENTAGE = 0.06; // 6% agent earnings from total amount
 
-// Helper function to verify Paystack webhook signature
-function verifyPaystackSignature(payload: string, signature: string): boolean {
+// Helper function to verify Paystack webhook signature using Deno's native crypto
+async function verifyPaystackSignature(payload: string, signature: string): Promise<boolean> {
   try {
-    // For Deno environment, we'll use a simpler approach
-    // In production, you should use proper crypto libraries
-    const crypto = require('crypto');
+    // Use Deno's native crypto.subtle for HMAC verification
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(PAYSTACK_SECRET);
 
-    const expectedSignature = crypto
-      .createHmac('sha512', PAYSTACK_SECRET)
-      .update(payload)
-      .digest('hex');
-
-    return crypto.timingSafeEqual(
-      Buffer.from(signature, 'hex'),
-      Buffer.from(expectedSignature, 'hex')
+    // Import the secret key for HMAC-SHA512
+    const key = await crypto.subtle.importKey(
+      'raw',
+      keyData,
+      { name: 'HMAC', hash: 'SHA-512' },
+      false,
+      ['sign']
     );
+
+    // Sign the payload
+    const signatureData = encoder.encode(payload);
+    const hmacSignature = await crypto.subtle.sign('HMAC', key, signatureData);
+
+    // Convert to hex string
+    const signatureArray = new Uint8Array(hmacSignature);
+    const hexSignature = Array.from(signatureArray)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+
+    // Timing-safe comparison
+    const receivedBuffer = new Uint8Array(signature.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []);
+    const expectedBuffer = new Uint8Array(hexSignature.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []);
+
+    if (receivedBuffer.length !== expectedBuffer.length) {
+      return false;
+    }
+
+    return hexSignature === signature;
   } catch (error) {
     console.error('Error verifying webhook signature:', error);
     return false;
@@ -103,9 +122,6 @@ async function processPaymentSplit(eventData: any) {
       p_reference_id: orderData.id,
       p_description: `Payment for order ${eventData.reference} - agent earnings`
     });
-
-    // Credit platform wallet (we'll track this in a separate table or in the order)
-    // For now, we just track it in the order split_details
 
     console.log(`Successfully processed payment split for order ${eventData.reference}`);
     return { success: true, message: 'Payment split processed successfully' };

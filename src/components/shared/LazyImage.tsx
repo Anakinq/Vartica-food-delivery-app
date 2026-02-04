@@ -7,14 +7,24 @@ interface LazyImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'
     src: string;
     alt: string;
     placeholder?: string;
-    aspectRatio?: string; // e.g., '16/9', '1/1', '4/3'
+    aspectRatio?: string;
     objectFit?: 'cover' | 'contain' | 'fill' | 'none';
     showLoadingSpinner?: boolean;
-    blurDataURL?: string; // For blur-up effect
-    quality?: 'low' | 'medium' | 'high'; // Image quality hint
-    priority?: boolean; // Load immediately without lazy loading
-    sizes?: string; // Responsive image sizes
+    blurDataURL?: string;
+    quality?: 'low' | 'medium' | 'high';
+    priority?: boolean;
+    sizes?: string;
 }
+
+// Brand colors for Vartica
+const BRAND_COLORS = {
+    primary: '#f59e0b', // Orange
+    primaryLight: '#fef3c7',
+    error: '#dc2626',
+    errorLight: '#fee2e2',
+    gray: '#f3f4f6',
+    grayLight: '#e5e7eb',
+};
 
 export const LazyImage: React.FC<LazyImageProps> = ({
     src,
@@ -25,16 +35,18 @@ export const LazyImage: React.FC<LazyImageProps> = ({
     showLoadingSpinner = true,
     className = '',
     style,
+    priority = false,
     ...props
 }) => {
     const [isLoaded, setIsLoaded] = useState(false);
-    const [isInView, setIsInView] = useState(false);
+    const [isInView, setIsInView] = useState(priority);
     const [error, setError] = useState(false);
     const imgRef = useRef<HTMLDivElement>(null);
-    const loadingTimeoutRef = useRef<NodeJS.Timeout>();
 
     // Intersection Observer for lazy loading
     useEffect(() => {
+        if (priority) return;
+
         const observer = new IntersectionObserver(
             (entries) => {
                 entries.forEach((entry) => {
@@ -45,7 +57,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
                 });
             },
             {
-                rootMargin: '50px', // Start loading 50px before element is visible
+                rootMargin: '100px',
                 threshold: 0.01,
             }
         );
@@ -54,13 +66,8 @@ export const LazyImage: React.FC<LazyImageProps> = ({
             observer.observe(imgRef.current);
         }
 
-        return () => {
-            observer.disconnect();
-            if (loadingTimeoutRef.current) {
-                clearTimeout(loadingTimeoutRef.current);
-            }
-        };
-    }, []);
+        return () => observer.disconnect();
+    }, [priority]);
 
     const handleLoad = () => {
         setIsLoaded(true);
@@ -80,7 +87,8 @@ export const LazyImage: React.FC<LazyImageProps> = ({
                 width: '100%',
                 aspectRatio,
                 overflow: 'hidden',
-                backgroundColor: '#f3f4f6',
+                backgroundColor: BRAND_COLORS.gray,
+                borderRadius: '0.75rem',
                 ...style,
             }}
         >
@@ -94,11 +102,14 @@ export const LazyImage: React.FC<LazyImageProps> = ({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundColor: '#e5e7eb',
+                        backgroundColor: BRAND_COLORS.gray,
                     }}
                 >
                     {showLoadingSpinner && (
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+                        <div
+                            className="animate-spin rounded-full h-8 w-8 border-b-2"
+                            style={{ borderColor: BRAND_COLORS.primary }}
+                        />
                     )}
                 </div>
             )}
@@ -111,14 +122,15 @@ export const LazyImage: React.FC<LazyImageProps> = ({
                         position: 'absolute',
                         inset: 0,
                         display: 'flex',
+                        flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundColor: '#fee2e2',
-                        color: '#dc2626',
+                        backgroundColor: BRAND_COLORS.errorLight,
+                        color: BRAND_COLORS.error,
                     }}
                 >
                     <svg
-                        className="w-8 h-8"
+                        className="w-10 h-10 mb-1"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -130,6 +142,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
                             d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                         />
                     </svg>
+                    <span className="text-xs">Image unavailable</span>
                 </div>
             )}
 
@@ -140,6 +153,8 @@ export const LazyImage: React.FC<LazyImageProps> = ({
                     alt={alt}
                     onLoad={handleLoad}
                     onError={handleError}
+                    loading={priority ? 'eager' : 'lazy'}
+                    decoding="async"
                     className={`lazy-image ${isLoaded ? 'loaded' : 'loading'}`}
                     style={{
                         width: '100%',
@@ -154,6 +169,21 @@ export const LazyImage: React.FC<LazyImageProps> = ({
         </div>
     );
 };
+
+/**
+ * Simple skeleton loader for images
+ */
+export const ImageSkeleton: React.FC<{ aspectRatio?: string }> = ({ aspectRatio = '16/9' }) => (
+    <div
+        className="animate-pulse"
+        style={{
+            width: '100%',
+            aspectRatio,
+            backgroundColor: BRAND_COLORS.gray,
+            borderRadius: '0.75rem',
+        }}
+    />
+);
 
 /**
  * Skeleton loader component for cards and lists
@@ -172,7 +202,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
     className = '',
 }) => {
     const baseStyles: React.CSSProperties = {
-        backgroundColor: '#e5e7eb',
+        backgroundColor: BRAND_COLORS.grayLight,
         animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
     };
 
@@ -232,15 +262,3 @@ export const ListSkeleton: React.FC<{ count?: number }> = ({ count = 5 }) => (
         ))}
     </div>
 );
-
-// Add pulse animation to global styles if not present
-export const skeletonStyles = `
-@keyframes pulse {
-    0%, 100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.5;
-    }
-}
-`;

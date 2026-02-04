@@ -1,8 +1,9 @@
 // src/components/customer/Checkout.tsx
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Check, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Check, AlertCircle, X } from 'lucide-react';
 import { supabase, MenuItem } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 
 interface CartItem extends MenuItem {
   quantity: number;
@@ -27,29 +28,31 @@ export const Checkout: React.FC<CheckoutProps> = ({
   onClose,
   onSuccess,
 }) => {
-  if (typeof subtotal !== 'number' || isNaN(subtotal)) {
-    console.error('Invalid subtotal:', subtotal);
-    throw new Error('Invalid subtotal value');
-  }
-  if (typeof deliveryFee !== 'number' || isNaN(deliveryFee)) {
-    console.error('Invalid deliveryFee:', deliveryFee);
-    throw new Error('Invalid delivery fee value');
-  }
+  // Graceful error handling instead of throwing errors
+  const effectiveSubtotal = typeof subtotal === 'number' && !isNaN(subtotal) ? subtotal : 0;
+  const effectiveDeliveryFee = typeof deliveryFee === 'number' && !isNaN(deliveryFee) ? deliveryFee : 0;
+
   const { profile } = useAuth();
+  const { showToast } = useToast();
+
   const [formData, setFormData] = useState({
     deliveryAddress: '',
     deliveryNotes: '',
     promoCode: '',
     scheduledFor: '',
-    deliveryOption: '', // Will be set based on vendor capability
+    deliveryOption: '',
   });
   const [discount, setDiscount] = useState(0);
   const [deliveryFeeDiscount, setDeliveryFeeDiscount] = useState(0);
-  const [hostelBasedDeliveryFee, setHostelBasedDeliveryFee] = useState(deliveryFee); // Initialize with default delivery fee;
+  const [hostelBasedDeliveryFee, setHostelBasedDeliveryFee] = useState(effectiveDeliveryFee);
+  const [promoError, setPromoError] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [paystackScriptLoaded, setPaystackScriptLoaded] = useState(false);
 
   // Function to calculate delivery fee based on hostel location
   const calculateDeliveryFee = (hostel: string): number => {
-    // Define delivery fees based on hostel location
     const hostelDeliveryFees: Record<string, number> = {
       'New Female Hostel 1': 1500,
       'New Female Hostel 2': 1500,
@@ -70,8 +73,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
       'Female Medical Hostel 5': 2000,
       'Female Medical Hostel 6': 2000,
     };
-
-    // Return the specific fee if available, otherwise default to 500
     return hostelDeliveryFees[hostel] || 500;
   };
 
@@ -81,21 +82,14 @@ export const Checkout: React.FC<CheckoutProps> = ({
       const fee = calculateDeliveryFee(formData.deliveryAddress);
       setHostelBasedDeliveryFee(fee);
     } else {
-      setHostelBasedDeliveryFee(deliveryFee); // Reset to default if no hostel selected
+      setHostelBasedDeliveryFee(effectiveDeliveryFee);
     }
   }, [formData.deliveryAddress]);
-  const [promoError, setPromoError] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [paystackScriptLoaded, setPaystackScriptLoaded] = useState(false);
 
-  // 💳 Load Paystack script + CSS safely
+  // Load Paystack script safely
   useEffect(() => {
-    // Load JS only (avoid CSS which causes CSP violations)
     const scriptId = 'paystack-inline-js';
 
-    // Check if script already exists and Paystack is available
     if (document.getElementById(scriptId) && (window as any).PaystackPop) {
       setPaystackScriptLoaded(true);
       return;
@@ -108,19 +102,15 @@ export const Checkout: React.FC<CheckoutProps> = ({
     script.setAttribute('crossorigin', 'anonymous');
 
     script.onload = () => {
-      console.log('Paystack script loaded successfully');
-      // Check if Paystack is available
       if ((window as any).PaystackPop) {
         setPaystackScriptLoaded(true);
-        setError(''); // Clear any previous errors
+        setError('');
       } else {
-        console.error('PaystackPop not available after script load');
         setError('Payment system failed to initialize. Please refresh the page.');
       }
     };
 
     script.onerror = () => {
-      console.error('Failed to load Paystack script');
       setError('Payment system failed to load. Please check your internet connection and try again.');
       setPaystackScriptLoaded(false);
     };
@@ -136,9 +126,9 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const MIN_NGN = 100;
   const packPrice = 300.00;
   const packTotal = packPrice * packCount;
-  const platformCommission = 200.0; // Fixed ₦200 platform commission
-  const effectiveDeliveryFee = Math.max(hostelBasedDeliveryFee - deliveryFeeDiscount, 0);
-  const total = subtotal + packTotal + effectiveDeliveryFee - discount;
+  const platformCommission = 200.0;
+  const effectiveDeliveryFeeCalc = Math.max(hostelBasedDeliveryFee - deliveryFeeDiscount, 0);
+  const total = effectiveSubtotal + packTotal + effectiveDeliveryFeeCalc - discount;
   const effectiveTotal = Math.max(total + platformCommission, MIN_NGN);
   const totalInKobo = Math.round(effectiveTotal * 100);
 
@@ -146,7 +136,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
     setPromoError('');
     if (!formData.promoCode.trim()) return;
 
-    // First try regular promo codes
     let { data, error } = await supabase
       .from('promo_codes')
       .select('*')
@@ -155,7 +144,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
       .maybeSingle();
 
     if (!error && data) {
-      // Regular promo code found
       if (new Date(data.valid_until) < new Date()) {
         setPromoError('Promo code has expired');
         return;
@@ -164,13 +152,13 @@ export const Checkout: React.FC<CheckoutProps> = ({
         setPromoError('Promo code usage limit reached');
         return;
       }
-      if (subtotal < data.min_order_value) {
+      if (effectiveSubtotal < data.min_order_value) {
         setPromoError(`Minimum order value is ₦${data.min_order_value}`);
         return;
       }
       let calculatedDiscount = 0;
       if (data.discount_type === 'percentage') {
-        calculatedDiscount = (subtotal * data.discount_value) / 100;
+        calculatedDiscount = (effectiveSubtotal * data.discount_value) / 100;
         if (data.max_discount) {
           calculatedDiscount = Math.min(calculatedDiscount, data.max_discount);
         }
@@ -178,11 +166,11 @@ export const Checkout: React.FC<CheckoutProps> = ({
         calculatedDiscount = data.discount_value;
       }
       setDiscount(calculatedDiscount);
-      setDeliveryFeeDiscount(0); // Reset delivery fee discount when using regular promo
+      setDeliveryFeeDiscount(0);
+      showToast({ type: 'success', message: `Discount of ₦${calculatedDiscount.toFixed(2)} applied!` });
       return;
     }
 
-    // If not found in regular promo codes, check delivery fee discount codes
     const { data: deliveryFeeData, error: deliveryFeeError } = await supabase
       .from('delivery_fee_discount_promo_codes')
       .select('*')
@@ -203,7 +191,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
       setPromoError('Promo code usage limit reached');
       return;
     }
-    if (subtotal < deliveryFeeData.min_order_value) {
+    if (effectiveSubtotal < deliveryFeeData.min_order_value) {
       setPromoError(`Minimum order value is ₦${deliveryFeeData.min_order_value}`);
       return;
     }
@@ -218,11 +206,11 @@ export const Checkout: React.FC<CheckoutProps> = ({
       calculatedDeliveryFeeDiscount = deliveryFeeData.discount_value;
     }
 
-    // Ensure discount doesn't exceed delivery fee
     calculatedDeliveryFeeDiscount = Math.min(calculatedDeliveryFeeDiscount, hostelBasedDeliveryFee);
 
     setDeliveryFeeDiscount(calculatedDeliveryFeeDiscount);
-    setDiscount(0); // Reset regular discount when using delivery fee discount
+    setDiscount(0);
+    showToast({ type: 'success', message: `Delivery fee discount of ₦${calculatedDeliveryFeeDiscount.toFixed(2)} applied!` });
   };
 
   const createOrder = async (paymentReference?: string) => {
@@ -234,16 +222,12 @@ export const Checkout: React.FC<CheckoutProps> = ({
     const sellerType = items[0].seller_type;
     if (!sellerId || !sellerType) throw new Error('Invalid seller info');
 
-    // Calculate effective delivery fee after discount
-    const platformCommission = 200.0; // Fixed ₦200 platform commission
     const effectiveDeliveryFee = Math.max(hostelBasedDeliveryFee - deliveryFeeDiscount, 0);
-    const total = subtotal + packTotal + effectiveDeliveryFee - discount;
+    const total = effectiveSubtotal + packTotal + effectiveDeliveryFee - discount;
     const effectiveTotal = Math.max(total + platformCommission, MIN_NGN);
 
-    // Generate unique order number
     const orderNumber = `ORDER_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
-    // Check if the vendor offers hostel delivery
     const { data: vendorData, error: vendorError } = await supabase
       .from('vendors')
       .select('delivery_option')
@@ -252,7 +236,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
     let deliveryAgentId = null;
 
-    // If vendor does NOT offer hostel delivery, try to assign a delivery agent
     if (vendorData?.delivery_option === 'does_not_offer_hostel_delivery') {
       const { data: availableAgent, error: agentError } = await supabase
         .from('delivery_agents')
@@ -265,21 +248,19 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
       if (agentError) {
         console.error('Error finding delivery agent:', agentError);
-        // For now, we'll continue without an agent and assign one later
       } else {
         deliveryAgentId = availableAgent?.id || null;
       }
     }
-    // If vendor DOES offer hostel delivery, no delivery agent is needed
-    // Create the order first
+
     const orderPayload = {
       order_number: orderNumber,
       user_id: user.id,
       seller_id: sellerId,
       seller_type: sellerType,
-      delivery_agent_id: deliveryAgentId, // Assign agent if needed based on vendor delivery option
+      delivery_agent_id: deliveryAgentId,
       status: 'pending',
-      subtotal,
+      subtotal: effectiveSubtotal,
       delivery_fee: hostelBasedDeliveryFee,
       delivery_fee_discount: deliveryFeeDiscount,
       discount,
@@ -303,7 +284,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
     if (insertError) throw insertError;
 
-    // Now create the order items
     const orderItems = items.map(item => ({
       order_id: orderData.id,
       menu_item_id: item.id,
@@ -316,24 +296,22 @@ export const Checkout: React.FC<CheckoutProps> = ({
       .insert(orderItems);
 
     if (itemsInsertError) {
-      // If order items fail to insert, we should delete the order to maintain consistency
       await supabase.from('orders').delete().eq('id', orderData.id);
       throw itemsInsertError;
     }
 
-    return { success: true };
+    return { success: true, orderNumber };
   };
 
   const sendToWebhook = async (reference: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    // Format data to match Paystack webhook format for charge.success event
     const paystackWebhookData = {
       event: 'charge.success',
       data: {
         reference,
-        amount: Math.round(effectiveTotal * 100), // Paystack sends amount in kobo
+        amount: Math.round(effectiveTotal * 100),
         status: 'success',
         gateway_response: 'Successful',
         paid_at: new Date().toISOString(),
@@ -365,10 +343,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const handlePaystackSuccess = async (response: any) => {
     try {
       setLoading(true);
-      // Create order with payment reference after successful payment
-      await createOrder(response.reference);
+      const orderResult = await createOrder(response.reference);
 
-      // If a delivery fee discount promo code was used, increment its usage count
       if (formData.promoCode && deliveryFeeDiscount > 0) {
         const { error: incrementError } = await supabase.rpc('increment_promo_code_usage', {
           p_code: formData.promoCode.toUpperCase()
@@ -380,39 +356,41 @@ export const Checkout: React.FC<CheckoutProps> = ({
       }
 
       setSuccess(true);
+      showToast({ type: 'success', message: `Order ${orderResult.orderNumber} created successfully!` });
       setTimeout(() => onSuccess(), 2000);
     } catch (error) {
       console.error('Payment success but order creation failed:', error);
-      alert('Payment successful but order creation failed. Contact support with payment reference: ' + response.reference);
+      showToast({
+        type: 'error',
+        message: 'Payment successful but order creation failed. Contact support with reference: ' + response.reference
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const handlePaystackClose = () => {
-    alert('Payment cancelled');
+    showToast({ type: 'info', message: 'Payment cancelled - your items are still in cart' });
   };
 
-  // Function to initialize and open Paystack payment in a privacy-friendly way
   const initializePaystackPayment = () => {
     if (!(window as any).PaystackPop) {
-      alert('Payment gateway not loaded. Refresh and try again.');
+      showToast({ type: 'error', message: 'Payment gateway not loaded. Please refresh and try again.' });
       return;
     }
     if (!profile?.email) {
-      alert('Email is required for payment. Please update your profile.');
+      showToast({ type: 'error', message: 'Email is required for payment. Please update your profile.' });
       return;
     }
     const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY?.trim();
     if (!paystackKey) {
-      alert('Payment system not configured. Please contact support.');
+      showToast({ type: 'error', message: 'Payment system not configured. Please contact support.' });
       console.error('VITE_PAYSTACK_PUBLIC_KEY not set');
       return;
     }
     const email = profile.email;
     const ref = `VARTICA_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Initialize Paystack with proper error handling for tracking prevention
     const handler = (window as any).PaystackPop.setup({
       key: paystackKey,
       email,
@@ -421,7 +399,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
       ref,
       callback: (response: any) => handlePaystackSuccess(response),
       onClose: () => handlePaystackClose(),
-      // Add metadata to help with fraud detection while respecting privacy
       metadata: {
         custom_fields: [
           {
@@ -438,16 +415,14 @@ export const Checkout: React.FC<CheckoutProps> = ({
       }
     });
 
-    // Open the payment modal
     handler.openIframe();
   };
 
   const handleSubmit = async (reference: string) => {
     setLoading(true);
     try {
-      await createOrder(reference);
+      const orderResult = await createOrder(reference);
 
-      // If a delivery fee discount promo code was used, increment its usage count
       if (formData.promoCode && deliveryFeeDiscount > 0) {
         const { error: incrementError } = await supabase.rpc('increment_promo_code_usage', {
           p_code: formData.promoCode.toUpperCase()
@@ -459,9 +434,10 @@ export const Checkout: React.FC<CheckoutProps> = ({
       }
 
       setSuccess(true);
+      showToast({ type: 'success', message: `Order ${orderResult.orderNumber} created successfully!` });
       setTimeout(() => onSuccess(), 2000);
     } catch (error) {
-      alert(`Failed to create order: ${(error as Error).message}`);
+      showToast({ type: 'error', message: `Failed to create order: ${(error as Error).message}` });
     } finally {
       setLoading(false);
     }
@@ -475,9 +451,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
             <Check className="h-10 w-10 text-green-600" />
           </div>
           <h2 className="text-2xl font-bold text-black mb-2">Payment Successful!</h2>
-          <p className="text-gray-600">
-            Your payment was successful. Order is being processed.
-          </p>
+          <p className="text-gray-600">Your payment was successful. Order is being processed.</p>
         </div>
       </div>
     );
@@ -487,13 +461,29 @@ export const Checkout: React.FC<CheckoutProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl max-w-2xl w-full p-6">
-          <div className="flex items-center mb-6">
-            <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full">
-              <ArrowLeft className="h-6 w-6" />
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center">
+              <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <ArrowLeft className="h-6 w-6" />
+              </button>
+              <h2 className="text-2xl font-bold text-black ml-4">Checkout</h2>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+              <X className="h-6 w-6" />
             </button>
-            <h2 className="text-2xl font-bold text-black ml-4">Checkout</h2>
           </div>
+
           <form className="space-y-6">
+            {/* Error Display */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+                <div className="flex items-center">
+                  <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+                  <p className="text-red-700 text-sm">{error}</p>
+                </div>
+              </div>
+            )}
+
             {/* Hostel Selection */}
             <div>
               <label className="block text-sm font-semibold text-black mb-2">Your Hostel *</label>
@@ -506,7 +496,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 <option value="">Select your hostel</option>
                 <option value="New Female Hostel 1">New Female Hostel 1</option>
                 <option value="New Female Hostel 2">New Female Hostel 2</option>
-
                 <option value="Abuad Hostel">Abuad Hostel</option>
                 <option value="Wema Hostel">Wema Hostel</option>
                 <option value="Male Hostel 1">Male Hostel 1</option>
@@ -549,8 +538,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
               />
             </div>
 
-
-
             {/* Promo */}
             <div>
               <label className="block text-sm font-semibold text-black mb-2">Promo Code</label>
@@ -580,14 +567,14 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
             {/* Summary */}
             <div className="bg-gray-50 rounded-xl p-5 space-y-3 border border-gray-100">
-              <div className="flex justify-between text-gray-700"><span>Subtotal</span><span className="font-medium">₦{subtotal.toFixed(2)}</span></div>
+              <div className="flex justify-between text-gray-700"><span>Subtotal</span><span className="font-medium">₦{effectiveSubtotal.toFixed(2)}</span></div>
               {packCount > 0 && <div className="flex justify-between text-gray-700"><span>Food Pack ({packCount}x)</span><span className="font-medium">₦{packTotal.toFixed(2)}</span></div>}
               <div className="flex justify-between text-gray-700">
                 <span>Delivery Fee</span>
                 <span className="font-medium">
                   {deliveryFeeDiscount > 0 ? (
                     <span>
-                      <s className="text-red-500">₦{hostelBasedDeliveryFee.toFixed(2)}</s> ₦{effectiveDeliveryFee.toFixed(2)}
+                      <s className="text-red-500">₦{hostelBasedDeliveryFee.toFixed(2)}</s> ₦{effectiveDeliveryFeeCalc.toFixed(2)}
                     </span>
                   ) : (
                     <span>₦{hostelBasedDeliveryFee.toFixed(2)}</span>
@@ -604,16 +591,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
               <div className="flex justify-between text-xl font-bold text-black pt-3 border-t border-gray-200"><span>Total</span><span>₦{effectiveTotal.toFixed(2)}</span></div>
             </div>
 
-            {/* Error Display */}
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
-                <div className="flex items-center">
-                  <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-                  <p className="text-red-700 text-sm">{error}</p>
-                </div>
-              </div>
-            )}
-
             {/* Pay Button */}
             {!paystackScriptLoaded ? (
               <button type="button" disabled className="w-full bg-gray-400 text-white py-4 rounded-full font-bold text-lg cursor-not-allowed">
@@ -623,10 +600,17 @@ export const Checkout: React.FC<CheckoutProps> = ({
               <button
                 type="button"
                 onClick={initializePaystackPayment}
-                disabled={loading}
-                className="w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading || !formData.deliveryAddress}
+                className="w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
-                {loading ? 'Processing...' : `Pay Now • ₦${effectiveTotal.toFixed(2)}`}
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    Processing...
+                  </>
+                ) : (
+                  `Pay Now • ₦${effectiveTotal.toFixed(2)}`
+                )}
               </button>
             )}
           </form>
