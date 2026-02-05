@@ -52,7 +52,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const [paystackScriptLoaded, setPaystackScriptLoaded] = useState(false);
   const [scriptLoading, setScriptLoading] = useState(false);
   const [showRetryButton, setShowRetryButton] = useState(false);
-  const [showRetryButton, setShowRetryButton] = useState(false);
 
   // Function to calculate delivery fee based on hostel location
   const calculateDeliveryFee = (hostel: string): number => {
