@@ -78,7 +78,8 @@ export const Cart: React.FC<CartProps> = ({
   onCheckout,
 }) => {
   const { profile } = useAuth();
-  const isBusinessVendor = profile?.vendor?.vendor_type === 'late_night';
+  const isBusinessVendor = profile?.vendor?.vendor_type === 'student';
+  const isLateNightVendor = profile?.vendor?.vendor_type === 'late_night';
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const deliveryFee = 500.00;
   const packPrice = 300.00;

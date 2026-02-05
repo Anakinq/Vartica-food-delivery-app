@@ -27,9 +27,9 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Determine if this is a business vendor (late_night) vs food vendor (student)
-  const isBusinessVendor = profile?.vendor?.vendor_type === 'late_night';
-  const isFoodVendor = profile?.vendor?.vendor_type === 'student';
+  // Determine if this is a business vendor (student) vs late night vendor
+  const isBusinessVendor = profile?.vendor?.vendor_type === 'student';
+  const isLateNightVendor = profile?.vendor?.vendor_type === 'late_night';
 
   useEffect(() => {
     setImagePreview(item?.image_url ? decodeURIComponent(item.image_url) : null);
@@ -56,10 +56,6 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
       return;
     }
 
-    console.log('Form data being submitted:', formData);
-    console.log('Image file being submitted:', imageFile);
-    console.log('Has image file:', !!imageFile);
-
     try {
       await onSave({ ...formData }, imageFile || undefined);
     } catch (err) {
@@ -72,19 +68,13 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
-    console.log('Image file selected:', file);
-    console.log('File name:', file?.name);
-    console.log('File size:', file?.size);
-    console.log('File type:', file?.type);
 
     setImageFile(file);
     if (file) {
       const url = URL.createObjectURL(file);
       setImagePreview(url);
-      console.log('Image preview URL created:', url);
     } else {
       setImagePreview(item?.image_url || null);
-      console.log('No file selected, using existing image URL:', item?.image_url);
     }
   };
 
@@ -173,7 +163,20 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
                     <option value="Sports">Sports</option>
                     <option value="Other">Other</option>
                   </>
+                ) : isLateNightVendor ? (
+                  <>
+                    <option value="Main Course">Main Course</option>
+                    <option value="Swallow">Swallow</option>
+                    <option value="Protein">Protein</option>
+                    <option value="Drink">Drink</option>
+                    <option value="Snack">Snack</option>
+                    <option value="Salad">Salad</option>
+                    <option value="Pizza">Pizza</option>
+                    <option value="Side">Side</option>
+                    <option value="Soup">Soup</option>
+                  </>
                 ) : (
+                  // Default food categories for any other vendor type
                   <>
                     <option value="Main Course">Main Course</option>
                     <option value="Swallow">Swallow</option>
