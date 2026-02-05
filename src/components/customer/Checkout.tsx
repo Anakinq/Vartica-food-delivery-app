@@ -1,6 +1,6 @@
 // src/components/customer/Checkout.tsx
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Check, AlertCircle, X } from 'lucide-react';
+import { ArrowLeft, Check, AlertCircle, X, RefreshCw } from 'lucide-react';
 import { supabase, MenuItem } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -50,6 +50,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [paystackScriptLoaded, setPaystackScriptLoaded] = useState(false);
+  const [scriptLoading, setScriptLoading] = useState(false);
 
   // Function to calculate delivery fee based on hostel location
   const calculateDeliveryFee = (hostel: string): number => {
@@ -86,14 +87,18 @@ export const Checkout: React.FC<CheckoutProps> = ({
     }
   }, [formData.deliveryAddress]);
 
-  // Load Paystack script safely
-  useEffect(() => {
+  // Function to reload Paystack script with retry mechanism
+  const reloadPaystackScript = () => {
+    setScriptLoading(true);
+    setError('');
     const scriptId = 'paystack-inline-js';
 
-    if (document.getElementById(scriptId) && (window as any).PaystackPop) {
-      setPaystackScriptLoaded(true);
-      return;
-    }
+    // Remove existing script if any
+    const existing = document.getElementById(scriptId);
+    if (existing) existing.remove();
+
+    // Clear any cached Paystack global
+    delete (window as any).PaystackPop;
 
     const script = document.createElement('script');
     script.id = scriptId;
@@ -101,24 +106,67 @@ export const Checkout: React.FC<CheckoutProps> = ({
     script.async = true;
     script.setAttribute('crossorigin', 'anonymous');
 
-    script.onload = () => {
+    let retryCount = 0;
+    const maxRetries = 3;
+
+    const handleLoad = () => {
       if ((window as any).PaystackPop) {
         setPaystackScriptLoaded(true);
+        setScriptLoading(false);
         setError('');
+        console.log('Paystack script loaded successfully');
       } else {
-        setError('Payment system failed to initialize. Please refresh the page.');
+        if (retryCount < maxRetries) {
+          retryCount++;
+          console.log(`Paystack initialization attempt ${retryCount} failed, retrying...`);
+          setTimeout(() => {
+            // Re-add the script
+            document.head.appendChild(script);
+          }, 1000 * retryCount);
+        } else {
+          setError('Payment system failed to initialize after multiple attempts. Please refresh the page or try again later.');
+          setScriptLoading(false);
+          console.error('Paystack failed to initialize after retries');
+        }
       }
     };
 
-    script.onerror = () => {
-      setError('Payment system failed to load. Please check your internet connection and try again.');
-      setPaystackScriptLoaded(false);
+    const handleError = () => {
+      if (retryCount < maxRetries) {
+        retryCount++;
+        console.log(`Paystack load attempt ${retryCount} failed, retrying in ${retryCount} seconds...`);
+        setTimeout(() => {
+          // Create new script element for retry
+          const newScript = document.createElement('script');
+          newScript.id = scriptId;
+          newScript.src = 'https://js.paystack.co/v1/inline.js';
+          newScript.async = true;
+          newScript.setAttribute('crossorigin', 'anonymous');
+          newScript.onload = handleLoad;
+          newScript.onerror = handleError;
+          document.head.appendChild(newScript);
+        }, 1000 * retryCount);
+      } else {
+        setError('Payment system failed to load. Please check your internet connection and try again.');
+        setPaystackScriptLoaded(false);
+        setScriptLoading(false);
+        console.error('Paystack script failed to load after retries');
+      }
     };
 
-    document.head.appendChild(script);
+    script.onload = handleLoad;
+    script.onerror = handleError;
 
+    document.head.appendChild(script);
+  };
+
+  // Load Paystack script safely with automatic retry
+  useEffect(() => {
+    reloadPaystackScript();
+
+    // Add cleanup function
     return () => {
-      const existing = document.getElementById(scriptId);
+      const existing = document.getElementById('paystack-inline-js');
       if (existing) existing.remove();
     };
   }, []);
@@ -479,7 +527,16 @@ export const Checkout: React.FC<CheckoutProps> = ({
               <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
                 <div className="flex items-center">
                   <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-                  <p className="text-red-700 text-sm">{error}</p>
+                  <p className="text-red-700 text-sm flex-1">{error}</p>
+                  <button
+                    type="button"
+                    onClick={reloadPaystackScript}
+                    disabled={scriptLoading}
+                    className="ml-2 flex items-center px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium disabled:opacity-50"
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-1 ${scriptLoading ? 'animate-spin' : ''}`} />
+                    Retry
+                  </button>
                 </div>
               </div>
             )}
@@ -593,9 +650,34 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
             {/* Pay Button */}
             {!paystackScriptLoaded ? (
-              <button type="button" disabled className="w-full bg-gray-400 text-white py-4 rounded-full font-bold text-lg cursor-not-allowed">
-                {error ? 'Payment System Unavailable' : 'Loading payment gateway...'}
-              </button>
+              <div className="space-y-3">
+                {error && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <p className="text-red-700 text-sm">{error}</p>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={reloadPaystackScript}
+                  disabled={scriptLoading}
+                  className="w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-colors shadow-lg disabled:opacity-70 flex items-center justify-center"
+                >
+                  {scriptLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Loading payment gateway...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-5 w-5 mr-2" />
+                      Load Payment System
+                    </>
+                  )}
+                </button>
+                <p className="text-center text-sm text-gray-500">
+                  Having trouble? Try refreshing the page or check your internet connection.
+                </p>
+              </div>
             ) : (
               <button
                 type="button"

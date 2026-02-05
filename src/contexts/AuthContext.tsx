@@ -261,27 +261,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const checkApprovalStatus = async (userId: string, role: string) => {
-    const { data, error } = await databaseService.selectSingle<{
-      vendor_approved?: boolean | null;
-      delivery_approved?: boolean | null;
-    }>({
-      table: 'profiles',
-      match: { id: userId },
-      columns: 'vendor_approved, delivery_approved'
-    });
-
-    if (error) {
-      console.error('Error fetching approval status:', error);
-      return null;
-    }
-
-    if (role === 'vendor') {
-      return data?.vendor_approved ?? null;
-    } else if (role === 'delivery_agent') {
-      return data?.delivery_approved ?? null;
-    }
-
-    return null;
+    // Use the enhanced database service function
+    return await databaseService.checkApprovalStatus(userId, role);
   };
 
   // Load initial session and set up auth state listener

@@ -6,7 +6,7 @@ import { uploadVendorImage } from '../../utils/imageUploader';
 
 interface MenuItemFormProps {
   item: MenuItem | null;
-  onSave: (data: Partial<MenuItem>, imageFile?: File) => Promise<void>; // ✅ now async
+  onSave: (data: Partial<MenuItem>, imageFile?: File) => Promise<void>;
   onClose: () => void;
 }
 
@@ -16,7 +16,6 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
     description: item?.description || '',
     price: item?.price || 0,
     category: item?.category || '',
-    customCategory: '',
     image_url: item?.image_url || '',
     is_available: item?.is_available ?? true,
   });
@@ -25,48 +24,19 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
   const [imagePreview, setImagePreview] = useState<string | null>(item?.image_url ? decodeURIComponent(item.image_url) : null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showCustomCategory, setShowCustomCategory] = useState(false);
 
   useEffect(() => {
     setImagePreview(item?.image_url ? decodeURIComponent(item.image_url) : null);
     setImageFile(null);
-    // Check if the current category is a custom one
-    const predefinedCategories = ['Main Course', 'Swallow', 'Protein', 'Drink', 'Snack', 'Salad', 'Pizza', 'Side', 'Soup'];
-    const isCustom = item?.category && !predefinedCategories.includes(item.category);
-
     setFormData({
       name: item?.name || '',
       description: item?.description || '',
       price: item?.price || 0,
-      category: isCustom ? '' : (item?.category || ''),
-      customCategory: isCustom ? (item?.category || '') : '',
+      category: item?.category || '',
       image_url: item?.image_url ? decodeURIComponent(item.image_url) : '',
       is_available: item?.is_available ?? true,
     });
-    setShowCustomCategory(isCustom);
   }, [item]);
-
-  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    if (value === '__custom__') {
-      setShowCustomCategory(true);
-      setFormData({ ...formData, category: '' });
-    } else {
-      setShowCustomCategory(false);
-      setFormData({ ...formData, category: value, customCategory: '' });
-    }
-  };
-
-  const handleCustomCategoryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, customCategory: e.target.value, category: e.target.value });
-  };
-
-  const getFinalCategory = () => {
-    if (showCustomCategory) {
-      return formData.customCategory;
-    }
-    return formData.category;
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,9 +44,8 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
     setError(null);
 
     // Validate category
-    const finalCategory = getFinalCategory();
-    if (!finalCategory.trim()) {
-      setError('Please select or enter a category');
+    if (!formData.category.trim()) {
+      setError('Please select a category');
       setIsUploading(false);
       return;
     }
@@ -86,7 +55,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
     console.log('Has image file:', !!imageFile);
 
     try {
-      await onSave({ ...formData, category: finalCategory }, imageFile || undefined);
+      await onSave({ ...formData }, imageFile || undefined);
     } catch (err) {
       console.error('Error saving item:', err);
       setError('Failed to save item. Please try again.');
@@ -107,8 +76,6 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
       const url = URL.createObjectURL(file);
       setImagePreview(url);
       console.log('Image preview URL created:', url);
-      // Clean up later (optional but good practice)
-      // We can't easily useEffect here, so we rely on browser cleanup
     } else {
       setImagePreview(item?.image_url || null);
       console.log('No file selected, using existing image URL:', item?.image_url);
@@ -180,11 +147,12 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Category
+                Category *
               </label>
               <select
-                value={showCustomCategory ? '' : formData.category}
-                onChange={handleCategoryChange}
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                required
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Select category</option>
@@ -197,18 +165,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
                 <option value="Pizza">Pizza</option>
                 <option value="Side">Side</option>
                 <option value="Soup">Soup</option>
-                <option value="__custom__">+ Add Custom Category</option>
               </select>
-              {showCustomCategory && (
-                <input
-                  type="text"
-                  value={formData.customCategory}
-                  onChange={handleCustomCategoryChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mt-2"
-                  placeholder="Enter custom category"
-                  autoFocus
-                />
-              )}
             </div>
           </div>
 

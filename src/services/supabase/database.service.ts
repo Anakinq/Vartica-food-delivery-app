@@ -652,6 +652,62 @@ class SupabaseDatabaseService implements IDatabaseService {
 
     return { data, error: null };
   }
+
+  // Helper function to check approval status
+  async checkApprovalStatus(userId: string, role: string) {
+    try {
+      if (role === 'vendor') {
+        // For vendors, check both profile approval and vendor application status
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('vendor_approved')
+          .eq('id', userId)
+          .single();
+
+        if (profileError) {
+          console.error('Error checking profile approval status:', profileError);
+        }
+
+        const { data: vendorData, error: vendorError } = await supabase
+          .from('vendors')
+          .select('application_status, is_active')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (vendorError) {
+          console.error('Error checking vendor application status:', vendorError);
+        }
+
+        // Vendor is approved if:
+        // 1. Profile has vendor_approved = true, OR
+        // 2. Vendor record exists with application_status = 'approved' and is_active = true
+        const profileApproved = profileData?.vendor_approved ?? false;
+        const vendorApproved = vendorData?.application_status === 'approved' && vendorData?.is_active === true;
+
+        console.log(`[Approval Check] User ${userId}: profileApproved=${profileApproved}, vendorApproved=${vendorApproved}`);
+
+        return profileApproved || vendorApproved;
+      } else if (role === 'delivery_agent') {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('delivery_approved')
+          .eq('id', userId)
+          .single();
+
+        if (error) {
+          console.error('Error checking delivery agent approval status:', error);
+          return null;
+        }
+
+        return data.delivery_approved ?? null;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error in checkApprovalStatus:', error);
+      return null;
+    }
+  }
 }
 
 export const databaseService = new SupabaseDatabaseService();
@@ -659,20 +715,49 @@ export const databaseService = new SupabaseDatabaseService();
 // Helper function to check approval status
 export const checkApprovalStatus = async (userId: string, role: string) => {
   try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('vendor_approved, delivery_approved')
-      .eq('id', userId)
-      .single();
-
-    if (error) {
-      console.error('Error checking approval status:', error);
-      return null;
-    }
-
     if (role === 'vendor') {
-      return data.vendor_approved ?? null;
+      // For vendors, check both profile approval and vendor application status
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('vendor_approved')
+        .eq('id', userId)
+        .single();
+
+      if (profileError) {
+        console.error('Error checking profile approval status:', profileError);
+      }
+
+      const { data: vendorData, error: vendorError } = await supabase
+        .from('vendors')
+        .select('application_status, is_active')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (vendorError) {
+        console.error('Error checking vendor application status:', vendorError);
+      }
+
+      // Vendor is approved if:
+      // 1. Profile has vendor_approved = true, OR
+      // 2. Vendor record exists with application_status = 'approved' and is_active = true
+      const profileApproved = profileData?.vendor_approved ?? false;
+      const vendorApproved = vendorData?.application_status === 'approved' && vendorData?.is_active === true;
+
+      console.log(`[Approval Check] User ${userId}: profileApproved=${profileApproved}, vendorApproved=${vendorApproved}`);
+
+      return profileApproved || vendorApproved;
     } else if (role === 'delivery_agent') {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('delivery_approved')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error checking delivery agent approval status:', error);
+        return null;
+      }
+
       return data.delivery_approved ?? null;
     }
 
