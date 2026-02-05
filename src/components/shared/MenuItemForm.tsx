@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { MenuItem } from '../../lib/supabase';
 import { uploadVendorImage } from '../../utils/imageUploader';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface MenuItemFormProps {
   item: MenuItem | null;
@@ -11,6 +12,7 @@ interface MenuItemFormProps {
 }
 
 export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClose }) => {
+  const { profile } = useAuth();
   const [formData, setFormData] = useState({
     name: item?.name || '',
     description: item?.description || '',
@@ -24,6 +26,10 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
   const [imagePreview, setImagePreview] = useState<string | null>(item?.image_url ? decodeURIComponent(item.image_url) : null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Determine if this is a business vendor (late_night) vs food vendor (student)
+  const isBusinessVendor = profile?.vendor?.vendor_type === 'late_night';
+  const isFoodVendor = profile?.vendor?.vendor_type === 'student';
 
   useEffect(() => {
     setImagePreview(item?.image_url ? decodeURIComponent(item.image_url) : null);
@@ -111,7 +117,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="e.g., Cheeseburger"
+              placeholder={isBusinessVendor ? "e.g., Laptop Stand" : "e.g., Cheeseburger"}
             />
           </div>
 
@@ -124,7 +130,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Describe your item..."
+              placeholder={isBusinessVendor ? "Describe your product/service..." : "Describe your item..."}
             />
           </div>
 
@@ -156,22 +162,37 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Select category</option>
-                <option value="Main Course">Main Course</option>
-                <option value="Swallow">Swallow</option>
-                <option value="Protein">Protein</option>
-                <option value="Drink">Drink</option>
-                <option value="Snack">Snack</option>
-                <option value="Salad">Salad</option>
-                <option value="Pizza">Pizza</option>
-                <option value="Side">Side</option>
-                <option value="Soup">Soup</option>
+                {isBusinessVendor ? (
+                  <>
+                    <option value="Electronics">Electronics</option>
+                    <option value="Books">Books</option>
+                    <option value="Clothing">Clothing</option>
+                    <option value="Services">Services</option>
+                    <option value="Stationery">Stationery</option>
+                    <option value="Beauty">Beauty</option>
+                    <option value="Sports">Sports</option>
+                    <option value="Other">Other</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="Main Course">Main Course</option>
+                    <option value="Swallow">Swallow</option>
+                    <option value="Protein">Protein</option>
+                    <option value="Drink">Drink</option>
+                    <option value="Snack">Snack</option>
+                    <option value="Salad">Salad</option>
+                    <option value="Pizza">Pizza</option>
+                    <option value="Side">Side</option>
+                    <option value="Soup">Soup</option>
+                  </>
+                )}
               </select>
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Food Image
+              {isBusinessVendor ? "Product Image" : "Food Image"}
             </label>
             <input
               type="file"

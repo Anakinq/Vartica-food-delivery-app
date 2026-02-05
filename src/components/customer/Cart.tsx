@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Minus, Plus, Trash2, ShoppingBag, ShoppingCart } from 'lucide-react';
 import { MenuItem } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface CartItem extends MenuItem {
   quantity: number;
@@ -43,8 +44,8 @@ const QuantityButton: React.FC<{
         onClick={handleDecrease}
         disabled={quantity <= 1}
         className={`relative p-2 rounded-full transition-all duration-200 ${quantity <= 1
-            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-            : 'bg-gray-200 text-gray-700 hover:bg-gray-300 active:scale-95'
+          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+          : 'bg-gray-200 text-gray-700 hover:bg-gray-300 active:scale-95'
           }`}
         aria-label={`Decrease ${itemName} quantity`}
       >
@@ -76,6 +77,8 @@ export const Cart: React.FC<CartProps> = ({
   onCartPackChange,
   onCheckout,
 }) => {
+  const { profile } = useAuth();
+  const isBusinessVendor = profile?.vendor?.vendor_type === 'late_night';
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const deliveryFee = 500.00;
   const packPrice = 300.00;
@@ -175,40 +178,42 @@ export const Cart: React.FC<CartProps> = ({
 
             {/* Footer */}
             <div className="border-t border-gray-100 p-6 space-y-4 bg-white">
-              {/* Food Pack Selector */}
-              <div className="bg-orange-50 rounded-xl p-4">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="font-semibold text-black">Food Pack</span>
-                  <span className="text-sm text-gray-600">₦{packPrice.toLocaleString()} each</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Quantity</span>
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={() => cartPackCount > 0 && onCartPackChange && onCartPackChange(cartPackCount - 1)}
-                      disabled={cartPackCount <= 0}
-                      className={`w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold transition-all ${cartPackCount <= 0
+              {/* Food Pack Selector - Only show for food vendors */}
+              {!isBusinessVendor && (
+                <div className="bg-orange-50 rounded-xl p-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="font-semibold text-black">Food Pack</span>
+                    <span className="text-sm text-gray-600">₦{packPrice.toLocaleString()} each</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Quantity</span>
+                    <div className="flex items-center space-x-3">
+                      <button
+                        onClick={() => cartPackCount > 0 && onCartPackChange && onCartPackChange(cartPackCount - 1)}
+                        disabled={cartPackCount <= 0}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold transition-all ${cartPackCount <= 0
                           ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                           : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm active:scale-95'
-                        }`}
-                    >
-                      –
-                    </button>
-                    <span className="w-10 text-center font-bold text-lg">{cartPackCount}</span>
-                    <button
-                      onClick={() => onCartPackChange && onCartPackChange(cartPackCount + 1)}
-                      className="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center text-xl font-bold hover:bg-orange-600 shadow-sm active:scale-95 transition-all"
-                    >
-                      +
-                    </button>
+                          }`}
+                      >
+                        –
+                      </button>
+                      <span className="w-10 text-center font-bold text-lg">{cartPackCount}</span>
+                      <button
+                        onClick={() => onCartPackChange && onCartPackChange(cartPackCount + 1)}
+                        className="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center text-xl font-bold hover:bg-orange-600 shadow-sm active:scale-95 transition-all"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
+                  {cartPackCount > 0 && (
+                    <p className="text-sm text-orange-600 mt-2 font-medium">
+                      Food pack total: ₦{(packPrice * cartPackCount).toLocaleString()}
+                    </p>
+                  )}
                 </div>
-                {cartPackCount > 0 && (
-                  <p className="text-sm text-orange-600 mt-2 font-medium">
-                    Food pack total: ₦{(packPrice * cartPackCount).toLocaleString()}
-                  </p>
-                )}
-              </div>
+              )}
 
               {/* Order Summary */}
               <div className="space-y-2">
@@ -220,7 +225,7 @@ export const Cart: React.FC<CartProps> = ({
                   <span>Delivery Fee</span>
                   <span className="font-medium">₦{deliveryFee.toLocaleString()}</span>
                 </div>
-                {cartPackCount > 0 && (
+                {!isBusinessVendor && cartPackCount > 0 && (
                   <div className="flex justify-between text-gray-600">
                     <span>Food Packs ({cartPackCount}x)</span>
                     <span className="font-medium">₦{(packPrice * cartPackCount).toLocaleString()}</span>

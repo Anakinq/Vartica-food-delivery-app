@@ -51,6 +51,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const [success, setSuccess] = useState(false);
   const [paystackScriptLoaded, setPaystackScriptLoaded] = useState(false);
   const [scriptLoading, setScriptLoading] = useState(false);
+  const [showRetryButton, setShowRetryButton] = useState(false);
+  const [showRetryButton, setShowRetryButton] = useState(false);
 
   // Function to calculate delivery fee based on hostel location
   const calculateDeliveryFee = (hostel: string): number => {
@@ -107,7 +109,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
     script.setAttribute('crossorigin', 'anonymous');
 
     let retryCount = 0;
-    const maxRetries = 3;
+    const maxRetries = 5;
 
     const handleLoad = () => {
       if ((window as any).PaystackPop) {
@@ -115,18 +117,22 @@ export const Checkout: React.FC<CheckoutProps> = ({
         setScriptLoading(false);
         setError('');
         console.log('Paystack script loaded successfully');
+        showToast({ type: 'success', message: 'Payment system ready!' });
       } else {
         if (retryCount < maxRetries) {
           retryCount++;
-          console.log(`Paystack initialization attempt ${retryCount} failed, retrying...`);
+          const delay = Math.min(1000 * Math.pow(2, retryCount) + Math.random() * 1000, 10000); // Exponential backoff with jitter
+          console.log(`Paystack initialization attempt ${retryCount} failed, retrying in ${delay}ms...`);
           setTimeout(() => {
             // Re-add the script
             document.head.appendChild(script);
-          }, 1000 * retryCount);
+          }, delay);
         } else {
-          setError('Payment system failed to initialize after multiple attempts. Please refresh the page or try again later.');
+          setError('Payment system failed to initialize after multiple attempts. Please check your internet connection and try again.');
           setScriptLoading(false);
+          setShowRetryButton(true);
           console.error('Paystack failed to initialize after retries');
+          showToast({ type: 'error', message: 'Payment system unavailable. Please refresh the page or try the retry button.' });
         }
       }
     };
@@ -134,7 +140,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
     const handleError = () => {
       if (retryCount < maxRetries) {
         retryCount++;
-        console.log(`Paystack load attempt ${retryCount} failed, retrying in ${retryCount} seconds...`);
+        const delay = Math.min(1000 * Math.pow(2, retryCount) + Math.random() * 1000, 10000); // Exponential backoff with jitter
+        console.log(`Paystack load attempt ${retryCount} failed, retrying in ${delay}ms...`);
         setTimeout(() => {
           // Create new script element for retry
           const newScript = document.createElement('script');
@@ -145,12 +152,14 @@ export const Checkout: React.FC<CheckoutProps> = ({
           newScript.onload = handleLoad;
           newScript.onerror = handleError;
           document.head.appendChild(newScript);
-        }, 1000 * retryCount);
+        }, delay);
       } else {
         setError('Payment system failed to load. Please check your internet connection and try again.');
         setPaystackScriptLoaded(false);
         setScriptLoading(false);
+        setShowRetryButton(true);
         console.error('Paystack script failed to load after retries');
+        showToast({ type: 'error', message: 'Payment system unavailable. Please refresh the page or try the retry button.' });
       }
     };
 
@@ -170,6 +179,12 @@ export const Checkout: React.FC<CheckoutProps> = ({
       if (existing) existing.remove();
     };
   }, []);
+
+  const handleManualRetry = () => {
+    setError('');
+    setShowRetryButton(false);
+    reloadPaystackScript();
+  };
 
   const MIN_NGN = 100;
   const packPrice = 300.00;
@@ -423,14 +438,24 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
   const initializePaystackPayment = () => {
     if (!(window as any).PaystackPop) {
-      showToast({ type: 'error', message: 'Payment gateway not loaded. Please refresh and try again.' });
+      // Try to reload the script one more time
+      reloadPaystackScript();
+      setTimeout(() => {
+        if (!(window as any).PaystackPop) {
+          showToast({ type: 'error', message: 'Payment gateway not loaded. Please refresh and try again.' });
+        } else {
+          // Script loaded, try payment again
+          initializePaystackPayment();
+        }
+      }, 2000);
       return;
     }
     if (!profile?.email) {
       showToast({ type: 'error', message: 'Email is required for payment. Please update your profile.' });
       return;
     }
-    const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY?.trim();
+    // Use your provided live key
+    const paystackKey = 'pk_live_ca2ed0ce730330e603e79901574f930abee50ec6';
     if (!paystackKey) {
       showToast({ type: 'error', message: 'Payment system not configured. Please contact support.' });
       console.error('VITE_PAYSTACK_PUBLIC_KEY not set');
@@ -530,7 +555,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
                   <p className="text-red-700 text-sm flex-1">{error}</p>
                   <button
                     type="button"
-                    onClick={reloadPaystackScript}
+                    onClick={handleManualRetry}
                     disabled={scriptLoading}
                     className="ml-2 flex items-center px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium disabled:opacity-50"
                   >
@@ -651,7 +676,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
             {/* Pay Button */}
             {!paystackScriptLoaded ? (
               <div className="space-y-3">
-                {error && (
+                {error && !showRetryButton && (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                     <p className="text-red-700 text-sm">{error}</p>
                   </div>
@@ -674,6 +699,16 @@ export const Checkout: React.FC<CheckoutProps> = ({
                     </>
                   )}
                 </button>
+                {showRetryButton && (
+                  <button
+                    type="button"
+                    onClick={handleManualRetry}
+                    className="w-full bg-blue-600 text-white py-3 rounded-full font-semibold hover:bg-blue-700 transition-colors shadow-lg flex items-center justify-center"
+                  >
+                    <RefreshCw className="h-5 w-5 mr-2" />
+                    Retry Payment System
+                  </button>
+                )}
                 <p className="text-center text-sm text-gray-500">
                   Having trouble? Try refreshing the page or check your internet connection.
                 </p>
