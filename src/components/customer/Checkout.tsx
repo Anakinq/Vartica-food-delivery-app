@@ -1,6 +1,7 @@
 // src/components/customer/Checkout.tsx
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Check, AlertCircle, X, RefreshCw } from 'lucide-react';
+import { PaystackButton } from 'react-paystack';
 import { supabase, MenuItem } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -49,9 +50,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [paystackScriptLoaded, setPaystackScriptLoaded] = useState(false);
+  const [paystackScriptLoaded, setPaystackScriptLoaded] = useState(true); // Always true with npm package
   const [scriptLoading, setScriptLoading] = useState(false);
-  const [showRetryButton, setShowRetryButton] = useState(false);
 
   // Function to calculate delivery fee based on hostel location
   const calculateDeliveryFee = (hostel: string): number => {
@@ -88,101 +88,11 @@ export const Checkout: React.FC<CheckoutProps> = ({
     }
   }, [formData.deliveryAddress]);
 
-  // Function to reload Paystack script with retry mechanism
-  const reloadPaystackScript = () => {
-    setScriptLoading(true);
-    setError('');
-    const scriptId = 'paystack-inline-js';
-
-    // Remove existing script if any
-    const existing = document.getElementById(scriptId);
-    if (existing) existing.remove();
-
-    // Clear any cached Paystack global
-    delete (window as any).PaystackPop;
-
-    const script = document.createElement('script');
-    script.id = scriptId;
-    script.src = 'https://js.paystack.co/v1/inline.js';
-    script.async = true;
-    script.setAttribute('crossorigin', 'anonymous');
-
-    let retryCount = 0;
-    const maxRetries = 5;
-
-    const handleLoad = () => {
-      if ((window as any).PaystackPop) {
-        setPaystackScriptLoaded(true);
-        setScriptLoading(false);
-        setError('');
-        console.log('Paystack script loaded successfully');
-        showToast({ type: 'success', message: 'Payment system ready!' });
-      } else {
-        if (retryCount < maxRetries) {
-          retryCount++;
-          const delay = Math.min(1000 * Math.pow(2, retryCount) + Math.random() * 1000, 10000); // Exponential backoff with jitter
-          console.log(`Paystack initialization attempt ${retryCount} failed, retrying in ${delay}ms...`);
-          setTimeout(() => {
-            // Re-add the script
-            document.head.appendChild(script);
-          }, delay);
-        } else {
-          setError('Payment system failed to initialize after multiple attempts. Please check your internet connection and try again.');
-          setScriptLoading(false);
-          setShowRetryButton(true);
-          console.error('Paystack failed to initialize after retries');
-          showToast({ type: 'error', message: 'Payment system unavailable. Please refresh the page or try the retry button.' });
-        }
-      }
-    };
-
-    const handleError = () => {
-      if (retryCount < maxRetries) {
-        retryCount++;
-        const delay = Math.min(1000 * Math.pow(2, retryCount) + Math.random() * 1000, 10000); // Exponential backoff with jitter
-        console.log(`Paystack load attempt ${retryCount} failed, retrying in ${delay}ms...`);
-        setTimeout(() => {
-          // Create new script element for retry
-          const newScript = document.createElement('script');
-          newScript.id = scriptId;
-          newScript.src = 'https://js.paystack.co/v1/inline.js';
-          newScript.async = true;
-          newScript.setAttribute('crossorigin', 'anonymous');
-          newScript.onload = handleLoad;
-          newScript.onerror = handleError;
-          document.head.appendChild(newScript);
-        }, delay);
-      } else {
-        setError('Payment system failed to load. Please check your internet connection and try again.');
-        setPaystackScriptLoaded(false);
-        setScriptLoading(false);
-        setShowRetryButton(true);
-        console.error('Paystack script failed to load after retries');
-        showToast({ type: 'error', message: 'Payment system unavailable. Please refresh the page or try the retry button.' });
-      }
-    };
-
-    script.onload = handleLoad;
-    script.onerror = handleError;
-
-    document.head.appendChild(script);
-  };
-
-  // Load Paystack script safely with automatic retry
-  useEffect(() => {
-    reloadPaystackScript();
-
-    // Add cleanup function
-    return () => {
-      const existing = document.getElementById('paystack-inline-js');
-      if (existing) existing.remove();
-    };
-  }, []);
-
+  // Remove the old script loading functions since we're using the npm package
   const handleManualRetry = () => {
     setError('');
-    setShowRetryButton(false);
-    reloadPaystackScript();
+    // With npm package, retry is handled automatically
+    showToast({ type: 'info', message: 'Payment system is ready to use' });
   };
 
   const MIN_NGN = 100;
@@ -193,6 +103,36 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const total = effectiveSubtotal + packTotal + effectiveDeliveryFeeCalc - discount;
   const effectiveTotal = Math.max(total + platformCommission, MIN_NGN);
   const totalInKobo = Math.round(effectiveTotal * 100);
+
+  // Paystack configuration
+  const paystackConfig = {
+    email: profile?.email || '',
+    amount: totalInKobo,
+    metadata: {
+      custom_fields: [
+        {
+          display_name: "Order Items",
+          variable_name: "order_items",
+          value: items.map(item => `${item.name} x${item.quantity}`).join(', ')
+        },
+        {
+          display_name: "Delivery Address",
+          variable_name: "delivery_address",
+          value: formData.deliveryAddress
+        }
+      ]
+    },
+    publicKey: 'pk_live_ca2ed0ce730330e603e79901574f930abee50ec6',
+    text: 'Pay Now',
+    onSuccess: (reference: any) => {
+      console.log('Payment successful:', reference);
+      handlePaystackSuccess(reference);
+    },
+    onClose: () => {
+      console.log('Payment closed');
+      setError('Payment cancelled');
+    },
+  };
 
   const handleApplyPromo = async () => {
     setPromoError('');
@@ -436,19 +376,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
   };
 
   const initializePaystackPayment = () => {
-    if (!(window as any).PaystackPop) {
-      // Try to reload the script one more time
-      reloadPaystackScript();
-      setTimeout(() => {
-        if (!(window as any).PaystackPop) {
-          showToast({ type: 'error', message: 'Payment gateway not loaded. Please refresh and try again.' });
-        } else {
-          // Script loaded, try payment again
-          initializePaystackPayment();
-        }
-      }, 2000);
-      return;
-    }
+    // With npm package, Paystack is always available
     if (!profile?.email) {
       showToast({ type: 'error', message: 'Email is required for payment. Please update your profile.' });
       return;
@@ -673,16 +601,16 @@ export const Checkout: React.FC<CheckoutProps> = ({
             </div>
 
             {/* Pay Button */}
-            {!paystackScriptLoaded ? (
+            {paystackScriptLoaded ? (
               <div className="space-y-3">
-                {error && !showRetryButton && (
+                {error && (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                     <p className="text-red-700 text-sm">{error}</p>
                   </div>
                 )}
                 <button
                   type="button"
-                  onClick={reloadPaystackScript}
+                  onClick={initializePaystackPayment}
                   disabled={scriptLoading}
                   className="w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-colors shadow-lg disabled:opacity-70 flex items-center justify-center"
                 >
@@ -698,36 +626,22 @@ export const Checkout: React.FC<CheckoutProps> = ({
                     </>
                   )}
                 </button>
-                {showRetryButton && (
-                  <button
-                    type="button"
-                    onClick={handleManualRetry}
-                    className="w-full bg-blue-600 text-white py-3 rounded-full font-semibold hover:bg-blue-700 transition-colors shadow-lg flex items-center justify-center"
-                  >
-                    <RefreshCw className="h-5 w-5 mr-2" />
-                    Retry Payment System
-                  </button>
-                )}
+
                 <p className="text-center text-sm text-gray-500">
                   Having trouble? Try refreshing the page or check your internet connection.
                 </p>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={initializePaystackPayment}
-                disabled={loading || !formData.deliveryAddress}
-                className="w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Processing...
-                  </>
-                ) : (
-                  `Pay Now • ₦${effectiveTotal.toFixed(2)}`
-                )}
-              </button>
+              <div className="w-full space-y-3">
+                <PaystackButton
+                  {...paystackConfig}
+                  className="w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  disabled={loading || !formData.deliveryAddress}
+                />
+                <p className="text-center text-sm text-gray-500">
+                  Secure payment powered by Paystack • ₦{effectiveTotal.toFixed(2)}
+                </p>
+              </div>
             )}
           </form>
         </div>

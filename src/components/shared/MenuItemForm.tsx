@@ -27,9 +27,9 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Determine if this is a business vendor (student) vs late night vendor
-  const isBusinessVendor = profile?.vendor?.vendor_type === 'student';
-  const isLateNightVendor = profile?.vendor?.vendor_type === 'late_night';
+  // Determine if this is a business vendor (late_night) vs food vendor (student)
+  const isBusinessVendor = profile?.vendor?.vendor_type === 'late_night';
+  const isFoodVendor = profile?.vendor?.vendor_type === 'student';
 
   useEffect(() => {
     setImagePreview(item?.image_url ? decodeURIComponent(item.image_url) : null);
@@ -163,7 +163,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
                     <option value="Sports">Sports</option>
                     <option value="Other">Other</option>
                   </>
-                ) : isLateNightVendor ? (
+                ) : isFoodVendor ? (
                   <>
                     <option value="Main Course">Main Course</option>
                     <option value="Swallow">Swallow</option>

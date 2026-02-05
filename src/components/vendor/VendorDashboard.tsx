@@ -420,7 +420,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       console.log('[Vendor] Approval status determined:', status);
       setApprovalStatus(status);
       setLoadingApproval(false);
-      
+
       // If approved, fetch vendor data
       if (status === true) {
         fetchData();
@@ -772,7 +772,6 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
                   {/* Image display section */}
                   {item.image_url && (
                     <div className="mb-3">
-                      <p className="text-xs text-gray-500 mb-1">Image URL: {item.image_url}</p>
                       <img
                         src={item.image_url}
                         alt={item.name}
