@@ -14,6 +14,8 @@ export interface Profile {
     created_at?: string;
     vendor_approved?: boolean | null;
     delivery_approved?: boolean | null;
+    is_vendor?: boolean;
+    is_delivery_agent?: boolean;
 }
 
 export interface Cafeteria {

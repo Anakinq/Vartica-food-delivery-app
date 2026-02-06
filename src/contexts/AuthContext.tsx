@@ -46,6 +46,11 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
   checkApprovalStatus: (userId: string, role: string) => Promise<boolean | null>;
   linkAccountWithEmailPassword: (password: string) => Promise<{ data: { user: ServiceUser | null }; error: Error | null } | { data: null; error: Error }>;
+  // Multi-role functions
+  addDeliveryAgentRole: (vehicleType?: string) => Promise<void>;
+  addVendorRole: (storeName: string, vendorType?: string) => Promise<void>;
+  hasRole: (role: 'customer' | 'vendor' | 'delivery_agent') => boolean;
+  getUserRoles: () => string[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -578,6 +583,79 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Add delivery agent role to existing user
+  const addDeliveryAgentRole = async (vehicleType: string = 'Bike') => {
+    if (!user?.id) {
+      throw new Error('User not authenticated');
+    }
+
+    try {
+      const { error } = await supabase.rpc('add_delivery_agent_role', {
+        user_id: user.id,
+        vehicle_type: vehicleType
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Refresh profile to get updated roles
+      await refreshProfile();
+    } catch (err) {
+      console.error('Error adding delivery agent role:', err);
+      throw err;
+    }
+  };
+
+  // Add vendor role to existing user
+  const addVendorRole = async (storeName: string, vendorType: string = 'student') => {
+    if (!user?.id) {
+      throw new Error('User not authenticated');
+    }
+
+    try {
+      const { error } = await supabase.rpc('add_vendor_role', {
+        user_id: user.id,
+        store_name: storeName,
+        vendor_type: vendorType
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Refresh profile to get updated roles
+      await refreshProfile();
+    } catch (err) {
+      console.error('Error adding vendor role:', err);
+      throw err;
+    }
+  };
+
+  // Check if user has a specific role
+  const hasRole = (role: 'customer' | 'vendor' | 'delivery_agent'): boolean => {
+    if (!profile) return false;
+
+    switch (role) {
+      case 'vendor':
+        return profile.is_vendor || ['vendor', 'late_night_vendor'].includes(profile.role);
+      case 'delivery_agent':
+        return profile.is_delivery_agent || profile.role === 'delivery_agent';
+      case 'customer':
+        return true; // Everyone is a customer by default
+      default:
+        return false;
+    }
+  };
+
+  // Get all user roles
+  const getUserRoles = (): string[] => {
+    const roles = ['customer'];
+    if (hasRole('vendor')) roles.push('vendor');
+    if (hasRole('delivery_agent')) roles.push('delivery_agent');
+    return roles;
+  };
+
   // Sign out
   const signOut = async () => {
     console.log('Sign out initiated');
@@ -624,6 +702,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         refreshProfile,
         checkApprovalStatus,
         linkAccountWithEmailPassword,
+        addDeliveryAgentRole,
+        addVendorRole,
+        hasRole,
+        getUserRoles,
       }}
     >
       {children}

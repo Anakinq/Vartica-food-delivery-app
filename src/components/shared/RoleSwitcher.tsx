@@ -1,47 +1,37 @@
 // src/components/shared/RoleSwitcher.tsx
 import React, { useState } from 'react';
-import { User, Store, ArrowLeftRight } from 'lucide-react';
+import { User, Store, Truck, ArrowLeftRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase/client';
 
 interface RoleSwitcherProps {
     currentRole: 'customer' | 'vendor' | 'late_night_vendor' | 'cafeteria' | 'delivery_agent' | 'admin';
-    onRoleSwitch: (newRole: 'customer' | 'vendor') => void;
+    onRoleSwitch?: (newRole: 'customer' | 'vendor' | 'delivery_agent') => void;
 }
 
 export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
     currentRole,
     onRoleSwitch
 }) => {
-    const { profile, refreshProfile } = useAuth();
+    const { profile, refreshProfile, hasRole, getUserRoles } = useAuth();
     const [isSwitching, setIsSwitching] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
 
-    // Check if user has both customer and vendor capabilities
-    // User can switch TO vendor view if:
-    // 1. They have a profile
-    // 2. Their role includes vendor capability
-    // 3. They have an approved vendor record OR their role is 'vendor' (pending approval)
-    const canSwitchToVendor = profile &&
-        (['customer', 'vendor', 'late_night_vendor'].includes(profile.role)) &&
-        // Check if vendor record exists (vendor_id is present or role is vendor with no vendor_id)
-        (profile.vendor_id || profile.role === 'vendor' || profile.role === 'late_night_vendor');
+    // Get available roles for this user
+    const availableRoles = getUserRoles();
 
-    // User can switch TO customer view if:
-    // 1. They have a profile
-    // 2. Their current role is vendor (with or without vendor record)
-    const canSwitchToCustomer = profile &&
-        (currentRole === 'vendor' || currentRole === 'late_night_vendor');
+    // Check capabilities
+    const canSwitchToVendor = hasRole('vendor');
+    const canSwitchToDelivery = hasRole('delivery_agent');
+    const canSwitchToCustomer = true; // Everyone can be a customer
 
-    // Can switch if switching to a valid role for this user
-    const canSwitchRoles = currentRole === 'customer' ? canSwitchToVendor : canSwitchToCustomer;
+    // Determine available target roles
+    const targetRoles = availableRoles.filter(role => role !== currentRole);
 
-    const handleRoleSwitch = async () => {
-        console.log('[RoleSwitch] Starting switch...');
-        console.log('[RoleSwitch] Current profile:', profile);
+    const handleRoleSwitch = async (targetRole: 'customer' | 'vendor' | 'delivery_agent') => {
+        console.log('[RoleSwitch] Starting switch to:', targetRole);
         console.log('[RoleSwitch] Current role:', currentRole);
-        console.log('[RoleSwitch] Has vendor_id:', profile?.vendor_id);
-        console.log('[RoleSwitch] Profile role:', profile?.role);
+        console.log('[RoleSwitch] Available roles:', availableRoles);
 
         if (!profile) {
             console.error('[RoleSwitch] ERROR: No profile found!');
@@ -51,23 +41,32 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
 
         setIsSwitching(true);
         try {
-            const newRole = currentRole === 'customer' ? 'vendor' : 'customer';
-            console.log('[RoleSwitch] Switching to role:', newRole);
+            console.log('[RoleSwitch] Switching to role:', targetRole);
 
-            // Store the preferred role in sessionStorage
-            sessionStorage.setItem('preferredRole', newRole);
-
-            // If switching to customer and no vendor record exists, clear any vendor-related state
-            if (newRole === 'customer' && !profile.vendor_id) {
-                console.log('[RoleSwitch] No vendor record exists, clearing vendor state...');
+            // Update URL hash for routing
+            switch (targetRole) {
+                case 'vendor':
+                    window.location.hash = '#/vendor';
+                    break;
+                case 'delivery_agent':
+                    window.location.hash = '#/delivery';
+                    break;
+                default:
+                    window.location.hash = '';
+                    break;
             }
 
-            // Trigger the role switch callback
-            onRoleSwitch(newRole as 'customer' | 'vendor');
+            // Store the preferred role in sessionStorage
+            sessionStorage.setItem('preferredRole', targetRole);
+
+            // Trigger the role switch callback if provided
+            if (onRoleSwitch) {
+                onRoleSwitch(targetRole);
+            }
 
             // Refresh profile to ensure we have latest data
             await refreshProfile();
-            console.log('[RoleSwitch] Profile refreshed, new state:', profile);
+            console.log('[RoleSwitch] Profile refreshed');
 
             // Close confirmation dialog
             setShowConfirmation(false);
@@ -87,38 +86,38 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
                 return {
                     icon: User,
                     label: 'Customer View',
-                    description: 'Browse and order food'
+                    description: 'Browse and order food',
+                    color: 'blue'
                 };
             case 'vendor':
             case 'late_night_vendor':
                 return {
                     icon: Store,
                     label: 'Vendor View',
-                    description: 'Manage your store and orders'
+                    description: 'Manage your store and orders',
+                    color: 'green'
+                };
+            case 'delivery_agent':
+                return {
+                    icon: Truck,
+                    label: 'Delivery View',
+                    description: 'Manage deliveries and earnings',
+                    color: 'orange'
                 };
             default:
                 return {
                     icon: User,
                     label: 'Customer View',
-                    description: 'Browse and order food'
+                    description: 'Browse and order food',
+                    color: 'blue'
                 };
         }
     };
 
     const currentRoleInfo = getRoleDisplayInfo(currentRole);
-    const targetRole = currentRole === 'customer' ? 'vendor' : 'customer';
-    const targetRoleInfo = getRoleDisplayInfo(targetRole);
 
-    // Determine if switch is allowed
-    const isSwitchAllowed = currentRole === 'customer' ? canSwitchToVendor : canSwitchToCustomer;
-
-    // Show warning if no vendor record exists
-    const showNoVendorWarning = currentRole === 'customer' &&
-        profile &&
-        !profile.vendor_id &&
-        (profile.role === 'vendor' || profile.role === 'late_night_vendor');
-
-    if (!isSwitchAllowed) {
+    // Show switcher if user has multiple roles
+    if (availableRoles.length <= 1) {
         return null;
     }
 
@@ -129,11 +128,11 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
                 onClick={() => setShowConfirmation(true)}
                 disabled={isSwitching}
                 className="flex items-center space-x-2 bg-white border border-gray-200 rounded-lg px-4 py-2 shadow-lg hover:shadow-xl transition-all duration-200 hover:border-blue-300 disabled:opacity-50"
-                aria-label="Switch between customer and vendor views"
+                aria-label="Switch between roles"
             >
                 <ArrowLeftRight className="h-4 w-4 text-gray-600" />
                 <span className="text-sm font-medium text-gray-700">
-                    Switch to {targetRoleInfo.label}
+                    Switch Role
                 </span>
             </button>
 
@@ -147,89 +146,74 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
                             </div>
 
                             <h3 className="text-xl font-bold text-gray-900 mb-2">
-                                Switch Roles?
+                                Switch Roles
                             </h3>
+                            <p className="text-gray-600 mb-4">
+                                Choose which view you want to access
+                            </p>
 
-                            <div className="space-y-4 mb-6">
-                                {/* Warning if no vendor record exists */}
-                                {showNoVendorWarning && (
-                                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                                        <p className="text-sm text-yellow-800">
-                                            <strong>Note:</strong> You don't have an approved vendor record yet.
-                                            You'll be able to browse as a customer but not access vendor features.
-                                        </p>
-                                    </div>
-                                )}
-
-                                {/* Customer view */}
-                                <div className="text-left p-3 bg-gray-50 rounded-lg">
+                            <div className="space-y-3 mb-6">
+                                {/* Current role */}
+                                <div className="text-left p-3 bg-gray-100 rounded-lg border border-gray-200">
                                     <div className="flex items-center space-x-2 mb-1">
                                         {React.createElement(currentRoleInfo.icon, { className: "h-4 w-4 text-gray-600" })}
-                                        <span className="font-medium text-gray-900">{currentRoleInfo.label}</span>
+                                        <span className="font-medium text-gray-900">Current: {currentRoleInfo.label}</span>
                                     </div>
                                     <p className="text-sm text-gray-600">{currentRoleInfo.description}</p>
                                 </div>
 
-                                <div className="flex justify-center">
-                                    <ArrowLeftRight className="h-5 w-5 text-gray-400" />
-                                </div>
+                                {/* Available roles to switch to */}
+                                <div className="space-y-2">
+                                    <p className="text-sm font-medium text-gray-700">Switch to:</p>
+                                    {targetRoles.map(role => {
+                                        const roleInfo = getRoleDisplayInfo(role);
+                                        const isAvailable =
+                                            role === 'vendor' ? canSwitchToVendor :
+                                                role === 'delivery_agent' ? canSwitchToDelivery :
+                                                    canSwitchToCustomer;
 
-                                {/* Target view */}
-                                <div className={`text-left p-3 rounded-lg border ${targetRole === 'vendor' && !canSwitchToVendor
-                                        ? 'bg-red-50 border-red-200'
-                                        : 'bg-blue-50 border-blue-100'
-                                    }`}>
-                                    <div className="flex items-center space-x-2 mb-1">
-                                        {React.createElement(targetRoleInfo.icon, {
-                                            className: `h-4 w-4 ${targetRole === 'vendor' && !canSwitchToVendor ? 'text-red-600' : 'text-blue-600'}`
-                                        })}
-                                        <span className={`font-medium ${targetRole === 'vendor' && !canSwitchToVendor
-                                                ? 'text-red-900'
-                                                : 'text-blue-900'
-                                            }`}>
-                                            {targetRole === 'vendor' && !canSwitchToVendor
-                                                ? 'Cannot Switch to Vendor'
-                                                : targetRoleInfo.label}
-                                        </span>
-                                    </div>
-                                    <p className={`text-sm ${targetRole === 'vendor' && !canSwitchToVendor
-                                            ? 'text-red-700'
-                                            : 'text-blue-700'
-                                        }`}>
-                                        {targetRole === 'vendor' && !canSwitchToVendor
-                                            ? 'No vendor record linked to this account'
-                                            : targetRoleInfo.description}
-                                    </p>
+                                        return (
+                                            <button
+                                                key={role}
+                                                onClick={() => handleRoleSwitch(role as any)}
+                                                disabled={!isAvailable || isSwitching}
+                                                className={`w-full text-left p-3 rounded-lg border transition-all ${isAvailable
+                                                    ? 'hover:border-blue-300 hover:bg-blue-50 cursor-pointer'
+                                                    : 'bg-gray-100 border-gray-200 cursor-not-allowed opacity-50'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center space-x-3">
+                                                    {React.createElement(roleInfo.icon, {
+                                                        className: `h-5 w-5 ${isAvailable ? `text-${roleInfo.color}-600` : 'text-gray-400'}`
+                                                    })}
+                                                    <div>
+                                                        <div className="font-medium text-gray-900">
+                                                            {roleInfo.label}
+                                                        </div>
+                                                        <div className={`text-sm ${isAvailable ? `text-${roleInfo.color}-700` : 'text-gray-500'}`}>
+                                                            {roleInfo.description}
+                                                        </div>
+                                                        {!isAvailable && (
+                                                            <div className="text-xs text-red-600 mt-1">
+                                                                {role === 'vendor' ? 'Vendor approval required' :
+                                                                    role === 'delivery_agent' ? 'Delivery agent approval required' :
+                                                                        'Not available'}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
 
-                            <div className="flex space-x-3">
-                                <button
-                                    onClick={() => setShowConfirmation(false)}
-                                    className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleRoleSwitch}
-                                    disabled={isSwitching || (targetRole === 'vendor' && !canSwitchToVendor)}
-                                    className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center ${targetRole === 'vendor' && !canSwitchToVendor
-                                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                            : 'bg-blue-600 text-white hover:bg-blue-700'
-                                        }`}
-                                >
-                                    {isSwitching ? (
-                                        <>
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                            Switching...
-                                        </>
-                                    ) : (
-                                        targetRole === 'vendor' && !canSwitchToVendor
-                                            ? 'Vendor Record Required'
-                                            : 'Confirm Switch'
-                                    )}
-                                </button>
-                            </div>
+                            <button
+                                onClick={() => setShowConfirmation(false)}
+                                className="w-full py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+                            >
+                                Close
+                            </button>
                         </div>
                     </div>
                 </div>

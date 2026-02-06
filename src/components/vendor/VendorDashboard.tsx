@@ -39,7 +39,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   const [selectedOrderForChat, setSelectedOrderForChat] = useState<{ order: Order, chatWith: 'customer' | 'delivery' } | null>(null);
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [reviews, setReviews] = useState<any[]>([]); // Replace with proper type when available
-  const [preferredRole, setPreferredRole] = useState<'customer' | 'vendor'>('vendor');
+  const [preferredRole, setPreferredRole] = useState<'customer' | 'vendor' | 'delivery_agent'>('vendor');
   const [metrics, setMetrics] = useState({
     totalOrders: 0,
     totalRevenue: 0,
@@ -437,25 +437,38 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   }, []);
 
   // Handle role switching
-  const handleRoleSwitch = (newRole: 'customer' | 'vendor') => {
+  const handleRoleSwitch = (newRole: 'customer' | 'vendor' | 'delivery_agent') => {
     setPreferredRole(newRole);
     // Store in sessionStorage for persistence
     sessionStorage.setItem('preferredRole', newRole);
 
     // Show a toast notification
-    const message = `Switching to ${newRole === 'customer' ? 'Customer' : 'Vendor'} view...`;
+    const roleNames = {
+      customer: 'Customer',
+      vendor: 'Vendor',
+      delivery_agent: 'Delivery Agent'
+    };
+    const message = `Switching to ${roleNames[newRole]} view...`;
     showToast({ type: 'info', message });
 
-    // If switching to customer view, redirect by clearing the hash
-    if (newRole === 'customer') {
-      window.location.hash = '';
-      window.location.reload();
-    }
-
-    // If switching to vendor view and user is actually a vendor, ensure hash is set
-    if (newRole === 'vendor' && profile?.role && ['vendor', 'late_night_vendor'].includes(profile.role)) {
-      window.location.hash = '#/vendor';
-      window.location.reload();
+    // Handle role switching
+    switch (newRole) {
+      case 'customer':
+        window.location.hash = '';
+        window.location.reload();
+        break;
+      case 'vendor':
+        if (profile?.role && ['vendor', 'late_night_vendor'].includes(profile.role)) {
+          window.location.hash = '#/vendor';
+          window.location.reload();
+        }
+        break;
+      case 'delivery_agent':
+        if (profile?.role === 'delivery_agent') {
+          window.location.hash = '#/delivery';
+          window.location.reload();
+        }
+        break;
     }
   };
 
@@ -659,6 +672,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
               <p className="text-sm text-gray-600">{profile?.full_name}</p>
             </div>
             <div className="flex items-center space-x-3">
+              <RoleSwitcher currentRole="vendor" />
               {/* Hamburger Menu */}
               <button
                 onClick={() => setShowMenu(!showMenu)}

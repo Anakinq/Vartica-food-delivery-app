@@ -7,6 +7,7 @@ import { ExtendedProfile } from '../../types';
 import { VendorUpgradeModal } from '../customer/VendorUpgradeModal';
 
 export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => void }> = ({ onBack, onSignOut }) => {
+  console.log('ProfileDashboard: Component rendered');
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showVendorUpgrade, setShowVendorUpgrade] = useState(false);
   const { profile, refreshProfile } = useAuth();

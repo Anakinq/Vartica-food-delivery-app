@@ -9,6 +9,7 @@ import { supabase, Order, DeliveryAgent, Profile } from '../../lib/supabase';
 import { ChatModal } from '../shared/ChatModal';
 import { LocationTracker } from '../shared/LocationTracker';
 import { WalletService } from '../../services';
+import { RoleSwitcher } from '../shared/RoleSwitcher';
 import { notificationService } from '../../services/notification.service';
 
 // Interfaces
@@ -658,6 +659,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
             </div>
 
             <div className="flex items-center space-x-3">
+              <RoleSwitcher currentRole="delivery_agent" />
               {/* Desktop Profile Button */}
               {onShowProfile && (
                 <button

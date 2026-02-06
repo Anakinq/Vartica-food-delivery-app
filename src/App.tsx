@@ -15,6 +15,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { UserRole } from './types';
+import { Profile } from './lib/supabase/types';
 
 function AppContent() {
   const { user, profile, loading } = useAuth();
@@ -25,13 +26,23 @@ function AppContent() {
   // Check for hash-based routing when component mounts and when location changes
   useEffect(() => {
     const handleHashChange = () => {
-      if (window.location.hash === '#/vendor' && user && profile) {
-        // Check if user is actually a vendor
-        if (profile.role && ['vendor', 'late_night_vendor'].includes(profile.role)) {
-          return; // Allow vendor view
-        } else {
-          // If not a vendor, redirect to customer view and clear hash
-          window.location.hash = '';
+      if (user && profile) {
+        if (window.location.hash === '#/vendor') {
+          // Check if user has vendor role
+          if ((profile as Profile).is_vendor || ['vendor', 'late_night_vendor'].includes(profile.role)) {
+            return; // Allow vendor view
+          } else {
+            // If not a vendor, redirect to customer view and clear hash
+            window.location.hash = '';
+          }
+        } else if (window.location.hash === '#/delivery') {
+          // Check if user has delivery_agent role
+          if ((profile as Profile).is_delivery_agent || profile.role === 'delivery_agent') {
+            return; // Allow delivery agent view
+          } else {
+            // If not a delivery agent, redirect to customer view and clear hash
+            window.location.hash = '';
+          }
         }
       }
     };
@@ -58,33 +69,69 @@ function AppContent() {
     );
   }
 
-  // Handle hash-based vendor route
-  if (window.location.hash === '#/vendor' && user && profile) {
-    // Check if user is actually a vendor
-    if (profile.role && ['vendor', 'late_night_vendor'].includes(profile.role)) {
-      return <VendorDashboard onShowProfile={() => setShowProfile(true)} />;
-    } else {
-      // If not a vendor, redirect to customer view and clear hash
-      window.location.hash = '';
-      // Re-render to show customer view
-      return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
+  // Handle hash-based routing
+  if (user && profile) {
+    // Show profile dashboard if requested
+    console.log('App: showProfile=', showProfile, 'user=', !!user, 'profile=', !!profile);
+    if (showProfile) {
+      return (
+        <ProfileDashboard
+          onBack={() => setShowProfile(false)}
+          onSignOut={() => {
+            setShowProfile(false);
+          }}
+        />
+      );
     }
-  }
 
-  // Show profile dashboard if requested
-  if (showProfile && user && profile) {
-    return (
-      <ProfileDashboard
-        onBack={() => setShowProfile(false)}
-        onSignOut={() => {
-          setShowProfile(false);
-        }}
-      />
-    );
+    if (window.location.hash === '#/vendor') {
+      if ((profile as Profile).is_vendor || ['vendor', 'late_night_vendor'].includes(profile.role)) {
+        return <VendorDashboard onShowProfile={() => setShowProfile(true)} />;
+      } else {
+        window.location.hash = '';
+        return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
+      }
+    } else if (window.location.hash === '#/delivery') {
+      if ((profile as Profile).is_delivery_agent || profile.role === 'delivery_agent') {
+        return <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />;
+      } else {
+        window.location.hash = '';
+        return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
+      }
+    }
+
+    // Default routing based on primary role
+    const userRole = profile.role as UserRole;
+    switch (userRole) {
+      case 'admin':
+        return <AdminDashboard onShowProfile={() => setShowProfile(true)} />;
+      case 'delivery_agent':
+        return <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />;
+      case 'cafeteria':
+        return <CafeteriaDashboard profile={profile} onShowProfile={() => setShowProfile(true)} />;
+      case 'vendor':
+      case 'late_night_vendor':
+        return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
+      case 'customer':
+      default:
+        return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
+    }
   }
 
   // If user is authenticated, show appropriate dashboard based on role
   if (user && profile) {
+    // Show profile dashboard if requested
+    console.log('App: showProfile=', showProfile, 'user=', !!user, 'profile=', !!profile);
+    if (showProfile) {
+      return (
+        <ProfileDashboard
+          onBack={() => setShowProfile(false)}
+          onSignOut={() => {
+            setShowProfile(false);
+          }}
+        />
+      );
+    }
     const userRole = profile.role as UserRole;
     switch (userRole) {
       case 'admin':

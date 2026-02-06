@@ -10,6 +10,7 @@ import { Cart } from './Cart';
 import { Checkout } from './Checkout';
 import { OrderTracking } from './OrderTracking';
 import { VendorUpgradeModal } from './VendorUpgradeModal';
+import { RoleSwitcher } from '../shared/RoleSwitcher';
 
 import { CardSkeleton, ListSkeleton } from '../shared/LoadingSkeleton';
 import { Skeleton } from '../shared/LoadingSkeleton';
@@ -512,6 +513,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
             </div>
 
             <div className="flex items-center space-x-4">
+              <RoleSwitcher currentRole="customer" />
               <button
                 onClick={() => setShowOrders(true)}
                 className="p-2 text-gray-700 hover:text-green-600 transition-colors duration-200"
@@ -535,7 +537,10 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
               </button>
 
               <button
-                onClick={onShowProfile}
+                onClick={() => {
+                  console.log('CustomerHome: Profile button clicked');
+                  onShowProfile?.();
+                }}
                 className="flex items-center space-x-1 sm:space-x-2 text-gray-700 hover:text-green-600 transition-colors duration-200"
                 aria-label="View profile"
               >
