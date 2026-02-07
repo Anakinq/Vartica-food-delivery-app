@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 
 export default function AuthCallback() {
@@ -31,30 +30,14 @@ export default function AuthCallback() {
 
         // The Supabase client is configured with detectSessionInUrl: true
         // which should automatically handle the session from the URL
-        // and trigger the auth state change event
+        // and trigger the auth state change event in AuthContext
 
-        // We just need to ensure the page stays on this component
-        // while the AuthContext processes the session
-
-        // Optional: Add a timeout to redirect if auth state change doesn't occur
+        // Wait a bit for the auth state to update, then redirect to home
+        // The AuthContext will handle the user redirection based on their role
         const timer = setTimeout(() => {
-            console.log('OAuth callback timeout - redirecting to home');
-            // Redirect based on role if available
-            if (hashRole) {
-                switch (hashRole) {
-                    case 'vendor':
-                        navigate('/vendor/dashboard');
-                        break;
-                    case 'delivery_agent':
-                        navigate('/delivery');
-                        break;
-                    default:
-                        navigate('/');
-                }
-            } else {
-                navigate('/');
-            }
-        }, 5000);
+            console.log('OAuth callback completed - redirecting to home');
+            navigate('/'); // This will trigger the role-based routing in App.tsx
+        }, 2000); // Shorter timeout since AuthContext should handle the redirect
 
         return () => clearTimeout(timer);
     }, [navigate]);

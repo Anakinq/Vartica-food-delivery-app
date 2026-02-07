@@ -10,6 +10,7 @@ import { ProfileDashboard } from './components/shared/ProfileDashboard';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { DeliveryDashboard } from './components/delivery/DeliveryDashboard';
 import CafeteriaDashboard from './components/cafeteria/CafeteriaDashboard';
+import AuthCallback from './components/auth/AuthCallback';
 import InstallPrompt from './components/InstallPrompt';
 import { Analytics } from '@vercel/analytics/react';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -72,6 +73,11 @@ function AppContent() {
 
   // Handle hash-based routing
   if (user && profile) {
+    // Check if we're on the auth callback route
+    if (window.location.hash.startsWith('#/auth/callback')) {
+      return <AuthCallback />;
+    }
+
     // Show profile dashboard if requested
     console.log('App: showProfile=', showProfile, 'user=', !!user, 'profile=', !!profile);
     if (showProfile) {
@@ -117,6 +123,11 @@ function AppContent() {
       default:
         return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
     }
+  }
+
+  // Check if we're on the auth callback route when not logged in
+  if (window.location.hash.startsWith('#/auth/callback')) {
+    return <AuthCallback />;
   }
 
 

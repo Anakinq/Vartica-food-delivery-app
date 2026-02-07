@@ -584,7 +584,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // Add delivery agent role to existing user
-  const addDeliveryAgentRole = async (vehicleType: string = 'Bike') => {
+  const addDeliveryAgentRole = async (vehicleType: string = 'Foot') => {
     if (!user?.id) {
       throw new Error('User not authenticated');
     }
@@ -638,9 +638,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     switch (role) {
       case 'vendor':
-        return profile.is_vendor || ['vendor', 'late_night_vendor'].includes(profile.role);
+        return (profile as any).is_vendor || ['vendor', 'late_night_vendor'].includes(profile.role);
       case 'delivery_agent':
-        return profile.is_delivery_agent || profile.role === 'delivery_agent';
+        return (profile as any).is_delivery_agent || profile.role === 'delivery_agent';
       case 'customer':
         return true; // Everyone is a customer by default
       default:

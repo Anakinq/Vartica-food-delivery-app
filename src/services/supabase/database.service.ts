@@ -8,7 +8,7 @@ import {
   QueryResult,
   RealtimeCallback,
 } from '../database.interface';
-import { Profile, Vendor } from '../../lib/supabase';
+import { Profile, Vendor, DeliveryAgent } from '../../lib/supabase';
 import { retryOperation, DATABASE_RETRY_OPTIONS } from '../../utils/retry';
 
 // Enhanced types for real-time vendor data
@@ -18,6 +18,7 @@ export interface ProfileWithVendor extends Profile {
     is_active: boolean;
     application_status: string;
   } | null;
+  delivery_agent?: DeliveryAgent | null;
 }
 
 class SupabaseDatabaseService implements IDatabaseService {
@@ -223,17 +224,43 @@ class SupabaseDatabaseService implements IDatabaseService {
         { user_id: userId }
       );
 
+      // Subscribe to delivery agent changes for delivery agents
+      const deliveryAgentSubscription = this.subscribe<any>(
+        'delivery_agents',
+        (payload) => {
+          if (payload.new?.user_id === userId) {
+            console.log('Delivery agent change detected for user:', userId);
+            this.fetchProfileWithVendor(userId)
+              .then(result => {
+                if (result.error) {
+                  console.error('Error fetching updated delivery agent data for user', userId, ':', result.error);
+                  callback(null, new Error(result.error.message));
+                } else {
+                  console.log('Successfully fetched updated delivery agent data for user:', userId);
+                  callback(result.data);
+                }
+              })
+              .catch(err => {
+                console.error('Error in delivery agent subscription callback for user', userId, ':', err);
+                callback(null, err);
+              });
+          }
+        },
+        { user_id: userId }
+      );
+
       console.log('Profile+vendor subscription successfully set up for user:', userId);
 
       return {
         unsubscribe: () => {
           try {
-            console.log('Unsubscribing from profile+vendor changes for user:', userId);
+            console.log('Unsubscribing from profile+vendor+delivery changes for user:', userId);
             profileSubscription.unsubscribe();
             vendorSubscription.unsubscribe();
-            console.log('Successfully unsubscribed from profile+vendor changes for user:', userId);
+            deliveryAgentSubscription.unsubscribe();
+            console.log('Successfully unsubscribed from profile+vendor+delivery changes for user:', userId);
           } catch (err) {
-            console.error('Error unsubscribing from profile+vendor changes for user', userId, ':', err);
+            console.error('Error unsubscribing from profile+vendor+delivery changes for user', userId, ':', err);
           }
         }
       };
@@ -340,7 +367,31 @@ class SupabaseDatabaseService implements IDatabaseService {
 
       console.log('Vendor data for user', userId, ':', vendorData);
 
-      // Create profile with vendor data, ensuring type compatibility
+      // Fetch delivery agent data for delivery agents
+      let deliveryAgentData = null;
+      if (profileData.role === 'delivery_agent' || profileData.is_delivery_agent) {
+        try {
+          const { data: agentDataResult, error: agentError } = await supabase
+            .from('delivery_agents')
+            .select('*')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+          if (agentError) {
+            console.warn('Delivery agent fetch error for user', userId, ':', agentError);
+            // Don't fail completely, continue with profile only
+          } else {
+            deliveryAgentData = agentDataResult;
+          }
+        } catch (agentQueryError) {
+          console.warn('Delivery agent query exception for user', userId, ':', agentQueryError);
+          // Continue with profile only
+        }
+      }
+
+      console.log('Delivery agent data for user', userId, ':', deliveryAgentData);
+
+      // Create profile with vendor and delivery agent data, ensuring type compatibility
       const profileWithVendor: ProfileWithVendor = {
         ...profileData,
         vendor: vendorData ? {
@@ -366,7 +417,8 @@ class SupabaseDatabaseService implements IDatabaseService {
         vendor_status: vendorData && typeof vendorData === 'object' ? {
           is_active: (vendorData as any).is_active ?? false,
           application_status: (vendorData as any).application_status || 'pending'
-        } : null
+        } : null,
+        delivery_agent: deliveryAgentData || null
       };
 
       console.log('Final profile+vendor data for user', userId, ':', profileWithVendor);

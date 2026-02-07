@@ -101,7 +101,6 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<FullOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
-  const [dashboardKey, setDashboardKey] = useState(0);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [activeTab, setActiveTab] = useState<'available' | 'active' | 'history'>('active');
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -147,6 +146,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
   // 🔁 Unified data fetcher — called on mount, interval, and after key actions
   const fetchData = useCallback(async () => {
+    console.log('DeliveryDashboard: fetchData called, profile ID:', profile?.id);
     if (!profile?.id) return;
 
     setLoading(true);
@@ -309,6 +309,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
   // Initial + periodic fetch
   useEffect(() => {
+    console.log('DeliveryDashboard: useEffect triggered, profile ID:', profile?.id);
     fetchData();
 
     // Check approval status for delivery agents
@@ -316,9 +317,16 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       checkAgentApproval();
     }
 
-    const interval = setInterval(fetchData, 15000);
-    return () => clearInterval(interval);
-  }, [fetchData, profile]);
+    const interval = setInterval(() => {
+      console.log('DeliveryDashboard: Interval fetch triggered');
+      fetchData();
+    }, 15000);
+
+    return () => {
+      console.log('DeliveryDashboard: Cleaning up interval');
+      clearInterval(interval);
+    };
+  }, [profile?.id]);
 
   const checkAgentApproval = async () => {
     if (profile && profile.role === 'delivery_agent') {
@@ -520,7 +528,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
     if (!error) {
       // Don't call fetchData here since it will be called by the periodic effect
-      setDashboardKey(prev => prev + 1);
+      // Dashboard will update automatically via useEffect interval
     } else {
       setMessage({ type: 'error', text: 'Failed to accept order' });
     }
@@ -557,7 +565,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       }
 
       // Don't call fetchData here since it will be called by the periodic effect
-      setDashboardKey(prev => prev + 1);
+      // Dashboard will update automatically via useEffect interval
     } else {
       setMessage({ type: 'error', text: 'Failed to update status' });
     }
@@ -791,7 +799,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         </div>
       </nav>
 
-      <div key={dashboardKey} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {/* Messages */}
         {message && (
           <div

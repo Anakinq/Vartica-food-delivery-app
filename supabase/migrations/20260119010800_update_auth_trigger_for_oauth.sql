@@ -69,11 +69,11 @@ BEGIN
     INSERT INTO public.delivery_agents (user_id, vehicle_type, is_available)
     VALUES (
       NEW.id,
-      vehicle_type,
+      COALESCE(vehicle_type, 'Bike'),
       false
     )
     ON CONFLICT (user_id) DO UPDATE SET
-      vehicle_type = EXCLUDED.vehicle_type;
+      vehicle_type = COALESCE(EXCLUDED.vehicle_type, delivery_agents.vehicle_type);
   END IF;
 
   RETURN NEW;
