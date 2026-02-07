@@ -276,9 +276,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
     if (process.env.NODE_ENV === 'development') {
         console.error('❌ Missing Supabase configuration. Please check your environment variables.');
         console.error('Required: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
+    } else {
+        // In production, log a generic error without exposing config details
+        console.error('Application configuration error');
     }
     // In production, fail gracefully without exposing config details
-    throw new Error('Application configuration error');
+    throw new Error(process.env.NODE_ENV === 'development'
+        ? 'Missing Supabase configuration. Please check your environment variables.'
+        : 'Application configuration error');
 }
 
 // Create Supabase client with secure configuration

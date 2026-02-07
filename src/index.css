@@ -13,6 +13,8 @@ html {
   width: 100%;
   /* Prevent overscroll bounce */
   overscroll-behavior: none;
+  /* App-shell behavior */
+  overflow: hidden;
 }
 
 /* App-like mobile behavior */
@@ -27,6 +29,9 @@ body {
   height: 100%;
   margin: 0;
   padding: 0;
+  /* App-shell styling */
+  background-color: #0f172a;
+  color: #e2e8f0;
 }
 
 /* Root container for app-like scrolling */
@@ -36,6 +41,10 @@ body {
   overflow-x: hidden;
   /* Use dvh for better mobile viewport height */
   min-height: 100dvh;
+  /* App container behavior */
+  height: 100dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* App wrapper for proper mobile scrolling */
@@ -43,6 +52,9 @@ body {
   height: 100dvh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  /* Prevent horizontal scrolling */
+  width: 100vw;
+  max-width: 100vw;
 }
 
 /* Prevent horizontal overflow globally */
@@ -50,9 +62,10 @@ body {
   box-sizing: border-box;
 }
 
-/* Optimize for touch devices */
-.touch-target {
+/* Optimize for touch devices - app feel */
+* {
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
   -webkit-touch-callout: none;
   user-select: none;
 }
@@ -274,4 +287,51 @@ select:focus {
 
 .text-responsive-2xl {
   font-size: clamp(1.25rem, 4vw, 1.5rem);
+}
+
+/* Desktop-style container that maintains fixed width */
+.desktop-container {
+  width: 1200px;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* App frame styling to eliminate web feel */
+.app-frame {
+  position: relative;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+  background-color: #0f172a;
+}
+
+/* Simulate app status bar */
+.app-status-bar {
+  height: env(safe-area-inset-top);
+  background-color: #0f172a;
+  width: 100%;
+}
+
+/* Simulate app bottom bar */
+.app-bottom-bar {
+  height: env(safe-area-inset-bottom);
+  background-color: #0f172a;
+  width: 100%;
+}
+
+/* Force desktop layout on mobile */
+@media (max-width: 768px) {
+  .desktop-layout {
+    width: 1200px;
+    transform: scale(0.85);
+    transform-origin: top center;
+  }
+
+  .mobile-scale-container {
+    transform: scale(0.85);
+    transform-origin: top center;
+    width: 1200px;
+    margin: 0 auto;
+  }
 }

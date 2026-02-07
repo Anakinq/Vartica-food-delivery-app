@@ -10,6 +10,7 @@ import { ProfileDashboard } from './components/shared/ProfileDashboard';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { DeliveryDashboard } from './components/delivery/DeliveryDashboard';
 import CafeteriaDashboard from './components/cafeteria/CafeteriaDashboard';
+import InstallPrompt from './components/InstallPrompt';
 import { Analytics } from '@vercel/analytics/react';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider } from './contexts/AuthContext';
@@ -118,37 +119,7 @@ function AppContent() {
     }
   }
 
-  // If user is authenticated, show appropriate dashboard based on role
-  if (user && profile) {
-    // Show profile dashboard if requested
-    console.log('App: showProfile=', showProfile, 'user=', !!user, 'profile=', !!profile);
-    if (showProfile) {
-      return (
-        <ProfileDashboard
-          onBack={() => setShowProfile(false)}
-          onSignOut={() => {
-            setShowProfile(false);
-          }}
-        />
-      );
-    }
-    const userRole = profile.role as UserRole;
-    switch (userRole) {
-      case 'admin':
-        return <AdminDashboard onShowProfile={() => setShowProfile(true)} />;
-      case 'delivery_agent':
-        return <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />;
-      case 'cafeteria':
-        return <CafeteriaDashboard profile={profile} onShowProfile={() => setShowProfile(true)} />;
-      case 'vendor':
-      case 'late_night_vendor':
-        // Default to customer view for vendors unless hash indicates vendor view
-        return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
-      case 'customer':
-      default:
-        return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
-    }
-  }
+
 
   // Show sign in form if role is selected
   if (selectedRole) {
@@ -217,6 +188,7 @@ function App() {
               {/* For error messages */}
             </div>
             <AppContent />
+            <InstallPrompt />
             <Analytics />
           </div>
         </ToastProvider>

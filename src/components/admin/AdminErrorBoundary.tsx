@@ -1,54 +1,43 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
-interface ErrorBoundaryProps {
+interface AdminErrorBoundaryProps {
     children: React.ReactNode;
-    fallback?: React.ComponentType<{ error?: Error; resetError?: () => void }>;
 }
 
-interface ErrorBoundaryState {
+interface AdminErrorBoundaryState {
     hasError: boolean;
     error?: Error;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-    constructor(props: ErrorBoundaryProps) {
+class AdminErrorBoundary extends React.Component<AdminErrorBoundaryProps, AdminErrorBoundaryState> {
+    constructor(props: AdminErrorBoundaryProps) {
         super(props);
         this.state = { hasError: false };
     }
 
-    static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    static getDerivedStateFromError(error: Error): AdminErrorBoundaryState {
         return { hasError: true, error };
     }
 
     componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-        console.error('Uncaught error:', error, errorInfo);
-        // In production, you might want to log this to a monitoring service
+        console.error('Admin dashboard error:', error, errorInfo);
+        // Log to external service if in production
         if (process.env.NODE_ENV === 'production') {
-            // Log to external service like Sentry, LogRocket, etc.
-            // Example: Sentry.captureException(error);
+            // Log to monitoring service
         }
     }
 
-    resetError = () => {
-        this.setState({ hasError: false, error: undefined });
-    };
-
     render() {
         if (this.state.hasError) {
-            // Use custom fallback if provided, otherwise use default
-            if (this.props.fallback) {
-                const FallbackComponent = this.props.fallback;
-                return <FallbackComponent error={this.state.error} resetError={this.resetError} />;
-            }
-
             return (
                 <div className="min-h-screen flex items-center justify-center bg-gray-50">
                     <div className="text-center p-8 bg-white rounded-xl shadow-lg max-w-md">
-                        <h2 className="text-2xl font-bold text-gray-900 mb-4">Something went wrong</h2>
-                        <p className="text-gray-600 mb-6">We're sorry, but something unexpected happened. Please try refreshing the page.</p>
+                        <h2 className="text-2xl font-bold text-red-600 mb-4">Admin Dashboard Error</h2>
+                        <p className="text-gray-600 mb-6">There was an issue with the admin dashboard. Please try refreshing the page.</p>
                         <div className="space-y-3">
                             <button
-                                onClick={this.resetError}
+                                onClick={() => this.setState({ hasError: false, error: undefined })}
                                 className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                             >
                                 Try Again
@@ -76,4 +65,4 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     }
 }
 
-export default ErrorBoundary;
+export default AdminErrorBoundary;

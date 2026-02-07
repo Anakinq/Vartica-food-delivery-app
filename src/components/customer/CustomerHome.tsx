@@ -11,6 +11,7 @@ import { Checkout } from './Checkout';
 import { OrderTracking } from './OrderTracking';
 import { VendorUpgradeModal } from './VendorUpgradeModal';
 import { RoleSwitcher } from '../shared/RoleSwitcher';
+import LazyImage from '../common/LazyImage';
 
 import { CardSkeleton, ListSkeleton } from '../shared/LoadingSkeleton';
 import { Skeleton } from '../shared/LoadingSkeleton';
@@ -640,7 +641,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                         aria-label={`Select ${cafeteria.name}`}
                         className={`bg-white rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${isSelected ? 'ring-2 ring-green-600' : 'hover:shadow-md'}`}
                       >
-                        <img
+                        <LazyImage
                           src={(() => {
                             const supabaseUrl = getSupabaseImageUrl(cafeteria.image_url || null, 'vendor-logos', 'vendor-logos');
                             return supabaseUrl || cafeteria.image_url || (() => {
@@ -651,27 +652,9 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                           })()}
                           alt={cafeteria.name}
                           className="w-full h-32 sm:h-40 object-cover"
-                          onError={(e) => {
-                            const target = e.currentTarget;
-                            const currentSrc = target.src;
-                            console.log('Image error for:', cafeteria.name, 'Current src:', currentSrc);
-
-                            // If the current src is not already a named fallback, try the name-based fallback
-                            if (!currentSrc.includes('caf 1.png') && !currentSrc.includes('caf 2.png') && !currentSrc.includes('med caf.jpeg') &&
-                              !currentSrc.includes('smoothie shack.png') && !currentSrc.includes('staff caf.png') && !currentSrc.includes('captain cook.png') && !currentSrc.includes('placehold.co')) {
-                              // Try name-based fallback first
-                              const imagePath = getImagePath(cafeteria.id, 'cafeteria', cafeteria.name);
-                              console.log('Trying alternative path:', imagePath);
-                              if (imagePath !== currentSrc) {
-                                target.src = imagePath;
-                                return;
-                              }
-                              // Fallback to numbered image
-                              target.src = '/images/1.jpg';
-                            } else {
-                              // If already showing fallback, try another fallback
-                              target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
-                            }
+                          fallback="https://placehold.co/600x400/e2e8f0/64748b?text=No+Image"
+                          onError={() => {
+                            console.log('Image error for:', cafeteria.name);
                           }}
                         />
                         <div className="p-4">
@@ -726,7 +709,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                             </span>
                           )}
                         </div>
-                        <img
+                        <LazyImage
                           src={(() => {
                             const supabaseUrl = getSupabaseImageUrl(vendor.image_url || null, 'vendor-logos', 'vendor-logos');
                             console.log('Vendor image processing:', { original: vendor.image_url, processed: supabaseUrl });
@@ -734,17 +717,9 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                           })()}
                           alt={vendor.store_name}
                           className="w-full h-32 sm:h-40 object-cover"
-                          onError={(e) => {
-                            const target = e.currentTarget;
-                            const currentSrc = target.src;
-
-                            // If the current src is not already the fallback, try the fallback
-                            if (!currentSrc.includes('1.jpg') && !currentSrc.includes('placehold.co')) {
-                              target.src = '/images/1.jpg';
-                            } else {
-                              // If already showing fallback, try another fallback
-                              target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
-                            }
+                          fallback="https://placehold.co/600x400/e2e8f0/64748b?text=No+Image"
+                          onError={() => {
+                            console.log('Image error for vendor:', vendor.store_name);
                           }}
                         />
                         <div className="p-4">
@@ -784,24 +759,16 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                       <span className="absolute top-2 right-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full flex items-center">
                         <Moon className="h-3 w-3 mr-1" /> Late Night
                       </span>
-                      <img
+                      <LazyImage
                         src={(() => {
                           const supabaseUrl = getSupabaseImageUrl(vendor.image_url || null, 'vendor-logos', 'vendor-logos');
                           return supabaseUrl || vendor.image_url || getImagePath(vendor.id, 'vendor');
                         })()}
                         alt={vendor.store_name}
                         className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover mb-3 sm:mb-4"
-                        onError={(e) => {
-                          const target = e.currentTarget;
-                          const currentSrc = target.src;
-
-                          // If the current src is not already the fallback, try the fallback
-                          if (!currentSrc.includes('1.jpg') && !currentSrc.includes('placehold.co')) {
-                            target.src = '/images/1.jpg';
-                          } else {
-                            // If already showing fallback, try another fallback
-                            target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
-                          }
+                        fallback="https://placehold.co/600x400/e2e8f0/64748b?text=No+Image"
+                        onError={() => {
+                          console.log('Image error for late-night vendor:', vendor.store_name);
                         }}
                       />
                       <h3 className="font-bold text-stone-800 text-base sm:text-lg truncate">{vendor.store_name}</h3>

@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, HelpCircle, CreditCard, MapPin, MessageCircle, Camera, Store, ArrowLeftRight } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, HelpCircle, CreditCard, MapPin, MessageCircle, Camera, Store, ArrowLeftRight, Bike } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase/client';
 import { CustomerSupportModal } from './CustomerSupportModal';
 import { ExtendedProfile } from '../../types';
 import { VendorUpgradeModal } from '../customer/VendorUpgradeModal';
+import { DeliveryAgentUpgradeModal } from '../customer/DeliveryAgentUpgradeModal';
 
 export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => void }> = ({ onBack, onSignOut }) => {
   console.log('ProfileDashboard: Component rendered');
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showVendorUpgrade, setShowVendorUpgrade] = useState(false);
+  const [showDeliveryAgentUpgrade, setShowDeliveryAgentUpgrade] = useState(false);
   const { profile, refreshProfile } = useAuth();
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || '',
@@ -362,17 +364,27 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
 
                   {/* Role-related buttons */}
                   {profile?.role === 'customer' && (
-                    <button
-                      type="button"
-                      onClick={() => setShowVendorUpgrade(true)}
-                      className="flex items-center px-6 py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors w-full justify-center"
-                    >
-                      <Store className="h-5 w-5 mr-2" />
-                      Become a Vendor
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setShowVendorUpgrade(true)}
+                        className="flex items-center px-6 py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors w-full justify-center"
+                      >
+                        <Store className="h-5 w-5 mr-2" />
+                        Become a Vendor
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowDeliveryAgentUpgrade(true)}
+                        className="flex items-center px-6 py-3 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-xl font-semibold hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors w-full justify-center"
+                      >
+                        <Bike className="h-5 w-5 mr-2" />
+                        Become a Delivery Agent
+                      </button>
+                    </>
                   )}
 
-                  {(profile?.role === 'vendor' || profile?.role === 'late_night_vendor') && (
+                  {(profile?.role === 'vendor' || (profile as any)?.role === 'late_night_vendor') && (
                     <button
                       type="button"
                       onClick={() => {
@@ -506,6 +518,19 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
           onClose={() => setShowVendorUpgrade(false)}
           onSuccess={() => {
             setShowVendorUpgrade(false);
+            // Refresh the page to reflect the role change
+            window.location.reload();
+          }}
+        />
+      )}
+
+      {/* Delivery Agent Upgrade Modal */}
+      {showDeliveryAgentUpgrade && (
+        <DeliveryAgentUpgradeModal
+          isOpen={showDeliveryAgentUpgrade}
+          onClose={() => setShowDeliveryAgentUpgrade(false)}
+          onSuccess={() => {
+            setShowDeliveryAgentUpgrade(false);
             // Refresh the page to reflect the role change
             window.location.reload();
           }}

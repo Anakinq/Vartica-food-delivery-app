@@ -2,8 +2,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Configuration from your environment
-const supabaseUrl = 'https://jbqhbuogmxqzotlorahn.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpicWhidW9nbXhxem90bG9yYWhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzOTc2NDgsImV4cCI6MjA3NDk3MzY0OH0.APsgWNwZnGnBZpBZTGqL61O3pPLKu4eDmfpsFvk2XMQ';
+const supabaseUrl = process.env.VITE_SUPABASE_URL || 'your_supabase_url_here';
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || 'your_supabase_anon_key_here';
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 

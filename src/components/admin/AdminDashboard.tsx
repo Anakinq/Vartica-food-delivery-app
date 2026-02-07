@@ -4,6 +4,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Profile, Order } from '../../lib/supabase';
 import { AdminApprovalDashboard } from './AdminApprovalDashboard';
 import { DeliveryFeePromoCodesManager } from './DeliveryFeePromoCodesManager';
+import AdminSkeleton from './AdminSkeleton';
+import Pagination from '../common/Pagination';
 
 interface AdminDashboardProps {
   onShowProfile?: () => void;
@@ -41,6 +43,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
   const [showMenu, setShowMenu] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+
+  // Pagination states
+  const [usersPage, setUsersPage] = useState(1);
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [withdrawalsPage, setWithdrawalsPage] = useState(1);
+  const [supportPage, setSupportPage] = useState(1);
+  const [pageSize] = useState(10); // Default page size
 
   useEffect(() => {
     fetchData();
@@ -149,7 +158,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
       return matchesSearch && matchesDate;
     });
 
-    return { filteredUsers, filteredOrders, filteredWithdrawals, filteredSupportMessages };
+    return {
+      filteredUsers,
+      filteredOrders,
+      filteredWithdrawals,
+      filteredSupportMessages,
+      // Paginated versions
+      paginatedUsers: filteredUsers.slice((usersPage - 1) * pageSize, usersPage * pageSize),
+      paginatedOrders: filteredOrders.slice((ordersPage - 1) * pageSize, ordersPage * pageSize),
+      paginatedWithdrawals: filteredWithdrawals.slice((withdrawalsPage - 1) * pageSize, withdrawalsPage * pageSize),
+      paginatedSupportMessages: filteredSupportMessages.slice((supportPage - 1) * pageSize, supportPage * pageSize),
+    };
   };
 
   // Function to export data
@@ -161,7 +180,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
 
     switch (type) {
       case 'users':
-        data = filteredUsers;
+        data = filteredUsers; // Export all filtered data, not just current page
         headers = ['Name', 'Email', 'Role', 'Joined'];
         break;
       case 'orders':
@@ -199,7 +218,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return <AdminSkeleton />;
   }
 
   return (
@@ -490,182 +509,218 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                 {filterData().filteredWithdrawals.length === 0 ? (
                   <p className="text-gray-600">No withdrawal records found.</p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full">
-                      <thead>
-                        <tr className="border-b border-gray-200">
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Agent ID</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Amount</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Paystack Reference</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Processed At</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filterData().filteredWithdrawals.map(req => (
-                          <tr key={req.id} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="py-3 px-4 text-sm text-gray-600">
-                              {new Date(req.created_at).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </td>
-                            <td className="py-3 px-4 text-sm font-medium text-gray-900">{req.agent_id}</td>
-                            <td className="py-3 px-4 text-sm font-bold text-green-600">
-                              ₦{Number(req.amount).toFixed(2)}
-                            </td>
-                            <td className="py-3 px-4">
-                              <span
-                                className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${req.status === 'completed'
-                                  ? 'bg-green-100 text-green-700'
-                                  : req.status === 'failed'
-                                    ? 'bg-red-100 text-red-700'
-                                    : req.status === 'processing'
-                                      ? 'bg-yellow-100 text-yellow-700'
-                                      : 'bg-blue-100 text-blue-700'
-                                  }`}
-                              >
-                                {req.status === 'completed' && '✅ '}
-                                {req.status === 'failed' && '❌ '}
-                                {req.status === 'processing' && '⏳ '}
-                                {req.status === 'pending' && '📅 '}
-                                {req.status.toUpperCase()}
-                              </span>
-                              {req.processed_at && (
-                                <div className="text-xs text-gray-500 mt-1">
-                                  {new Date(req.processed_at).toLocaleDateString()}
-                                </div>
-                              )}
-                              {req.error_message && (
-                                <div className="text-xs text-red-600 mt-1">{req.error_message}</div>
-                              )}
-                            </td>
-                            <td className="py-3 px-4 text-sm text-gray-600">
-                              {req.paystack_transfer_reference || req.paystack_transfer_code || 'N/A'}
-                            </td>
-                            <td className="py-3 px-4 text-sm text-gray-600">
-                              {req.processed_at ? new Date(req.processed_at).toLocaleString() : 'N/A'}
-                            </td>
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full">
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Agent ID</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Amount</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Paystack Reference</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Processed At</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {filterData().paginatedWithdrawals.map(req => (
+                            <tr key={req.id} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="py-3 px-4 text-sm text-gray-600">
+                                {new Date(req.created_at).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </td>
+                              <td className="py-3 px-4 text-sm font-medium text-gray-900">{req.agent_id}</td>
+                              <td className="py-3 px-4 text-sm font-bold text-green-600">
+                                ₦{Number(req.amount).toFixed(2)}
+                              </td>
+                              <td className="py-3 px-4">
+                                <span
+                                  className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${req.status === 'completed'
+                                    ? 'bg-green-100 text-green-700'
+                                    : req.status === 'failed'
+                                      ? 'bg-red-100 text-red-700'
+                                      : req.status === 'processing'
+                                        ? 'bg-yellow-100 text-yellow-700'
+                                        : 'bg-blue-100 text-blue-700'
+                                    }`}
+                                >
+                                  {req.status === 'completed' && '✅ '}
+                                  {req.status === 'failed' && '❌ '}
+                                  {req.status === 'processing' && '⏳ '}
+                                  {req.status === 'pending' && '📅 '}
+                                  {req.status.toUpperCase()}
+                                </span>
+                                {req.processed_at && (
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    {new Date(req.processed_at).toLocaleDateString()}
+                                  </div>
+                                )}
+                                {req.error_message && (
+                                  <div className="text-xs text-red-600 mt-1">{req.error_message}</div>
+                                )}
+                              </td>
+                              <td className="py-3 px-4 text-sm text-gray-600">
+                                {req.paystack_transfer_reference || req.paystack_transfer_code || 'N/A'}
+                              </td>
+                              <td className="py-3 px-4 text-sm text-gray-600">
+                                {req.processed_at ? new Date(req.processed_at).toLocaleString() : 'N/A'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <Pagination
+                      currentPage={withdrawalsPage}
+                      totalPages={Math.ceil(filterData().filteredWithdrawals.length / pageSize)}
+                      onPageChange={setWithdrawalsPage}
+                      pageSize={pageSize}
+                      totalCount={filterData().filteredWithdrawals.length}
+                    />
+                  </>
                 )}
               </div>
             )}
 
             {activeTab === 'users' && (
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Name</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Email</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Role</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Joined</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filterData().filteredUsers.map(user => (
-                      <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4 text-sm text-gray-900">{user.full_name}</td>
-                        <td className="py-3 px-4 text-sm text-gray-600">{user.email}</td>
-                        <td className="py-3 px-4">
-                          <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700">
-                            {user.role}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-600">
-                          {new Date(user.created_at).toLocaleDateString()}
-                        </td>
+              <div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Name</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Email</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Role</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Joined</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {filterData().paginatedUsers.map(user => (
+                        <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-4 text-sm text-gray-900">{user.full_name}</td>
+                          <td className="py-3 px-4 text-sm text-gray-600">{user.email}</td>
+                          <td className="py-3 px-4">
+                            <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700">
+                              {user.role}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-600">
+                            {new Date(user.created_at).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <Pagination
+                  currentPage={usersPage}
+                  totalPages={Math.ceil(filterData().filteredUsers.length / pageSize)}
+                  onPageChange={setUsersPage}
+                  pageSize={pageSize}
+                  totalCount={filterData().filteredUsers.length}
+                />
               </div>
             )}
 
             {activeTab === 'orders' && (
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Order #</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Total</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Payment Method</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Payment Status</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filterData().filteredOrders.map(order => (
-                      <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4 text-sm font-medium text-gray-900">{order.order_number}</td>
-                        <td className="py-3 px-4 text-sm font-bold text-gray-900">₦{order.total.toFixed(2)}</td>
-                        <td className="py-3 px-4">
-                          <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${order.status === 'delivered' ? 'bg-green-100 text-green-700' :
-                            order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                              'bg-yellow-100 text-yellow-700'
-                            }`}>
-                            {order.status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-600">{order.payment_method}</td>
-                        <td className="py-3 px-4">
-                          <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${order.payment_status === 'paid' ? 'bg-green-100 text-green-700' :
-                            order.payment_status === 'failed' ? 'bg-red-100 text-red-700' :
-                              'bg-gray-100 text-gray-700'
-                            }`}>
-                            {order.payment_status === 'paid' && '✅ '}
-                            {order.payment_status === 'failed' && '❌ '}
-                            {order.payment_status || 'pending'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-600">
-                          {new Date(order.created_at).toLocaleDateString()}
-                        </td>
+              <div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Order #</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Total</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Payment Method</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Payment Status</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {filterData().paginatedOrders.map(order => (
+                        <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-4 text-sm font-medium text-gray-900">{order.order_number}</td>
+                          <td className="py-3 px-4 text-sm font-bold text-gray-900">₦{order.total.toFixed(2)}</td>
+                          <td className="py-3 px-4">
+                            <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${order.status === 'delivered' ? 'bg-green-100 text-green-700' :
+                              order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                'bg-yellow-100 text-yellow-700'
+                              }`}>
+                              {order.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-600">{order.payment_method}</td>
+                          <td className="py-3 px-4">
+                            <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${order.payment_status === 'paid' ? 'bg-green-100 text-green-700' :
+                              order.payment_status === 'failed' ? 'bg-red-100 text-red-700' :
+                                'bg-gray-100 text-gray-700'
+                              }`}>
+                              {order.payment_status === 'paid' && '✅ '}
+                              {order.payment_status === 'failed' && '❌ '}
+                              {order.payment_status || 'pending'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-600">
+                            {new Date(order.created_at).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <Pagination
+                  currentPage={ordersPage}
+                  totalPages={Math.ceil(filterData().filteredOrders.length / pageSize)}
+                  onPageChange={setOrdersPage}
+                  pageSize={pageSize}
+                  totalCount={filterData().filteredOrders.length}
+                />
               </div>
             )}
 
             {activeTab === 'support' && (
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">User Name</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">User Email</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Message</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filterData().filteredSupportMessages.map(message => (
-                      <tr key={message.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4 text-sm text-gray-900">{message.user_name}</td>
-                        <td className="py-3 px-4 text-sm text-gray-600">{message.user_email}</td>
-                        <td className="py-3 px-4 text-sm text-gray-700 max-w-xs truncate" title={message.message}>{message.message}</td>
-                        <td className="py-3 px-4 text-sm text-gray-600">
-                          {new Date(message.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${message.is_resolved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                            {message.is_resolved ? 'Resolved' : 'Pending'}
-                          </span>
-                        </td>
+              <div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">User Name</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">User Email</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Message</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {filterData().paginatedSupportMessages.map(message => (
+                        <tr key={message.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-4 text-sm text-gray-900">{message.user_name}</td>
+                          <td className="py-3 px-4 text-sm text-gray-600">{message.user_email}</td>
+                          <td className="py-3 px-4 text-sm text-gray-700 max-w-xs truncate" title={message.message}>{message.message}</td>
+                          <td className="py-3 px-4 text-sm text-gray-600">
+                            {new Date(message.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${message.is_resolved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                              {message.is_resolved ? 'Resolved' : 'Pending'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <Pagination
+                  currentPage={supportPage}
+                  totalPages={Math.ceil(filterData().filteredSupportMessages.length / pageSize)}
+                  onPageChange={setSupportPage}
+                  pageSize={pageSize}
+                  totalCount={filterData().filteredSupportMessages.length}
+                />
               </div>
             )}
 

@@ -41,15 +41,17 @@ async function verifyPaystackSignature(payload: string, signature: string): Prom
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
 
-    // Timing-safe comparison
-    const receivedBuffer = new Uint8Array(signature.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []);
-    const expectedBuffer = new Uint8Array(hexSignature.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []);
-
-    if (receivedBuffer.length !== expectedBuffer.length) {
+    // Compare signatures in constant time to prevent timing attacks
+    if (hexSignature.length !== signature.length) {
       return false;
     }
 
-    return hexSignature === signature;
+    let mismatch = 0;
+    for (let i = 0; i < hexSignature.length; i++) {
+      mismatch |= hexSignature.charCodeAt(i) ^ signature.charCodeAt(i);
+    }
+
+    return mismatch === 0;
   } catch (error) {
     console.error('Error verifying webhook signature:', error);
     return false;
