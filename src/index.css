@@ -15,6 +15,7 @@ html {
   overscroll-behavior: none;
   /* App-shell behavior */
   overflow: hidden;
+  background-color: #ffffff;
 }
 
 /* App-like mobile behavior */
@@ -464,20 +465,21 @@ select:focus {
   font-size: 16px;
 }
 
-/* Mobile-first app - full width on mobile, constrained on desktop */
+/* Remove container constraints completely - full width everywhere */
 .desktop-container {
   width: 100%;
   max-width: 100%;
   margin: 0;
-  padding: 0 1rem;
+  padding: 0;
   box-sizing: border-box;
 }
 
-/* Only constrain on larger screens (tablets/desktop) */
+/* No constraints on any screen size */
 @media (min-width: 768px) {
   .desktop-container {
-    max-width: 430px;
-    margin: 0 auto;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
   }
 }
 
@@ -496,6 +498,9 @@ select:focus {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
 }
 
 /* Improved bottom navigation styling for native app feel */
@@ -548,60 +553,28 @@ select:focus {
   width: 100%;
 }
 
-/* Mobile-first app container with proper constraints */
+/* Full-width mobile app container */
 .app-container {
-  max-width: 430px;
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
   min-height: 100dvh;
-  background-color: #0f172a;
+  background-color: #ffffff;
   position: relative;
   width: 100%;
   overflow-x: hidden;
 }
 
-/* Mobile-first responsive design */
-@media (max-width: 430px) {
-  .app-container {
-    max-width: 100%;
-    border-radius: 0;
-  }
+/* Remove all responsive constraints - full width everywhere */
+.app-container {
+  max-width: 100%;
+  margin: 0;
+  border-radius: 0;
 }
 
-@media (min-width: 431px) {
-  .app-container {
-    border-radius: 12px;
-    margin: 16px auto;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    height: calc(100dvh - 32px);
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* Simulate app status bar */
-  .app-container::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 430px;
-    height: env(safe-area-inset-top);
-    background-color: #0f172a;
-    z-index: 1000;
-  }
-
-  /* Simulate app bottom bar */
-  .app-container::after {
-    content: '';
-    position: fixed;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 430px;
-    height: env(safe-area-inset-bottom);
-    background-color: #0f172a;
-    z-index: 1000;
-  }
+/* Remove app status bar simulations */
+.app-container::before,
+.app-container::after {
+  display: none;
 }
 
 /* Remove desktop scaling for mobile-first design */
