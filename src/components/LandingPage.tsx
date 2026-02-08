@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Menu, X, UtensilsCrossed } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -8,6 +8,17 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { user, profile, loading } = useAuth();
+
+  // Auth guard: redirect logged-in users to their dashboard
+  useEffect(() => {
+    // Only redirect if user is logged in and profile is loaded
+    if (user && profile && !loading) {
+      console.log('LandingPage: User already authenticated, redirecting to dashboard');
+      // Clear any OAuth-related hash and let App.tsx handle routing
+      window.location.hash = '';
+    }
+  }, [user, profile, loading]);
 
   const roles = [
     {

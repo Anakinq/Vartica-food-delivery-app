@@ -87,8 +87,8 @@ export const Cart: React.FC<CartProps> = ({
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
-      <div className="min-h-screen flex items-end sm:items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 fixed-overlay">
+      <div className="scrollable-content min-h-screen flex items-end sm:items-center justify-center p-4 pb-safe">
         <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl max-h-[90vh] flex flex-col shadow-2xl">
           {/* Header */}
           <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-100">

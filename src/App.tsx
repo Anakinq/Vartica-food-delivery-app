@@ -76,9 +76,20 @@ function AppContent() {
     };
   }, [user, profile]);
 
+  // Handle empty hash for authenticated users - redirect to appropriate dashboard
+  useEffect(() => {
+    if (user && profile && !loading) {
+      // If we're on an empty hash or landing page, redirect to appropriate dashboard
+      if (!locationHash || locationHash === '#/' || locationHash === '') {
+        // Clear hash to trigger role-based routing
+        window.location.hash = '';
+      }
+    }
+  }, [user, profile, loading, locationHash]);
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading...</p>
@@ -87,12 +98,18 @@ function AppContent() {
     );
   }
 
+  // Handle auth callback route - redirect to dashboard after OAuth
+  const isAuthCallback = locationHash.startsWith('#/auth/callback') ||
+    window.location.search.includes('access_token') ||
+    window.location.search.includes('type=oauth');
+
+  if (isAuthCallback) {
+    // Show AuthCallback component which will handle the redirect
+    return <AuthCallback />;
+  }
+
   // Handle hash-based routing
   if (user && profile) {
-    // Check if we're on the auth callback route
-    if (locationHash.startsWith('#/auth/callback')) {
-      return <AuthCallback />;
-    }
 
     // Handle bottom navigation routes
     if (locationHash === '#/cart') {
@@ -247,19 +264,12 @@ function AppContent() {
     }
   }
 
-  // Check if we're on the auth callback route when not logged in
-  if (locationHash.startsWith('#/auth/callback')) {
-    return <AuthCallback />;
-  }
-
-
-
   // Show sign in form if role is selected
   if (selectedRole) {
     if (authView === 'signup' && (selectedRole === 'customer' || selectedRole === 'vendor' || selectedRole === 'late_night_vendor' || selectedRole === 'delivery_agent')) {
       return (
         <SignUp
-          role={selectedRole === 'late_night_vendor' ? 'late_night_vendor' : selectedRole}
+          role={selectedRole === 'late_night_vendor' ? 'late_night_vendor' : selectedRole as 'customer' | 'vendor' | 'delivery_agent'}
           onBack={() => {
             setSelectedRole(null);
             setAuthView('signin');
@@ -271,7 +281,7 @@ function AppContent() {
 
     return (
       <SignIn
-        role={selectedRole === 'late_night_vendor' ? 'vendor' : selectedRole}
+        role={selectedRole === 'late_night_vendor' ? 'vendor' : selectedRole as 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin'}
         onBack={() => setSelectedRole(null)}
         onSwitchToSignUp={
           selectedRole === 'vendor' || selectedRole === 'late_night_vendor' || selectedRole === 'delivery_agent'

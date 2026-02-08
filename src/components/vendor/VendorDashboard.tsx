@@ -793,7 +793,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       />
       <div className="fixed inset-0 bg-black bg-opacity-70" />
 
-      {/* Main content with proper z-index */}
+      {/* Main content with proper z-index and scrolling */}
       <div className="relative z-10 min-h-screen" id="dashboard">
         <nav className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
