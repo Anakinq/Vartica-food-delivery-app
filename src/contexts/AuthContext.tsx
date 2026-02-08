@@ -629,26 +629,117 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Add delivery agent role to existing user
+  // Add delivery agent role to existing user - using direct inserts instead of RPC
   const addDeliveryAgentRole = async (vehicleType: string = 'Foot') => {
     if (!user?.id) {
-      throw new Error('User not authenticated');
+      const error = 'User not authenticated';
+      console.error('[DeliveryAgent] Error:', error);
+      throw new Error(error);
     }
 
-    try {
-      const { error } = await supabase.rpc('add_delivery_agent_role', {
-        user_id: user.id,
-        vehicle_type: vehicleType
-      });
+    console.log('[DeliveryAgent] Starting registration for user:', user.id);
+    console.log('[DeliveryAgent] Vehicle type:', vehicleType);
 
-      if (error) {
-        throw error;
+    try {
+      console.log('[DeliveryAgent] Step 1: Checking profile exists...');
+
+      // First check if profile exists
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, is_delivery_agent')
+        .eq('id', user.id)
+        .single();
+
+      console.log('[DeliveryAgent] Profile check result:', { profileData, profileError });
+
+      if (profileError) {
+        console.error('[DeliveryAgent] Profile not found error:', profileError);
+        throw new Error('Profile not found. Please log out and log in again.');
       }
 
-      // Refresh profile to get updated roles
+      if (profileData?.is_delivery_agent) {
+        console.log('[DeliveryAgent] Already a delivery agent');
+        throw new Error('You are already registered as a delivery agent.');
+      }
+
+      console.log('[DeliveryAgent] Step 2: Updating profile...');
+
+      // Update profile to set is_delivery_agent = true
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          is_delivery_agent: true,
+          role: 'delivery_agent',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      console.log('[DeliveryAgent] Profile update result:', { error: updateError });
+
+      if (updateError) {
+        console.error('[DeliveryAgent] Profile update error:', updateError);
+        throw updateError;
+      }
+
+      console.log('[DeliveryAgent] Step 3: Creating delivery agent record...');
+
+      // Create delivery agent record
+      const { error: agentError } = await supabase
+        .from('delivery_agents')
+        .insert({
+          user_id: user.id,
+          vehicle_type: vehicleType,
+          is_available: false,
+          active_orders_count: 0,
+          total_deliveries: 0,
+          rating: 5.00,
+          is_approved: false,
+          is_foot_delivery: vehicleType.toLowerCase().includes('foot') || vehicleType === 'Foot'
+        });
+
+      console.log('[DeliveryAgent] Agent insert result:', { error: agentError });
+
+      if (agentError) {
+        console.error('[DeliveryAgent] Agent insert error:', agentError);
+        throw agentError;
+      }
+
+      console.log('[DeliveryAgent] Step 4: Creating agent wallet...');
+
+      // Get the delivery agent ID
+      const { data: agentData } = await supabase
+        .from('delivery_agents')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (agentData) {
+        // Create agent wallet
+        const { error: walletError } = await supabase
+          .from('agent_wallets')
+          .insert({
+            agent_id: agentData.id,
+            customer_funds: 0,
+            delivery_earnings: 0,
+            total_balance: 0
+          });
+
+        console.log('[DeliveryAgent] Wallet insert result:', { error: walletError });
+      }
+
+      console.log('[DeliveryAgent] Step 5: Refreshing profile...');
       await refreshProfile();
+      console.log('[DeliveryAgent] Registration complete!');
+
     } catch (err) {
-      console.error('Error adding delivery agent role:', err);
+      console.error('[DeliveryAgent] Final error:', JSON.stringify(err, null, 2));
+      console.error('[DeliveryAgent] Error details:', {
+        message: (err as Error)?.message,
+        name: (err as Error)?.name,
+        code: (err as any)?.code,
+        details: (err as any)?.details,
+        hint: (err as any)?.hint
+      });
       throw err;
     }
   };

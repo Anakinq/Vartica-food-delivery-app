@@ -2,6 +2,49 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Package, AlertCircle, MapPin, CreditCard } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase/client';
+
+// Define the bank options that match the ones in DeliveryDashboard
+const BANK_OPTIONS = [
+    { code: '044', name: 'Access Bank' },
+    { code: '063', name: 'Access Bank (Diamond)' },
+    { code: '035A', name: 'ALAT by WEMA' },
+    { code: '401', name: 'ASO Savings and Loans' },
+    { code: '023', name: 'Citibank Nigeria' },
+    { code: '050', name: 'Ecobank Nigeria' },
+    { code: '562', name: 'Ekondo Microfinance Bank' },
+    { code: '070', name: 'Fidelity Bank' },
+    { code: '011', name: 'First Bank of Nigeria' },
+    { code: '214', name: 'First City Monument Bank' },
+    { code: '901', name: 'FSDH Merchant Bank Limited' },
+    { code: '00103', name: 'Globus Bank' },
+    { code: '100022', name: 'GoMoney' },
+    { code: '058', name: 'Guaranty Trust Bank' },
+    { code: '030', name: 'Heritage Bank' },
+    { code: '301', name: 'Jaiz Bank' },
+    { code: '082', name: 'Keystone Bank' },
+    { code: '559', name: 'Kuda Bank' },
+    { code: '50211', name: 'Kuda Microfinance Bank' },
+    { code: '999992', name: 'OPay' },
+    { code: '526', name: 'Parallex Bank' },
+    { code: '999991', name: 'PalmPay' },
+    { code: '076', name: 'Polaris Bank' },
+    { code: '101', name: 'Providus Bank' },
+    { code: '125', name: 'Rubies MFB' },
+    { code: '51310', name: 'Sparkle Microfinance Bank' },
+    { code: '221', name: 'Stanbic IBTC Bank' },
+    { code: '068', name: 'Standard Chartered Bank' },
+    { code: '232', name: 'Sterling Bank' },
+    { code: '100', name: 'Suntrust Bank' },
+    { code: '302', name: 'TAJ Bank' },
+    { code: '102', name: 'Titan Bank' },
+    { code: '032', name: 'Union Bank of Nigeria' },
+    { code: '033', name: 'United Bank For Africa' },
+    { code: '215', name: 'Unity Bank' },
+    { code: '566', name: 'VFD Microfinance Bank' },
+    { code: '035', name: 'Wema Bank' },
+    { code: '057', name: 'Zenith Bank' },
+];
 
 interface DeliveryAgentUpgradeModalProps {
     isOpen: boolean;
@@ -90,21 +133,79 @@ export const DeliveryAgentUpgradeModal: React.FC<DeliveryAgentUpgradeModalProps>
     };
 
     const handleSubmit = async () => {
-        if (!validateForm()) return;
+        console.log('[DeliveryAgentModal] === STARTING SUBMISSION ===');
+
+        if (!validateForm()) {
+            console.log('[DeliveryAgentModal] Form validation failed');
+            return;
+        }
 
         setLoading(true);
         setError('');
 
+        console.log('[DeliveryAgentModal] Form validated successfully');
+        console.log('[DeliveryAgentModal] Profile ID:', profile?.id);
+
         try {
             // Call the function to add delivery agent role with default 'Foot' vehicle type
+            console.log('[DeliveryAgentModal] Calling addDeliveryAgentRole...');
             await addDeliveryAgentRole('Foot');
+            console.log('[DeliveryAgentModal] addDeliveryAgentRole completed successfully');
 
-            // Update the profile to reflect the role change and close modal
+            // Save bank details after creating delivery agent role
+            if (profile?.id && formData.bankAccountNumber && formData.bankName) {
+                console.log('[DeliveryAgentModal] Saving bank details...');
+                const selectedBank = BANK_OPTIONS.find(bank =>
+                    bank.name.toLowerCase() === formData.bankName.toLowerCase()
+                );
+
+                const { error: bankError } = await supabase
+                    .from('agent_payout_profiles')
+                    .upsert({
+                        user_id: profile.id,
+                        account_number: formData.bankAccountNumber.trim(),
+                        account_name: profile.full_name || 'Unknown',
+                        bank_code: selectedBank?.code || '',
+                        verified: false
+                    });
+
+                console.log('[DeliveryAgentModal] Bank save result:', { error: bankError });
+
+                if (bankError) {
+                    console.error('[DeliveryAgentModal] Bank save error:', bankError);
+                }
+            }
+
+            console.log('[DeliveryAgentModal] SUCCESS - calling onSuccess and onClose');
             onSuccess();
             onClose();
 
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to register as delivery agent');
+            console.error('[DeliveryAgentModal] === SUBMISSION FAILED ===');
+            console.error('[DeliveryAgentModal] Full error:', JSON.stringify(err, null, 2));
+
+            let errorMessage = 'Failed to register as delivery agent';
+
+            if (err instanceof Error) {
+                errorMessage = err.message;
+                if (err.message.includes('null value')) {
+                    errorMessage = 'Required data is missing. Please fill in all fields.';
+                } else if (err.message.includes('duplicate key')) {
+                    errorMessage = 'You are already registered as a delivery agent.';
+                } else if (err.message.includes('foreign key')) {
+                    errorMessage = 'Profile data missing. Please log out and log in again.';
+                } else if (err.message.includes('Profile not found')) {
+                    errorMessage = 'Profile not found. Please log out and log in again.';
+                }
+            } else if (typeof err === 'object' && err !== null) {
+                const supabaseErr = err as { message?: string; details?: string; hint?: string; code?: string };
+                errorMessage = supabaseErr.message || supabaseErr.details || supabaseErr.hint || errorMessage;
+                if (supabaseErr.code) {
+                    errorMessage += ` (Code: ${supabaseErr.code})`;
+                }
+            }
+
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -162,9 +263,10 @@ export const DeliveryAgentUpgradeModal: React.FC<DeliveryAgentUpgradeModalProps>
                             <input
                                 type="text"
                                 value={formData.bankAccountNumber}
-                                onChange={(e) => handleInputChange('bankAccountNumber', e.target.value)}
+                                onChange={(e) => handleInputChange('bankAccountNumber', e.target.value.replace(/\D/g, '').slice(0, 10))}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                placeholder="Enter your bank account number"
+                                placeholder="Enter your 10-digit bank account number"
+                                maxLength={10}
                             />
                         </div>
 
@@ -172,13 +274,18 @@ export const DeliveryAgentUpgradeModal: React.FC<DeliveryAgentUpgradeModalProps>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Bank Name *
                             </label>
-                            <input
-                                type="text"
+                            <select
                                 value={formData.bankName}
                                 onChange={(e) => handleInputChange('bankName', e.target.value)}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                placeholder="Enter your bank name"
-                            />
+                            >
+                                <option value="">Select your bank</option>
+                                {BANK_OPTIONS.map((bank) => (
+                                    <option key={bank.code} value={bank.name}>
+                                        {bank.name}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         <div className="pt-4 border-t border-gray-200">

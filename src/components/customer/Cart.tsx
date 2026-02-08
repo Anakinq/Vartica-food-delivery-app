@@ -90,21 +90,22 @@ export const Cart: React.FC<CartProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center">
       <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl max-h-[90vh] flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-100">
           <div className="flex items-center space-x-3">
             <div className="relative">
-              <ShoppingCart className="h-6 w-6 text-orange-500" />
+              <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 text-orange-500" />
               {itemCount > 0 && (
                 <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
                   {itemCount}
                 </span>
               )}
             </div>
-            <h2 className="text-2xl font-bold text-black">Your Cart</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-black">Your Cart</h2>
           </div>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            aria-label="Close cart"
           >
             <X className="h-6 w-6" />
           </button>
@@ -169,7 +170,7 @@ export const Cart: React.FC<CartProps> = ({
                   <button
                     onClick={() => onUpdateQuantity(item.id, 0)}
                     className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                    aria-label="Remove item"
+                    aria-label={`Remove ${item.name} from cart`}
                   >
                     <Trash2 className="h-5 w-5" />
                   </button>
@@ -196,6 +197,7 @@ export const Cart: React.FC<CartProps> = ({
                           ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                           : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm active:scale-95'
                           }`}
+                        aria-label="Decrease food pack quantity"
                       >
                         –
                       </button>
@@ -203,6 +205,7 @@ export const Cart: React.FC<CartProps> = ({
                       <button
                         onClick={() => onCartPackChange && onCartPackChange(cartPackCount + 1)}
                         className="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center text-xl font-bold hover:bg-orange-600 shadow-sm active:scale-95 transition-all"
+                        aria-label="Increase food pack quantity"
                       >
                         +
                       </button>
@@ -243,6 +246,7 @@ export const Cart: React.FC<CartProps> = ({
                 <button
                   onClick={onClear}
                   className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-full font-semibold hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2"
+                  aria-label="Clear all items from cart"
                 >
                   <Trash2 className="h-4 w-4" />
                   <span>Clear</span>
@@ -251,6 +255,7 @@ export const Cart: React.FC<CartProps> = ({
                   onClick={onCheckout}
                   disabled={items.length === 0}
                   className="flex-1 py-3 bg-green-600 text-white rounded-full font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
+                  aria-label={`Checkout with ${itemCount} items for ₦${total.toLocaleString()}`}
                 >
                   <span>Checkout</span>
                   <span className="text-green-200">•</span>

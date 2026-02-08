@@ -1,10 +1,15 @@
 // src/components/customer/Checkout.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, Check, AlertCircle, X, RefreshCw } from 'lucide-react';
 import { PaystackButton } from 'react-paystack';
 import { supabase, MenuItem } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
+import {
+  HOSTEL_DELIVERY_FEES,
+  BUSINESS_CONSTANTS,
+  MIN_NGN_VALUE
+} from '../../utils/constants';
 
 interface CartItem extends MenuItem {
   quantity: number;
@@ -54,29 +59,9 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const [scriptLoading, setScriptLoading] = useState(false);
 
   // Function to calculate delivery fee based on hostel location
-  const calculateDeliveryFee = (hostel: string): number => {
-    const hostelDeliveryFees: Record<string, number> = {
-      'New Female Hostel 1': 1500,
-      'New Female Hostel 2': 1500,
-      'Abuad Hostel': 700,
-      'Wema Hostel': 700,
-      'Male Hostel 1': 1500,
-      'Male Hostel 2': 1500,
-      'Male Hostel 3': 1000,
-      'Male Hostel 4': 1000,
-      'Male Hostel 5': 1000,
-      'Male Hostel 6': 1000,
-      'Medical Male Hostel 1': 2000,
-      'Medical Male Hostel 2': 2000,
-      'Female Medical Hostel 1': 2000,
-      'Female Medical Hostel 2': 2000,
-      'Female Medical Hostel 3': 2000,
-      'Female Medical Hostel 4': 2000,
-      'Female Medical Hostel 5': 2000,
-      'Female Medical Hostel 6': 2000,
-    };
-    return hostelDeliveryFees[hostel] || 500;
-  };
+  const calculateDeliveryFee = useCallback((hostel: string): number => {
+    return HOSTEL_DELIVERY_FEES[hostel] || BUSINESS_CONSTANTS.DELIVERY_FEE_DEFAULT;
+  }, []);
 
   // Update delivery fee when hostel selection changes
   useEffect(() => {
@@ -122,14 +107,12 @@ export const Checkout: React.FC<CheckoutProps> = ({
         }
       ]
     },
-    publicKey: 'pk_live_ca2ed0ce730330e603e79901574f930abee50ec6',
+    publicKey: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '',
     text: 'Pay Now',
     onSuccess: (reference: any) => {
-      console.log('Payment successful:', reference);
       handlePaystackSuccess(reference);
     },
     onClose: () => {
-      console.log('Payment closed');
       setError('Payment cancelled');
     },
   };
@@ -249,7 +232,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
         .single();
 
       if (agentError) {
-        console.error('Error finding delivery agent:', agentError);
+        // Agent lookup failed, continue without agent
       } else {
         deliveryAgentId = availableAgent?.id || null;
       }
@@ -361,7 +344,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
       showToast({ type: 'success', message: `Order ${orderResult.orderNumber} created successfully!` });
       setTimeout(() => onSuccess(), 2000);
     } catch (error) {
-      console.error('Payment success but order creation failed:', error);
       showToast({
         type: 'error',
         message: 'Payment successful but order creation failed. Contact support with reference: ' + response.reference
@@ -376,16 +358,13 @@ export const Checkout: React.FC<CheckoutProps> = ({
   };
 
   const initializePaystackPayment = () => {
-    // With npm package, Paystack is always available
     if (!profile?.email) {
       showToast({ type: 'error', message: 'Email is required for payment. Please update your profile.' });
       return;
     }
-    // Use your provided live key
-    const paystackKey = 'pk_live_ca2ed0ce730330e603e79901574f930abee50ec6';
+    const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
     if (!paystackKey) {
       showToast({ type: 'error', message: 'Payment system not configured. Please contact support.' });
-      console.error('VITE_PAYSTACK_PUBLIC_KEY not set');
       return;
     }
     const email = profile.email;
@@ -437,7 +416,10 @@ export const Checkout: React.FC<CheckoutProps> = ({
       showToast({ type: 'success', message: `Order ${orderResult.orderNumber} created successfully!` });
       setTimeout(() => onSuccess(), 2000);
     } catch (error) {
-      showToast({ type: 'error', message: `Failed to create order: ${(error as Error).message}` });
+      showToast({
+        type: 'error',
+        message: 'Failed to create order. Please try again or contact support.'
+      });
     } finally {
       setLoading(false);
     }

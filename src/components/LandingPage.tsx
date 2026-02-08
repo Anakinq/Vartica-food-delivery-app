@@ -120,11 +120,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
       <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
           {/* Headline */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-2">
+          <div className="text-center mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-4xl md:text-5xl font-extrabold text-white mb-2">
               Order Your Food
             </h1>
-            <p className="text-xl text-white text-opacity-80">
+            <p className="text-base sm:text-xl text-white text-opacity-80">
               Welcome to Vartica!
             </p>
           </div>

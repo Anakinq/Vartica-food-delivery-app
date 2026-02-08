@@ -6,6 +6,7 @@ import { Order } from '../../lib/supabase/types';
 import { ChatModal } from '../shared/ChatModal';
 import { LocationTracker } from '../shared/LocationTracker';
 import { DeliveryAgentRating } from '../shared/DeliveryAgentRating';
+import { VendorReviewModal } from '../shared/VendorReviewModal';
 
 interface OrderTrackingProps {
   onClose: () => void;
@@ -16,6 +17,7 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrderForChat, setSelectedOrderForChat] = useState<{ order: Order, chatWith: 'delivery' | 'vendor' } | null>(null);
   const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<Order | null>(null);
+  const [selectedOrderForReview, setSelectedOrderForReview] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -152,12 +154,22 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
                       )}
                     </div>
 
-                    {order.status === 'delivered' && order.delivery_agent_id && (
-                      <div className="border-t pt-4 mt-4">
-                        <DeliveryAgentRating
-                          deliveryAgentId={order.delivery_agent_id}
-                          orderId={order.id}
-                        />
+                    {order.status === 'delivered' && (
+                      <div className="border-t pt-4 mt-4 space-y-3">
+                        {order.delivery_agent_id && (
+                          <DeliveryAgentRating
+                            deliveryAgentId={order.delivery_agent_id}
+                            orderId={order.id}
+                          />
+                        )}
+                        {(order.seller_type === 'vendor' || order.seller_type === 'late_night_vendor' || order.seller_type === 'cafeteria') && (
+                          <button
+                            onClick={() => setSelectedOrderForReview(order)}
+                            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
+                          >
+                            Rate Vendor
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -182,6 +194,14 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
           orderId={selectedOrderForTracking.id}
           orderStatus={selectedOrderForTracking.status}
           onClose={() => setSelectedOrderForTracking(null)}
+        />
+      )}
+
+      {selectedOrderForReview && (
+        <VendorReviewModal
+          orderId={selectedOrderForReview.id}
+          vendorId={selectedOrderForReview.seller_id}
+          onClose={() => setSelectedOrderForReview(null)}
         />
       )}
     </>

@@ -165,9 +165,9 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
     <>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
         {/* Header */}
-        <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
+        <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+          <div className="max-w-4xl mx-auto px-3 sm:px-4">
+            <div className="flex items-center justify-between h-14 sm:h-16">
               <div className="flex items-center">
                 <button
                   onClick={onBack}
@@ -175,7 +175,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
                 >
                   <ArrowLeft className="h-5 w-5" />
                 </button>
-                <h1 className="text-xl font-bold text-black dark:text-white ml-4">My Profile</h1>
+                <h1 className="text-lg sm:text-xl font-bold text-black dark:text-white ml-3 sm:ml-4">My Profile</h1>
               </div>
               <button
                 onClick={toggleDarkMode}
@@ -187,11 +187,11 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
           </div>
         </nav>
 
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
           {/* Profile Header Card */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 mb-6">
-            <div className="flex items-center space-x-6">
-              <div className="relative">
+          <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
+            <div className="flex items-center space-x-4">
+              <div className="relative flex-shrink-0">
                 {avatarUrl ? (
                   <img
                     src={avatarUrl}
@@ -204,7 +204,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
                     }}
                   />
                 ) : (
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold shadow-lg">
                     {profile.full_name?.charAt(0).toUpperCase() || 'U'}
                   </div>
                 )}
@@ -223,9 +223,9 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
                   </div>
                 </div>
               </div>
-              <div className="flex-1">
-                <h2 className="text-2xl font-bold text-black dark:text-white">{profile.full_name}</h2>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">{profile.email}</p>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg sm:text-xl font-bold text-black dark:text-white truncate">{profile.full_name}</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 truncate">{profile.email}</p>
                 <span className="inline-block mt-2 px-3 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-sm font-medium rounded-full capitalize">
                   {profile.role}
                 </span>
@@ -234,10 +234,10 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
           </div>
 
           {/* Tabs */}
-          <div className="flex space-x-2 mb-6">
+          <div className="flex space-x-2 mb-4 sm:mb-6">
             <button
               onClick={() => setActiveTab('profile')}
-              className={`flex-1 py-3 px-6 rounded-xl font-semibold transition-all ${activeTab === 'profile'
+              className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl font-semibold transition-all ${activeTab === 'profile'
                 ? 'bg-black dark:bg-white text-white dark:text-black shadow-lg'
                 : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
@@ -246,7 +246,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
             </button>
             <button
               onClick={() => setActiveTab('settings')}
-              className={`flex-1 py-3 px-6 rounded-xl font-semibold transition-all ${activeTab === 'settings'
+              className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl font-semibold transition-all ${activeTab === 'settings'
                 ? 'bg-black dark:bg-white text-white dark:text-black shadow-lg'
                 : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
@@ -257,9 +257,9 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
 
           {/* Profile Tab */}
           {activeTab === 'profile' && (
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
-              <h3 className="text-lg font-bold text-black dark:text-white mb-6">Edit Profile</h3>
-              <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-bold text-black dark:text-white mb-4 sm:mb-6">Edit Profile</h3>
+              <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
                 <div>
                   <label className="block text-sm font-semibold text-black dark:text-white mb-3">
                     Full Name
@@ -272,7 +272,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
                       type="text"
                       value={formData.full_name}
                       onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                      className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-gray-700 border-0 rounded-xl focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 text-black dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-all"
+                      className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-3 sm:py-4 bg-gray-50 dark:bg-gray-700 border-0 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 text-black dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-all"
                       required
                     />
                   </div>

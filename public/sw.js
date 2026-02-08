@@ -1,7 +1,11 @@
-// Service Worker for Vartica PWA
-const CACHE_NAME = 'vartica-v1.0.0';
-const STATIC_CACHE = 'vartica-static-v1.0.0';
-const DYNAMIC_CACHE = 'vartica-dynamic-v1.0.0';
+/**
+ * Vartica PWA Service Worker
+ * Version: 2.0.0 - Auto-increment on each deploy
+ * 
+ * IMPORTANT: Change CACHE_VERSION on every deployment to force updates!
+ */
+const CACHE_VERSION = 'v2.0.1'; // CHANGE THIS ON EVERY DEPLOY
+const CACHE_NAME = `vartica-${CACHE_VERSION}`;
 
 // Files to cache immediately
 const STATIC_ASSETS = [
@@ -13,152 +17,76 @@ const STATIC_ASSETS = [
     '/favicon.ico',
 ];
 
-// Install event - cache static assets
+// Install event - cache static assets and activate immediately
 self.addEventListener('install', (event) => {
-    console.log('[SW] Installing service worker...');
+    self.skipWaiting(); // Forces new SW to activate immediately
     event.waitUntil(
-        caches.open(STATIC_CACHE).then((cache) => {
-            console.log('[SW] Caching static assets');
+        caches.open(CACHE_NAME).then((cache) => {
             return cache.addAll(STATIC_ASSETS);
         })
     );
-    self.skipWaiting();
 });
 
-// Activate event - clean up old caches
+// Activate event - clean up ALL old caches on every update
 self.addEventListener('activate', (event) => {
-    console.log('[SW] Activating service worker...');
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
-                cacheNames.map((cache) => {
-                    if (cache !== STATIC_CACHE && cache !== DYNAMIC_CACHE) {
-                        console.log('[SW] Deleting old cache:', cache);
-                        return caches.delete(cache);
-                    }
+                cacheNames.map((cacheName) => {
+                    // Delete ALL old caches on every update
+                    return caches.delete(cacheName);
                 })
             );
         })
     );
+    // Immediately control all open tabs with new SW
     return self.clients.claim();
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - network-first strategy for fresh content
 self.addEventListener('fetch', (event) => {
     const { request } = event;
     const url = new URL(request.url);
 
-    // Skip chrome extensions and non-http(s) requests
+    // Skip non-http(s) requests
     if (!url.protocol.startsWith('http')) return;
 
-    // Skip requests that are likely to cause MIME type issues
-    if (request.destination === 'script' && url.pathname.includes('node_modules')) {
-        return;
+    // Skip external resources that shouldn't be cached
+    const externalDomains = [
+        'paystack', 'supabase', 'google-analytics', 'googletagmanager',
+        'hotjar', 'datadoghq', 'facebook', 'fbcdn', 'paypal',
+        'unsplash', 'placeholder', 'cloudinary', 'hcaptcha',
+        'mixpanel', 'polyfill.io', 'jquery', 'cloudflare'
+    ];
+
+    if (externalDomains.some(domain => url.hostname.includes(domain))) {
+        return; // Let browser handle these directly
     }
 
-    // Skip all external resources that cause CSP issues - let browser handle them directly
-    if (url.hostname === 'js.paystack.co' ||
-        url.hostname === 'paystack.com' ||
-        url.hostname === 'checkout.paystack.com' ||
-        url.hostname.includes('.paystack.com') ||
-        url.hostname === 'images.unsplash.com' ||
-        url.hostname === 'via.placeholder.com' ||
-        url.hostname === 'res.cloudinary.com' ||
-        url.hostname.includes('hcaptcha.com') ||
-        url.hostname.includes('challenge-platform') ||
-        url.hostname.includes('cloudflareinsights.com') ||
-        url.hostname.includes('datadoghq-browser-agent.com') ||
-        url.hostname.includes('googletagmanager.com') ||
-        url.hostname.includes('google-analytics.com') ||
-        url.hostname.includes('analytics.google.com') ||
-        url.hostname.includes('doubleclick.net')) {
-        return;
-    }
-
-    // For non-GET requests (POST, PUT, DELETE, etc.), always go to network directly
-    if (request.method !== 'GET') {
-        event.respondWith(fetch(request));
-        return;
-    }
-
-    // Network-first for API calls
-    if (
-        url.hostname.includes('supabase.co') ||
-        url.hostname.includes('paystack.co')
-    ) {
-        event.respondWith(
-            caches.match(request).then((cachedResponse) => {
-                // Return cached response immediately if available
-                if (cachedResponse) {
-                    // Update cache in background
-                    fetch(request).then((response) => {
-                        if (response && response.status === 200 && request.method === 'GET') {
-                            const responseClone = response.clone();
-                            caches.open(DYNAMIC_CACHE).then((cache) => {
-                                cache.put(request, responseClone);
-                            });
-                        }
-                    }).catch(() => { });
-
-                    return cachedResponse;
-                }
-
-                // If no cached response, fetch from network
-                return fetch(request).then((response) => {
-                    if (response && response.status === 200 && request.method === 'GET') {
-                        const responseClone = response.clone();
-                        caches.open(DYNAMIC_CACHE).then((cache) => {
-                            cache.put(request, responseClone);
-                        });
-                    }
-                    return response;
-                }).catch(() => {
-                    // Last resort: try to return any cached response
-                    return caches.match(request);
-                });
-            })
-        );
-        return;
-    }
-
-    // Cache-first for static assets
+    // Network-first strategy for fresh content
     event.respondWith(
-        caches.match(request).then((cachedResponse) => {
-            if (cachedResponse) {
-                return cachedResponse;
-            }
-
-            return fetch(request).then((response) => {
-                // Don't cache failed responses
-                if (!response || response.status !== 200 || response.type === 'error') {
-                    return response;
-                }
-
-                // Only cache GET requests
-                if (request.method === 'GET') {
-                    const responseClone = response.clone();
-                    caches.open(DYNAMIC_CACHE).then((cache) => {
-                        cache.put(request, responseClone);
-                    });
-                }
-
-                return response;
-            }).catch((error) => {
-                console.error('Fetch failed for URL:', request.url, error);
-                // Return error response if fetch fails
-                return new Response('Network Error', {
-                    status: 408,
-                    statusText: 'Network Error',
-                    headers: new Headers({ 'content-type': 'text/plain' })
+        fetch(request).then((response) => {
+            // Cache successful responses
+            if (response && response.status === 200 && request.method === 'GET') {
+                const responseClone = response.clone();
+                caches.open(CACHE_NAME).then((cache) => {
+                    cache.put(request, responseClone);
                 });
-            });
+            }
+            return response;
+        }).catch(() => {
+            // Fallback to cache if network fails
+            return caches.match(request);
         })
     );
 });
 
-// Handle messages from clients
+// Listen for messages from the app
 self.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'SKIP_WAITING') {
         self.skipWaiting();
+    }
+    if (event.data && event.data.type === 'GET_VERSION') {
+        event.ports[0].postMessage(CACHE_VERSION);
     }
 });

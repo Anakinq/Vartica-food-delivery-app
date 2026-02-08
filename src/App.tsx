@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { CustomerHome } from './components/customer/CustomerHome';
 import { VendorDashboard } from './components/vendor/VendorDashboard';
+import { VendorBottomNavigation } from './components/vendor/VendorBottomNavigation';
 import { LandingPage } from './components/LandingPage';
 import { SignIn } from './components/auth/SignIn';
 import { SignUp } from './components/auth/SignUp';
@@ -27,12 +28,22 @@ function AppContent() {
   const [showProfile, setShowProfile] = useState(false);
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [authView, setAuthView] = useState<'signin' | 'signup'>('signin');
+  // Add state to track location changes
+  const [locationHash, setLocationHash] = useState(window.location.hash);
+
+  // Force re-evaluation of routing when auth state changes
+  useEffect(() => {
+    if (user && profile) {
+      setLocationHash(window.location.hash || '');
+    }
+  }, [user, profile]);
 
   // Check for hash-based routing when component mounts and when location changes
   useEffect(() => {
     const handleHashChange = () => {
+      setLocationHash(window.location.hash);
       if (user && profile) {
-        if (window.location.hash === '#/vendor') {
+        if (locationHash === '#/vendor') {
           // Check if user has vendor role
           if ((profile as Profile).is_vendor || ['vendor', 'late_night_vendor'].includes(profile.role)) {
             return; // Allow vendor view
@@ -41,7 +52,7 @@ function AppContent() {
             console.log('User does not have vendor access');
             return;
           }
-        } else if (window.location.hash === '#/delivery') {
+        } else if (locationHash === '#/delivery') {
           // Check if user has delivery_agent role
           if ((profile as Profile).is_delivery_agent || profile.role === 'delivery_agent') {
             return; // Allow delivery agent view
@@ -79,12 +90,12 @@ function AppContent() {
   // Handle hash-based routing
   if (user && profile) {
     // Check if we're on the auth callback route
-    if (window.location.hash.startsWith('#/auth/callback')) {
+    if (locationHash.startsWith('#/auth/callback')) {
       return <AuthCallback />;
     }
 
     // Handle bottom navigation routes
-    if (window.location.hash === '#/cart') {
+    if (locationHash === '#/cart') {
       return (
         <div className="authenticated-view">
           <Cart
@@ -94,12 +105,12 @@ function AppContent() {
             onClose={() => { window.location.hash = ''; }}
             onCheckout={() => { }}
           />
-          <BottomNavigation cartCount={0} notificationCount={0} />
+          <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
         </div>
       );
     }
 
-    if (window.location.hash === '#/notifications' || window.location.hash === '#/alerts') {
+    if (locationHash === '#/notifications' || locationHash === '#/alerts') {
       // TODO: Implement notifications component
       return (
         <div className="authenticated-view">
@@ -107,12 +118,12 @@ function AppContent() {
             <h2 className="text-xl font-bold mb-4">Notifications</h2>
             <p className="text-gray-600">Notifications functionality coming soon...</p>
           </div>
-          <BottomNavigation cartCount={0} notificationCount={0} />
+          <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
         </div>
       );
     }
 
-    if (window.location.hash === '#/profile') {
+    if (locationHash === '#/profile') {
       return (
         <div className="authenticated-view">
           <ProfileDashboard
@@ -123,7 +134,7 @@ function AppContent() {
               // Handle sign out
             }}
           />
-          <BottomNavigation cartCount={0} notificationCount={0} />
+          <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
         </div>
       );
     }
@@ -139,7 +150,7 @@ function AppContent() {
               setShowProfile(false);
             }}
           />
-          <BottomNavigation cartCount={0} notificationCount={0} />
+          <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
         </div>
       );
     }
@@ -148,12 +159,12 @@ function AppContent() {
     const userRole = profile.role as UserRole;
 
     // Check hash for explicit role routing
-    if (window.location.hash === '#/vendor') {
+    if (locationHash === '#/vendor') {
       if ((profile as Profile).is_vendor || ['vendor', 'late_night_vendor'].includes(profile.role)) {
         return (
           <div className="authenticated-view">
             <VendorDashboard onShowProfile={() => setShowProfile(true)} />
-            <BottomNavigation cartCount={0} notificationCount={0} />
+            <VendorBottomNavigation />
           </div>
         );
       } else {
@@ -165,12 +176,12 @@ function AppContent() {
           </div>
         );
       }
-    } else if (window.location.hash === '#/delivery') {
+    } else if (locationHash === '#/delivery') {
       if ((profile as Profile).is_delivery_agent || profile.role === 'delivery_agent') {
         return (
           <div className="authenticated-view">
             <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />
-            <BottomNavigation cartCount={0} notificationCount={0} />
+            <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
           </div>
         );
       } else {
@@ -190,21 +201,21 @@ function AppContent() {
         return (
           <div className="authenticated-view">
             <AdminDashboard onShowProfile={() => setShowProfile(true)} />
-            <BottomNavigation cartCount={0} notificationCount={0} />
+            <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
           </div>
         );
       case 'delivery_agent':
         return (
           <div className="authenticated-view">
             <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />
-            <BottomNavigation cartCount={0} notificationCount={0} />
+            <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
           </div>
         );
       case 'cafeteria':
         return (
           <div className="authenticated-view">
             <CafeteriaDashboard profile={profile} onShowProfile={() => setShowProfile(true)} />
-            <BottomNavigation cartCount={0} notificationCount={0} />
+            <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
           </div>
         );
       case 'vendor':
@@ -214,7 +225,7 @@ function AppContent() {
           return (
             <div className="authenticated-view">
               <VendorDashboard onShowProfile={() => setShowProfile(true)} />
-              <BottomNavigation cartCount={0} notificationCount={0} />
+              <VendorBottomNavigation />
             </div>
           );
         }
@@ -222,7 +233,7 @@ function AppContent() {
         return (
           <div className="authenticated-view">
             <CustomerHome onShowProfile={() => setShowProfile(true)} />
-            <BottomNavigation cartCount={0} notificationCount={0} />
+            <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
           </div>
         );
       case 'customer':
@@ -230,14 +241,14 @@ function AppContent() {
         return (
           <div className="authenticated-view">
             <CustomerHome onShowProfile={() => setShowProfile(true)} />
-            <BottomNavigation cartCount={0} notificationCount={0} />
+            <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
           </div>
         );
     }
   }
 
   // Check if we're on the auth callback route when not logged in
-  if (window.location.hash.startsWith('#/auth/callback')) {
+  if (locationHash.startsWith('#/auth/callback')) {
     return <AuthCallback />;
   }
 

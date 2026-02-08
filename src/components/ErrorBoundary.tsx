@@ -1,77 +1,133 @@
-import React from 'react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
+import Button from './common/Button';
 
-interface ErrorBoundaryProps {
-    children: React.ReactNode;
-    fallback?: React.ComponentType<{ error?: Error; resetError?: () => void }>;
+interface Props {
+    children: ReactNode;
+    fallback?: ReactNode;
 }
 
-interface ErrorBoundaryState {
+interface State {
     hasError: boolean;
-    error?: Error;
+    error: Error | null;
+    errorInfo: ErrorInfo | null;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-    constructor(props: ErrorBoundaryProps) {
-        super(props);
-        this.state = { hasError: false };
-    }
-
-    static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-        return { hasError: true, error };
-    }
-
-    componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-        console.error('Uncaught error:', error, errorInfo);
-        // In production, you might want to log this to a monitoring service
-        if (process.env.NODE_ENV === 'production') {
-            // Log to external service like Sentry, LogRocket, etc.
-            // Example: Sentry.captureException(error);
-        }
-    }
-
-    resetError = () => {
-        this.setState({ hasError: false, error: undefined });
+export class ErrorBoundary extends Component<Props, State> {
+    public state: State = {
+        hasError: false,
+        error: null,
+        errorInfo: null,
     };
 
-    render() {
+    public static getDerivedStateFromError(error: Error): State {
+        return {
+            hasError: true,
+            error,
+            errorInfo: null,
+        };
+    }
+
+    public componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+        this.setState({
+            error,
+            errorInfo,
+        });
+
+        // Log error to console in development
+        if (process.env.NODE_ENV === 'development') {
+            console.error('ErrorBoundary caught an error:', error, errorInfo);
+        }
+
+        // TODO: Send error to error tracking service (e.g., Sentry)
+        this.reportError(error, errorInfo);
+    }
+
+    private reportError(error: Error, errorInfo: ErrorInfo): void {
+        // In production, send to error tracking service
+        const errorData = {
+            message: error.message,
+            stack: error.stack,
+            componentStack: errorInfo.componentStack,
+            timestamp: new Date().toISOString(),
+            url: typeof window !== 'undefined' ? window.location.href : 'server',
+        };
+
+        // Example: Send to Sentry or other service
+        // await fetch('/api/errors', {
+        //   method: 'POST',
+        //   headers: { 'Content-Type': 'application/json' },
+        //   body: JSON.stringify(errorData),
+        // });
+
+        console.error('Error reported:', errorData);
+    }
+
+    private handleRefresh = (): void => {
+        window.location.reload();
+    };
+
+    private handleReset = (): void => {
+        this.setState({
+            hasError: false,
+            error: null,
+            errorInfo: null,
+        });
+    };
+
+    public render(): ReactNode {
         if (this.state.hasError) {
-            // Use custom fallback if provided, otherwise use default
             if (this.props.fallback) {
-                const FallbackComponent = this.props.fallback;
-                return <FallbackComponent error={this.state.error} resetError={this.resetError} />;
+                return this.props.fallback;
             }
 
             return (
-                <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                    <div className="text-center p-8 bg-white rounded-xl shadow-lg max-w-md">
-                        <h2 className="text-2xl font-bold text-gray-900 mb-4">Something went wrong</h2>
-                        <p className="text-gray-600 mb-6">We're sorry, but something unexpected happened. Please try refreshing the page.</p>
-                        <div className="space-y-3">
-                            <button
-                                onClick={this.resetError}
-                                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                <div
+                    className="min-h-screen flex items-center justify-center p-4"
+                    role="alert"
+                    aria-live="assertive"
+                >
+                    <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertCircle className="h-8 w-8 text-red-500" />
+                        </div>
+
+                        <h2 className="text-xl font-bold text-gray-900 mb-2">
+                            Something went wrong
+                        </h2>
+
+                        <p className="text-gray-600 mb-6">
+                            We apologize for the inconvenience. An unexpected error occurred.
+                        </p>
+
+                        {process.env.NODE_ENV === 'development' && this.state.error && (
+                            <div className="bg-gray-100 rounded-lg p-4 mb-6 text-left overflow-auto max-h-40">
+                                <p className="text-sm font-mono text-red-600 mb-2">
+                                    {this.state.error.message}
+                                </p>
+                                {this.state.errorInfo && (
+                                    <p className="text-xs font-mono text-gray-500 whitespace-pre-wrap">
+                                        {this.state.errorInfo.componentStack}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="flex space-x-3 justify-center">
+                            <Button
+                                variant="outline"
+                                onClick={this.handleReset}
+                                leftIcon={<RefreshCw className="h-4 w-4" />}
                             >
                                 Try Again
-                            </button>
-                            <button
-                                onClick={() => {
-                                    // Try to recover through context refresh first
-                                    if (typeof window !== 'undefined' && window.location) {
-                                        window.location.reload();
-                                    }
-                                }}
-                                className="w-full px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+                            </Button>
+                            <Button
+                                variant="primary"
+                                onClick={this.handleRefresh}
                             >
-                                Reload Page
-                            </button>
+                                Refresh Page
+                            </Button>
                         </div>
-                        {process.env.NODE_ENV === 'development' && this.state.error && (
-                            <details className="mt-4 text-left text-sm text-red-600 bg-red-50 p-3 rounded">
-                                <summary>Error details</summary>
-                                <p>{this.state.error.toString()}</p>
-                                <p>{this.state.error.stack}</p>
-                            </details>
-                        )}
                     </div>
                 </div>
             );

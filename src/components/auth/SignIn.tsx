@@ -205,8 +205,8 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
             Back
           </button>
 
-          <div className="bg-white bg-opacity-10 backdrop-blur-lg rounded-2xl shadow-2xl p-8 border border-white border-opacity-20">
-            <h2 className="text-3xl font-bold text-white mb-2">
+          <div className="bg-white bg-opacity-10 backdrop-blur-lg rounded-2xl shadow-2xl p-6 sm:p-8 border border-white border-opacity-20">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
               {forgotPasswordMode ? 'Reset Password' : `${roleTitle} Sign In`}
             </h2>
             <p className="text-white text-opacity-80 mb-6">

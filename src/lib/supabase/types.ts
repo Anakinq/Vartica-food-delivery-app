@@ -45,6 +45,17 @@ export interface Vendor {
     delivery_option?: 'offers_hostel_delivery' | 'does_not_offer_hostel_delivery';
 }
 
+export interface VendorCategory {
+    id: string;
+    vendor_id: string;
+    name: string;
+    category_type: 'food' | 'product' | 'service' | 'general';
+    sort_order: number;
+    is_active: boolean;
+    created_at?: string;
+    updated_at?: string;
+}
+
 export interface MenuItem {
     id: string;
     seller_id: string;
@@ -54,6 +65,7 @@ export interface MenuItem {
     price: number;
     image_url?: string;
     category?: string;
+    category_id?: string;  // Link to vendor_categories table
     is_available?: boolean;
     created_at?: string;
     updated_at?: string;

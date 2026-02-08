@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { LogOut, Plus, Edit2, ToggleLeft, ToggleRight, Menu, X, User, Camera, Save, MessageCircle } from 'lucide-react';
+import { LogOut, Plus, Edit2, ToggleLeft, ToggleRight, Menu, X, User, Camera, Save, MessageCircle, Trash2, FolderPlus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { MenuItem } from '../../lib/supabase/types';
+import { MenuItem, VendorCategory } from '../../lib/supabase/types';
 import { supabase } from '../../lib/supabase/client';
 import { Vendor, Order } from '../../lib/supabase/types';
 import { MenuItemForm } from '../shared/MenuItemForm';
@@ -10,6 +10,7 @@ import { RoleSwitcher } from '../shared/RoleSwitcher';
 import { uploadVendorImage } from '../../utils/imageUploader';
 import { ProfileWithVendor } from '../../services/supabase/database.service';
 import { useToast } from '../../contexts/ToastContext';
+import { VendorWalletService, VendorReviewService } from '../../services/supabase/vendor.service';
 
 interface VendorDashboardProps {
   onShowProfile?: () => void;
@@ -38,7 +39,9 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   const [myOrders, setMyOrders] = useState<Order[]>([]);
   const [selectedOrderForChat, setSelectedOrderForChat] = useState<{ order: Order, chatWith: 'customer' | 'delivery' } | null>(null);
   const [walletBalance, setWalletBalance] = useState<number>(0);
-  const [reviews, setReviews] = useState<any[]>([]); // Replace with proper type when available
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [averageRating, setAverageRating] = useState<number>(0);
+  const [totalReviews, setTotalReviews] = useState<number>(0);
   const [preferredRole, setPreferredRole] = useState<'customer' | 'vendor' | 'delivery_agent'>('vendor');
   const [metrics, setMetrics] = useState({
     totalOrders: 0,
@@ -47,6 +50,13 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     pendingOrders: 0,
     completedOrders: 0,
   });
+  
+  // Category management state
+  const [vendorCategories, setVendorCategories] = useState<VendorCategory[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [editingCategory, setEditingCategory] = useState<VendorCategory | null>(null);
 
   // Memoize expensive computations
   const filteredOrders = useMemo(() => {
@@ -92,6 +102,13 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       fetchData();
     }
   }, [profile]);
+
+  // Fetch vendor categories when vendor is loaded
+  useEffect(() => {
+    if (vendor) {
+      fetchVendorCategories();
+    }
+  }, [vendor]);
 
   useEffect(() => {
     // Check approval status for vendors
@@ -230,6 +247,105 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       }
       setVendorLoading(false);
       setLoading(false);
+    }
+  };
+
+  // Fetch vendor categories
+  const fetchVendorCategories = async () => {
+    if (!vendor) return;
+    
+    setLoadingCategories(true);
+    try {
+      const { data, error } = await supabase
+        .from('vendor_categories')
+        .select('*')
+        .eq('vendor_id', vendor.id)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching categories:', error);
+      } else if (data) {
+        setVendorCategories(data);
+      }
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  // Add new category
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim() || !vendor) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('vendor_categories')
+        .insert({
+          vendor_id: vendor.id,
+          name: newCategoryName.trim(),
+          category_type: vendor.vendor_type === 'late_night' ? 'product' : 'food',
+          sort_order: vendorCategories.length + 1,
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        alert('Failed to add category: ' + error.message);
+      } else {
+        setVendorCategories([...vendorCategories, data]);
+        setNewCategoryName('');
+        setShowAddCategory(false);
+        showToast({ type: 'success', message: 'Category added successfully!' });
+      }
+    } catch (err) {
+      console.error('Error adding category:', err);
+      alert('Failed to add category. Please try again.');
+    }
+  };
+
+  // Delete category
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (!confirm('Are you sure you want to delete this category? Items in this category will not be deleted.')) return;
+
+    try {
+      const { error } = await supabase
+        .from('vendor_categories')
+        .update({ is_active: false })
+        .eq('id', categoryId);
+
+      if (error) {
+        alert('Failed to delete category: ' + error.message);
+      } else {
+        setVendorCategories(vendorCategories.filter(c => c.id !== categoryId));
+        showToast({ type: 'success', message: 'Category deleted!' });
+      }
+    } catch (err) {
+      console.error('Error deleting category:', err);
+      alert('Failed to delete category. Please try again.');
+    }
+  };
+
+  // Update category sort order
+  const handleUpdateCategoryOrder = async (categoryId: string, newOrder: number) => {
+    try {
+      const { error } = await supabase
+        .from('vendor_categories')
+        .update({ sort_order: newOrder })
+        .eq('id', categoryId);
+
+      if (error) {
+        console.error('Error updating category order:', error);
+      } else {
+        // Update local state
+        setVendorCategories(vendorCategories.map(c => 
+          c.id === categoryId ? { ...c, sort_order: newOrder } : c
+        ).sort((a, b) => a.sort_order - b.sort_order));
+      }
+    } catch (err) {
+      console.error('Error updating category order:', err);
     }
   };
 
@@ -558,6 +674,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       calculateMetrics(ordersData);
       fetchWalletInfo();
       fetchReviews();
+      fetchReviewStats();
     }
   };
 
@@ -568,42 +685,48 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
 
   const fetchWalletInfo = async () => {
     try {
-      // Calculate vendor earnings based on completed orders
       if (vendor) {
-        const { data, error } = await supabase
-          .from('orders')
-          .select('total, platform_commission')
-          .eq('seller_id', vendor.id)
-          .in('status', ['delivered', 'completed']); // Only completed orders contribute to earnings
-
-        if (error) {
-          console.error('Error fetching vendor orders for earnings calculation:', error);
-          setWalletBalance(0);
-        } else if (data) {
-          // Calculate total earnings (total minus platform commission)
-          const totalEarnings = data.reduce((sum, order) => {
-            const commission = order.platform_commission || 0;
-            return sum + (order.total - commission);
-          }, 0);
-          setWalletBalance(totalEarnings);
+        // Use the new vendor wallet service
+        const wallet = await VendorWalletService.getVendorWallet(vendor.id);
+        if (wallet) {
+          setWalletBalance(wallet.total_earnings);
         } else {
-          setWalletBalance(0);
+          // Fallback to manual calculation
+          const earnings = await VendorWalletService.calculateVendorEarnings(vendor.id);
+          setWalletBalance(earnings);
         }
       }
     } catch (error) {
-      console.error('Unexpected error calculating vendor earnings:', error);
+      console.error('Error fetching vendor wallet info:', error);
       setWalletBalance(0);
     }
   };
 
   const fetchReviews = async () => {
-    // In a real implementation, this would fetch reviews for the vendor
-    // For now, we'll simulate some reviews
-    setReviews([
-      { id: 1, customer: 'John Doe', rating: 5, comment: 'Great food and fast delivery!', date: '2023-05-15' },
-      { id: 2, customer: 'Jane Smith', rating: 4, comment: 'Delicious meals, will order again.', date: '2023-05-10' },
-      { id: 3, customer: 'Bob Johnson', rating: 5, comment: 'Excellent service and quality.', date: '2023-05-05' },
-    ]);
+    try {
+      if (vendor) {
+        const vendorReviews = await VendorReviewService.getVendorReviews(vendor.id, 6);
+        setReviews(vendorReviews);
+      }
+    } catch (error) {
+      console.error('Error fetching vendor reviews:', error);
+      setReviews([]);
+    }
+  };
+
+  const fetchReviewStats = async () => {
+    try {
+      if (vendor) {
+        const avgRating = await VendorReviewService.getVendorAverageRating(vendor.id);
+        const reviewCount = await VendorReviewService.getVendorReviewCount(vendor.id);
+        setAverageRating(avgRating);
+        setTotalReviews(reviewCount);
+      }
+    } catch (error) {
+      console.error('Error fetching review stats:', error);
+      setAverageRating(0);
+      setTotalReviews(0);
+    }
   };
 
   const calculateMetrics = (orders: Order[]) => {
@@ -730,6 +853,100 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
             </div>
           )}
         </nav>
+
+        {/* Category Management Section */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900">Categories</h2>
+              <p className="text-gray-600 mt-1">Manage your product categories</p>
+            </div>
+            <button
+              onClick={() => setShowAddCategory(true)}
+              className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700"
+            >
+              <FolderPlus className="h-5 w-5" />
+              <span>Add Category</span>
+            </button>
+          </div>
+
+          {/* Add Category Form */}
+          {showAddCategory && (
+            <div className="bg-green-50 rounded-xl p-6 mb-6 border border-green-200">
+              <h3 className="font-semibold text-green-900 mb-4">Add New Category</h3>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="Category name (e.g., Desserts, Electronics)"
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleAddCategory}
+                    disabled={!newCategoryName.trim()}
+                    className="px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50"
+                  >
+                    Add
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowAddCategory(false);
+                      setNewCategoryName('');
+                    }}
+                    className="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Categories List */}
+          {loadingCategories ? (
+            <div className="text-center py-8">
+              <p className="text-gray-600">Loading categories...</p>
+            </div>
+          ) : vendorCategories.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-gray-300">
+              <FolderPlus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 text-lg mb-4">No categories yet</p>
+              <p className="text-gray-500 text-sm mb-4">Create categories to organize your products</p>
+              <button
+                onClick={() => setShowAddCategory(true)}
+                className="text-green-600 hover:text-green-700 font-semibold"
+              >
+                Add your first category
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {vendorCategories.map((category) => (
+                <div key={category.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <FolderPlus className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">{category.name}</h4>
+                      <p className="text-xs text-gray-500 capitalize">{category.category_type}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteCategory(category.id)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                    title="Delete category"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex justify-between items-center mb-8">
@@ -1105,7 +1322,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         <div className="mt-12">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-900">Customer Reviews</h2>
-            <span className="text-lg font-semibold text-yellow-600">⭐ 4.7 (24 reviews)</span>
+            <span className="text-lg font-semibold text-yellow-600">⭐ {averageRating.toFixed(1)} ({totalReviews} reviews)</span>
           </div>
 
           {reviews.length === 0 ? (
@@ -1117,13 +1334,13 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
               {reviews.map(review => (
                 <div key={review.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                   <div className="flex justify-between items-start mb-3">
-                    <h3 className="font-semibold text-gray-900">{review.customer}</h3>
+                    <h3 className="font-semibold text-gray-900">{review.customer?.full_name || 'Customer'}</h3>
                     <div className="flex items-center">
                       {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
                     </div>
                   </div>
-                  <p className="text-gray-600 mb-3">{review.comment}</p>
-                  <p className="text-sm text-gray-500">{review.date}</p>
+                  <p className="text-gray-600 mb-3">{review.review_text || 'No comment provided'}</p>
+                  <p className="text-sm text-gray-500">{new Date(review.created_at).toLocaleDateString()}</p>
                 </div>
               ))}
             </div>

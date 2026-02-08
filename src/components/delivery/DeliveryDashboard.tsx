@@ -307,7 +307,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     }
   }, [profile?.id]);
 
-  // Initial + periodic fetch
+  // Initial fetch and real-time subscriptions
   useEffect(() => {
     console.log('DeliveryDashboard: useEffect triggered, profile ID:', profile?.id);
     fetchData();
@@ -317,16 +317,40 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       checkAgentApproval();
     }
 
-    const interval = setInterval(() => {
-      console.log('DeliveryDashboard: Interval fetch triggered');
-      fetchData();
-    }, 15000);
+    // Set up real-time subscriptions for order changes
+    let orderSubscription: any;
+
+    // Subscribe to order changes once profile and agent data are available
+    if (profile?.id) {
+      // Subscribe to orders assigned to this delivery agent
+      orderSubscription = supabase
+        .channel('orders-changes-' + profile.id)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'orders',
+          },
+          (payload) => {
+            // Check if the order is related to this agent
+            if (payload.new.delivery_agent_id === agent?.id || payload.old.delivery_agent_id === agent?.id ||
+              (payload.new.delivery_agent_id === null && payload.new.status === 'pending')) {
+              console.log('Relevant order change detected:', payload);
+              fetchData();  // Refresh data when a relevant order changes
+            }
+          }
+        )
+        .subscribe();
+    }
 
     return () => {
-      console.log('DeliveryDashboard: Cleaning up interval');
-      clearInterval(interval);
+      console.log('DeliveryDashboard: Cleaning up subscriptions');
+      if (orderSubscription) {
+        supabase.removeChannel(orderSubscription);
+      }
     };
-  }, [profile?.id]);
+  }, [profile?.id, agent?.id]);
 
   const checkAgentApproval = async () => {
     if (profile && profile.role === 'delivery_agent') {

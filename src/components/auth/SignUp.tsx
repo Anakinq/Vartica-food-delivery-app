@@ -410,8 +410,8 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
             Back
           </button>
 
-          <div className="bg-white bg-opacity-10 backdrop-blur-lg rounded-2xl p-8 border border-white border-opacity-20 shadow-2xl">
-            <h2 className="text-3xl font-bold text-white mb-2">
+          <div className="bg-white bg-opacity-10 backdrop-blur-lg rounded-2xl p-5 sm:p-8 border border-white border-opacity-20 shadow-2xl">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
               {roleTitle} Sign Up
             </h2>
 

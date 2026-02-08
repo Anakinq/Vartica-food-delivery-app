@@ -57,7 +57,7 @@ export const MenuItemCardSimple: React.FC<MenuItemCardSimpleProps> = ({
   const totalPrice = item.price * quantityInCart;
 
   return (
-    <div className="bg-[#1a1a1a] rounded-xl p-4 mb-3 flex items-center">
+    <div className="bg-[#1a1a1a] rounded-xl p-3 sm:p-4 mb-2 sm:mb-3 flex items-center">
       {/* Food Image */}
       <div className="relative w-24 h-24 rounded-lg overflow-hidden bg-[#2a2a2a] mr-4 flex-shrink-0">
         <LazyImage
@@ -78,7 +78,7 @@ export const MenuItemCardSimple: React.FC<MenuItemCardSimpleProps> = ({
       {/* Food Details */}
       <div className="flex-1">
         <div className="flex justify-between items-start mb-1">
-          <h3 className="font-bold text-white text-lg line-clamp-1">{item.name}</h3>
+          <h3 className="font-bold text-white text-base sm:text-lg line-clamp-1">{item.name}</h3>
           {onToggleFavorite && (
             <button
               onClick={onToggleFavorite}

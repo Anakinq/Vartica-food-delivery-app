@@ -1,9 +1,10 @@
 // src/components/MenuItemForm.tsx
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
-import { MenuItem } from '../../lib/supabase';
+import { X, Plus, Trash2 } from 'lucide-react';
+import { MenuItem, VendorCategory } from '../../lib/supabase/types';
 import { uploadVendorImage } from '../../utils/imageUploader';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase/client';
 
 interface MenuItemFormProps {
   item: MenuItem | null;
@@ -18,6 +19,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
     description: item?.description || '',
     price: item?.price || 0,
     category: item?.category || '',
+    category_id: item?.category_id || '',
     image_url: item?.image_url || '',
     is_available: item?.is_available ?? true,
   });
@@ -27,9 +29,69 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Dynamic categories state
+  const [vendorCategories, setVendorCategories] = useState<VendorCategory[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryType, setNewCategoryType] = useState<'food' | 'product' | 'service' | 'general'>('general');
+
   // Determine if this is a business vendor (late_night) vs food vendor (student)
   const isBusinessVendor = profile?.vendor?.vendor_type === 'late_night';
   const isFoodVendor = profile?.vendor?.vendor_type === 'student';
+
+  // Fallback categories when vendor has no custom categories
+  const fallbackCategories = isBusinessVendor
+    ? [
+      { value: 'Electronics', label: 'Electronics' },
+      { value: 'Books', label: 'Books' },
+      { value: 'Clothing', label: 'Clothing' },
+      { value: 'Services', label: 'Services' },
+      { value: 'Stationery', label: 'Stationery' },
+      { value: 'Beauty', label: 'Beauty' },
+      { value: 'Sports', label: 'Sports' },
+      { value: 'Other', label: 'Other' },
+    ]
+    : [
+      { value: 'Main Course', label: 'Main Course' },
+      { value: 'Swallow', label: 'Swallow' },
+      { value: 'Protein', label: 'Protein' },
+      { value: 'Drink', label: 'Drink' },
+      { value: 'Snack', label: 'Snack' },
+      { value: 'Salad', label: 'Salad' },
+      { value: 'Pizza', label: 'Pizza' },
+      { value: 'Side', label: 'Side' },
+      { value: 'Soup', label: 'Soup' },
+    ];
+
+  // Fetch vendor categories from database
+  const fetchVendorCategories = async () => {
+    if (!profile?.vendor?.id) return;
+
+    setLoadingCategories(true);
+    try {
+      const { data, error } = await supabase
+        .from('vendor_categories')
+        .select('*')
+        .eq('vendor_id', profile.vendor.id)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching categories:', error);
+      } else if (data) {
+        setVendorCategories(data);
+      }
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVendorCategories();
+  }, [profile?.vendor?.id]);
 
   useEffect(() => {
     setImagePreview(item?.image_url ? decodeURIComponent(item.image_url) : null);
@@ -39,10 +101,71 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
       description: item?.description || '',
       price: item?.price || 0,
       category: item?.category || '',
+      category_id: item?.category_id || '',
       image_url: item?.image_url ? decodeURIComponent(item.image_url) : '',
       is_available: item?.is_available ?? true,
     });
   }, [item]);
+
+  // Add new custom category
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim() || !profile?.vendor?.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('vendor_categories')
+        .insert({
+          vendor_id: profile.vendor.id,
+          name: newCategoryName.trim(),
+          category_type: isBusinessVendor ? 'product' : isFoodVendor ? 'food' : 'general',
+          sort_order: vendorCategories.length + 1,
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        alert('Failed to add category: ' + error.message);
+      } else {
+        setVendorCategories([...vendorCategories, data]);
+        setFormData({
+          ...formData,
+          category: data.name,
+          category_id: data.id
+        });
+        setNewCategoryName('');
+        setShowAddCategory(false);
+      }
+    } catch (err) {
+      console.error('Error adding category:', err);
+      alert('Failed to add category. Please try again.');
+    }
+  };
+
+  // Delete custom category
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (!confirm('Are you sure you want to delete this category? Items in this category will not be deleted.')) return;
+
+    try {
+      const { error } = await supabase
+        .from('vendor_categories')
+        .update({ is_active: false })
+        .eq('id', categoryId);
+
+      if (error) {
+        alert('Failed to delete category: ' + error.message);
+      } else {
+        setVendorCategories(vendorCategories.filter(c => c.id !== categoryId));
+        // Clear category selection if deleted category was selected
+        if (formData.category_id === categoryId) {
+          setFormData({ ...formData, category: '', category_id: '' });
+        }
+      }
+    } catch (err) {
+      console.error('Error deleting category:', err);
+      alert('Failed to delete category. Please try again.');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,7 +174,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
 
     // Validate category
     if (!formData.category.trim()) {
-      setError('Please select a category');
+      setError('Please select or add a category');
       setIsUploading(false);
       return;
     }
@@ -78,9 +201,12 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
     }
   };
 
+  // Get categories to display (dynamic + fallback)
+  const displayCategories = vendorCategories.length > 0 ? vendorCategories : fallbackCategories;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-2xl w-full p-6">
+      <div className="bg-white rounded-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">
             {item ? 'Edit Menu Item' : 'Add Menu Item'}
@@ -145,53 +271,109 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Category *
               </label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Select category</option>
-                {isBusinessVendor ? (
-                  <>
-                    <option value="Electronics">Electronics</option>
-                    <option value="Books">Books</option>
-                    <option value="Clothing">Clothing</option>
-                    <option value="Services">Services</option>
-                    <option value="Stationery">Stationery</option>
-                    <option value="Beauty">Beauty</option>
-                    <option value="Sports">Sports</option>
-                    <option value="Other">Other</option>
-                  </>
-                ) : isFoodVendor ? (
-                  <>
-                    <option value="Main Course">Main Course</option>
-                    <option value="Swallow">Swallow</option>
-                    <option value="Protein">Protein</option>
-                    <option value="Drink">Drink</option>
-                    <option value="Snack">Snack</option>
-                    <option value="Salad">Salad</option>
-                    <option value="Pizza">Pizza</option>
-                    <option value="Side">Side</option>
-                    <option value="Soup">Soup</option>
-                  </>
-                ) : (
-                  // Default food categories for any other vendor type
-                  <>
-                    <option value="Main Course">Main Course</option>
-                    <option value="Swallow">Swallow</option>
-                    <option value="Protein">Protein</option>
-                    <option value="Drink">Drink</option>
-                    <option value="Snack">Snack</option>
-                    <option value="Salad">Salad</option>
-                    <option value="Pizza">Pizza</option>
-                    <option value="Side">Side</option>
-                    <option value="Soup">Soup</option>
-                  </>
-                )}
-              </select>
+
+              {loadingCategories ? (
+                <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50">
+                  Loading categories...
+                </div>
+              ) : (
+                <>
+                  <div className="flex gap-2">
+                    <select
+                      value={formData.category_id || formData.category}
+                      onChange={(e) => {
+                        const selectedCat = vendorCategories.find(c => c.id === e.target.value);
+                        if (selectedCat) {
+                          setFormData({
+                            ...formData,
+                            category: selectedCat.name,
+                            category_id: selectedCat.id
+                          });
+                        } else {
+                          // Fallback to hardcoded category
+                          setFormData({
+                            ...formData,
+                            category: e.target.value,
+                            category_id: ''
+                          });
+                        }
+                      }}
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select category</option>
+                      {displayCategories.map((cat: any) => (
+                        <option key={cat.id || cat.value} value={cat.id || cat.value}>
+                          {cat.name || cat.label}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Add Category Button */}
+                    <button
+                      type="button"
+                      onClick={() => setShowAddCategory(true)}
+                      className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
+                      title="Add custom category"
+                    >
+                      <Plus size={20} />
+                    </button>
+                  </div>
+
+                  {/* Show delete button if it's a custom category */}
+                  {formData.category_id && vendorCategories.find(c => c.id === formData.category_id) && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-xs text-gray-500">
+                        Custom category
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCategory(formData.category_id!)}
+                        className="text-xs text-red-600 hover:text-red-800 flex items-center gap-1"
+                      >
+                        <Trash2 size={12} /> Delete
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
+
+          {/* Add New Category Form */}
+          {showAddCategory && (
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h4 className="font-medium text-blue-900 mb-3">Add New Category</h4>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="Category name"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={handleAddCategory}
+                  disabled={!newCategoryName.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Add
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddCategory(false);
+                    setNewCategoryName('');
+                  }}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

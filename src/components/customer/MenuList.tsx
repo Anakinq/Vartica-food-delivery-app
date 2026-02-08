@@ -72,13 +72,19 @@ export const MenuList: React.FC<MenuListProps> = ({
   return (
     <div className="menu-container bg-[#121212] min-h-screen text-white pb-24">
       {/* Header with Search */}
-      <div className="px-4 pt-4 pb-3 sticky top-0 z-10 bg-[#121212]">
+      <div
+        className="px-4 pt-4 pb-3 sticky top-0 z-10 bg-[#121212] scroll-mt-0"
+        role="search"
+        aria-label="Menu search"
+      >
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold">Our Menu</h1>
           <div className="flex items-center space-x-3">
             <button
               onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
               className={`p-2 rounded-full ${showFavoritesOnly ? 'bg-[#1e1e1e]' : 'bg-[#1e1e1e] text-gray-400'}`}
+              aria-label={showFavoritesOnly ? 'Show all items' : 'Show favorites only'}
+              aria-pressed={showFavoritesOnly}
             >
               <Heart className={`h-5 w-5 ${showFavoritesOnly ? 'text-red-500 fill-red-500' : 'text-gray-400'}`} />
             </button>
@@ -92,16 +98,21 @@ export const MenuList: React.FC<MenuListProps> = ({
           </div>
           <input
             type="text"
-            placeholder="Search..."
+            placeholder="Search menu items..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-[#1e1e1e] border border-[#333] rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF9500] focus:border-transparent"
+            aria-label="Search menu items"
           />
         </div>
       </div>
 
       {/* Category Tabs */}
-      <div className="px-4 pb-3">
+      <div
+        className="px-4 pb-3 scroll-mt-2"
+        role="tablist"
+        aria-label="Menu categories"
+      >
         <div className="flex items-center overflow-x-auto hide-scrollbar">
           <button
             onClick={() => setActiveTab('All')}
@@ -109,6 +120,9 @@ export const MenuList: React.FC<MenuListProps> = ({
               ? 'bg-[#FF9500] text-black'
               : 'bg-[#1e1e1e] text-gray-400 hover:bg-[#2a2a2a]'
               }`}
+            role="tab"
+            aria-selected={activeTab === 'All'}
+            aria-controls="menu-items-panel"
           >
             All
           </button>
@@ -120,6 +134,9 @@ export const MenuList: React.FC<MenuListProps> = ({
                 ? 'bg-[#FF9500] text-black'
                 : 'bg-[#1e1e1e] text-gray-400 hover:bg-[#2a2a2a]'
                 }`}
+              role="tab"
+              aria-selected={activeTab === tab}
+              aria-controls="menu-items-panel"
             >
               {tab}
             </button>
@@ -128,7 +145,12 @@ export const MenuList: React.FC<MenuListProps> = ({
       </div>
 
       {/* Menu Items List */}
-      <div className="px-4">
+      <div
+        id="menu-items-panel"
+        role="tabpanel"
+        aria-label={`${activeTab} menu items`}
+        className="px-4"
+      >
         {filteredItems.length > 0 ? (
           filteredItems.map(item => (
             <MenuItemCardSimple

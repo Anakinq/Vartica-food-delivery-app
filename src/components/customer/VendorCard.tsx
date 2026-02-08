@@ -12,7 +12,7 @@ export const VendorCard: React.FC<VendorCardProps> = ({ name, description, image
   return (
     <button
       onClick={onClick}
-      className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all p-6 text-left w-full group"
+      className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all p-4 sm:p-6 text-left w-full group"
     >
       <div className="aspect-video bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg mb-4 flex items-center justify-center overflow-hidden relative">
         {imageUrl ? (
@@ -46,7 +46,7 @@ export const VendorCard: React.FC<VendorCardProps> = ({ name, description, image
           <Store className="h-12 w-12 text-blue-600" />
         </div>
       </div>
-      <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+      <h3 className="text-mobile-body font-bold text-gray-900 mb-1 sm:mb-2 group-hover:text-blue-600 transition-colors">
         {name}
       </h3>
       {description && (
