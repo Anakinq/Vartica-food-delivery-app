@@ -515,10 +515,16 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
         <VendorUpgradeModal
           isOpen={showVendorUpgrade}
           onClose={() => setShowVendorUpgrade(false)}
-          onSuccess={() => {
+          onSuccess={async () => {
             setShowVendorUpgrade(false);
-            // Refresh the page to reflect the role change
-            window.location.reload();
+            // Refresh the profile to reflect the role change
+            try {
+              await refreshProfile();
+            } catch (error) {
+              console.error('Error refreshing profile:', error);
+              // Fallback to showing a message to user
+              alert('Please refresh the page to see profile changes.');
+            }
           }}
         />
       )}
@@ -528,10 +534,16 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
         <DeliveryAgentUpgradeModal
           isOpen={showDeliveryAgentUpgrade}
           onClose={() => setShowDeliveryAgentUpgrade(false)}
-          onSuccess={() => {
+          onSuccess={async () => {
             setShowDeliveryAgentUpgrade(false);
-            // Refresh the page to reflect the role change
-            window.location.reload();
+            // Refresh the profile to reflect the role change
+            try {
+              await refreshProfile();
+            } catch (error) {
+              console.error('Error refreshing profile:', error);
+              // Fallback to showing a message to user
+              alert('Please refresh the page to see profile changes.');
+            }
           }}
         />
       )}

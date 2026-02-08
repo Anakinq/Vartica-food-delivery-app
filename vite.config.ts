@@ -21,6 +21,9 @@ export default defineConfig(({ mode }) => {
     define: {
       // Make process.env available in the browser
       'process.env': env,
+      // Enable React production optimizations
+      __DEV__: mode === 'development',
+      __PROD__: mode === 'production',
     },
     build: {
       sourcemap: !isProduction, // Generate source maps in development
@@ -40,15 +43,28 @@ export default defineConfig(({ mode }) => {
           compress: {
             drop_console: true, // Remove console.* in production
             drop_debugger: true,
+            pure_funcs: ['console.log', 'console.debug', 'console.info'], // Remove specific console methods
           },
         }
         : undefined,
+      // Enable CSS code splitting
+      cssCodeSplit: true,
+      // Enable asset inlining for small files
+      assetsInlineLimit: 4096, // 4kb
     },
 
     // Development server configuration
     server: {
       host: true,
       strictPort: false,
+      // Enable compression in development for better performance testing
+      proxy: {},
+    },
+
+    // Preview server configuration
+    preview: {
+      host: true,
+      port: 4173,
     },
   };
 });

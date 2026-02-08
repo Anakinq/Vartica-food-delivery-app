@@ -54,7 +54,12 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                                 Try Again
                             </button>
                             <button
-                                onClick={() => window.location.reload()}
+                                onClick={() => {
+                                    // Try to recover through context refresh first
+                                    if (typeof window !== 'undefined' && window.location) {
+                                        window.location.reload();
+                                    }
+                                }}
                                 className="w-full px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
                             >
                                 Reload Page

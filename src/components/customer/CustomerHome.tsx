@@ -40,7 +40,7 @@ const SkeletonCard = () => (
 );
 
 export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => {
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, refreshProfile } = useAuth();
   const { showToast } = useToast();
   const [cafeterias, setCafeterias] = useState<Cafeteria[]>([]);
   const [studentVendors, setStudentVendors] = useState<Vendor[]>([]);
@@ -206,9 +206,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     if (newRole === 'customer') {
       window.location.hash = '';
     }
-
-    // Reload the page to trigger the route change
-    window.location.reload();
 
     // Show toast using the ToastContext
     const toastMessage = `Switched to ${newRole === 'customer' ? 'Customer' : 'Vendor'} view`;
@@ -913,11 +910,20 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         <VendorUpgradeModal
           isOpen={showVendorUpgrade}
           onClose={() => setShowVendorUpgrade(false)}
-          onSuccess={() => {
+          onSuccess={async () => {
             setShowVendorUpgrade(false);
             showToast({ type: 'success', message: 'Application submitted successfully! Awaiting approval.' });
-            // Refresh the page to reflect the role change
-            window.location.reload();
+
+            // Refresh the profile data instead of reloading the page
+            try {
+              await refreshProfile();
+              // Optionally show another toast to inform user
+              showToast({ type: 'info', message: 'Profile updated. Please refresh if changes are not visible.' });
+            } catch (error) {
+              console.error('Error refreshing profile:', error);
+              // Fallback to showing a message to user
+              showToast({ type: 'warning', message: 'Please refresh the page to see profile changes.' });
+            }
           }}
         />
       )}

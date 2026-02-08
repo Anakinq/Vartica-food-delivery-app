@@ -455,18 +455,15 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     switch (newRole) {
       case 'customer':
         window.location.hash = '';
-        window.location.reload();
         break;
       case 'vendor':
         if (profile?.role && ['vendor', 'late_night_vendor'].includes(profile.role)) {
           window.location.hash = '#/vendor';
-          window.location.reload();
         }
         break;
       case 'delivery_agent':
         if (profile?.role === 'delivery_agent') {
           window.location.hash = '#/delivery';
-          window.location.reload();
         }
         break;
     }

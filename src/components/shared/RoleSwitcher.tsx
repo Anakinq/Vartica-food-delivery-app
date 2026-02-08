@@ -43,7 +43,10 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
         try {
             console.log('[RoleSwitch] Switching to role:', targetRole);
 
-            // Update URL hash for routing
+            // Store the preferred role in sessionStorage
+            sessionStorage.setItem('preferredRole', targetRole);
+
+            // Update URL hash for routing without page reload
             switch (targetRole) {
                 case 'vendor':
                     window.location.hash = '#/vendor';
@@ -55,9 +58,6 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
                     window.location.hash = '';
                     break;
             }
-
-            // Store the preferred role in sessionStorage
-            sessionStorage.setItem('preferredRole', targetRole);
 
             // Trigger the role switch callback if provided
             if (onRoleSwitch) {

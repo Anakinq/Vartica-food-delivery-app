@@ -40,7 +40,7 @@ export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
             setApplicationSubmitted(false);
         }
     }, [isOpen]);
-    const { profile } = useAuth();
+    const { profile, refreshProfile } = useAuth();
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState<FormData>({
         storeName: '',
@@ -120,11 +120,18 @@ export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
             setApplicationSubmitted(true);
 
             // Update the profile to reflect the role change and close modal
-            setTimeout(() => {
-                onSuccess();
-                onClose();
-                // Refresh the profile to reflect the role change
-                window.location.reload(); // This will refresh the page and reflect the new role
+            setTimeout(async () => {
+                try {
+                    await refreshProfile();
+                    onSuccess();
+                    onClose();
+                } catch (error) {
+                    console.error('Error refreshing profile:', error);
+                    // Fallback to showing a message to user
+                    alert('Application submitted! Please refresh the page to see profile changes.');
+                    onSuccess();
+                    onClose();
+                }
             }, 3000);
 
         } catch (err) {

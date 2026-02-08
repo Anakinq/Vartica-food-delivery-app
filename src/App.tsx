@@ -37,16 +37,18 @@ function AppContent() {
           if ((profile as Profile).is_vendor || ['vendor', 'late_night_vendor'].includes(profile.role)) {
             return; // Allow vendor view
           } else {
-            // If not a vendor, redirect to customer view and clear hash
-            window.location.hash = '';
+            // If not a vendor, show customer view but keep hash for clarity
+            console.log('User does not have vendor access');
+            return;
           }
         } else if (window.location.hash === '#/delivery') {
           // Check if user has delivery_agent role
           if ((profile as Profile).is_delivery_agent || profile.role === 'delivery_agent') {
             return; // Allow delivery agent view
           } else {
-            // If not a delivery agent, redirect to customer view and clear hash
-            window.location.hash = '';
+            // If not a delivery agent, show customer view but keep hash for clarity
+            console.log('User does not have delivery agent access');
+            return;
           }
         }
       }
@@ -142,6 +144,10 @@ function AppContent() {
       );
     }
 
+    // Handle role-based routing with proper SPA navigation
+    const userRole = profile.role as UserRole;
+
+    // Check hash for explicit role routing
     if (window.location.hash === '#/vendor') {
       if ((profile as Profile).is_vendor || ['vendor', 'late_night_vendor'].includes(profile.role)) {
         return (
@@ -151,7 +157,7 @@ function AppContent() {
           </div>
         );
       } else {
-        window.location.hash = '';
+        // Redirect to customer view but don't clear hash - let user see they don't have access
         return (
           <div className="authenticated-view">
             <CustomerHome onShowProfile={() => setShowProfile(true)} />
@@ -168,7 +174,7 @@ function AppContent() {
           </div>
         );
       } else {
-        window.location.hash = '';
+        // Redirect to customer view but don't clear hash - let user see they don't have access
         return (
           <div className="authenticated-view">
             <CustomerHome onShowProfile={() => setShowProfile(true)} />
@@ -178,8 +184,7 @@ function AppContent() {
       }
     }
 
-    // Default routing based on primary role
-    const userRole = profile.role as UserRole;
+    // Default routing based on primary role when no hash is specified
     switch (userRole) {
       case 'admin':
         return (
@@ -204,6 +209,16 @@ function AppContent() {
         );
       case 'vendor':
       case 'late_night_vendor':
+        // For vendors, check if they want to see vendor dashboard via hash
+        if (window.location.hash === '#/vendor-dashboard') {
+          return (
+            <div className="authenticated-view">
+              <VendorDashboard onShowProfile={() => setShowProfile(true)} />
+              <BottomNavigation cartCount={0} notificationCount={0} />
+            </div>
+          );
+        }
+        // Otherwise show customer view by default
         return (
           <div className="authenticated-view">
             <CustomerHome onShowProfile={() => setShowProfile(true)} />
