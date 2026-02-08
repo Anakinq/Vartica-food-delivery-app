@@ -10,14 +10,42 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, profile, loading } = useAuth();
 
-  // Auth guard: redirect logged-in users to their dashboard
+  // Auth guard: redirect logged-in users to their dashboard IMMEDIATELY
+  // This is the FIX for Google Sign-In - redirect based on auth state, not button clicks
   useEffect(() => {
-    // Only redirect if user is logged in and profile is loaded
-    if (user && profile && !loading) {
-      console.log('LandingPage: User already authenticated, redirecting to dashboard');
-      // Clear any OAuth-related hash and let App.tsx handle routing
-      window.location.hash = '';
-    }
+    const checkAuthAndRedirect = async () => {
+      // Wait for auth to be fully loaded
+      if (loading) {
+        console.log('LandingPage: Still loading auth state...');
+        return;
+      }
+
+      // If user is logged in and profile is loaded, redirect to dashboard
+      if (user && profile) {
+        console.log('LandingPage: User authenticated, redirecting to dashboard');
+        // Clear any OAuth-related hash/params and redirect
+        window.history.replaceState(null, '', window.location.pathname);
+        window.location.hash = '';
+        return;
+      }
+
+      // Also handle case where user exists but profile is still loading
+      // Wait a bit longer for profile to load
+      if (user && !profile) {
+        console.log('LandingPage: User exists, waiting for profile...');
+        // Give it a moment for profile to load
+        const timer = setTimeout(() => {
+          if (user && profile) {
+            console.log('LandingPage: Profile loaded, redirecting to dashboard');
+            window.history.replaceState(null, '', window.location.pathname);
+            window.location.hash = '';
+          }
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    };
+
+    checkAuthAndRedirect();
   }, [user, profile, loading]);
 
   const roles = [
@@ -56,9 +84,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
 
   const handleGoogleLogin = async () => {
     try {
+      // Store that we're expecting an OAuth callback
+      sessionStorage.setItem('oauth_redirect_pending', 'true');
       await signInWithGoogle();
+      // Note: OAuth flow will redirect to AuthCallback which handles the redirect
     } catch (error) {
       console.error('Google login error:', error);
+      sessionStorage.removeItem('oauth_redirect_pending');
     }
   };
 

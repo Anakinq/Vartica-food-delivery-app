@@ -48,8 +48,10 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* App wrapper for proper mobile scrolling - allows content to flow naturally */
+/* App wrapper for proper mobile scrolling - flex column layout */
 .app-container {
+  display: flex;
+  flex-direction: column;
   min-height: 100dvh;
   height: auto;
   overflow-y: visible;
@@ -58,6 +60,39 @@ body {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+}
+
+/* Authenticated view wrapper - contains scrollable content + fixed bottom nav */
+.authenticated-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 100dvh;
+  height: auto;
+  overflow-y: visible;
+}
+
+/* Scrollable main content - ONLY this area scrolls */
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 72px;
+  /* MUST be >= bottom nav height */
+  min-height: 0;
+  /* Important for flex scrolling */
+}
+
+/* Fixed bottom navigation - NEVER scrolls */
+.bottom-nav-fixed {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 72px;
+  z-index: 1000;
+  background: #fff;
+  border-top: 1px solid #eee;
 }
 
 /* Prevent horizontal overflow globally */
@@ -473,6 +508,18 @@ select:focus {
     overflow-x: hidden;
     height: auto;
     min-height: 100dvh;
+  }
+
+  /* Main content scrolling */
+  .main-content {
+    padding-bottom: 72px;
+    /* Space for fixed bottom nav */
+  }
+
+  /* Fixed bottom nav styles */
+  .bottom-nav-fixed {
+    height: 72px;
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
   /* Fix for modals and dialogs that might be too wide */

@@ -1,7 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function AuthCallback() {
     const redirectAttempted = useRef(false);
+    const { user, profile, loading } = useAuth();
+    const [redirectComplete, setRedirectComplete] = useState(false);
 
     useEffect(() => {
         // Check for role in URL query parameters (from Google OAuth)
@@ -10,8 +13,8 @@ export default function AuthCallback() {
         const phone = urlParams.get('phone');
 
         // Also check hash parameters for compatibility
-        const hashParams = new URLSearchParams(window.location.hash.substring(1)); // Remove '#' and parse
-        const hashRole = hashParams.get('role') || role; // Use hash role if available, otherwise use query param
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const hashRole = hashParams.get('role') || role;
         const hashPhone = hashParams.get('phone') || phone;
 
         // Store the role in session storage so it can be used during profile creation
@@ -27,39 +30,51 @@ export default function AuthCallback() {
             }
         }
 
-        // The Supabase client is configured with detectSessionInUrl: true
-        // which should automatically handle the session from the URL
-        // and trigger the auth state change event in AuthContext
+        // Clear the pending flag since we're processing
+        sessionStorage.removeItem('oauth_redirect_pending');
+    }, []);
 
-        // Clear the hash to remove OAuth parameters from URL and trigger auth-based routing
-        const performRedirect = () => {
-            if (redirectAttempted.current) return;
+    // Perform redirect when auth state is ready
+    useEffect(() => {
+        if (redirectComplete || redirectAttempted.current) return;
+
+        // Wait for auth to be fully loaded
+        if (loading) {
+            console.log('AuthCallback: Still loading auth state...');
+            return;
+        }
+
+        // Check if user is now authenticated
+        if (user && profile) {
+            console.log('AuthCallback: User authenticated, performing redirect');
             redirectAttempted.current = true;
 
-            console.log('OAuth callback completed - clearing hash to trigger auth-based routing');
-
             // Clear the hash completely and let App.tsx handle routing based on auth state
-            // Using replaceState to avoid adding to browser history stack
             window.history.replaceState(null, '', window.location.pathname);
 
             // Set empty hash to trigger App.tsx's role-based routing
             window.location.hash = '';
-        };
 
-        // Redirect after a short delay to allow auth state to be processed
-        // Supabase's onAuthStateChange should have already processed the session
-        const timer = setTimeout(() => {
-            performRedirect();
-        }, 1000);
-
-        return () => clearTimeout(timer);
-    }, []);
+            setRedirectComplete(true);
+        } else if (user && !profile) {
+            // User exists but profile is still loading - wait a bit
+            console.log('AuthCallback: User exists, waiting for profile...');
+        } else if (!user && !loading) {
+            // No user after loading - OAuth might have failed
+            console.log('AuthCallback: No user after loading - redirecting to landing');
+            redirectAttempted.current = true;
+            window.history.replaceState(null, '', window.location.pathname);
+            window.location.hash = '#/';
+            setRedirectComplete(true);
+        }
+    }, [user, profile, loading, redirectComplete]);
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-50">
             <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                 <p className="text-gray-600">Completing your sign in…</p>
+                <p className="text-sm text-gray-400 mt-2">Please wait while we verify your account</p>
             </div>
         </div>
     );

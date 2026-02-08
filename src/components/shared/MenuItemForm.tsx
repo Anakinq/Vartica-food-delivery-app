@@ -40,30 +40,6 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
   const isBusinessVendor = profile?.vendor?.vendor_type === 'late_night';
   const isFoodVendor = profile?.vendor?.vendor_type === 'student';
 
-  // Fallback categories when vendor has no custom categories
-  const fallbackCategories = isBusinessVendor
-    ? [
-      { value: 'Electronics', label: 'Electronics' },
-      { value: 'Books', label: 'Books' },
-      { value: 'Clothing', label: 'Clothing' },
-      { value: 'Services', label: 'Services' },
-      { value: 'Stationery', label: 'Stationery' },
-      { value: 'Beauty', label: 'Beauty' },
-      { value: 'Sports', label: 'Sports' },
-      { value: 'Other', label: 'Other' },
-    ]
-    : [
-      { value: 'Main Course', label: 'Main Course' },
-      { value: 'Swallow', label: 'Swallow' },
-      { value: 'Protein', label: 'Protein' },
-      { value: 'Drink', label: 'Drink' },
-      { value: 'Snack', label: 'Snack' },
-      { value: 'Salad', label: 'Salad' },
-      { value: 'Pizza', label: 'Pizza' },
-      { value: 'Side', label: 'Side' },
-      { value: 'Soup', label: 'Soup' },
-    ];
-
   // Fetch vendor categories from database
   const fetchVendorCategories = async () => {
     if (!profile?.vendor?.id) return;
@@ -201,8 +177,8 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
     }
   };
 
-  // Get categories to display (dynamic + fallback)
-  const displayCategories = vendorCategories.length > 0 ? vendorCategories : fallbackCategories;
+  // Get categories to display (only dynamic categories from database)
+  const displayCategories = vendorCategories;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
@@ -276,49 +252,107 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
                 <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50">
                   Loading categories...
                 </div>
-              ) : (
-                <>
+              ) : vendorCategories.length === 0 ? (
+                // No categories yet - prompt to add one
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-sm text-blue-700 mb-3">No categories yet. Add your first category to organize your items.</p>
                   <div className="flex gap-2">
-                    <select
-                      value={formData.category_id || formData.category}
-                      onChange={(e) => {
-                        const selectedCat = vendorCategories.find(c => c.id === e.target.value);
-                        if (selectedCat) {
-                          setFormData({
-                            ...formData,
-                            category: selectedCat.name,
-                            category_id: selectedCat.id
-                          });
-                        } else {
-                          // Fallback to hardcoded category
-                          setFormData({
-                            ...formData,
-                            category: e.target.value,
-                            category_id: ''
-                          });
-                        }
-                      }}
-                      required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="">Select category</option>
-                      {displayCategories.map((cat: any) => (
-                        <option key={cat.id || cat.value} value={cat.id || cat.value}>
-                          {cat.name || cat.label}
-                        </option>
-                      ))}
-                    </select>
-
-                    {/* Add Category Button */}
+                    <input
+                      type="text"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      placeholder="Category name"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      autoFocus
+                    />
                     <button
                       type="button"
-                      onClick={() => setShowAddCategory(true)}
-                      className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
-                      title="Add custom category"
+                      onClick={handleAddCategory}
+                      disabled={!newCategoryName.trim()}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                     >
-                      <Plus size={20} />
+                      Add
                     </button>
                   </div>
+                </div>
+              ) : (
+                <>
+                  {showAddCategory ? (
+                    // Inline add category form
+                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 mb-3">
+                      <p className="text-sm text-blue-700 mb-2">Add New Category</p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newCategoryName}
+                          onChange={(e) => setNewCategoryName(e.target.value)}
+                          placeholder="Category name"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddCategory}
+                          disabled={!newCategoryName.trim()}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          Add
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowAddCategory(false);
+                            setNewCategoryName('');
+                          }}
+                          className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    // Category select with add button
+                    <div className="flex gap-2">
+                      <select
+                        value={formData.category_id || formData.category}
+                        onChange={(e) => {
+                          const selectedCat = vendorCategories.find(c => c.id === e.target.value);
+                          if (selectedCat) {
+                            setFormData({
+                              ...formData,
+                              category: selectedCat.name,
+                              category_id: selectedCat.id
+                            });
+                          } else {
+                            setFormData({
+                              ...formData,
+                              category: e.target.value,
+                              category_id: ''
+                            });
+                          }
+                        }}
+                        required
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">Select category</option>
+                        {displayCategories.map((cat: any) => (
+                          <option key={cat.id || cat.value} value={cat.id || cat.value}>
+                            {cat.name || cat.label}
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* Add Category Button */}
+                      <button
+                        type="button"
+                        onClick={() => setShowAddCategory(true)}
+                        className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
+                        title="Add custom category"
+                      >
+                        <Plus size={20} />
+                      </button>
+                    </div>
+                  )}
 
                   {/* Show delete button if it's a custom category */}
                   {formData.category_id && vendorCategories.find(c => c.id === formData.category_id) && (
@@ -339,41 +373,6 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
               )}
             </div>
           </div>
-
-          {/* Add New Category Form */}
-          {showAddCategory && (
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <h4 className="font-medium text-blue-900 mb-3">Add New Category</h4>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newCategoryName}
-                  onChange={(e) => setNewCategoryName(e.target.value)}
-                  placeholder="Category name"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={handleAddCategory}
-                  disabled={!newCategoryName.trim()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  Add
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddCategory(false);
-                    setNewCategoryName('');
-                  }}
-                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

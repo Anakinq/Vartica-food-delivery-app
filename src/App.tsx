@@ -115,13 +115,15 @@ function AppContent() {
     if (locationHash === '#/cart') {
       return (
         <div className="authenticated-view">
-          <Cart
-            items={[]}
-            onUpdateQuantity={() => { }}
-            onClear={() => { }}
-            onClose={() => { window.location.hash = ''; }}
-            onCheckout={() => { }}
-          />
+          <div className="main-content">
+            <Cart
+              items={[]}
+              onUpdateQuantity={() => { }}
+              onClear={() => { }}
+              onClose={() => { window.location.hash = ''; }}
+              onCheckout={() => { }}
+            />
+          </div>
           <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
         </div>
       );
@@ -131,9 +133,11 @@ function AppContent() {
       // TODO: Implement notifications component
       return (
         <div className="authenticated-view">
-          <div className="p-4">
-            <h2 className="text-xl font-bold mb-4">Notifications</h2>
-            <p className="text-gray-600">Notifications functionality coming soon...</p>
+          <div className="main-content">
+            <div className="p-4">
+              <h2 className="text-xl font-bold mb-4">Notifications</h2>
+              <p className="text-gray-600">Notifications functionality coming soon...</p>
+            </div>
           </div>
           <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
         </div>
@@ -143,14 +147,16 @@ function AppContent() {
     if (locationHash === '#/profile') {
       return (
         <div className="authenticated-view">
-          <ProfileDashboard
-            onBack={() => {
-              window.location.hash = '';
-            }}
-            onSignOut={() => {
-              // Handle sign out
-            }}
-          />
+          <div className="main-content">
+            <ProfileDashboard
+              onBack={() => {
+                window.location.hash = '';
+              }}
+              onSignOut={() => {
+                // Handle sign out
+              }}
+            />
+          </div>
           <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
         </div>
       );
@@ -161,12 +167,14 @@ function AppContent() {
     if (showProfile) {
       return (
         <div className="authenticated-view">
-          <ProfileDashboard
-            onBack={() => setShowProfile(false)}
-            onSignOut={() => {
-              setShowProfile(false);
-            }}
-          />
+          <div className="main-content">
+            <ProfileDashboard
+              onBack={() => setShowProfile(false)}
+              onSignOut={() => {
+                setShowProfile(false);
+              }}
+            />
+          </div>
           <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
         </div>
       );
@@ -180,7 +188,9 @@ function AppContent() {
       if ((profile as Profile).is_vendor || ['vendor', 'late_night_vendor'].includes(profile.role)) {
         return (
           <div className="authenticated-view">
-            <VendorDashboard onShowProfile={() => setShowProfile(true)} />
+            <div className="main-content">
+              <VendorDashboard onShowProfile={() => setShowProfile(true)} />
+            </div>
             <VendorBottomNavigation />
           </div>
         );
@@ -188,7 +198,9 @@ function AppContent() {
         // Redirect to customer view but don't clear hash - let user see they don't have access
         return (
           <div className="authenticated-view">
-            <CustomerHome onShowProfile={() => setShowProfile(true)} />
+            <div className="main-content">
+              <CustomerHome onShowProfile={() => setShowProfile(true)} />
+            </div>
             <BottomNavigation cartCount={0} notificationCount={0} />
           </div>
         );
@@ -197,7 +209,9 @@ function AppContent() {
       if ((profile as Profile).is_delivery_agent || profile.role === 'delivery_agent') {
         return (
           <div className="authenticated-view">
-            <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />
+            <div className="main-content">
+              <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />
+            </div>
             <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
           </div>
         );
@@ -205,7 +219,9 @@ function AppContent() {
         // Redirect to customer view but don't clear hash - let user see they don't have access
         return (
           <div className="authenticated-view">
-            <CustomerHome onShowProfile={() => setShowProfile(true)} />
+            <div className="main-content">
+              <CustomerHome onShowProfile={() => setShowProfile(true)} />
+            </div>
             <BottomNavigation cartCount={0} notificationCount={0} />
           </div>
         );
@@ -217,21 +233,27 @@ function AppContent() {
       case 'admin':
         return (
           <div className="authenticated-view">
-            <AdminDashboard onShowProfile={() => setShowProfile(true)} />
+            <div className="main-content">
+              <AdminDashboard onShowProfile={() => setShowProfile(true)} />
+            </div>
             <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
           </div>
         );
       case 'delivery_agent':
         return (
           <div className="authenticated-view">
-            <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />
+            <div className="main-content">
+              <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />
+            </div>
             <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
           </div>
         );
       case 'cafeteria':
         return (
           <div className="authenticated-view">
-            <CafeteriaDashboard profile={profile} onShowProfile={() => setShowProfile(true)} />
+            <div className="main-content">
+              <CafeteriaDashboard profile={profile} onShowProfile={() => setShowProfile(true)} />
+            </div>
             <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
           </div>
         );
@@ -241,7 +263,9 @@ function AppContent() {
         if (window.location.hash === '#/vendor-dashboard') {
           return (
             <div className="authenticated-view">
-              <VendorDashboard onShowProfile={() => setShowProfile(true)} />
+              <div className="main-content">
+                <VendorDashboard onShowProfile={() => setShowProfile(true)} />
+              </div>
               <VendorBottomNavigation />
             </div>
           );
@@ -249,7 +273,9 @@ function AppContent() {
         // Otherwise show customer view by default
         return (
           <div className="authenticated-view">
-            <CustomerHome onShowProfile={() => setShowProfile(true)} />
+            <div className="main-content">
+              <CustomerHome onShowProfile={() => setShowProfile(true)} />
+            </div>
             <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
           </div>
         );
@@ -257,7 +283,9 @@ function AppContent() {
       default:
         return (
           <div className="authenticated-view">
-            <CustomerHome onShowProfile={() => setShowProfile(true)} />
+            <div className="main-content">
+              <CustomerHome onShowProfile={() => setShowProfile(true)} />
+            </div>
             <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
           </div>
         );
