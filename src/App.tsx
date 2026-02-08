@@ -9,6 +9,7 @@ import { SignUp } from './components/auth/SignUp';
 import { ProfileDashboard } from './components/shared/ProfileDashboard';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { DeliveryDashboard } from './components/delivery/DeliveryDashboard';
+import { Cart } from './components/customer/Cart';
 import CafeteriaDashboard from './components/cafeteria/CafeteriaDashboard';
 import AuthCallback from './components/auth/AuthCallback';
 import InstallPrompt from './components/InstallPrompt';
@@ -82,13 +83,15 @@ function AppContent() {
 
     // Handle bottom navigation routes
     if (window.location.hash === '#/cart') {
-      // TODO: Implement cart component
       return (
         <div className="authenticated-view">
-          <div className="p-4">
-            <h2 className="text-xl font-bold mb-4">Shopping Cart</h2>
-            <p className="text-gray-600">Cart functionality coming soon...</p>
-          </div>
+          <Cart
+            items={[]}
+            onUpdateQuantity={() => { }}
+            onClear={() => { }}
+            onClose={() => { window.location.hash = ''; }}
+            onCheckout={() => { }}
+          />
           <BottomNavigation cartCount={0} notificationCount={0} />
         </div>
       );

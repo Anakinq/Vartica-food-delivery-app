@@ -711,5 +711,6 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
           </div>
         </div>
       </div>
-      );
+    </div>
+  );
 };
