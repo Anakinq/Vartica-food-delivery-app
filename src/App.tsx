@@ -13,7 +13,7 @@ import { DeliveryDashboard } from './components/delivery/DeliveryDashboard';
 import { Cart } from './components/customer/Cart';
 import CafeteriaDashboard from './components/cafeteria/CafeteriaDashboard';
 import AuthCallback from './components/auth/AuthCallback';
-import InstallPrompt from './components/InstallPrompt';
+
 import { Analytics } from '@vercel/analytics/react';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider } from './contexts/AuthContext';
@@ -332,7 +332,7 @@ function App() {
                 {/* For error messages */}
               </div>
               <AppContent />
-              <InstallPrompt />
+
               <Analytics />
             </div>
           </ToastProvider>

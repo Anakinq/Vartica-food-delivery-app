@@ -6,6 +6,7 @@ import { CustomerSupportModal } from './CustomerSupportModal';
 import { ExtendedProfile } from '../../types';
 import { VendorUpgradeModal } from '../customer/VendorUpgradeModal';
 import { DeliveryAgentUpgradeModal } from '../customer/DeliveryAgentUpgradeModal';
+import InstallPrompt from '../InstallPrompt';
 
 export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => void }> = ({ onBack, onSignOut }) => {
   console.log('ProfileDashboard: Component rendered');
@@ -547,6 +548,9 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
           }}
         />
       )}
+
+      {/* PWA Install Prompt */}
+      <InstallPrompt />
     </>
   );
 };
