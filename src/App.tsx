@@ -80,6 +80,49 @@ function AppContent() {
       return <AuthCallback />;
     }
 
+    // Handle bottom navigation routes
+    if (window.location.hash === '#/cart') {
+      // TODO: Implement cart component
+      return (
+        <div className="authenticated-view">
+          <div className="p-4">
+            <h2 className="text-xl font-bold mb-4">Shopping Cart</h2>
+            <p className="text-gray-600">Cart functionality coming soon...</p>
+          </div>
+          <BottomNavigation cartCount={0} notificationCount={0} />
+        </div>
+      );
+    }
+
+    if (window.location.hash === '#/notifications' || window.location.hash === '#/alerts') {
+      // TODO: Implement notifications component
+      return (
+        <div className="authenticated-view">
+          <div className="p-4">
+            <h2 className="text-xl font-bold mb-4">Notifications</h2>
+            <p className="text-gray-600">Notifications functionality coming soon...</p>
+          </div>
+          <BottomNavigation cartCount={0} notificationCount={0} />
+        </div>
+      );
+    }
+
+    if (window.location.hash === '#/profile') {
+      return (
+        <div className="authenticated-view">
+          <ProfileDashboard
+            onBack={() => {
+              window.location.hash = '';
+            }}
+            onSignOut={() => {
+              // Handle sign out
+            }}
+          />
+          <BottomNavigation cartCount={0} notificationCount={0} />
+        </div>
+      );
+    }
+
     // Show profile dashboard if requested
     console.log('App: showProfile=', showProfile, 'user=', !!user, 'profile=', !!profile);
     if (showProfile) {
@@ -239,23 +282,23 @@ function App() {
   return (
     <ErrorBoundary>
       <DarkModeProvider>
-      <AuthProvider>
-        <ToastProvider>
-          <div className="app-container">
-            {/* Accessibility elements */}
-            <div role="status" aria-live="polite" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
-              Loading application
+        <AuthProvider>
+          <ToastProvider>
+            <div className="app-container">
+              {/* Accessibility elements */}
+              <div role="status" aria-live="polite" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
+                Loading application
+              </div>
+              <div role="alert" aria-live="assertive" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
+                {/* For error messages */}
+              </div>
+              <AppContent />
+              <InstallPrompt />
+              <Analytics />
             </div>
-            <div role="alert" aria-live="assertive" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
-              {/* For error messages */}
-            </div>
-            <AppContent />
-            <InstallPrompt />
-            <Analytics />
-          </div>
-        </ToastProvider>
-      </AuthProvider>
-    </DarkModeProvider>
+          </ToastProvider>
+        </AuthProvider>
+      </DarkModeProvider>
     </ErrorBoundary>
   );
 }
