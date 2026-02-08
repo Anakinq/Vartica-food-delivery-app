@@ -1,93 +1,133 @@
 // src/components/shared/MenuItemCardSimple.tsx
 import React, { useState } from 'react';
-import { MenuItem } from '../../lib/supabase/types';
+import { MenuItem } from '../../lib/supabase';
+import LazyImage from '../common/LazyImage';
+import { Plus, Minus, Heart } from 'lucide-react';
+
+// Fallback image
+const FALLBACK_IMAGE = '/images/1.jpg';
+
+const getImageUrl = (imageUrl: string | null | undefined): string => {
+  if (!imageUrl) return FALLBACK_IMAGE;
+  try {
+    if (imageUrl.startsWith('http')) {
+      return decodeURIComponent(imageUrl);
+    }
+    return imageUrl;
+  } catch (error) {
+    console.warn('Error processing image URL:', error);
+    return FALLBACK_IMAGE;
+  }
+};
 
 interface MenuItemCardSimpleProps {
   item: MenuItem;
   quantityInCart: number;
   onAdd: () => void;
   onRemove: () => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
 }
 
 export const MenuItemCardSimple: React.FC<MenuItemCardSimpleProps> = ({
   item,
   quantityInCart,
   onAdd,
-  onRemove
+  onRemove,
+  isFavorite = false,
+  onToggleFavorite
 }) => {
-  const [isFavorite, setIsFavorite] = useState(false);
+  const [isAnimating, setIsAnimating] = useState<'increment' | 'decrement' | null>(null);
+  const imageUrl = getImageUrl(item.image_url);
 
-  const toggleFavorite = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsFavorite(!isFavorite);
+  const handleIncrement = () => {
+    setIsAnimating('increment');
+    onAdd();
+    setTimeout(() => setIsAnimating(null), 200);
   };
 
-  const imageUrl = item.image_url ? decodeURIComponent(item.image_url) : '/images/1.jpg';
+  const handleDecrement = () => {
+    if (quantityInCart > 0) {
+      setIsAnimating('decrement');
+      onRemove();
+      setTimeout(() => setIsAnimating(null), 200);
+    }
+  };
+
+  const totalPrice = item.price * quantityInCart;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-      <div className="relative w-full pt-[100%] overflow-hidden">
-        <img
+    <div className="bg-[#1a1a1a] rounded-xl p-4 mb-3 flex items-center">
+      {/* Food Image */}
+      <div className="relative w-24 h-24 rounded-lg overflow-hidden bg-[#2a2a2a] mr-4 flex-shrink-0">
+        <LazyImage
           src={imageUrl}
           alt={item.name}
-          className="absolute inset-0 w-full h-full object-cover"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            const currentSrc = target.src;
-
-            // If the current src is not already the fallback, try the fallback
-            if (!currentSrc.includes('1.jpg')) {
-              target.src = '/images/1.jpg';
-            } else {
-              // If already showing fallback, try the other fallback
-              target.src = 'https://placehold.co/400x400/e2e8f0/64748b?text=No+Image';
-            }
-          }}
+          className="w-full h-full object-cover"
+          fallback="/images/1.jpg"
         />
-        <button
-          onClick={toggleFavorite}
-          className="absolute top-2 right-2 p-1.5 bg-white/80 rounded-full backdrop-blur-sm z-10"
-        >
-          {isFavorite ? (
-            <span className="text-red-500 text-lg">❤️</span>
-          ) : (
-            <span className="text-gray-400 text-lg">🤍</span>
-          )}
-        </button>
+
+        {/* Quantity Badge */}
+        {quantityInCart > 0 && (
+          <div className="absolute top-2 right-2 bg-[#FF9500] text-black px-2 py-1 rounded-full text-xs font-bold">
+            {quantityInCart}
+          </div>
+        )}
       </div>
 
-      <div className="p-3">
-        <h3 className="font-semibold text-gray-900 text-sm line-clamp-1">{item.name}</h3>
-        <p className="text-blue-600 font-bold mt-1">
-          ₦{item.price.toLocaleString()}
-        </p>
-
-        {/* Cart Controls */}
-        <div className="flex items-center mt-2">
-          {quantityInCart === 0 ? (
+      {/* Food Details */}
+      <div className="flex-1">
+        <div className="flex justify-between items-start mb-1">
+          <h3 className="font-bold text-white text-lg line-clamp-1">{item.name}</h3>
+          {onToggleFavorite && (
             <button
-              onClick={onAdd}
-              className="flex-1 bg-blue-600 text-white text-sm font-medium py-1.5 rounded-lg hover:bg-blue-700"
+              onClick={onToggleFavorite}
+              className="text-gray-400 hover:text-red-500 p-1"
             >
-              Add
+              <Heart className={`h-5 w-5 ${isFavorite ? 'text-red-500 fill-red-500' : ''}`} />
             </button>
-          ) : (
-            <div className="flex items-center border border-gray-300 rounded-lg">
-              <button
-                onClick={onRemove}
-                className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-l-lg"
-              >
-                -
-              </button>
-              <span className="w-8 text-center font-medium">{quantityInCart}</span>
-              <button
-                onClick={onAdd}
-                className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-r-lg"
-              >
-                +
-              </button>
-            </div>
           )}
+        </div>
+
+        {/* Description */}
+        {item.description && (
+          <p className="text-gray-400 text-sm line-clamp-2 mb-2">
+            {item.description}
+          </p>
+        )}
+
+        {/* Price & Quantity Controls */}
+        <div className="flex justify-between items-center mt-2">
+          <div className="flex items-center">
+            <button
+              onClick={handleDecrement}
+              disabled={quantityInCart === 0}
+              className={`w-8 h-8 rounded-full bg-[#2d2d2d] flex items-center justify-center ${quantityInCart === 0
+                ? 'text-gray-600 cursor-not-allowed'
+                : 'text-white hover:bg-[#3a3a3a]'
+                }`}
+            >
+              <Minus className="h-4 w-4" />
+            </button>
+
+            <span
+              className={`mx-2 text-white font-bold min-w-[24px] text-center transition-transform duration-200 ${isAnimating ? 'scale-125 text-[#FF9500]' : ''
+                }`}
+            >
+              {quantityInCart}
+            </span>
+
+            <button
+              onClick={handleIncrement}
+              className="w-8 h-8 rounded-full bg-[#FF9500] text-black flex items-center justify-center hover:bg-[#FFA534] transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
+
+          <span className="font-bold text-white text-lg">
+            ₦{item.price.toLocaleString()}
+          </span>
         </div>
       </div>
     </div>

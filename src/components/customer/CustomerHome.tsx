@@ -1,6 +1,6 @@
 // src/components/customer/CustomerHome.tsx
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { Search, ShoppingCart, LogOut, User, Moon, Package } from 'lucide-react';
+import { Search, ShoppingCart, LogOut, User, Moon, Package, Heart } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Cafeteria, MenuItem } from '../../lib/supabase';
 import { Vendor } from '../../lib/supabase/types';
@@ -62,11 +62,13 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const [showCheckout, setShowCheckout] = useState(false);
   const [showVendorUpgrade, setShowVendorUpgrade] = useState(false);
   const [preferredRole, setPreferredRole] = useState<'customer' | 'vendor'>('customer');
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const toastId = useRef(0);
 
-  // Define groupMenuItemsByCategory function before it's used in useMemo
+  // Define groupMenuItemsByCategory function before it's used
   const groupMenuItemsByCategory = (itemsToGroup: MenuItem[] = menuItems) => {
     // Get all unique categories from menu items
     const uniqueCategories = Array.from(new Set(itemsToGroup.map(item => item.category).filter(Boolean) as string[]));
@@ -100,6 +102,36 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       console.log('Grouped categories result:', result);
     }
     return result;
+  };
+
+  // Filter menu items based on search and favorites (for selected seller view)
+  const sellerFilteredMenuItems = useMemo(() => {
+    let items = menuItems;
+
+    // Filter by search query
+    if (globalSearchQuery.trim()) {
+      items = items.filter(item =>
+        item.name.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+        (item.description && item.description.toLowerCase().includes(globalSearchQuery.toLowerCase()))
+      );
+    }
+
+    // Filter by favorites only
+    if (showFavoritesOnly) {
+      items = items.filter(item => favorites.includes(item.id));
+    }
+
+    return items;
+  }, [menuItems, globalSearchQuery, favorites, showFavoritesOnly]);
+
+  const groupedSellerCategories = groupMenuItemsByCategory(sellerFilteredMenuItems);
+
+  const toggleFavorite = (itemId: string) => {
+    setFavorites(prev =>
+      prev.includes(itemId)
+        ? prev.filter(id => id !== itemId)
+        : [...prev, itemId]
+    );
   };
 
   // Memoize expensive computations
@@ -433,7 +465,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   };
 
   // Filter menu items based on search query when a seller is selected
-  const filteredMenuItems = useMemo(() => {
+  const searchedMenuItems = useMemo(() => {
     if (!selectedSeller || !globalSearchQuery.trim()) {
       return menuItems;
     }
@@ -444,7 +476,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     );
   }, [menuItems, globalSearchQuery, selectedSeller]);
 
-  const groupedCategories = groupMenuItemsByCategory(filteredMenuItems);
+  const groupedCategories = groupMenuItemsByCategory(searchedMenuItems);
 
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
 
@@ -577,36 +609,44 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 bg-[#121212] min-h-screen">
         <div className="mb-4 sm:mb-6">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-            <input
-              type="text"
-              value={globalSearchQuery}
-              onChange={(e) => setGlobalSearchQuery(e.target.value)}
-              placeholder={selectedSeller ? "Search menu items..." : "Search for food, vendors, or cafeterias..."}
-              className="w-full pl-10 pr-4 py-3 sm:py-4 bg-gray-100 border-0 rounded-full focus:ring-2 focus:ring-green-500 focus:bg-white transition-all text-sm sm:text-base"
-              aria-label={selectedSeller ? "Search menu items" : "Search food or vendors"}
-            />
+          <div className="flex justify-between items-center mb-4">
+            <div className="relative flex-1 mr-4">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <input
+                type="text"
+                value={globalSearchQuery}
+                onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                placeholder={selectedSeller ? "Search menu items..." : "Search for food, vendors, or cafeterias..."}
+                className="w-full pl-10 pr-4 py-3 sm:py-4 bg-[#1e1e1e] border border-[#333] rounded-full focus:ring-2 focus:ring-[#FF9500] focus:bg-[#1e1e1e] transition-all text-sm sm:text-base text-white placeholder-gray-400"
+                aria-label={selectedSeller ? "Search menu items" : "Search food or vendors"}
+              />
+            </div>
+            <button
+              onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+              className={`p-3 rounded-full ${showFavoritesOnly ? 'bg-[#FF9500] text-black' : 'bg-[#1e1e1e] text-gray-400 hover:text-white'}`}
+            >
+              <Heart className={`h-5 w-5 ${showFavoritesOnly ? 'fill-current' : ''}`} />
+            </button>
           </div>
         </div>
 
-        {selectedSeller && menuItems.length > 0 && (
-          <div className="sticky top-16 sm:top-20 z-30 bg-gray-50 py-3 mb-4 -mx-4 px-4 border-b border-gray-200">
+        {selectedSeller && sellerFilteredMenuItems.length > 0 && (
+          <div className="sticky top-16 sm:top-20 z-30 bg-[#121212] py-3 mb-4 -mx-4 px-4 border-b border-[#333]">
             <div className="flex flex-col space-y-3">
               <div className="flex overflow-x-auto pb-1 space-x-3 hide-scrollbar">
-                {groupedCategories.map(({ category }) => (
+                {groupedSellerCategories.map(({ category }) => (
                   <button
                     key={category}
                     onClick={() => handleCategoryClick(category)}
                     className={`
                       whitespace-nowrap px-3 sm:px-5 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200
                       ${pulseCategory === category
-                        ? 'bg-black text-white scale-105'
+                        ? 'bg-[#FF9500] text-black scale-105'
                         : activeCategory === category
-                          ? 'bg-black text-white'
-                          : 'bg-gray-200 text-gray-800 hover:bg-gray-300 active:scale-95'}
+                          ? 'bg-[#FF9500] text-black'
+                          : 'bg-[#1e1e1e] text-gray-400 hover:bg-[#2a2a2a] active:scale-95'}
                     `}
                   >
                     {category}
@@ -789,21 +829,23 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
               ← Back to vendors
             </button>
 
-            {menuItems.length > 0 ? (
+            {sellerFilteredMenuItems.length > 0 ? (
               <div>
-                {groupedCategories.map(({ category, items }) => (
+                {groupedSellerCategories.map(({ category, items }) => (
                   <div
                     key={category}
                     ref={(el) => (categoryRefs.current[category] = el)}
                     className="mb-10"
                   >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                    <div className="space-y-3">
                       {items.map(item => (
                         <MenuItemCard
                           key={item.id}
                           item={item}
                           quantity={itemQuantities[item.id] || 0}
                           onQuantityChange={handleQuantityChange}
+                          isFavorite={favorites.includes(item.id)}
+                          onToggleFavorite={() => toggleFavorite(item.id)}
                         />
                       ))}
                     </div>
@@ -811,8 +853,12 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12 text-stone-500">
-                No menu items available
+              <div className="text-center py-12 text-gray-500">
+                {globalSearchQuery
+                  ? 'No items found matching your search'
+                  : showFavoritesOnly
+                    ? 'No favorite items yet. Tap the heart icon on items to save them!'
+                    : 'No menu items available'}
               </div>
             )}
           </section>

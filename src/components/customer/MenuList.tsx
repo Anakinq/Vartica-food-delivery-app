@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { MenuItem } from '../../lib/supabase';
 import { MenuItemCardSimple } from '../shared/MenuItemCardSimple';
+import { Search, Heart } from 'lucide-react';
 
 interface MenuListProps {
   menuItems: MenuItem[];
@@ -17,6 +18,9 @@ export const MenuList: React.FC<MenuListProps> = ({
   onRemoveFromCart
 }) => {
   const [activeTab, setActiveTab] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   const categories = useMemo(() => {
     const unique = Array.from(
@@ -34,44 +38,97 @@ export const MenuList: React.FC<MenuListProps> = ({
   }, [menuItems]);
 
   const filteredItems = useMemo(() => {
-    if (activeTab === 'All') return menuItems;
-    return menuItems.filter(item => item.category === activeTab);
-  }, [menuItems, activeTab]);
+    let items = menuItems;
+
+    // Filter by category
+    if (activeTab !== 'All') {
+      items = items.filter(item => item.category === activeTab);
+    }
+
+    // Filter by search
+    if (searchQuery) {
+      items = items.filter(item =>
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Filter by favorites only
+    if (showFavoritesOnly) {
+      items = items.filter(item => favorites.includes(item.id));
+    }
+
+    return items;
+  }, [menuItems, activeTab, searchQuery, favorites, showFavoritesOnly]);
+
+  const toggleFavorite = (itemId: string) => {
+    setFavorites(prev =>
+      prev.includes(itemId)
+        ? prev.filter(id => id !== itemId)
+        : [...prev, itemId]
+    );
+  };
 
   return (
-    <div className="pb-20">
-      <div className="flex justify-between items-center px-4 pt-4">
-        <h1 className="text-2xl font-bold text-gray-900">Our Menu</h1>
+    <div className="menu-container bg-[#121212] min-h-screen text-white pb-24">
+      {/* Header with Search */}
+      <div className="px-4 pt-4 pb-3 sticky top-0 z-10 bg-[#121212]">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-2xl font-bold">Our Menu</h1>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+              className={`p-2 rounded-full ${showFavoritesOnly ? 'bg-[#1e1e1e]' : 'bg-[#1e1e1e] text-gray-400'}`}
+            >
+              <Heart className={`h-5 w-5 ${showFavoritesOnly ? 'text-red-500 fill-red-500' : 'text-gray-400'}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* Search Bar */}
         <div className="relative">
-          <span className="text-xl">🛒</span>
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-[#1e1e1e] border border-[#333] rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF9500] focus:border-transparent"
+          />
         </div>
       </div>
 
-      <div className="flex items-center px-4 mt-4 overflow-x-auto hide-scrollbar">
-        <button
-          onClick={() => setActiveTab('All')}
-          className={`px-4 py-2 text-sm font-medium whitespace-nowrap rounded-full mr-3 ${activeTab === 'All'
-              ? 'bg-blue-600 text-white'
-              : 'text-gray-600 hover:bg-gray-100'
-            }`}
-        >
-          All
-        </button>
-        {categories.map(tab => (
+      {/* Category Tabs */}
+      <div className="px-4 pb-3">
+        <div className="flex items-center overflow-x-auto hide-scrollbar">
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium whitespace-nowrap rounded-full mr-3 ${activeTab === tab
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-600 hover:bg-gray-100'
+            onClick={() => setActiveTab('All')}
+            className={`px-4 py-2 text-sm font-medium whitespace-nowrap rounded-full mr-3 ${activeTab === 'All'
+              ? 'bg-[#FF9500] text-black'
+              : 'bg-[#1e1e1e] text-gray-400 hover:bg-[#2a2a2a]'
               }`}
           >
-            {tab}
+            All
           </button>
-        ))}
+          {categories.map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 text-sm font-medium whitespace-nowrap rounded-full mr-3 ${activeTab === tab
+                ? 'bg-[#FF9500] text-black'
+                : 'bg-[#1e1e1e] text-gray-400 hover:bg-[#2a2a2a]'
+                }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 p-4">
+      {/* Menu Items List */}
+      <div className="px-4">
         {filteredItems.length > 0 ? (
           filteredItems.map(item => (
             <MenuItemCardSimple
@@ -80,11 +137,13 @@ export const MenuList: React.FC<MenuListProps> = ({
               quantityInCart={cartItems[item.id] || 0}
               onAdd={() => onAddToCart(item)}
               onRemove={() => onRemoveFromCart(item.id)}
+              isFavorite={favorites.includes(item.id)}
+              onToggleFavorite={() => toggleFavorite(item.id)}
             />
           ))
         ) : (
-          <div className="col-span-2 text-center py-8 text-gray-500">
-            No items available
+          <div className="text-center py-12 text-gray-500">
+            {searchQuery ? 'No items found matching your search' : 'No items available'}
           </div>
         )}
       </div>

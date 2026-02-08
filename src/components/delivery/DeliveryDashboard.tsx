@@ -651,396 +651,503 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24 md:pb-0">
-      {/* Header Navigation */}
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                <MapPin className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-gray-900">Delivery Dashboard</h1>
-                <p className="text-xs text-gray-500">{profile?.full_name}</p>
-              </div>
-            </div>
+    <div className="min-h-screen bg-black pb-24 md:pb-0">
+      {/* Full-screen food background with dark overlay */}
+      <div
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: "url('/images/1.jpg')",
+        }}
+      />
+      <div className="fixed inset-0 bg-black bg-opacity-70" />
 
-            <div className="flex items-center space-x-3">
-              <RoleSwitcher currentRole="delivery_agent" />
-              {/* Desktop Profile Button */}
-              {onShowProfile && (
+      {/* Main content with proper z-index */}
+      <div className="relative z-10 min-h-screen pb-24 md:pb-0">
+        {/* Header Navigation */}
+        <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                  <MapPin className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-bold text-gray-900">Delivery Dashboard</h1>
+                  <p className="text-xs text-gray-500">{profile?.full_name}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <RoleSwitcher currentRole="delivery_agent" />
+                {/* Desktop Profile Button */}
+                {onShowProfile && (
+                  <button
+                    onClick={onShowProfile}
+                    className="hidden md:flex items-center space-x-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <User className="h-5 w-5" />
+                    <span className="text-sm font-medium">Profile</span>
+                  </button>
+                )}
+
+                {/* Desktop Payment Methods Button */}
                 <button
-                  onClick={onShowProfile}
+                  onClick={() => setShowProfileModal(true)}
                   className="hidden md:flex items-center space-x-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  <User className="h-5 w-5" />
-                  <span className="text-sm font-medium">Profile</span>
+                  <Wallet className="h-5 w-5" />
+                  <span className="text-sm font-medium">Payment</span>
                 </button>
+
+                {/* Hamburger Menu */}
+                <button
+                  ref={hamburgerButtonRef}
+                  onClick={() => setShowMobileMenu(!showMobileMenu)}
+                  className="p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 md:hidden"
+                  aria-label="Menu"
+                >
+                  {showMobileMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                </button>
+
+                {/* Sign Out Button */}
+                <button
+                  onClick={signOut}
+                  className="flex items-center space-x-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors font-medium"
+                >
+                  <LogOut className="h-5 w-5" />
+                  <span className="text-sm">Sign Out</span>
+                </button>
+              </div>
+
+              {/* Hamburger Menu Dropdown */}
+              {showMobileMenu && (
+                <div ref={menuRef} className="absolute right-4 top-16 bg-white shadow-lg rounded-md py-2 w-48 z-50 border border-gray-200 md:hidden">
+                  <button
+                    onClick={() => {
+                      setShowProfileModal(true);
+                      setShowMobileMenu(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <User className="h-4 w-4" />
+                      <span>Profile</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab('active');
+                      setShowMobileMenu(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Package className="h-4 w-4" />
+                      <span>Active Orders</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab('available');
+                      setShowMobileMenu(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Clock className="h-4 w-4" />
+                      <span>Available Orders</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowNotifications(true);
+                      setShowMobileMenu(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Bell className="h-4 w-4" />
+                      <span>Notifications</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab('history');
+                      setShowMobileMenu(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <BarChart3 className="h-4 w-4" />
+                      <span>Earnings History</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      // Open payment methods (bank details management)
+                      setShowProfileModal(true);
+                      setShowMobileMenu(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Wallet className="h-4 w-4" />
+                      <span>Payment Methods</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={signOut}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <LogOut className="h-4 w-4" />
+                      <span>Sign Out</span>
+                    </div>
+                  </button>
+                </div>
               )}
+            </div>
+          </div>
+        </nav>
 
-              {/* Desktop Payment Methods Button */}
-              <button
-                onClick={() => setShowProfileModal(true)}
-                className="hidden md:flex items-center space-x-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <Wallet className="h-5 w-5" />
-                <span className="text-sm font-medium">Payment</span>
-              </button>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          {/* Messages */}
+          {message && (
+            <div
+              className={`p-3 rounded mb-4 border ${message.type === 'error'
+                ? 'bg-red-50 border-red-200 text-red-700'
+                : message.type === 'success'
+                  ? 'bg-green-50 border-green-200 text-green-700'
+                  : 'bg-blue-50 border-blue-200 text-blue-700'
+                }`}
+            >
+              {message.text}
+            </div>
+          )}
 
-              {/* Hamburger Menu */}
-              <button
-                ref={hamburgerButtonRef}
-                onClick={() => setShowMobileMenu(!showMobileMenu)}
-                className="p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 md:hidden"
-                aria-label="Menu"
-              >
-                {showMobileMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-              </button>
+          {/* Balance Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            {/* Food Wallet */}
+            <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-blue-500">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase font-semibold">Food Wallet</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(wallet?.food_wallet_balance)}</p>
+                  <p className="text-xs text-gray-500 mt-1">For food purchases</p>
+                </div>
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Wallet className="h-5 w-5 text-blue-600" />
+                </div>
+              </div>
+            </div>
 
-              {/* Sign Out Button */}
+            {/* Earnings Wallet */}
+            <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-green-500">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase font-semibold">Earnings Wallet</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(wallet?.earnings_wallet_balance)}</p>
+                  <p className="text-xs text-gray-500 mt-1">Available for withdrawal</p>
+                </div>
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <Banknote className="h-5 w-5 text-green-600" />
+                </div>
+              </div>
+              <div className="mt-3">
+                <button
+                  onClick={openWithdrawModal}
+                  disabled={!wallet || wallet.earnings_wallet_balance <= 0}
+                  className="w-full py-2.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                >
+                  Request Withdrawal
+                </button>
+              </div>
+            </div>
+
+            {/* Total Balance */}
+            <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-purple-500">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase font-semibold">Total Balance</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(totalBalance)}</p>
+                  <p className="text-xs text-gray-500 mt-1">Food + Earnings</p>
+                </div>
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Banknote className="h-5 w-5 text-purple-600" />
+                </div>
+              </div>
+            </div>
+
+            {/* Status */}
+            <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-gray-500">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase font-semibold">Status</p>
+                  <p className={`text-xl font-bold ${isOnline ? 'text-green-600' : 'text-red-600'}`}>
+                    {isOnline ? 'Online' : 'Offline'}
+                  </p>
+                </div>
+                <button
+                  onClick={toggleOnlineStatus}
+                  className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${isOnline ? 'bg-green-500' : 'bg-gray-300'
+                    }`}
+                  aria-label={isOnline ? 'Go offline' : 'Go online'}
+                >
+                  <div
+                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isOnline ? 'translate-x-6' : ''
+                      }`}
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Bank Setup */}
+          <div className="bg-white rounded-xl shadow-sm p-5 mb-6 border border-gray-200">
+            <div className="flex justify-between items-center mb-3">
+              <div className="flex items-center space-x-3">
+                {isBankVerified ? (
+                  <>
+                    <div className="mt-0.5 p-1.5 bg-green-100 rounded-full">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                    </div>
+                    <h3 className="text-lg font-bold text-green-800">✅ Bank Details Saved</h3>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                    <h3 className="text-lg font-bold text-yellow-800">⚠️ Bank Details Required</h3>
+                  </>
+                )}
+              </div>
               <button
-                onClick={signOut}
-                className="flex items-center space-x-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors font-medium"
+                onClick={() => { }}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                disabled
               >
-                <LogOut className="h-5 w-5" />
-                <span className="text-sm">Sign Out</span>
+                {isBankVerified ? 'Update' : 'Manage'}
               </button>
             </div>
 
-            {/* Hamburger Menu Dropdown */}
-            {showMobileMenu && (
-              <div ref={menuRef} className="absolute right-4 top-16 bg-white shadow-lg rounded-md py-2 w-48 z-50 border border-gray-200 md:hidden">
-                <button
-                  onClick={() => {
-                    setShowProfileModal(true);
-                    setShowMobileMenu(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  <div className="flex items-center space-x-2">
-                    <User className="h-4 w-4" />
-                    <span>Profile</span>
+            {!isBankVerified ? (
+              <>
+                <p className="text-gray-600 mb-4">
+                  Please save your bank account details. Admin will use this for manual withdrawals.
+                </p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                    <input
+                      type="text"
+                      value={bankAccount}
+                      onChange={(e) => setBankAccount(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      placeholder="10-digit number"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      maxLength={10}
+                    />
                   </div>
-                </button>
-                <button
-                  onClick={() => {
-                    setActiveTab('active');
-                    setShowMobileMenu(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  <div className="flex items-center space-x-2">
-                    <Package className="h-4 w-4" />
-                    <span>Active Orders</span>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bank</label>
+                    <select
+                      value={bankCode}
+                      onChange={(e) => setBankCode(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select Bank</option>
+                      {BANK_OPTIONS.map((bank) => (
+                        <option key={bank.code} value={bank.code}>
+                          {bank.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                </button>
-                <button
-                  onClick={() => {
-                    setActiveTab('available');
-                    setShowMobileMenu(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  <div className="flex items-center space-x-2">
-                    <Clock className="h-4 w-4" />
-                    <span>Available Orders</span>
-                  </div>
-                </button>
-                <button
-                  onClick={() => {
-                    setShowNotifications(true);
-                    setShowMobileMenu(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  <div className="flex items-center space-x-2">
-                    <Bell className="h-4 w-4" />
-                    <span>Notifications</span>
-                  </div>
-                </button>
-                <button
-                  onClick={() => {
-                    setActiveTab('history');
-                    setShowMobileMenu(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  <div className="flex items-center space-x-2">
-                    <BarChart3 className="h-4 w-4" />
-                    <span>Earnings History</span>
-                  </div>
-                </button>
-                <button
-                  onClick={() => {
-                    // Open payment methods (bank details management)
-                    setShowProfileModal(true);
-                    setShowMobileMenu(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  <div className="flex items-center space-x-2">
-                    <Wallet className="h-4 w-4" />
-                    <span>Payment Methods</span>
-                  </div>
-                </button>
-                <button
-                  onClick={signOut}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  <div className="flex items-center space-x-2">
-                    <LogOut className="h-4 w-4" />
-                    <span>Sign Out</span>
-                  </div>
-                </button>
+                  <button
+                    onClick={saveBankDetails}
+                    disabled={savingBank || !bankAccount || !bankCode || bankAccount.length !== 10}
+                    className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium"
+                  >
+                    {savingBank ? 'Saving...' : '✅ Save Bank Details'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div>
+                <p className="text-gray-600 mb-4">
+                  Your bank details are saved and ready for withdrawals.
+                </p>
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                  <p className="text-green-800">
+                    <span className="font-medium">{bankName}</span> •••• {bankAccount.slice(-4)}
+                  </p>
+                </div>
               </div>
             )}
           </div>
-        </div>
-      </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        {/* Messages */}
-        {message && (
-          <div
-            className={`p-3 rounded mb-4 border ${message.type === 'error'
-              ? 'bg-red-50 border-red-200 text-red-700'
-              : message.type === 'success'
-                ? 'bg-green-50 border-green-200 text-green-700'
-                : 'bg-blue-50 border-blue-200 text-blue-700'
-              }`}
-          >
-            {message.text}
-          </div>
-        )}
-
-        {/* Balance Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          {/* Food Wallet */}
-          <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-blue-500">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-xs text-gray-500 uppercase font-semibold">Food Wallet</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(wallet?.food_wallet_balance)}</p>
-                <p className="text-xs text-gray-500 mt-1">For food purchases</p>
-              </div>
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Wallet className="h-5 w-5 text-blue-600" />
-              </div>
-            </div>
-          </div>
-
-          {/* Earnings Wallet */}
-          <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-green-500">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-xs text-gray-500 uppercase font-semibold">Earnings Wallet</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(wallet?.earnings_wallet_balance)}</p>
-                <p className="text-xs text-gray-500 mt-1">Available for withdrawal</p>
-              </div>
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Banknote className="h-5 w-5 text-green-600" />
-              </div>
-            </div>
-            <div className="mt-3">
-              <button
-                onClick={openWithdrawModal}
-                disabled={!wallet || wallet.earnings_wallet_balance <= 0}
-                className="w-full py-2.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-              >
-                Request Withdrawal
-              </button>
-            </div>
-          </div>
-
-          {/* Total Balance */}
-          <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-purple-500">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-xs text-gray-500 uppercase font-semibold">Total Balance</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(totalBalance)}</p>
-                <p className="text-xs text-gray-500 mt-1">Food + Earnings</p>
-              </div>
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Banknote className="h-5 w-5 text-purple-600" />
-              </div>
-            </div>
-          </div>
-
-          {/* Status */}
-          <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-gray-500">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-xs text-gray-500 uppercase font-semibold">Status</p>
-                <p className={`text-xl font-bold ${isOnline ? 'text-green-600' : 'text-red-600'}`}>
-                  {isOnline ? 'Online' : 'Offline'}
-                </p>
-              </div>
-              <button
-                onClick={toggleOnlineStatus}
-                className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${isOnline ? 'bg-green-500' : 'bg-gray-300'
-                  }`}
-                aria-label={isOnline ? 'Go offline' : 'Go online'}
-              >
-                <div
-                  className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isOnline ? 'translate-x-6' : ''
-                    }`}
-                />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Bank Setup */}
-        <div className="bg-white rounded-xl shadow-sm p-5 mb-6 border border-gray-200">
-          <div className="flex justify-between items-center mb-3">
-            <div className="flex items-center space-x-3">
-              {isBankVerified ? (
-                <>
-                  <div className="mt-0.5 p-1.5 bg-green-100 rounded-full">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                  </div>
-                  <h3 className="text-lg font-bold text-green-800">✅ Bank Details Saved</h3>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-                  <h3 className="text-lg font-bold text-yellow-800">⚠️ Bank Details Required</h3>
-                </>
-              )}
-            </div>
-            <button
-              onClick={() => { }}
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-              disabled
-            >
-              {isBankVerified ? 'Update' : 'Manage'}
-            </button>
-          </div>
-
-          {!isBankVerified ? (
-            <>
-              <p className="text-gray-600 mb-4">
-                Please save your bank account details. Admin will use this for manual withdrawals.
-              </p>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
-                  <input
-                    type="text"
-                    value={bankAccount}
-                    onChange={(e) => setBankAccount(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    placeholder="10-digit number"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    maxLength={10}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bank</label>
-                  <select
-                    value={bankCode}
-                    onChange={(e) => setBankCode(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select Bank</option>
-                    {BANK_OPTIONS.map((bank) => (
-                      <option key={bank.code} value={bank.code}>
-                        {bank.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+          {/* Order Tabs */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+            <div className="border-b border-gray-200">
+              <nav className="flex space-x-8 px-6">
                 <button
-                  onClick={saveBankDetails}
-                  disabled={savingBank || !bankAccount || !bankCode || bankAccount.length !== 10}
-                  className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium"
+                  onClick={() => setActiveTab('active')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'active'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                    }`}
                 >
-                  {savingBank ? 'Saving...' : '✅ Save Bank Details'}
+                  Active Orders ({myOrders.filter(o => ['pending', 'accepted', 'preparing', 'ready', 'picked_up'].includes(o.status)).length})
                 </button>
-              </div>
-            </>
-          ) : (
-            <div>
-              <p className="text-gray-600 mb-4">
-                Your bank details are saved and ready for withdrawals.
-              </p>
-              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                <p className="text-green-800">
-                  <span className="font-medium">{bankName}</span> •••• {bankAccount.slice(-4)}
-                </p>
-              </div>
+                <button
+                  onClick={() => setActiveTab('available')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'available'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                    }`}
+                >
+                  Available Orders ({availableOrders.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('history')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'history'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                    }`}
+                >
+                  Order History
+                </button>
+              </nav>
             </div>
-          )}
-        </div>
 
-        {/* Order Tabs */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="flex space-x-8 px-6">
-              <button
-                onClick={() => setActiveTab('active')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'active'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                  }`}
-              >
-                Active Orders ({myOrders.filter(o => ['pending', 'accepted', 'preparing', 'ready', 'picked_up'].includes(o.status)).length})
-              </button>
-              <button
-                onClick={() => setActiveTab('available')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'available'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                  }`}
-              >
-                Available Orders ({availableOrders.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('history')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'history'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                  }`}
-              >
-                Order History
-              </button>
-            </nav>
-          </div>
+            <div className="p-6">
+              {/* Active Orders Tab */}
+              {activeTab === 'active' && (
+                <div>
+                  {myOrders.filter(o => ['pending', 'accepted', 'preparing', 'ready', 'picked_up'].includes(o.status)).length === 0 ? (
+                    <div className="text-center py-8">
+                      <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-1">No Active Orders</h3>
+                      <p className="text-gray-500">You don't have any active orders right now.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {myOrders
+                        .filter(o => ['pending', 'accepted', 'preparing', 'ready', 'picked_up'].includes(o.status))
+                        .map(order => (
+                          <div key={order.id} className="border border-gray-200 rounded-lg p-4">
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <h4 className="font-medium text-gray-900">Order #{order.order_number}</h4>
+                                <p className="text-sm text-gray-500">{new Date(order.created_at).toLocaleString()}</p>
+                              </div>
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                                order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                                  order.status === 'picked_up' ? 'bg-blue-100 text-blue-800' :
+                                    order.status === 'ready' ? 'bg-yellow-100 text-yellow-800' :
+                                      'bg-gray-100 text-gray-800'
+                                }`}>
+                                {order.status === 'pending' && 'Pending'}
+                                {order.status === 'accepted' && 'Accepted'}
+                                {order.status === 'preparing' && 'Preparing'}
+                                {order.status === 'ready' && 'Ready for Pickup'}
+                                {order.status === 'picked_up' && 'Out for Delivery'}
+                                {order.status === 'delivered' && 'Delivered'}
+                                {order.status === 'cancelled' && 'Cancelled'}
+                              </span>
+                            </div>
 
-          <div className="p-6">
-            {/* Active Orders Tab */}
-            {activeTab === 'active' && (
-              <div>
-                {myOrders.filter(o => ['pending', 'accepted', 'preparing', 'ready', 'picked_up'].includes(o.status)).length === 0 ? (
-                  <div className="text-center py-8">
-                    <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-1">No Active Orders</h3>
-                    <p className="text-gray-500">You don't have any active orders right now.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {myOrders
-                      .filter(o => ['pending', 'accepted', 'preparing', 'ready', 'picked_up'].includes(o.status))
-                      .map(order => (
+                            <div className="mb-3">
+                              <p className="text-sm text-gray-600">Total: {formatCurrency(order.total)}</p>
+                              <p className="text-sm text-gray-600">Address: {order.delivery_address}</p>
+                            </div>
+
+                            {order.order_items && order.order_items.length > 0 && (
+                              <div className="mb-3">
+                                <p className="text-sm font-medium text-gray-700 mb-1">Items:</p>
+                                <ul className="text-sm text-gray-600">
+                                  {order.order_items.map(item => (
+                                    <li key={item.id}>
+                                      {item.quantity}x {item.menu_item?.name || 'Unknown Item'}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            <div className="flex flex-wrap gap-2">
+                              {order.status === 'accepted' && (
+                                <button
+                                  onClick={() => handleUpdateStatus(order.id, 'preparing')}
+                                  className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                                >
+                                  Mark Preparing
+                                </button>
+                              )}
+                              {order.status === 'preparing' && (
+                                <button
+                                  onClick={() => handleUpdateStatus(order.id, 'ready')}
+                                  className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                                >
+                                  Mark Ready
+                                </button>
+                              )}
+                              {order.status === 'ready' && (
+                                <button
+                                  onClick={() => handleUpdateStatus(order.id, 'picked_up')}
+                                  className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                                >
+                                  Mark Picked Up
+                                </button>
+                              )}
+                              {order.status === 'picked_up' && (
+                                <button
+                                  onClick={() => handleUpdateStatus(order.id, 'delivered')}
+                                  className="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                                >
+                                  Mark Delivered
+                                </button>
+                              )}
+                              <button
+                                onClick={() => setSelectedOrderForChat(order)}
+                                className="px-3 py-1.5 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 flex items-center"
+                              >
+                                <MessageCircle className="h-3 w-3 mr-1" />
+                                Chat
+                              </button>
+                              <button
+                                onClick={() => setSelectedOrderForTracking(order)}
+                                className="px-3 py-1.5 text-xs bg-blue-200 text-blue-700 rounded hover:bg-blue-300 flex items-center"
+                              >
+                                <Navigation className="h-3 w-3 mr-1" />
+                                Track
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Available Orders Tab */}
+              {activeTab === 'available' && (
+                <div>
+                  {availableOrders.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-1">No Available Orders</h3>
+                      <p className="text-gray-500">There are no orders available for delivery right now.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {availableOrders.map(order => (
                         <div key={order.id} className="border border-gray-200 rounded-lg p-4">
                           <div className="flex justify-between items-start mb-2">
                             <div>
                               <h4 className="font-medium text-gray-900">Order #{order.order_number}</h4>
                               <p className="text-sm text-gray-500">{new Date(order.created_at).toLocaleString()}</p>
                             </div>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${order.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                              order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                                order.status === 'picked_up' ? 'bg-blue-100 text-blue-800' :
-                                  order.status === 'ready' ? 'bg-yellow-100 text-yellow-800' :
-                                    'bg-gray-100 text-gray-800'
-                              }`}>
-                              {order.status === 'pending' && 'Pending'}
-                              {order.status === 'accepted' && 'Accepted'}
-                              {order.status === 'preparing' && 'Preparing'}
-                              {order.status === 'ready' && 'Ready for Pickup'}
-                              {order.status === 'picked_up' && 'Out for Delivery'}
-                              {order.status === 'delivered' && 'Delivered'}
-                              {order.status === 'cancelled' && 'Cancelled'}
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              Available
                             </span>
                           </div>
 
@@ -1062,478 +1169,383 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                             </div>
                           )}
 
-                          <div className="flex flex-wrap gap-2">
-                            {order.status === 'accepted' && (
-                              <button
-                                onClick={() => handleUpdateStatus(order.id, 'preparing')}
-                                className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                              >
-                                Mark Preparing
-                              </button>
-                            )}
-                            {order.status === 'preparing' && (
-                              <button
-                                onClick={() => handleUpdateStatus(order.id, 'ready')}
-                                className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                              >
-                                Mark Ready
-                              </button>
-                            )}
-                            {order.status === 'ready' && (
-                              <button
-                                onClick={() => handleUpdateStatus(order.id, 'picked_up')}
-                                className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                              >
-                                Mark Picked Up
-                              </button>
-                            )}
-                            {order.status === 'picked_up' && (
-                              <button
-                                onClick={() => handleUpdateStatus(order.id, 'delivered')}
-                                className="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700"
-                              >
-                                Mark Delivered
-                              </button>
-                            )}
-                            <button
-                              onClick={() => setSelectedOrderForChat(order)}
-                              className="px-3 py-1.5 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 flex items-center"
-                            >
-                              <MessageCircle className="h-3 w-3 mr-1" />
-                              Chat
-                            </button>
-                            <button
-                              onClick={() => setSelectedOrderForTracking(order)}
-                              className="px-3 py-1.5 text-xs bg-blue-200 text-blue-700 rounded hover:bg-blue-300 flex items-center"
-                            >
-                              <Navigation className="h-3 w-3 mr-1" />
-                              Track
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => handleAcceptOrder(order)}
+                            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-medium"
+                            disabled={!isOnline}
+                          >
+                            {isOnline ? 'Accept Order' : 'Go Online to Accept'}
+                          </button>
                         </div>
                       ))}
-                  </div>
-                )}
-              </div>
-            )}
+                    </div>
+                  )}
+                </div>
+              )}
 
-            {/* Available Orders Tab */}
-            {activeTab === 'available' && (
-              <div>
-                {availableOrders.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-1">No Available Orders</h3>
-                    <p className="text-gray-500">There are no orders available for delivery right now.</p>
+              {/* Order History Tab */}
+              {activeTab === 'history' && (
+                <div>
+                  {myOrders.filter(o => o.status === 'delivered' || o.status === 'cancelled').length === 0 ? (
+                    <div className="text-center py-8">
+                      <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-1">No Order History</h3>
+                      <p className="text-gray-500">You don't have any completed or cancelled orders yet.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full">
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Order #</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Total</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {myOrders
+                            .filter(o => o.status === 'delivered' || o.status === 'cancelled')
+                            .map(order => (
+                              <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
+                                <td className="py-3 px-4 text-sm text-gray-900">#{order.order_number}</td>
+                                <td className="py-3 px-4 text-sm text-gray-600">{new Date(order.created_at).toLocaleDateString()}</td>
+                                <td className="py-3 px-4 text-sm font-medium text-gray-900">{formatCurrency(order.total)}</td>
+                                <td className="py-3 px-4">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${order.status === 'delivered' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                    {order.status === 'delivered' ? 'Delivered' : 'Cancelled'}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4">
+                                  <button
+                                    onClick={() => setSelectedOrderForChat(order)}
+                                    className="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 mr-2"
+                                  >
+                                    Chat
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Withdrawal History Section */}
+          <div className="mt-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-3">Withdrawal Requests</h2>
+            <div className="bg-white rounded-xl p-4 border border-gray-200">
+              {withdrawalRequests.length === 0 ? (
+                <p className="text-gray-600">No withdrawal requests yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Date</th>
+                        <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Amount</th>
+                        <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Bank</th>
+                        <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {withdrawalRequests.map((req) => (
+                        <tr key={req.id} className="border-b border-gray-100 last:border-0">
+                          <td className="py-3 px-3 text-sm text-gray-600">
+                            {new Date(req.created_at).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </td>
+                          <td className="py-3 px-3 text-sm font-medium text-gray-900">
+                            {formatCurrency(Number(req.amount))}
+                          </td>
+                          <td className="py-3 px-3">
+                            <span
+                              className={`px-2 py-1 rounded text-xs font-medium ${req.status === 'completed'
+                                ? 'bg-green-100 text-green-800'
+                                : req.status === 'failed'
+                                  ? 'bg-red-100 text-red-800'
+                                  : req.status === 'processing'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-yellow-100 text-yellow-800'
+                                }`}
+                            >
+                              {req.status === 'completed' && '✅ '}
+                              {req.status === 'failed' && '❌ '}
+                              {req.status === 'processing' && '🔄 '}
+                              {req.status === 'pending' && '⏳ '}
+                              {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                            </span>
+                            {req.processed_at && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                {new Date(req.processed_at).toLocaleDateString()}
+                              </div>
+                            )}
+                            {req.error_message && (
+                              <div className="text-xs text-red-600 mt-1">{req.error_message}</div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Modals */}
+        {selectedOrderForChat && (
+          <ChatModal
+            orderId={selectedOrderForChat.id}
+            orderNumber={selectedOrderForChat.order_number}
+            recipientName="Customer"
+            onClose={() => setSelectedOrderForChat(null)}
+          />
+        )}
+
+        {selectedOrderForTracking && (
+          <LocationTracker
+            orderId={selectedOrderForTracking.id}
+            orderStatus={selectedOrderForTracking.status}
+            onClose={() => setSelectedOrderForTracking(null)}
+          />
+        )}
+
+        {/* Profile Modal */}
+        {showProfileModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold text-gray-900">Delivery Agent Profile</h2>
+                  <button
+                    onClick={() => setShowProfileModal(false)}
+                    className="p-2 rounded-full hover:bg-gray-100"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
+                      <User className="h-8 w-8 text-gray-500" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{profile?.full_name}</h3>
+                      <p className="text-sm text-gray-600">{profile?.email}</p>
+                      <div className="flex items-center mt-1">
+                        <Star className="h-4 w-4 text-yellow-400" />
+                        <span className="text-sm text-gray-700 ml-1">{agent?.rating || '4.8'} Rating</span>
+                      </div>
+                    </div>
                   </div>
-                ) : (
+
                   <div className="space-y-4">
-                    {availableOrders.map(order => (
-                      <div key={order.id} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <h4 className="font-medium text-gray-900">Order #{order.order_number}</h4>
-                            <p className="text-sm text-gray-500">{new Date(order.created_at).toLocaleString()}</p>
-                          </div>
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                            Available
-                          </span>
-                        </div>
+                    <div>
+                      <h4 className="font-medium text-gray-700 mb-2">Account Information</h4>
+                      <div className="space-y-2 text-sm">
+                        <p><span className="text-gray-500">ID:</span> {agent?.id}</p>
+                        <p><span className="text-gray-500">Phone:</span> {profile?.phone || 'Not provided'}</p>
+                        <p><span className="text-gray-500">Vehicle:</span> {agent?.vehicle_type || 'Not specified'}</p>
+                      </div>
+                    </div>
 
-                        <div className="mb-3">
-                          <p className="text-sm text-gray-600">Total: {formatCurrency(order.total)}</p>
-                          <p className="text-sm text-gray-600">Address: {order.delivery_address}</p>
-                        </div>
-
-                        {order.order_items && order.order_items.length > 0 && (
-                          <div className="mb-3">
-                            <p className="text-sm font-medium text-gray-700 mb-1">Items:</p>
-                            <ul className="text-sm text-gray-600">
-                              {order.order_items.map(item => (
-                                <li key={item.id}>
-                                  {item.quantity}x {item.menu_item?.name || 'Unknown Item'}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <h4 className="font-medium text-gray-700">Payment Methods</h4>
                         <button
-                          onClick={() => handleAcceptOrder(order)}
-                          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-medium"
-                          disabled={!isOnline}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            // This button just shows the current state
+                            // The actual update happens in the main bank section
+                          }}
+                          className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                          disabled
                         >
-                          {isOnline ? 'Accept Order' : 'Go Online to Accept'}
+                          {isBankVerified ? 'Update' : 'Add'}
                         </button>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Order History Tab */}
-            {activeTab === 'history' && (
-              <div>
-                {myOrders.filter(o => o.status === 'delivered' || o.status === 'cancelled').length === 0 ? (
-                  <div className="text-center py-8">
-                    <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-1">No Order History</h3>
-                    <p className="text-gray-500">You don't have any completed or cancelled orders yet.</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full">
-                      <thead>
-                        <tr className="border-b border-gray-200">
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Order #</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Total</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {myOrders
-                          .filter(o => o.status === 'delivered' || o.status === 'cancelled')
-                          .map(order => (
-                            <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
-                              <td className="py-3 px-4 text-sm text-gray-900">#{order.order_number}</td>
-                              <td className="py-3 px-4 text-sm text-gray-600">{new Date(order.created_at).toLocaleDateString()}</td>
-                              <td className="py-3 px-4 text-sm font-medium text-gray-900">{formatCurrency(order.total)}</td>
-                              <td className="py-3 px-4">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${order.status === 'delivered' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                  {order.status === 'delivered' ? 'Delivered' : 'Cancelled'}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4">
-                                <button
-                                  onClick={() => setSelectedOrderForChat(order)}
-                                  className="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 mr-2"
-                                >
-                                  Chat
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Withdrawal History Section */}
-        <div className="mt-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-3">Withdrawal Requests</h2>
-          <div className="bg-white rounded-xl p-4 border border-gray-200">
-            {withdrawalRequests.length === 0 ? (
-              <p className="text-gray-600">No withdrawal requests yet.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Date</th>
-                      <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Amount</th>
-                      <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Bank</th>
-                      <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {withdrawalRequests.map((req) => (
-                      <tr key={req.id} className="border-b border-gray-100 last:border-0">
-                        <td className="py-3 px-3 text-sm text-gray-600">
-                          {new Date(req.created_at).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </td>
-                        <td className="py-3 px-3 text-sm font-medium text-gray-900">
-                          {formatCurrency(Number(req.amount))}
-                        </td>
-                        <td className="py-3 px-3">
-                          <span
-                            className={`px-2 py-1 rounded text-xs font-medium ${req.status === 'completed'
-                              ? 'bg-green-100 text-green-800'
-                              : req.status === 'failed'
-                                ? 'bg-red-100 text-red-800'
-                                : req.status === 'processing'
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : 'bg-yellow-100 text-yellow-800'
-                              }`}
-                          >
-                            {req.status === 'completed' && '✅ '}
-                            {req.status === 'failed' && '❌ '}
-                            {req.status === 'processing' && '🔄 '}
-                            {req.status === 'pending' && '⏳ '}
-                            {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
-                          </span>
-                          {req.processed_at && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              {new Date(req.processed_at).toLocaleDateString()}
-                            </div>
-                          )}
-                          {req.error_message && (
-                            <div className="text-xs text-red-600 mt-1">{req.error_message}</div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Modals */}
-      {selectedOrderForChat && (
-        <ChatModal
-          orderId={selectedOrderForChat.id}
-          orderNumber={selectedOrderForChat.order_number}
-          recipientName="Customer"
-          onClose={() => setSelectedOrderForChat(null)}
-        />
-      )}
-
-      {selectedOrderForTracking && (
-        <LocationTracker
-          orderId={selectedOrderForTracking.id}
-          orderStatus={selectedOrderForTracking.status}
-          onClose={() => setSelectedOrderForTracking(null)}
-        />
-      )}
-
-      {/* Profile Modal */}
-      {showProfileModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-gray-900">Delivery Agent Profile</h2>
-                <button
-                  onClick={() => setShowProfileModal(false)}
-                  className="p-2 rounded-full hover:bg-gray-100"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                <div className="flex items-center space-x-4">
-                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
-                    <User className="h-8 w-8 text-gray-500" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{profile?.full_name}</h3>
-                    <p className="text-sm text-gray-600">{profile?.email}</p>
-                    <div className="flex items-center mt-1">
-                      <Star className="h-4 w-4 text-yellow-400" />
-                      <span className="text-sm text-gray-700 ml-1">{agent?.rating || '4.8'} Rating</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-medium text-gray-700 mb-2">Account Information</h4>
-                    <div className="space-y-2 text-sm">
-                      <p><span className="text-gray-500">ID:</span> {agent?.id}</p>
-                      <p><span className="text-gray-500">Phone:</span> {profile?.phone || 'Not provided'}</p>
-                      <p><span className="text-gray-500">Vehicle:</span> {agent?.vehicle_type || 'Not specified'}</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <h4 className="font-medium text-gray-700">Payment Methods</h4>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          // This button just shows the current state
-                          // The actual update happens in the main bank section
-                        }}
-                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                        disabled
-                      >
-                        {isBankVerified ? 'Update' : 'Add'}
-                      </button>
-                    </div>
-                    <div className="text-sm">
-                      {isBankVerified ? (
-                        <p className="text-green-700">
-                          <span className="text-gray-500">Bank:</span> {bankName}<br />
-                          <span className="text-gray-500">Account:</span> •••• {bankAccount.slice(-4)}
-                        </p>
-                      ) : (
-                        <p className="text-yellow-700">No bank details saved yet</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="font-medium text-gray-700 mb-2">Performance Stats</h4>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-gray-500">Total Deliveries</p>
-                        <p className="font-semibold">{agent?.total_deliveries || 0}</p>
+                      <div className="text-sm">
+                        {isBankVerified ? (
+                          <p className="text-green-700">
+                            <span className="text-gray-500">Bank:</span> {bankName}<br />
+                            <span className="text-gray-500">Account:</span> •••• {bankAccount.slice(-4)}
+                          </p>
+                        ) : (
+                          <p className="text-yellow-700">No bank details saved yet</p>
+                        )}
                       </div>
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-gray-500">Active Orders</p>
-                        <p className="font-semibold">{myOrders.filter(o => ['pending', 'accepted', 'preparing', 'ready', 'picked_up'].includes(o.status)).length}</p>
+                    </div>
+
+                    <div>
+                      <h4 className="font-medium text-gray-700 mb-2">Performance Stats</h4>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-gray-500">Total Deliveries</p>
+                          <p className="font-semibold">{agent?.total_deliveries || 0}</p>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-gray-500">Active Orders</p>
+                          <p className="font-semibold">{myOrders.filter(o => ['pending', 'accepted', 'preparing', 'ready', 'picked_up'].includes(o.status)).length}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="font-medium text-gray-700 mb-2">Status</h4>
+                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <span>Online Status</span>
+                        <button
+                          onClick={toggleOnlineStatus}
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
+                        >
+                          {isOnline ? 'ONLINE' : 'OFFLINE'}
+                        </button>
                       </div>
                     </div>
                   </div>
 
-                  <div>
-                    <h4 className="font-medium text-gray-700 mb-2">Status</h4>
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <span>Online Status</span>
-                      <button
-                        onClick={toggleOnlineStatus}
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
-                      >
-                        {isOnline ? 'ONLINE' : 'OFFLINE'}
-                      </button>
+                  <button
+                    onClick={() => {
+                      setShowProfileModal(false);
+                      signOut();
+                    }}
+                    className="w-full py-2.5 text-sm bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-medium"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Notifications Modal */}
+        {showNotifications && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold text-gray-900">Notifications</h2>
+                  <button
+                    onClick={() => setShowNotifications(false)}
+                    className="p-2 rounded-full hover:bg-gray-100"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start space-x-3">
+                      <Bell className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <h4 className="font-medium text-blue-800">New Available Orders</h4>
+                        <p className="text-sm text-blue-700 mt-1">There are 3 new orders available for delivery in your area.</p>
+                        <p className="text-xs text-blue-600 mt-2">Just now</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="flex items-start space-x-3">
+                      <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <h4 className="font-medium text-green-800">Order Delivered</h4>
+                        <p className="text-sm text-green-700 mt-1">You successfully delivered order #ORD-001. ₦500 earned.</p>
+                        <p className="text-xs text-green-600 mt-2">10 minutes ago</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-start space-x-3">
+                      <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <h4 className="font-medium text-yellow-800">Bank Details Required</h4>
+                        <p className="text-sm text-yellow-700 mt-1">Please update your bank details to receive earnings.</p>
+                        <p className="text-xs text-yellow-600 mt-2">1 hour ago</p>
+                      </div>
                     </div>
                   </div>
                 </div>
 
+                <div className="mt-6 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={() => setShowNotifications(false)}
+                    className="w-full py-2.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Withdrawal Request Modal */}
+        {showWithdrawModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-md bg-white rounded-lg p-6">
+              <h3 className="text-lg font-semibold mb-3">Request Withdrawal</h3>
+              <p className="text-sm text-gray-600 mb-3">
+                Available in Earnings Wallet: <span className="font-bold text-green-600">{formatCurrency(wallet?.earnings_wallet_balance)}</span>
+              </p>
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  📌 <strong>Note:</strong> Your request will be reviewed by admin. Payment will be sent manually to your bank account.
+                </p>
+              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₦)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                max={wallet?.earnings_wallet_balance}
+                value={withdrawAmount ?? ''}
+                onChange={(e) => setWithdrawAmount(e.target.value ? parseFloat(e.target.value) : null)}
+                className="w-full p-3 border border-gray-300 rounded mb-3 focus:ring-2 focus:ring-blue-500"
+              />
+              <div className="mb-4 text-sm text-gray-600">
+                <p><strong>Bank:</strong> {bankName}</p>
+                <p><strong>Account:</strong> •••• {bankAccount.slice(-4)}</p>
+              </div>
+              {message?.type === 'error' && (
+                <p className="text-red-600 text-sm mb-3">{message.text}</p>
+              )}
+              <div className="flex items-center justify-between gap-2">
                 <button
                   onClick={() => {
-                    setShowProfileModal(false);
-                    signOut();
+                    setShowWithdrawModal(false);
+                    setMessage(null);
                   }}
-                  className="w-full py-2.5 text-sm bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-medium"
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                 >
-                  Sign Out
+                  Cancel
                 </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Notifications Modal */}
-      {showNotifications && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-gray-900">Notifications</h2>
                 <button
-                  onClick={() => setShowNotifications(false)}
-                  className="p-2 rounded-full hover:bg-gray-100"
+                  onClick={handleWithdrawRequest}
+                  disabled={processingWithdrawal || withdrawAmount == null || withdrawAmount <= 0}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-start space-x-3">
-                    <Bell className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <h4 className="font-medium text-blue-800">New Available Orders</h4>
-                      <p className="text-sm text-blue-700 mt-1">There are 3 new orders available for delivery in your area.</p>
-                      <p className="text-xs text-blue-600 mt-2">Just now</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                  <div className="flex items-start space-x-3">
-                    <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <h4 className="font-medium text-green-800">Order Delivered</h4>
-                      <p className="text-sm text-green-700 mt-1">You successfully delivered order #ORD-001. ₦500 earned.</p>
-                      <p className="text-xs text-green-600 mt-2">10 minutes ago</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-start space-x-3">
-                    <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <h4 className="font-medium text-yellow-800">Bank Details Required</h4>
-                      <p className="text-sm text-yellow-700 mt-1">Please update your bank details to receive earnings.</p>
-                      <p className="text-xs text-yellow-600 mt-2">1 hour ago</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-gray-200">
-                <button
-                  onClick={() => setShowNotifications(false)}
-                  className="w-full py-2.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
-                >
-                  Close
+                  {processingWithdrawal ? 'Submitting...' : 'Submit Request'}
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Withdrawal Request Modal */}
-      {showWithdrawModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-lg p-6">
-            <h3 className="text-lg font-semibold mb-3">Request Withdrawal</h3>
-            <p className="text-sm text-gray-600 mb-3">
-              Available in Earnings Wallet: <span className="font-bold text-green-600">{formatCurrency(wallet?.earnings_wallet_balance)}</span>
-            </p>
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
-                📌 <strong>Note:</strong> Your request will be reviewed by admin. Payment will be sent manually to your bank account.
-              </p>
-            </div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₦)</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0.01"
-              max={wallet?.earnings_wallet_balance}
-              value={withdrawAmount ?? ''}
-              onChange={(e) => setWithdrawAmount(e.target.value ? parseFloat(e.target.value) : null)}
-              className="w-full p-3 border border-gray-300 rounded mb-3 focus:ring-2 focus:ring-blue-500"
-            />
-            <div className="mb-4 text-sm text-gray-600">
-              <p><strong>Bank:</strong> {bankName}</p>
-              <p><strong>Account:</strong> •••• {bankAccount.slice(-4)}</p>
-            </div>
-            {message?.type === 'error' && (
-              <p className="text-red-600 text-sm mb-3">{message.text}</p>
-            )}
-            <div className="flex items-center justify-between gap-2">
-              <button
-                onClick={() => {
-                  setShowWithdrawModal(false);
-                  setMessage(null);
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleWithdrawRequest}
-                disabled={processingWithdrawal || withdrawAmount == null || withdrawAmount <= 0}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
-                {processingWithdrawal ? 'Submitting...' : 'Submit Request'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

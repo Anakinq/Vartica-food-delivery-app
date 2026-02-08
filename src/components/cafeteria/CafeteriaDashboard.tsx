@@ -484,353 +484,365 @@ const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ profile, onShow
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold text-gray-900">{cafeteria.name}</h1>
-              {/* Open/Close Toggle Button */}
+    <div className="min-h-screen bg-black">
+      {/* Full-screen food background with dark overlay */}
+      <div
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: "url('/images/1.jpg')",
+        }}
+      />
+      <div className="fixed inset-0 bg-black bg-opacity-70" />
+
+      {/* Main content with proper z-index */}
+      <div className="relative z-10 min-h-screen">
+        <nav className="bg-white shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center space-x-4">
+                <h1 className="text-2xl font-bold text-gray-900">{cafeteria.name}</h1>
+                {/* Open/Close Toggle Button */}
+                <button
+                  onClick={() => {
+                    const newStatus = !isCafeteriaOpen;
+                    setIsCafeteriaOpen(newStatus);
+                    // Save to localStorage
+                    if (cafeteria) {
+                      localStorage.setItem(`cafeteria-open-${cafeteria.id}`, JSON.stringify(newStatus));
+                    }
+                  }}
+                  className={`px-4 py-2 rounded-lg font-semibold transition-colors ${isCafeteriaOpen ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-red-600 text-white hover:bg-red-700'}`}
+                >
+                  {isCafeteriaOpen ? 'Open' : 'Closed'}
+                </button>
+                <p className="text-sm text-gray-600">{profile?.full_name}</p>
+              </div>
+              <div className="flex items-center space-x-3">
+                {/* Hamburger Menu */}
+                <button
+                  onClick={() => setShowMenu(!showMenu)}
+                  className="p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+                >
+                  {showMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Hamburger Menu Dropdown */}
+            {showMenu && (
+              <div className="absolute right-4 top-16 bg-white shadow-lg rounded-md py-2 w-48 z-50 border border-gray-200">
+                <button
+                  onClick={() => {
+                    openProfileModal();
+                    setShowMenu(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <div className="flex items-center space-x-2">
+                    <User className="h-4 w-4" />
+                    <span>Cafeteria Profile</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowForm(true);
+                    setShowMenu(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <div className="flex items-center space-x-2">
+                    <Plus className="h-4 w-4" />
+                    <span>Add Menu Item</span>
+                  </div>
+                </button>
+                <button
+                  onClick={signOut}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <div className="flex items-center space-x-2">
+                    <LogOut className="h-4 w-4" />
+                    <span>Sign Out</span>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+        </nav>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-900">Menu Management</h2>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={handleClearMenu}
+                disabled={clearingMenu || !cafeteria}
+                className="flex items-center space-x-2 px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 disabled:opacity-70"
+              >
+                <span>{clearingMenu ? 'Clearing...' : 'Clear Menu'}</span>
+              </button>
+              <button
+                onClick={handleSeedMenu}
+                disabled={seedingMenu || !cafeteria}
+                className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-70"
+              >
+                <Upload className="h-5 w-5" />
+                <span>{seedingMenu ? 'Seeding...' : 'Seed Menu'}</span>
+              </button>
               <button
                 onClick={() => {
-                  const newStatus = !isCafeteriaOpen;
-                  setIsCafeteriaOpen(newStatus);
-                  // Save to localStorage
-                  if (cafeteria) {
-                    localStorage.setItem(`cafeteria-open-${cafeteria.id}`, JSON.stringify(newStatus));
-                  }
+                  setEditingItem(null);
+                  setShowForm(true);
                 }}
-                className={`px-4 py-2 rounded-lg font-semibold transition-colors ${isCafeteriaOpen ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-red-600 text-white hover:bg-red-700'}`}
+                disabled={!cafeteria}
+                className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isCafeteriaOpen ? 'Open' : 'Closed'}
+                <Plus className="h-5 w-5" />
+                <span>Add Item</span>
               </button>
-              <p className="text-sm text-gray-600">{profile?.full_name}</p>
-            </div>
-            <div className="flex items-center space-x-3">
-              {/* Hamburger Menu */}
               <button
-                onClick={() => setShowMenu(!showMenu)}
-                className="p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+                onClick={() => {
+                  // Predefined Cafeteria 2 menu items
+                  const cafeteria2Menu = [
+                    { name: 'White Rice', price: 400, category: 'Main Course', image_url: '' },
+                    { name: 'Jollof rice', price: 400, category: 'Main Course', image_url: '' },
+                    { name: 'Fried rice', price: 400, category: 'Main Course', image_url: '' },
+                    { name: 'Porridge beans', price: 500, category: 'Main Course', image_url: '' },
+                    { name: 'White beans', price: 500, category: 'Main Course', image_url: '' },
+                    { name: 'White spag', price: 400, category: 'Main Course', image_url: '' },
+                    { name: 'Jollof spag', price: 400, category: 'Main Course', image_url: '' },
+                    { name: 'Macaroni', price: 400, category: 'Main Course', image_url: '' },
+                    { name: 'Beef fish', price: 500, category: 'Protein', image_url: '' },
+                    { name: 'Egg', price: 300, category: 'Protein', image_url: '' },
+                    { name: 'Eba', price: 500, category: 'Swallow', image_url: '' },
+                    { name: 'Semo', price: 500, category: 'Swallow', image_url: '' },
+                    { name: 'Pounded Yam', price: 500, category: 'Swallow', image_url: '' },
+                    { name: 'Amala', price: 500, category: 'Swallow', image_url: '' },
+                    { name: 'Fufu', price: 500, category: 'Swallow', image_url: '' },
+                    { name: 'Soup', price: 300, category: 'Side', image_url: '' },
+                    { name: 'Ofada sauce', price: 300, category: 'Side', image_url: '' },
+                    { name: 'Ofada rice', price: 400, category: 'Main Course', image_url: '' },
+                    { name: 'Stew', price: 200, category: 'Side', image_url: '' },
+                    { name: 'Chicken sauce', price: 1000, category: 'Side', image_url: '' },
+                    { name: 'Fish sauce', price: 600, category: 'Side', image_url: '' },
+                    { name: 'Basmati rice', price: 700, category: 'Main Course', image_url: '' },
+                    { name: 'Oyster rice', price: 600, category: 'Main Course', image_url: '' },
+                    { name: 'Carbonara rice', price: 700, category: 'Main Course', image_url: '' },
+                    { name: 'Singapore spag', price: 500, category: 'Main Course', image_url: '' },
+                    { name: 'Stir fry spag', price: 500, category: 'Main Course', image_url: '' },
+                    { name: 'White spag', price: 400, category: 'Main Course', image_url: '' },
+                    { name: 'Jollof spag', price: 400, category: 'Main Course', image_url: '' },
+                  ];
+                  handleBulkUploadMenu(cafeteria2Menu);
+                }}
+                disabled={!cafeteria}
+                className="flex items-center space-x-2 px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-70"
               >
-                {showMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                <Upload className="h-5 w-5" />
+                <span>Upload Cafeteria 2 Menu</span>
               </button>
             </div>
           </div>
 
-          {/* Hamburger Menu Dropdown */}
-          {showMenu && (
-            <div className="absolute right-4 top-16 bg-white shadow-lg rounded-md py-2 w-48 z-50 border border-gray-200">
+          {menuItems.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-xl">
+              <p className="text-gray-600 text-lg mb-4">No menu items yet</p>
               <button
                 onClick={() => {
-                  openProfileModal();
-                  setShowMenu(false);
+                  if (cafeteria) {
+                    setShowForm(true);
+                  }
                 }}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                disabled={!cafeteria}
+                className="text-blue-600 hover:text-blue-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <div className="flex items-center space-x-2">
-                  <User className="h-4 w-4" />
-                  <span>Cafeteria Profile</span>
-                </div>
+                Add your first item
               </button>
-              <button
-                onClick={() => {
-                  setShowForm(true);
-                  setShowMenu(false);
-                }}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              >
-                <div className="flex items-center space-x-2">
-                  <Plus className="h-4 w-4" />
-                  <span>Add Menu Item</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {menuItems.map(item => (
+                <div key={item.id} className={`bg-white rounded-xl shadow-md p-6 ${!item.is_available ? 'opacity-60' : ''}`}>
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-gray-900">{item.name}</h3>
+                      <p className="text-xl font-bold text-blue-600 mt-1">#{item.price.toFixed(2)}</p>
+                    </div>
+                    <button
+                      onClick={() => handleToggleAvailability(item)}
+                      className={`p-2 rounded-lg ${item.is_available ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`}
+                    >
+                      {item.is_available ? <ToggleRight className="h-6 w-6" /> : <ToggleLeft className="h-6 w-6" />}
+                    </button>
+                  </div>
+
+                  {item.description && (
+                    <p className="text-sm text-gray-600 mb-3">{item.description}</p>
+                  )}
+
+                  {item.category && (
+                    <span className="inline-block px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full mb-3">
+                      {item.category}
+                    </span>
+                  )}
+
+                  {item.image_url && (
+                    <div className="mt-2 mb-3">
+                      <img
+                        src={decodeURIComponent(item.image_url)}
+                        alt={item.name}
+                        className="w-16 h-16 object-cover rounded-md"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = '/images/1.jpg';
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                    <span className={`text-sm font-medium ${item.is_available ? 'text-green-600' : 'text-red-600'}`}>
+                      {item.is_available ? 'In Stock' : 'Out of Stock'}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setEditingItem(item);
+                        setShowForm(true);
+                      }}
+                      className="flex items-center space-x-1 text-blue-600 hover:text-blue-700"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                      <span>Edit</span>
+                    </button>
+                  </div>
                 </div>
-              </button>
-              <button
-                onClick={signOut}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              >
-                <div className="flex items-center space-x-2">
-                  <LogOut className="h-4 w-4" />
-                  <span>Sign Out</span>
-                </div>
-              </button>
+              ))}
             </div>
           )}
         </div>
-      </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900">Menu Management</h2>
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={handleClearMenu}
-              disabled={clearingMenu || !cafeteria}
-              className="flex items-center space-x-2 px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 disabled:opacity-70"
-            >
-              <span>{clearingMenu ? 'Clearing...' : 'Clear Menu'}</span>
-            </button>
-            <button
-              onClick={handleSeedMenu}
-              disabled={seedingMenu || !cafeteria}
-              className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-70"
-            >
-              <Upload className="h-5 w-5" />
-              <span>{seedingMenu ? 'Seeding...' : 'Seed Menu'}</span>
-            </button>
-            <button
-              onClick={() => {
+        {
+          showForm && (
+            <MenuItemForm
+              item={editingItem}
+              onSave={handleSaveItem} // Now passes imageFile as 2nd arg
+              onClose={() => {
+                setShowForm(false);
                 setEditingItem(null);
-                setShowForm(true);
               }}
-              disabled={!cafeteria}
-              className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Plus className="h-5 w-5" />
-              <span>Add Item</span>
-            </button>
-            <button
-              onClick={() => {
-                // Predefined Cafeteria 2 menu items
-                const cafeteria2Menu = [
-                  { name: 'White Rice', price: 400, category: 'Main Course', image_url: '' },
-                  { name: 'Jollof rice', price: 400, category: 'Main Course', image_url: '' },
-                  { name: 'Fried rice', price: 400, category: 'Main Course', image_url: '' },
-                  { name: 'Porridge beans', price: 500, category: 'Main Course', image_url: '' },
-                  { name: 'White beans', price: 500, category: 'Main Course', image_url: '' },
-                  { name: 'White spag', price: 400, category: 'Main Course', image_url: '' },
-                  { name: 'Jollof spag', price: 400, category: 'Main Course', image_url: '' },
-                  { name: 'Macaroni', price: 400, category: 'Main Course', image_url: '' },
-                  { name: 'Beef fish', price: 500, category: 'Protein', image_url: '' },
-                  { name: 'Egg', price: 300, category: 'Protein', image_url: '' },
-                  { name: 'Eba', price: 500, category: 'Swallow', image_url: '' },
-                  { name: 'Semo', price: 500, category: 'Swallow', image_url: '' },
-                  { name: 'Pounded Yam', price: 500, category: 'Swallow', image_url: '' },
-                  { name: 'Amala', price: 500, category: 'Swallow', image_url: '' },
-                  { name: 'Fufu', price: 500, category: 'Swallow', image_url: '' },
-                  { name: 'Soup', price: 300, category: 'Side', image_url: '' },
-                  { name: 'Ofada sauce', price: 300, category: 'Side', image_url: '' },
-                  { name: 'Ofada rice', price: 400, category: 'Main Course', image_url: '' },
-                  { name: 'Stew', price: 200, category: 'Side', image_url: '' },
-                  { name: 'Chicken sauce', price: 1000, category: 'Side', image_url: '' },
-                  { name: 'Fish sauce', price: 600, category: 'Side', image_url: '' },
-                  { name: 'Basmati rice', price: 700, category: 'Main Course', image_url: '' },
-                  { name: 'Oyster rice', price: 600, category: 'Main Course', image_url: '' },
-                  { name: 'Carbonara rice', price: 700, category: 'Main Course', image_url: '' },
-                  { name: 'Singapore spag', price: 500, category: 'Main Course', image_url: '' },
-                  { name: 'Stir fry spag', price: 500, category: 'Main Course', image_url: '' },
-                  { name: 'White spag', price: 400, category: 'Main Course', image_url: '' },
-                  { name: 'Jollof spag', price: 400, category: 'Main Course', image_url: '' },
-                ];
-                handleBulkUploadMenu(cafeteria2Menu);
-              }}
-              disabled={!cafeteria}
-              className="flex items-center space-x-2 px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-70"
-            >
-              <Upload className="h-5 w-5" />
-              <span>Upload Cafeteria 2 Menu</span>
-            </button>
-          </div>
-        </div>
+            />
+          )
+        }
 
-        {menuItems.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-xl">
-            <p className="text-gray-600 text-lg mb-4">No menu items yet</p>
-            <button
-              onClick={() => {
-                if (cafeteria) {
-                  setShowForm(true);
-                }
-              }}
-              disabled={!cafeteria}
-              className="text-blue-600 hover:text-blue-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Add your first item
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {menuItems.map(item => (
-              <div key={item.id} className={`bg-white rounded-xl shadow-md p-6 ${!item.is_available ? 'opacity-60' : ''}`}>
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900">{item.name}</h3>
-                    <p className="text-xl font-bold text-blue-600 mt-1">#{item.price.toFixed(2)}</p>
-                  </div>
-                  <button
-                    onClick={() => handleToggleAvailability(item)}
-                    className={`p-2 rounded-lg ${item.is_available ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`}
-                  >
-                    {item.is_available ? <ToggleRight className="h-6 w-6" /> : <ToggleLeft className="h-6 w-6" />}
-                  </button>
-                </div>
-
-                {item.description && (
-                  <p className="text-sm text-gray-600 mb-3">{item.description}</p>
-                )}
-
-                {item.category && (
-                  <span className="inline-block px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full mb-3">
-                    {item.category}
-                  </span>
-                )}
-
-                {item.image_url && (
-                  <div className="mt-2 mb-3">
-                    <img
-                      src={decodeURIComponent(item.image_url)}
-                      alt={item.name}
-                      className="w-16 h-16 object-cover rounded-md"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = '/images/1.jpg';
-                      }}
-                    />
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-                  <span className={`text-sm font-medium ${item.is_available ? 'text-green-600' : 'text-red-600'}`}>
-                    {item.is_available ? 'In Stock' : 'Out of Stock'}
-                  </span>
-                  <button
-                    onClick={() => {
-                      setEditingItem(item);
-                      setShowForm(true);
-                    }}
-                    className="flex items-center space-x-1 text-blue-600 hover:text-blue-700"
-                  >
-                    <Edit2 className="h-4 w-4" />
-                    <span>Edit</span>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {
-        showForm && (
-          <MenuItemForm
-            item={editingItem}
-            onSave={handleSaveItem} // Now passes imageFile as 2nd arg
-            onClose={() => {
-              setShowForm(false);
-              setEditingItem(null);
-            }}
-          />
-        )
-      }
-
-      {/* Cafeteria Profile Modal */}
-      {showProfileModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Cafeteria Profile</h2>
-                <button
-                  onClick={closeProfileModal}
-                  className="p-2 rounded-full hover:bg-gray-100"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                {/* Cafeteria Image Upload */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Cafeteria Logo/Image
-                  </label>
-                  <div className="flex items-center space-x-6">
-                    <div className="relative">
-                      {profileImagePreview ? (
-                        <div className="relative">
-                          <img
-                            src={profileImagePreview}
-                            alt="Cafeteria preview"
-                            className="w-32 h-32 rounded-xl object-cover border-2 border-gray-200"
-                          />
-                          <button
-                            type="button"
-                            onClick={removeProfileImage}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="w-32 h-32 rounded-xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center">
-                          <Camera className="h-8 w-8 text-gray-400" />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex flex-col space-y-2">
-                      <label className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 cursor-pointer">
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept="image/*"
-                          onChange={handleProfileImageChange}
-                        />
-                        Upload Image
-                      </label>
-                      <p className="text-xs text-gray-500">PNG, JPG up to 2MB</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Cafeteria Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Cafeteria Name
-                  </label>
-                  <input
-                    type="text"
-                    value={profileFormData.name}
-                    onChange={(e) => setProfileFormData({ ...profileFormData, name: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Your cafeteria name"
-                  />
-                </div>
-
-                {/* Description */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Description
-                  </label>
-                  <textarea
-                    value={profileFormData.description}
-                    onChange={(e) => setProfileFormData({ ...profileFormData, description: e.target.value })}
-                    rows={4}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Tell customers about your cafeteria"
-                  />
-                </div>
-
-                <div className="flex justify-end space-x-3 pt-4">
+        {/* Cafeteria Profile Modal */}
+        {showProfileModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Cafeteria Profile</h2>
                   <button
                     onClick={closeProfileModal}
-                    className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50"
+                    className="p-2 rounded-full hover:bg-gray-100"
                   >
-                    Cancel
+                    <X className="h-5 w-5" />
                   </button>
-                  <button
-                    onClick={handleUpdateCafeteriaProfile}
-                    className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center space-x-2"
-                  >
-                    <Save className="h-5 w-5" />
-                    <span>Save Changes</span>
-                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Cafeteria Image Upload */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Cafeteria Logo/Image
+                    </label>
+                    <div className="flex items-center space-x-6">
+                      <div className="relative">
+                        {profileImagePreview ? (
+                          <div className="relative">
+                            <img
+                              src={profileImagePreview}
+                              alt="Cafeteria preview"
+                              className="w-32 h-32 rounded-xl object-cover border-2 border-gray-200"
+                            />
+                            <button
+                              type="button"
+                              onClick={removeProfileImage}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="w-32 h-32 rounded-xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center">
+                            <Camera className="h-8 w-8 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col space-y-2">
+                        <label className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 cursor-pointer">
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            onChange={handleProfileImageChange}
+                          />
+                          Upload Image
+                        </label>
+                        <p className="text-xs text-gray-500">PNG, JPG up to 2MB</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Cafeteria Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Cafeteria Name
+                    </label>
+                    <input
+                      type="text"
+                      value={profileFormData.name}
+                      onChange={(e) => setProfileFormData({ ...profileFormData, name: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Your cafeteria name"
+                    />
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Description
+                    </label>
+                    <textarea
+                      value={profileFormData.description}
+                      onChange={(e) => setProfileFormData({ ...profileFormData, description: e.target.value })}
+                      rows={4}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Tell customers about your cafeteria"
+                    />
+                  </div>
+
+                  <div className="flex justify-end space-x-3 pt-4">
+                    <button
+                      onClick={closeProfileModal}
+                      className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleUpdateCafeteriaProfile}
+                      className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center space-x-2"
+                    >
+                      <Save className="h-5 w-5" />
+                      <span>Save Changes</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div >
+        )}
+      </div>
+    </div>
   );
 };
 

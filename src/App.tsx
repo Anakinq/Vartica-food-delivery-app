@@ -230,7 +230,7 @@ function AppContent() {
 
   // Show sign in form if role is selected
   if (selectedRole) {
-    if (authView === 'signup' && (selectedRole === 'vendor' || selectedRole === 'late_night_vendor' || selectedRole === 'delivery_agent')) {
+    if (authView === 'signup' && (selectedRole === 'customer' || selectedRole === 'vendor' || selectedRole === 'late_night_vendor' || selectedRole === 'delivery_agent')) {
       return (
         <SignUp
           role={selectedRole === 'late_night_vendor' ? 'late_night_vendor' : selectedRole}
@@ -259,9 +259,9 @@ function AppContent() {
   // If no user and no role selected, show landing page
   return (
     <LandingPage
-      onRoleSelect={(role) => {
+      onRoleSelect={(role, signup) => {
         setSelectedRole(role);
-        setAuthView('signin');
+        setAuthView(signup ? 'signup' : 'signin');
       }}
     />
   );

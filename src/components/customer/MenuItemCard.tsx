@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { MenuItem } from '../../lib/supabase';
-import { LazyImage } from '../shared/LazyImage';
+import LazyImage from '../common/LazyImage';
+import { Plus, Minus, Heart } from 'lucide-react';
 
 interface MenuItemCardProps {
   item: MenuItem;
   quantity: number;
   onQuantityChange: (itemId: string, newQuantity: number) => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
 }
 
 // Fallback image URL
@@ -30,7 +33,7 @@ const getImageUrl = (imageUrl: string | null | undefined): string => {
   }
 };
 
-export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, quantity, onQuantityChange }) => {
+export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, quantity, onQuantityChange, isFavorite = false, onToggleFavorite }) => {
   const [isAnimating, setIsAnimating] = useState<'increment' | 'decrement' | null>(null);
   const imageUrl = getImageUrl(item.image_url);
 
@@ -51,70 +54,81 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, quantity, onQu
   const totalPrice = item.price * quantity;
 
   return (
-    <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300">
-      {/* Image with Lazy Loading */}
-      <div className="relative h-32 w-full overflow-hidden bg-gray-100">
+    <div className="bg-[#1a1a1a] rounded-xl p-4 mb-3 flex items-center">
+      {/* Food Image */}
+      <div className="relative w-24 h-24 rounded-lg overflow-hidden bg-[#2a2a2a] mr-4 flex-shrink-0">
         <LazyImage
           src={imageUrl}
           alt={item.name}
-          aspectRatio="1/1"
-          objectFit="cover"
+          className="w-full h-full object-cover"
+          fallback="/images/1.jpg"
         />
 
-        {/* Quantity Badge Overlay */}
+        {/* Quantity Badge */}
         {quantity > 0 && (
-          <div className="absolute top-3 right-3 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
-            {quantity} in cart
+          <div className="absolute top-2 right-2 bg-[#FF9500] text-black px-2 py-1 rounded-full text-xs font-bold">
+            {quantity}
           </div>
         )}
       </div>
 
-      <div className="p-4">
-        {/* Item Name */}
-        <h3 className="font-bold text-black text-lg leading-tight line-clamp-1">{item.name}</h3>
-
-        {/* Unit Price */}
-        <p className="text-orange-600 font-bold text-xl mt-1">₦{item.price.toLocaleString()}</p>
-
-        {/* Quantity Controls */}
-        <div className="flex items-center mt-4">
-          <button
-            onClick={handleDecrement}
-            disabled={quantity === 0}
-            className={`relative w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold transition-all duration-200 ${quantity === 0
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              : 'bg-gray-200 text-black hover:bg-gray-300 active:scale-95'
-              }`}
-            aria-label="Decrease quantity"
-          >
-            <span className={isAnimating === 'decrement' ? 'scale-75' : ''}>–</span>
-          </button>
-
-          <span
-            className={`mx-4 text-xl font-bold min-w-[32px] text-center text-black transition-transform duration-200 ${isAnimating ? 'scale-125 text-orange-500' : ''
-              }`}
-          >
-            {quantity}
-          </span>
-
-          <button
-            onClick={handleIncrement}
-            className="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center text-xl font-bold hover:bg-orange-600 active:scale-95 transition-all duration-200 shadow-lg hover:shadow-orange-500/30"
-            aria-label="Increase quantity"
-          >
-            <span className={isAnimating === 'increment' ? 'scale-75' : ''}>+</span>
-          </button>
+      {/* Food Details */}
+      <div className="flex-1">
+        <div className="flex justify-between items-start mb-1">
+          <h3 className="font-bold text-white text-lg line-clamp-1">{item.name}</h3>
+          {onToggleFavorite && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFavorite();
+              }}
+              className="text-gray-400 hover:text-red-500 p-1"
+            >
+              <Heart className={`h-5 w-5 ${isFavorite ? 'text-red-500 fill-red-500' : ''}`} />
+            </button>
+          )}
         </div>
 
-        {/* Total Price */}
-        {quantity > 0 && (
-          <div className="mt-3 bg-orange-50 rounded-lg p-3">
-            <p className="text-gray-700 text-sm">
-              <span className="font-medium">₦{item.price.toLocaleString()}</span> × {quantity} ={' '}
-              <span className="font-bold text-black text-lg">₦{totalPrice.toLocaleString()}</span>
-            </p>
-          </div>
+        {/* Description */}
+        {item.description && (
+          <p className="text-gray-400 text-sm line-clamp-2 mb-2">
+            {item.description}
+          </p>
         )}
+
+        {/* Price & Quantity Controls */}
+        <div className="flex justify-between items-center mt-2">
+          <div className="flex items-center">
+            <button
+              onClick={handleDecrement}
+              disabled={quantity === 0}
+              className={`w-8 h-8 rounded-full bg-[#2d2d2d] flex items-center justify-center ${quantity === 0
+                ? 'text-gray-600 cursor-not-allowed'
+                : 'text-white hover:bg-[#3a3a3a]'
+                }`}
+            >
+              <Minus className="h-4 w-4" />
+            </button>
+
+            <span
+              className={`mx-2 text-white font-bold min-w-[24px] text-center transition-transform duration-200 ${isAnimating ? 'scale-125 text-[#FF9500]' : ''
+                }`}
+            >
+              {quantity}
+            </span>
+
+            <button
+              onClick={handleIncrement}
+              className="w-8 h-8 rounded-full bg-[#FF9500] text-black flex items-center justify-center hover:bg-[#FFA534] transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
+
+          <span className="font-bold text-white text-lg">
+            ₦{item.price.toLocaleString()}
+          </span>
+        </div>
       </div>
     </div>
   );

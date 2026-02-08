@@ -69,7 +69,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState(true);
   const [authLoading, setAuthLoading] = useState(true);
   const [vendorDataLoading, setVendorDataLoading] = useState(false);
+  const [lastAuthAttempt, setLastAuthAttempt] = useState(0);
   const subscriptionRef = useRef<ReturnType<typeof databaseService.subscribeProfileWithVendor> | null>(null);
+
+  // Debounce auth attempts to prevent rapid clicks
+  const AUTH_COOLDOWN = 1000; // 1 second cooldown
+
+  const canAttemptAuth = () => {
+    const now = Date.now();
+    return now - lastAuthAttempt > AUTH_COOLDOWN;
+  };
+
+  const setAuthAttempt = () => {
+    setLastAuthAttempt(Date.now());
+  };
 
   // Fetch profile only (no user reconstruction)
   const fetchProfile = async (supabaseUser: any) => {
@@ -370,11 +383,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, []);
 
-  // Sign in with rate limiting
+  // Sign in with rate limiting and debouncing
   const signIn = async (email: string, password: string) => {
     console.log('=== AUTHCONTEXT SIGNIN FUNCTION STARTED ===');
     console.log('Email parameter:', email);
     console.log('Password parameter length:', password.length);
+
+    // Check debounce
+    if (!canAttemptAuth()) {
+      const error = new Error('Please wait before trying again');
+      (error as any).code = 'AUTH_COOLDOWN';
+      throw error;
+    }
+
+    setAuthAttempt();
     setLoading(true);
 
     try {
@@ -427,8 +449,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Sign in with Google
+  // Sign in with Google (with debouncing)
   const signInWithGoogle = async () => {
+    // Check debounce
+    if (!canAttemptAuth()) {
+      const error = new Error('Please wait before trying again');
+      (error as any).code = 'AUTH_COOLDOWN';
+      throw error;
+    }
+
+    setAuthAttempt();
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -448,7 +478,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Sign up
+  // Sign up (with debouncing)
   const signUp = async (
     email: string,
     password: string,
@@ -464,6 +494,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     availableFrom?: string,
     availableUntil?: string
   ) => {
+    // Check debounce
+    if (!canAttemptAuth()) {
+      const error = new Error('Please wait before trying again');
+      (error as any).code = 'AUTH_COOLDOWN';
+      throw error;
+    }
+
+    setAuthAttempt();
     setLoading(true);
     try {
       // Validate form data
@@ -529,8 +567,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Sign up with Google
+  // Sign up with Google (with debouncing)
   const signUpWithGoogle = async (role: 'customer' | 'vendor' | 'delivery_agent', phone?: string) => {
+    // Check debounce
+    if (!canAttemptAuth()) {
+      const error = new Error('Please wait before trying again');
+      (error as any).code = 'AUTH_COOLDOWN';
+      throw error;
+    }
+
+    setAuthAttempt();
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({

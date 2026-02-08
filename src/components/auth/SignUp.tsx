@@ -236,6 +236,7 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
           console.error('Error name:', err.name);
           console.error('Error message:', err.message);
           console.error('Error stack:', err.stack);
+          console.error('Error code:', (err as any).code);
 
           // If there's an original error with more details, log it
           if ((err as any).originalError) {
@@ -250,13 +251,18 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
       let errorMessage = 'Failed to create account';
 
       if (err instanceof Error) {
-        // If there's an original error with more details, log it
-        if ((err as any).originalError) {
-          if (process.env.NODE_ENV === 'development') {
-            console.error('Original signup error:', (err as any).originalError);
+        // Check for cooldown error first
+        if ((err as any).code === 'AUTH_COOLDOWN') {
+          errorMessage = 'Please wait before trying again';
+        } else {
+          // If there's an original error with more details, log it
+          if ((err as any).originalError) {
+            if (process.env.NODE_ENV === 'development') {
+              console.error('Original signup error:', (err as any).originalError);
+            }
           }
+          errorMessage = err.message;
         }
-        errorMessage = err.message;
       } else if (typeof err === 'string') {
         errorMessage = err;
       }
@@ -301,11 +307,16 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
     } catch (err: unknown) {
       let errorMessage = 'Failed to sign up with Google';
       if (err instanceof Error) {
-        errorMessage = err.message;
-        // If there's an original error with more details, log it
-        if ((err as any).originalError) {
-          if (process.env.NODE_ENV === 'development') {
-            console.error('Original Google signup error:', (err as any).originalError);
+        // Check for cooldown error first
+        if ((err as any).code === 'AUTH_COOLDOWN') {
+          errorMessage = 'Please wait before trying again';
+        } else {
+          errorMessage = err.message;
+          // If there's an original error with more details, log it
+          if ((err as any).originalError) {
+            if (process.env.NODE_ENV === 'development') {
+              console.error('Original Google signup error:', (err as any).originalError);
+            }
           }
         }
       } else if (typeof err === 'string') {

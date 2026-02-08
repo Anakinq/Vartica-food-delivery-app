@@ -3,7 +3,7 @@ import { Menu, X, UtensilsCrossed } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LandingPageProps {
-  onRoleSelect: (role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin') => void;
+  onRoleSelect: (role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin', signup?: boolean) => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
@@ -52,7 +52,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
   };
 
   const handleRegister = () => {
-    console.log('Register clicked - should navigate to signup');
+    onRoleSelect('customer', true);
   };
 
   return (
