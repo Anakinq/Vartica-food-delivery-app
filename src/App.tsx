@@ -18,6 +18,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { UserRole } from './types';
 import { Profile } from './lib/supabase/types';
+import { BottomNavigation } from './components/shared/BottomNavigation';
 
 function AppContent() {
   const { user, profile, loading } = useAuth();
@@ -82,28 +83,51 @@ function AppContent() {
     console.log('App: showProfile=', showProfile, 'user=', !!user, 'profile=', !!profile);
     if (showProfile) {
       return (
-        <ProfileDashboard
-          onBack={() => setShowProfile(false)}
-          onSignOut={() => {
-            setShowProfile(false);
-          }}
-        />
+        <div className="app-content-wrapper">
+          <ProfileDashboard
+            onBack={() => setShowProfile(false)}
+            onSignOut={() => {
+              setShowProfile(false);
+            }}
+          />
+          <BottomNavigation cartCount={0} notificationCount={0} />
+        </div>
       );
     }
 
     if (window.location.hash === '#/vendor') {
       if ((profile as Profile).is_vendor || ['vendor', 'late_night_vendor'].includes(profile.role)) {
-        return <VendorDashboard onShowProfile={() => setShowProfile(true)} />;
+        return (
+          <div className="app-content-wrapper">
+            <VendorDashboard onShowProfile={() => setShowProfile(true)} />
+            <BottomNavigation cartCount={0} notificationCount={0} />
+          </div>
+        );
       } else {
         window.location.hash = '';
-        return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
+        return (
+          <div className="app-content-wrapper">
+            <CustomerHome onShowProfile={() => setShowProfile(true)} />
+            <BottomNavigation cartCount={0} notificationCount={0} />
+          </div>
+        );
       }
     } else if (window.location.hash === '#/delivery') {
       if ((profile as Profile).is_delivery_agent || profile.role === 'delivery_agent') {
-        return <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />;
+        return (
+          <div className="app-content-wrapper">
+            <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />
+            <BottomNavigation cartCount={0} notificationCount={0} />
+          </div>
+        );
       } else {
         window.location.hash = '';
-        return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
+        return (
+          <div className="app-content-wrapper">
+            <CustomerHome onShowProfile={() => setShowProfile(true)} />
+            <BottomNavigation cartCount={0} notificationCount={0} />
+          </div>
+        );
       }
     }
 
@@ -111,17 +135,42 @@ function AppContent() {
     const userRole = profile.role as UserRole;
     switch (userRole) {
       case 'admin':
-        return <AdminDashboard onShowProfile={() => setShowProfile(true)} />;
+        return (
+          <div className="app-content-wrapper">
+            <AdminDashboard onShowProfile={() => setShowProfile(true)} />
+            <BottomNavigation cartCount={0} notificationCount={0} />
+          </div>
+        );
       case 'delivery_agent':
-        return <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />;
+        return (
+          <div className="app-content-wrapper">
+            <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />
+            <BottomNavigation cartCount={0} notificationCount={0} />
+          </div>
+        );
       case 'cafeteria':
-        return <CafeteriaDashboard profile={profile} onShowProfile={() => setShowProfile(true)} />;
+        return (
+          <div className="app-content-wrapper">
+            <CafeteriaDashboard profile={profile} onShowProfile={() => setShowProfile(true)} />
+            <BottomNavigation cartCount={0} notificationCount={0} />
+          </div>
+        );
       case 'vendor':
       case 'late_night_vendor':
-        return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
+        return (
+          <div className="app-content-wrapper">
+            <CustomerHome onShowProfile={() => setShowProfile(true)} />
+            <BottomNavigation cartCount={0} notificationCount={0} />
+          </div>
+        );
       case 'customer':
       default:
-        return <CustomerHome onShowProfile={() => setShowProfile(true)} />;
+        return (
+          <div className="app-content-wrapper">
+            <CustomerHome onShowProfile={() => setShowProfile(true)} />
+            <BottomNavigation cartCount={0} notificationCount={0} />
+          </div>
+        );
     }
   }
 
