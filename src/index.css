@@ -29,9 +29,9 @@ body {
   height: 100%;
   margin: 0;
   padding: 0;
-  /* App-shell styling */
-  background-color: #0f172a;
-  color: #e2e8f0;
+  /* Mobile app styling - white background for app feel */
+  background-color: #ffffff;
+  color: #000000;
 }
 
 /* Root container for app-like scrolling */
@@ -464,12 +464,21 @@ select:focus {
   font-size: 16px;
 }
 
-/* Mobile-first app-like container constraints - max 430px width */
+/* Mobile-first app - full width on mobile, constrained on desktop */
 .desktop-container {
   width: 100%;
-  max-width: 430px;
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
   padding: 0 1rem;
+  box-sizing: border-box;
+}
+
+/* Only constrain on larger screens (tablets/desktop) */
+@media (min-width: 768px) {
+  .desktop-container {
+    max-width: 430px;
+    margin: 0 auto;
+  }
 }
 
 /* App content wrapper to accommodate bottom navigation */
@@ -479,6 +488,35 @@ select:focus {
   min-height: calc(100dvh - 80px);
   padding-bottom: 80px;
   position: relative;
+}
+
+/* Authenticated view with proper padding for bottom navigation */
+.authenticated-view {
+  padding-bottom: 80px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Improved bottom navigation styling for native app feel */
+.bottom-nav {
+  background-color: #ffffff;
+  border-top: 1px solid #e5e7eb;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.nav-item {
+  color: #6b7280;
+}
+
+.nav-item.active {
+  color: #2563eb;
+  background-color: #eff6ff;
+}
+
+.nav-item:hover {
+  color: #1d4ed8;
+  background-color: #f0f9ff;
 }
 
 /* Ensure content doesn't overlap with bottom navigation */

@@ -83,7 +83,7 @@ function AppContent() {
     console.log('App: showProfile=', showProfile, 'user=', !!user, 'profile=', !!profile);
     if (showProfile) {
       return (
-        <div className="app-content-wrapper">
+        <div className="authenticated-view">
           <ProfileDashboard
             onBack={() => setShowProfile(false)}
             onSignOut={() => {
@@ -98,7 +98,7 @@ function AppContent() {
     if (window.location.hash === '#/vendor') {
       if ((profile as Profile).is_vendor || ['vendor', 'late_night_vendor'].includes(profile.role)) {
         return (
-          <div className="app-content-wrapper">
+          <div className="authenticated-view">
             <VendorDashboard onShowProfile={() => setShowProfile(true)} />
             <BottomNavigation cartCount={0} notificationCount={0} />
           </div>
@@ -106,7 +106,7 @@ function AppContent() {
       } else {
         window.location.hash = '';
         return (
-          <div className="app-content-wrapper">
+          <div className="authenticated-view">
             <CustomerHome onShowProfile={() => setShowProfile(true)} />
             <BottomNavigation cartCount={0} notificationCount={0} />
           </div>
@@ -115,7 +115,7 @@ function AppContent() {
     } else if (window.location.hash === '#/delivery') {
       if ((profile as Profile).is_delivery_agent || profile.role === 'delivery_agent') {
         return (
-          <div className="app-content-wrapper">
+          <div className="authenticated-view">
             <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />
             <BottomNavigation cartCount={0} notificationCount={0} />
           </div>
@@ -123,7 +123,7 @@ function AppContent() {
       } else {
         window.location.hash = '';
         return (
-          <div className="app-content-wrapper">
+          <div className="authenticated-view">
             <CustomerHome onShowProfile={() => setShowProfile(true)} />
             <BottomNavigation cartCount={0} notificationCount={0} />
           </div>
@@ -136,21 +136,21 @@ function AppContent() {
     switch (userRole) {
       case 'admin':
         return (
-          <div className="app-content-wrapper">
+          <div className="authenticated-view">
             <AdminDashboard onShowProfile={() => setShowProfile(true)} />
             <BottomNavigation cartCount={0} notificationCount={0} />
           </div>
         );
       case 'delivery_agent':
         return (
-          <div className="app-content-wrapper">
+          <div className="authenticated-view">
             <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />
             <BottomNavigation cartCount={0} notificationCount={0} />
           </div>
         );
       case 'cafeteria':
         return (
-          <div className="app-content-wrapper">
+          <div className="authenticated-view">
             <CafeteriaDashboard profile={profile} onShowProfile={() => setShowProfile(true)} />
             <BottomNavigation cartCount={0} notificationCount={0} />
           </div>
@@ -158,7 +158,7 @@ function AppContent() {
       case 'vendor':
       case 'late_night_vendor':
         return (
-          <div className="app-content-wrapper">
+          <div className="authenticated-view">
             <CustomerHome onShowProfile={() => setShowProfile(true)} />
             <BottomNavigation cartCount={0} notificationCount={0} />
           </div>
@@ -166,7 +166,7 @@ function AppContent() {
       case 'customer':
       default:
         return (
-          <div className="app-content-wrapper">
+          <div className="authenticated-view">
             <CustomerHome onShowProfile={() => setShowProfile(true)} />
             <BottomNavigation cartCount={0} notificationCount={0} />
           </div>
