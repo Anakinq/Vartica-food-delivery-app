@@ -53,11 +53,11 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, quantity, onQu
   return (
     <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300">
       {/* Image with Lazy Loading */}
-      <div className="relative h-48 w-full overflow-hidden bg-gray-100">
+      <div className="relative h-32 w-full overflow-hidden bg-gray-100">
         <LazyImage
           src={imageUrl}
           alt={item.name}
-          aspectRatio="16/9"
+          aspectRatio="1/1"
           objectFit="cover"
         />
 

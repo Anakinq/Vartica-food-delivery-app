@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Menu, X, ChefHat, Users, Bike, ShieldCheck, UtensilsCrossed } from 'lucide-react';
+import { Menu, X, UtensilsCrossed } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface LandingPageProps {
   onRoleSelect: (role: 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin') => void;
@@ -12,59 +13,71 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
     {
       id: 'cafeteria' as const,
       title: 'Cafeteria',
-      icon: ChefHat,
-      description: 'Sign in to manage your cafeteria menu',
-      color: 'from-blue-500 to-blue-600',
     },
     {
       id: 'vendor' as const,
       title: 'Student Vendors',
-      icon: Users,
-      description: 'Sign up or sign in to start selling',
-      color: 'from-green-500 to-green-600',
     },
     {
       id: 'delivery_agent' as const,
       title: 'Delivery Agents',
-      icon: Bike,
-      description: 'Join our delivery network',
-      color: 'from-orange-500 to-orange-600',
     },
     {
       id: 'admin' as const,
       title: 'Admin',
-      icon: ShieldCheck,
-      description: 'System administration',
-      color: 'from-red-500 to-red-600',
     },
   ];
 
-  // Food images for the carousel
-  const foodImages = [
-    '/images/1.jpg',
-    '/images/2.jpg',
-    '/images/3.jpg',
-    '/images/4.jpg',
-    '/images/5.jpg',
-    '/images/6.jpg',
-    '/images/7.jpg',
-    '/images/1.jpg',
-  ];
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const { signIn, signInWithGoogle, loading: authLoading } = useAuth();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+
+    try {
+      await signIn(email, password);
+    } catch (error) {
+      console.error('Login error:', error);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      console.error('Google login error:', error);
+    }
+  };
+
+  const handleRegister = () => {
+    console.log('Register clicked - should navigate to signup');
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-black">
+      {/* Full-screen food background with dark overlay */}
+      <div
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: "url('/images/1.jpg')",
+        }}
+      />
+      <div className="fixed inset-0 bg-black bg-opacity-70" />
+
+      {/* Header with transparent background */}
+      <header className="relative z-50 bg-transparent">
+        <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
-              <UtensilsCrossed className="h-8 w-8 text-amber-600" />
-              <span className="text-xl font-bold text-gray-900">Vartica</span>
+              <UtensilsCrossed className="h-8 w-8 text-white" />
+              <span className="text-xl font-bold text-white">Vartica</span>
             </div>
 
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="md:hidden p-2 rounded-md text-gray-700 hover:bg-gray-100"
+              className="md:hidden p-2 rounded-md text-white hover:bg-white hover:bg-opacity-20 transition-colors"
             >
               {menuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
@@ -74,7 +87,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
                 <button
                   key={role.id}
                   onClick={() => onRoleSelect(role.id)}
-                  className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors"
+                  className="px-3 py-2 text-sm font-medium text-white hover:text-orange-400 hover:bg-white hover:bg-opacity-20 rounded-md transition-colors"
                 >
                   {role.title}
                 </button>
@@ -84,7 +97,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
         </div>
 
         {menuOpen && (
-          <div className="md:hidden border-t border-gray-200 bg-white">
+          <div className="md:hidden bg-black bg-opacity-90 backdrop-blur-sm border-t border-white border-opacity-20">
             <div className="px-2 pt-2 pb-3 space-y-1">
               {roles.map((role) => (
                 <button
@@ -93,7 +106,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
                     onRoleSelect(role.id);
                     setMenuOpen(false);
                   }}
-                  className="block w-full text-left px-3 py-2 text-base font-medium text-gray-700 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors"
+                  className="block w-full text-left px-3 py-2 text-base font-medium text-white hover:text-orange-400 hover:bg-white hover:bg-opacity-20 rounded-md transition-colors"
                 >
                   {role.title}
                 </button>
@@ -103,136 +116,107 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
         )}
       </header>
 
-      {/* Hero Section with Food Carousel */}
-      <div className="relative bg-gradient-to-br from-amber-500 to-orange-600 overflow-hidden">
-        {/* Food Image Carousel */}
-        <div className="absolute inset-0 opacity-20">
-          <div className="relative w-full h-full">
-            {foodImages.map((image, index) => (
-              <div
-                key={index}
-                className="food-carousel-slide absolute inset-0 bg-cover bg-center"
-                style={{
-                  backgroundImage: `url(${image})`,
-                  display: index === 0 ? 'block' : 'none'
-                }}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-6">
-              Campus Food Delivery
+      {/* Hero Section with Login Form */}
+      <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md">
+          {/* Headline */}
+          <div className="text-center mb-8">
+            <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-2">
+              Order Your Food
             </h1>
-            <p className="text-xl md:text-2xl text-amber-100 max-w-3xl mx-auto mb-10">
-              Order from cafeterias, student vendors, and late-night options delivered right to your doorstep
+            <p className="text-xl text-white text-opacity-80">
+              Welcome to Vartica!
             </p>
-            <button
-              onClick={() => onRoleSelect('customer')}
-              className="bg-white text-amber-600 px-8 py-4 rounded-full text-lg font-bold hover:bg-amber-50 transition-all transform hover:scale-105 shadow-lg"
-            >
-              Order Food Now
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Section */}
-      <div className="mb-20">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose Vartica?</h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Join thousands of students enjoying convenient campus food delivery
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="bg-white p-8 rounded-xl shadow-lg text-center hover:shadow-xl transition-shadow transform hover:-translate-y-2">
-            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <UtensilsCrossed className="h-8 w-8 text-amber-600" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Wide Selection</h3>
-            <p className="text-gray-600">From cafeterias to student vendors, find exactly what you're craving</p>
           </div>
 
-          <div className="bg-white p-8 rounded-xl shadow-lg text-center hover:shadow-xl transition-shadow transform hover:-translate-y-2">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Bike className="h-8 w-8 text-green-600" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Fast Delivery</h3>
-            <p className="text-gray-600">Quick and reliable delivery right to your doorstep</p>
-          </div>
+          {/* Login Form Card */}
+          <div className="bg-white bg-opacity-10 backdrop-blur-lg rounded-2xl p-8 border border-white border-opacity-20 shadow-2xl">
+            <form onSubmit={handleLogin} className="space-y-6">
+              {/* Email Input */}
+              <div>
+                <input
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={authLoading}
+                  className="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-xl text-white placeholder-white placeholder-opacity-70 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all disabled:opacity-50"
+                />
+              </div>
 
-          <div className="bg-white p-8 rounded-xl shadow-lg text-center hover:shadow-xl transition-shadow transform hover:-translate-y-2">
-            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <ChefHat className="h-8 w-8 text-orange-600" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Quality Food</h3>
-            <p className="text-gray-600">Fresh, delicious meals from trusted campus vendors</p>
-          </div>
-        </div>
-      </div>
+              {/* Password Input */}
+              <div>
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-xl text-white placeholder-white placeholder-opacity-70 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all"
+                />
+              </div>
 
-      {/* Roles Section */}
-      <div className="mb-20">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Join Our Community</h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Whether you're ordering food or providing services, there's a place for you at Vartica
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {roles.map((role) => {
-            const Icon = role.icon;
-            return (
-              <button
-                key={role.id}
-                onClick={() => onRoleSelect(role.id)}
-                className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all p-6 text-left group hover:-translate-y-2 transform duration-300"
-              >
-                <div className={`w-16 h-16 rounded-lg bg-gradient-to-br ${role.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                  <Icon className="h-8 w-8 text-white" />
+              {/* OR Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white border-opacity-30"></div>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{role.title}</h3>
-                <p className="text-gray-600">{role.description}</p>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-transparent text-white text-opacity-70">or</span>
+                </div>
+              </div>
+
+              {/* Google Login Button */}
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={authLoading}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-xl text-white hover:bg-opacity-30 transition-all disabled:opacity-50"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 24 24">
+                  <path
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    fill="#4285F4"
+                  />
+                  <path
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    fill="#34A853"
+                  />
+                  <path
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                    fill="#FBBC05"
+                  />
+                  <path
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                    fill="#EA4335"
+                  />
+                </svg>
+                <span>Continue with Google</span>
               </button>
-            );
-          })}
-        </div>
-      </div>
 
-      {/* Stats Counter */}
-      <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl shadow-xl p-8 md:p-12 text-white">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Our Growing Community</h2>
-          <p className="text-xl text-amber-100">
-            Join thousands of students, vendors, and delivery agents on our platform
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-          <div>
-            <div className="text-5xl font-bold mb-2">7</div>
-            <div className="text-xl font-bold">Campus Cafeterias</div>
-            <div className="text-amber-100 mt-2">Partnered with top dining facilities</div>
-          </div>
-
-          <div>
-            <div className="text-5xl font-bold mb-2">100+</div>
-            <div className="text-xl font-bold">Student Vendors</div>
-            <div className="text-amber-100 mt-2">Entrepreneurial students selling delicious food</div>
-          </div>
-
-          <div>
-            <div className="text-5xl font-bold mb-2">24/7</div>
-            <div className="text-xl font-bold">Late Night Options</div>
-            <div className="text-amber-100 mt-2">Satisfy your cravings anytime</div>
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                <button
+                  type="button"
+                  onClick={handleRegister}
+                  disabled={authLoading}
+                  className="px-4 py-3 bg-transparent border border-white border-opacity-50 rounded-xl text-white font-semibold hover:bg-white hover:bg-opacity-20 transition-all disabled:opacity-50"
+                >
+                  Register
+                </button>
+                <button
+                  type="submit"
+                  disabled={authLoading || !email || !password}
+                  className="px-4 py-3 bg-orange-500 rounded-xl text-white font-semibold hover:bg-orange-600 transition-all transform hover:scale-105 disabled:opacity-50"
+                >
+                  {authLoading ? 'Logging in...' : 'Login'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>
+
+
     </div>
   );
 };

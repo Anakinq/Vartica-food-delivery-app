@@ -1,4 +1,4 @@
-// src/App.tsx - Hash-based Routing Implementation for Role Switching
+﻿// src/App.tsx - Hash-based Routing Implementation for Role Switching
 import React, { useState, useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { CustomerHome } from './components/customer/CustomerHome';
@@ -16,6 +16,7 @@ import { Analytics } from '@vercel/analytics/react';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
+import { DarkModeProvider } from './contexts/DarkModeContext';
 import { UserRole } from './types';
 import { Profile } from './lib/supabase/types';
 import { BottomNavigation } from './components/shared/BottomNavigation';
@@ -237,6 +238,7 @@ function App() {
 
   return (
     <ErrorBoundary>
+      <DarkModeProvider>
       <AuthProvider>
         <ToastProvider>
           <div className="app-container">
@@ -253,6 +255,7 @@ function App() {
           </div>
         </ToastProvider>
       </AuthProvider>
+    </DarkModeProvider>
     </ErrorBoundary>
   );
 }
