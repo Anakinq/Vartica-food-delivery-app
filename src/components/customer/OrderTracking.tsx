@@ -82,128 +82,129 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center">
-        <div className="bg-white w-full sm:max-w-2xl sm:rounded-2xl max-h-[90vh] flex flex-col">
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <h2 className="text-2xl font-bold text-gray-900">My Orders</h2>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
-              <X className="h-6 w-6" />
-            </button>
-          </div>
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
+        <div className="min-h-screen flex items-end sm:items-center justify-center p-4">
+          <div className="bg-white w-full sm:max-w-2xl sm:rounded-2xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-900">My Orders</h2>
+              <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
 
-          <div className="flex-1 overflow-y-auto p-6">
-            {orders.length === 0 ? (
-              <div className="text-center py-12">
-                <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600">No orders yet</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {orders.map((order) => (
-                  <div key={order.id} className="bg-gray-50 rounded-xl p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="text-lg font-bold text-gray-900">{order.order_number}</h3>
-                        <p className="text-sm text-gray-600">
-                          {order.created_at ? new Date(order.created_at).toLocaleString() : ''}
-                        </p>
+            <div className="flex-1 overflow-y-auto p-6">
+              {orders.length === 0 ? (
+                <div className="text-center py-12">
+                  <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-600">No orders yet</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {orders.map((order) => (
+                    <div key={order.id} className="bg-gray-50 rounded-xl p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="text-lg font-bold text-gray-900">{order.order_number}</h3>
+                          <p className="text-sm text-gray-600">
+                            {order.created_at ? new Date(order.created_at).toLocaleString() : ''}
+                          </p>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-sm font-semibold #{getStatusColor(order.status)}`}>
+                          {order.status}
+                        </span>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-sm font-semibold #{getStatusColor(order.status)}`}>
-                        {order.status}
-                      </span>
-                    </div>
 
-                    <div className="mb-4">
-                      <p className="text-sm text-gray-600">Total: #{order.total.toFixed(2)}</p>
-                      <p className="text-sm text-gray-600">Payment: {order.payment_method}</p>
-                      <p className="text-sm text-gray-600">Address: {order.delivery_address}</p>
-                    </div>
+                      <div className="mb-4">
+                        <p className="text-sm text-gray-600">Total: #{order.total.toFixed(2)}</p>
+                        <p className="text-sm text-gray-600">Payment: {order.payment_method}</p>
+                        <p className="text-sm text-gray-600">Address: {order.delivery_address}</p>
+                      </div>
 
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {order.delivery_agent_id && (
-                        <>
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {order.delivery_agent_id && (
+                          <>
+                            <button
+                              onClick={() => setSelectedOrderForChat({ order, chatWith: 'delivery' })}
+                              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                              <span>Chat with Delivery</span>
+                            </button>
+                          </>
+                        )}
+
+                        {/* Add chat with vendor for vendor orders */}
+                        {(order.seller_type === 'vendor' || order.seller_type === 'late_night_vendor') && (
                           <button
-                            onClick={() => setSelectedOrderForChat({ order, chatWith: 'delivery' })}
-                            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                            onClick={() => setSelectedOrderForChat({ order, chatWith: 'vendor' })}
+                            className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
                           >
                             <MessageCircle className="h-4 w-4" />
-                            <span>Chat with Delivery</span>
+                            <span>Chat with Vendor</span>
                           </button>
-                        </>
-                      )}
-
-                      {/* Add chat with vendor for vendor orders */}
-                      {(order.seller_type === 'vendor' || order.seller_type === 'late_night_vendor') && (
-                        <button
-                          onClick={() => setSelectedOrderForChat({ order, chatWith: 'vendor' })}
-                          className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                        >
-                          <MessageCircle className="h-4 w-4" />
-                          <span>Chat with Vendor</span>
-                        </button>
-                      )}
-
-                      {['accepted', 'preparing', 'ready', 'picked_up'].includes(order.status) && (
-                        <button
-                          onClick={() => setSelectedOrderForTracking(order)}
-                          className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                        >
-                          <Navigation className="h-4 w-4" />
-                          <span>Track</span>
-                        </button>
-                      )}
-                    </div>
-
-                    {order.status === 'delivered' && (
-                      <div className="border-t pt-4 mt-4 space-y-3">
-                        {order.delivery_agent_id && (
-                          <DeliveryAgentRating
-                            deliveryAgentId={order.delivery_agent_id}
-                            orderId={order.id}
-                          />
                         )}
-                        {(order.seller_type === 'vendor' || order.seller_type === 'late_night_vendor' || order.seller_type === 'cafeteria') && (
+
+                        {['accepted', 'preparing', 'ready', 'picked_up'].includes(order.status) && (
                           <button
-                            onClick={() => setSelectedOrderForReview(order)}
-                            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
+                            onClick={() => setSelectedOrderForTracking(order)}
+                            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                           >
-                            Rate Vendor
+                            <Navigation className="h-4 w-4" />
+                            <span>Track</span>
                           </button>
                         )}
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+
+                      {order.status === 'delivered' && (
+                        <div className="border-t pt-4 mt-4 space-y-3">
+                          {order.delivery_agent_id && (
+                            <DeliveryAgentRating
+                              deliveryAgentId={order.delivery_agent_id}
+                              orderId={order.id}
+                            />
+                          )}
+                          {(order.seller_type === 'vendor' || order.seller_type === 'late_night_vendor' || order.seller_type === 'cafeteria') && (
+                            <button
+                              onClick={() => setSelectedOrderForReview(order)}
+                              className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
+                            >
+                              Rate Vendor
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {selectedOrderForChat && (
-        <ChatModal
-          orderId={selectedOrderForChat.order.id}
-          orderNumber={selectedOrderForChat.order.order_number}
-          recipientName={selectedOrderForChat.chatWith === 'delivery' ? "Delivery Agent" : "Vendor"}
-          onClose={() => setSelectedOrderForChat(null)}
-        />
-      )}
+        {selectedOrderForChat && (
+          <ChatModal
+            orderId={selectedOrderForChat.order.id}
+            orderNumber={selectedOrderForChat.order.order_number}
+            recipientName={selectedOrderForChat.chatWith === 'delivery' ? "Delivery Agent" : "Vendor"}
+            onClose={() => setSelectedOrderForChat(null)}
+          />
+        )}
 
-      {selectedOrderForTracking && (
-        <LocationTracker
-          orderId={selectedOrderForTracking.id}
-          orderStatus={selectedOrderForTracking.status}
-          onClose={() => setSelectedOrderForTracking(null)}
-        />
-      )}
+        {selectedOrderForTracking && (
+          <LocationTracker
+            orderId={selectedOrderForTracking.id}
+            orderStatus={selectedOrderForTracking.status}
+            onClose={() => setSelectedOrderForTracking(null)}
+          />
+        )}
 
-      {selectedOrderForReview && (
-        <VendorReviewModal
-          orderId={selectedOrderForReview.id}
-          vendorId={selectedOrderForReview.seller_id}
-          onClose={() => setSelectedOrderForReview(null)}
-        />
-      )}
-    </>
-  );
+        {selectedOrderForReview && (
+          <VendorReviewModal
+            orderId={selectedOrderForReview.id}
+            vendorId={selectedOrderForReview.seller_id}
+            onClose={() => setSelectedOrderForReview(null)}
+          />
+        )}
+      </>
+      );
 };

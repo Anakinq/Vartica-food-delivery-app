@@ -685,17 +685,25 @@ const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ profile, onShow
                     </span>
                   )}
 
-                  {item.image_url && (
+                  {item.image_url ? (
                     <div className="mt-2 mb-3">
                       <img
                         src={decodeURIComponent(item.image_url)}
                         alt={item.name}
                         className="w-16 h-16 object-cover rounded-md"
                         onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = '/images/1.jpg';
+                          const target = e.currentTarget;
+                          target.style.display = 'none';
+                          target.nextElementSibling?.classList.remove('hidden');
                         }}
                       />
+                      <div className="hidden w-16 h-16 bg-gray-100 rounded-md border-2 border-dashed border-gray-300 flex items-center justify-center">
+                        <span className="text-gray-400 text-xs">No img</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-2 mb-3 w-16 h-16 bg-gray-100 rounded-md border-2 border-dashed border-gray-300 flex items-center justify-center">
+                      <span className="text-gray-400 text-xs">No img</span>
                     </div>
                   )}
 
@@ -735,8 +743,8 @@ const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ profile, onShow
 
         {/* Cafeteria Profile Modal */}
         {showProfileModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto my-auto">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-2xl font-bold text-gray-900">Cafeteria Profile</h2>

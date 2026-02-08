@@ -1,5 +1,5 @@
-import React from 'react';
-import { Home, Package, User, Settings, LayoutGrid } from 'lucide-react';
+import React, { useState } from 'react';
+import { Home, Package, User, ArrowLeftRight } from 'lucide-react';
 
 interface VendorBottomNavigationProps {
     orderCount?: number;
@@ -27,47 +27,70 @@ export const VendorBottomNavigation: React.FC<VendorBottomNavigationProps> = ({
         return activeTab === path;
     };
 
+    // Scroll to section function
+    const scrollToSection = (sectionId: string) => {
+        const element = document.getElementById(sectionId);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
+    // Handle role switch
+    const handleRoleSwitch = () => {
+        const roleSwitcher = document.getElementById('role-switcher-button');
+        if (roleSwitcher) {
+            roleSwitcher.click();
+        } else {
+            // Fallback: use sessionStorage and refresh
+            sessionStorage.setItem('preferredRole', 'customer');
+            window.location.hash = '';
+            window.location.reload();
+        }
+    };
+
     const navItems = [
         {
             id: 'dashboard',
             label: 'Dashboard',
             icon: Home,
-            path: '',
+            action: () => scrollToSection('dashboard'),
         },
         {
             id: 'orders',
             label: 'Orders',
             icon: Package,
-            path: '/vendor-orders',
+            action: () => scrollToSection('orders-section'),
             badge: orderCount > 0 ? orderCount : undefined,
         },
         {
             id: 'items',
             label: 'Items',
-            icon: LayoutGrid,
-            path: '/vendor-items',
+            icon: User,
+            action: () => scrollToSection('menu-management'),
             badge: itemCount > 0 ? itemCount : undefined,
         },
         {
-            id: 'settings',
-            label: 'Settings',
-            icon: Settings,
-            path: '/vendor-settings',
+            id: 'switch-role',
+            label: 'Switch Role',
+            icon: ArrowLeftRight,
+            action: handleRoleSwitch,
         },
     ];
 
     return (
-        <nav className="bottom-nav safe-area-bottom">
+        <nav className="bottom-nav safe-area-bottom" id="vendor-bottom-nav">
             {navItems.map((item) => {
                 const IconComponent = item.icon;
-                const active = isActive(item.path);
+                const active = activeTab === item.id ||
+                    (item.id === 'dashboard' && (activeTab === '' || activeTab === '/'));
 
                 return (
                     <button
                         key={item.id}
-                        onClick={() => navigateTo(item.path)}
+                        onClick={item.action}
                         className={`nav-item ${active ? 'active' : ''}`}
                         aria-label={item.label}
+                        id={item.id === 'switch-role' ? 'role-switcher-button' : undefined}
                     >
                         <div className="nav-icon relative">
                             <IconComponent size={24} />

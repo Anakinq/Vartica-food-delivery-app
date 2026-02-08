@@ -7,11 +7,13 @@ import { supabase } from '../../lib/supabase/client';
 interface RoleSwitcherProps {
     currentRole: 'customer' | 'vendor' | 'late_night_vendor' | 'cafeteria' | 'delivery_agent' | 'admin';
     onRoleSwitch?: (newRole: 'customer' | 'vendor' | 'delivery_agent') => void;
+    id?: string;
 }
 
 export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
     currentRole,
-    onRoleSwitch
+    onRoleSwitch,
+    id
 }) => {
     const { profile, refreshProfile, hasRole, getUserRoles } = useAuth();
     const [isSwitching, setIsSwitching] = useState(false);
@@ -129,6 +131,7 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
                 disabled={isSwitching}
                 className="flex items-center space-x-2 bg-white border border-gray-200 rounded-lg px-4 py-2 shadow-lg hover:shadow-xl transition-all duration-200 hover:border-blue-300 disabled:opacity-50"
                 aria-label="Switch between roles"
+                id={id}
             >
                 <ArrowLeftRight className="h-4 w-4 text-gray-600" />
                 <span className="text-sm font-medium text-gray-700">
@@ -138,8 +141,8 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
 
             {/* Confirmation Modal */}
             {showConfirmation && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl max-w-md w-full p-6">
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+                    <div className="bg-white rounded-2xl max-w-md w-full p-6 my-auto">
                         <div className="text-center">
                             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <ArrowLeftRight className="h-8 w-8 text-blue-600" />

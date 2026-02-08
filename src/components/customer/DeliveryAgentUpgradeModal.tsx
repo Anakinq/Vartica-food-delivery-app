@@ -220,7 +220,7 @@ export const DeliveryAgentUpgradeModal: React.FC<DeliveryAgentUpgradeModalProps>
         >
             <div
                 ref={modalRef}
-                className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+                className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] flex flex-col"
                 tabIndex={-1}
                 onKeyDown={(e) => {
                     if (e.key === 'Escape') {
@@ -228,9 +228,10 @@ export const DeliveryAgentUpgradeModal: React.FC<DeliveryAgentUpgradeModalProps>
                     }
                 }}
             >
-                <div className="p-6">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 id="delivery-agent-modal-title" className="text-2xl font-bold text-gray-900">Become a Campus Delivery Agent</h2>
+                {/* Header - Fixed */}
+                <div className="flex-shrink-0 p-6 border-b border-gray-200">
+                    <div className="flex justify-between items-center">
+                        <h2 id="delivery-agent-modal-title" className="text-xl font-bold text-gray-900">Become a Campus Delivery Agent</h2>
                         <button
                             ref={initialFocusRef}
                             onClick={onClose}
@@ -240,7 +241,10 @@ export const DeliveryAgentUpgradeModal: React.FC<DeliveryAgentUpgradeModalProps>
                             <X className="h-5 w-5" />
                         </button>
                     </div>
+                </div>
 
+                {/* Scrollable Content */}
+                <div className="flex-1 overflow-y-auto p-6">
                     {error && (
                         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
                             <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0" />

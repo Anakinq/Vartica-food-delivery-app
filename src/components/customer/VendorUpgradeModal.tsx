@@ -155,8 +155,23 @@ export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-                <div className="p-6">
+            <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] flex flex-col">
+                {/* Header - Fixed */}
+                <div className="flex-shrink-0 p-6 border-b border-gray-200">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-xl font-bold text-gray-900">Become a Vendor</h2>
+                        <button
+                            onClick={onClose}
+                            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                            aria-label="Close"
+                        >
+                            <X className="h-5 w-5" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Scrollable Content */}
+                <div className="flex-1 overflow-y-auto p-6">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-2xl font-bold text-gray-900">Become a Vendor</h2>
                         <button

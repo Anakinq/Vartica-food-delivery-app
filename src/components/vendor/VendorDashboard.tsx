@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { LogOut, Plus, Edit2, ToggleLeft, ToggleRight, Menu, X, User, Camera, Save, MessageCircle, Trash2, FolderPlus } from 'lucide-react';
+import { LogOut, Plus, Edit2, ToggleLeft, ToggleRight, Menu, X, User, Camera, Save, MessageCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { MenuItem, VendorCategory } from '../../lib/supabase/types';
 import { supabase } from '../../lib/supabase/client';
@@ -50,7 +50,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     pendingOrders: 0,
     completedOrders: 0,
   });
-  
+
   // Category management state
   const [vendorCategories, setVendorCategories] = useState<VendorCategory[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
@@ -253,7 +253,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   // Fetch vendor categories
   const fetchVendorCategories = async () => {
     if (!vendor) return;
-    
+
     setLoadingCategories(true);
     try {
       const { data, error } = await supabase
@@ -340,7 +340,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         console.error('Error updating category order:', error);
       } else {
         // Update local state
-        setVendorCategories(vendorCategories.map(c => 
+        setVendorCategories(vendorCategories.map(c =>
           c.id === categoryId ? { ...c, sort_order: newOrder } : c
         ).sort((a, b) => a.sort_order - b.sort_order));
       }
@@ -794,7 +794,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       <div className="fixed inset-0 bg-black bg-opacity-70" />
 
       {/* Main content with proper z-index */}
-      <div className="relative z-10 min-h-screen">
+      <div className="relative z-10 min-h-screen" id="dashboard">
         <nav className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
@@ -803,7 +803,6 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
                 <p className="text-sm text-gray-600">{profile?.full_name}</p>
               </div>
               <div className="flex items-center space-x-3">
-                <RoleSwitcher currentRole="vendor" />
                 {/* Hamburger Menu */}
                 <button
                   onClick={() => setShowMenu(!showMenu)}
@@ -854,101 +853,9 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
           )}
         </nav>
 
-        {/* Category Management Section */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900">Categories</h2>
-              <p className="text-gray-600 mt-1">Manage your product categories</p>
-            </div>
-            <button
-              onClick={() => setShowAddCategory(true)}
-              className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700"
-            >
-              <FolderPlus className="h-5 w-5" />
-              <span>Add Category</span>
-            </button>
-          </div>
+        {/* Category Management Section - Removed: Categories are now managed inside MenuItemForm */}
 
-          {/* Add Category Form */}
-          {showAddCategory && (
-            <div className="bg-green-50 rounded-xl p-6 mb-6 border border-green-200">
-              <h3 className="font-semibold text-green-900 mb-4">Add New Category</h3>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <input
-                  type="text"
-                  value={newCategoryName}
-                  onChange={(e) => setNewCategoryName(e.target.value)}
-                  placeholder="Category name (e.g., Desserts, Electronics)"
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  autoFocus
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleAddCategory}
-                    disabled={!newCategoryName.trim()}
-                    className="px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50"
-                  >
-                    Add
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowAddCategory(false);
-                      setNewCategoryName('');
-                    }}
-                    className="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Categories List */}
-          {loadingCategories ? (
-            <div className="text-center py-8">
-              <p className="text-gray-600">Loading categories...</p>
-            </div>
-          ) : vendorCategories.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-gray-300">
-              <FolderPlus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 text-lg mb-4">No categories yet</p>
-              <p className="text-gray-500 text-sm mb-4">Create categories to organize your products</p>
-              <button
-                onClick={() => setShowAddCategory(true)}
-                className="text-green-600 hover:text-green-700 font-semibold"
-              >
-                Add your first category
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {vendorCategories.map((category) => (
-                <div key={category.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <FolderPlus className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">{category.name}</h4>
-                      <p className="text-xs text-gray-500 capitalize">{category.category_type}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleDeleteCategory(category.id)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                    title="Delete category"
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" id="menu-management">
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-3xl font-bold text-gray-900">Menu Management</h2>
             <button
@@ -1009,22 +916,25 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
                     )}
 
                     {/* Image display section */}
-                    {item.image_url && (
+                    {item.image_url ? (
                       <div className="mb-3">
                         <img
-                          src={item.image_url}
+                          src={decodeURIComponent(item.image_url)}
                           alt={item.name}
                           className="w-full h-32 object-cover rounded-md border"
                           onError={(e) => {
-                            console.error('Image failed to load:', item.image_url);
-                            console.error('Error event:', e);
                             const target = e.currentTarget;
                             target.style.display = 'none';
-                          }}
-                          onLoad={(e) => {
-                            console.log('Image loaded successfully:', item.image_url);
+                            target.nextElementSibling?.classList.remove('hidden');
                           }}
                         />
+                        <div className="hidden w-full h-32 bg-gray-100 rounded-md border-2 border-dashed border-gray-300 flex items-center justify-center">
+                          <span className="text-gray-400 text-sm">No image available</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mb-3 w-full h-32 bg-gray-100 rounded-md border-2 border-dashed border-gray-300 flex items-center justify-center">
+                        <span className="text-gray-400 text-sm">No image</span>
                       </div>
                     )}
 
@@ -1075,7 +985,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         </div>
 
         {/* Vendor Orders Section */}
-        <div className="mt-12">
+        <div className="mt-12" id="orders-section">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Recent Orders</h2>
 
           {myOrders.length === 0 ? (
@@ -1153,8 +1063,8 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
 
         {/* Store Profile Modal */}
         {showProfileModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto my-auto">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-2xl font-bold text-gray-900">Store Profile</h2>
@@ -1364,6 +1274,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
             <RoleSwitcher
               currentRole={preferredRole}
               onRoleSwitch={handleRoleSwitch}
+              id="role-switcher-button"
             />
           )}
       </div>
