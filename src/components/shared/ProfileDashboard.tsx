@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, HelpCircle, CreditCard, MapPin, MessageCircle, Camera, Store, ArrowLeftRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { supabase } from '../../lib/supabase/client';
 import { CustomerSupportModal } from './CustomerSupportModal';
 import { ExtendedProfile } from '../../types';
@@ -9,11 +10,11 @@ import { DeliveryAgentUpgradeModal } from '../customer/DeliveryAgentUpgradeModal
 import InstallPrompt from '../InstallPrompt';
 
 export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => void }> = ({ onBack, onSignOut }) => {
-  console.log('ProfileDashboard: Component rendered');
+  const { profile, refreshProfile } = useAuth();
+  const { showToast } = useToast();
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showVendorUpgrade, setShowVendorUpgrade] = useState(false);
   const [showDeliveryAgentUpgrade, setShowDeliveryAgentUpgrade] = useState(false);
-  const { profile, refreshProfile } = useAuth();
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || '',
     phone: profile?.phone || '',
@@ -73,11 +74,11 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) { // 2MB limit
-        alert('Image file must be less than 2MB');
+        showToast({ type: 'error', message: 'Image file must be less than 2MB' });
         return;
       }
       if (!file.type.startsWith('image/')) {
-        alert('Please upload an image file');
+        showToast({ type: 'error', message: 'Please upload an image file' });
         return;
       }
       setAvatarFile(file);
@@ -116,7 +117,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
 
         if (uploadError) {
           console.error('Avatar upload failed:', uploadError);
-          alert('Failed to upload avatar image. Please try again.');
+          showToast({ type: 'error', message: 'Failed to upload avatar image. Please try again.' });
           throw uploadError;
         }
 
@@ -145,7 +146,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2000);
     } catch (err) {
-      alert('Failed to update profile');
+      showToast({ type: 'error', message: 'Failed to update profile' });
     } finally {
       setLoading(false);
     }
@@ -524,7 +525,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
             } catch (error) {
               console.error('Error refreshing profile:', error);
               // Fallback to showing a message to user
-              alert('Please refresh the page to see profile changes.');
+              showToast({ type: 'info', message: 'Please refresh the page to see profile changes.' });
             }
           }}
         />
@@ -543,7 +544,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
             } catch (error) {
               console.error('Error refreshing profile:', error);
               // Fallback to showing a message to user
-              alert('Please refresh the page to see profile changes.');
+              showToast({ type: 'info', message: 'Please refresh the page to see profile changes.' });
             }
           }}
         />

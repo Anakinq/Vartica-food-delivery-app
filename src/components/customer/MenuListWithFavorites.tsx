@@ -5,6 +5,7 @@ import { MenuItemCardSimple } from '../shared/MenuItemCardSimple';
 import { Search, Heart } from 'lucide-react';
 import { getUserFavorites, toggleFavorite, getFavoritesBatch } from '../../services/favoritesService';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 
 interface MenuListWithFavoritesProps {
     menuItems: MenuItem[];
@@ -20,6 +21,7 @@ export const MenuListWithFavorites: React.FC<MenuListWithFavoritesProps> = ({
     onRemoveFromCart
 }) => {
     const { user } = useAuth();
+    const { info: showInfo } = useToast();
     const isAuthenticated = !!user;
     const [activeTab, setActiveTab] = useState<string>('All');
     const [searchQuery, setSearchQuery] = useState('');
@@ -93,7 +95,7 @@ export const MenuListWithFavorites: React.FC<MenuListWithFavoritesProps> = ({
     const handleToggleFavorite = async (itemId: string) => {
         if (!isAuthenticated) {
             // Handle unauthenticated user (could show login prompt)
-            alert('Please log in to save favorites');
+            showInfo('Please log in to save favorites');
             return;
         }
 

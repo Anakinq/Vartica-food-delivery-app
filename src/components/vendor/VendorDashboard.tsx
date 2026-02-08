@@ -87,6 +87,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         return 'bg-blue-100 text-blue-700';
       case 'ready':
       case 'picked_up':
+      case 'shipped':
         return 'bg-orange-100 text-orange-700';
       case 'delivered':
         return 'bg-green-100 text-green-700';
@@ -152,11 +153,10 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
       if (refreshError || !refreshedSession) {
         console.error('Session refresh failed:', refreshError);
-        alert('Session expired. Please sign in again.');
+        showToast({ type: 'error', message: 'Session expired. Please sign in again.' });
         signOut();
         return false;
       }
-      console.log('Session refreshed successfully');
     }
     return true;
   };
@@ -174,7 +174,6 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     // Wait for approval status if it's still loading
     if (['vendor', 'late_night_vendor'].includes(profile.role) && approvalStatus === null) {
       // Approval status is still loading, wait for it
-      console.log('[Vendor] Waiting for approval status...');
       // Don't return yet - wait for checkVendorApproval to set it
     }
 
@@ -185,11 +184,8 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       return;
     }
 
-    console.log('[Vendor] Fetching vendor data for user:', profile.id);
-
     // Use the enhanced profile with vendor data from auth context
     if ('vendor' in profile && profile.vendor) {
-      console.log('[Vendor] Found vendor in profile:', profile.vendor.id);
       const vendorData = profile.vendor;
       setVendor(vendorData);
       setVendorLoading(false);
@@ -202,24 +198,13 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         .in('seller_type', ['vendor', 'late_night_vendor'])
         .order('name');
 
-      console.log('Fetched menu items for vendor:', vendorData.id);
-      console.log('Menu items data:', items);
-      console.log('Menu items with images:', items?.map(item => ({
-        id: item.id,
-        name: item.name,
-        image_url: item.image_url,
-        has_image: !!item.image_url
-      })));
-
       if (items) {
         setMenuItems(items);
-        console.log('[Vendor] Menu items loaded:', items.length);
       }
       setVendorLoading(false);
       setLoading(false);
     } else {
       // Fallback: fetch vendor data separately if not available in profile
-      console.log('[Vendor] Vendor not in profile, fetching separately...');
       const { data: vendorData, error } = await supabase
         .from('vendors')
         .select('*')
@@ -231,7 +216,6 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       }
 
       if (vendorData) {
-        console.log('[Vendor] Found vendor:', vendorData.id);
         setVendor(vendorData);
 
         const { data: items } = await supabase
@@ -243,7 +227,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
 
         if (items) setMenuItems(items);
       } else {
-        console.log('[Vendor] No vendor found for user:', profile.id);
+        // No vendor found for user
       }
       setVendorLoading(false);
       setLoading(false);
@@ -293,7 +277,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         .single();
 
       if (error) {
-        alert('Failed to add category: ' + error.message);
+        showToast({ type: 'error', message: 'Failed to add category: ' + error.message });
       } else {
         setVendorCategories([...vendorCategories, data]);
         setNewCategoryName('');
@@ -302,7 +286,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       }
     } catch (err) {
       console.error('Error adding category:', err);
-      alert('Failed to add category. Please try again.');
+      showToast({ type: 'error', message: 'Failed to add category. Please try again.' });
     }
   };
 
@@ -317,14 +301,14 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         .eq('id', categoryId);
 
       if (error) {
-        alert('Failed to delete category: ' + error.message);
+        showToast({ type: 'error', message: 'Failed to delete category: ' + error.message });
       } else {
         setVendorCategories(vendorCategories.filter(c => c.id !== categoryId));
         showToast({ type: 'success', message: 'Category deleted!' });
       }
     } catch (err) {
       console.error('Error deleting category:', err);
-      alert('Failed to delete category. Please try again.');
+      showToast({ type: 'error', message: 'Failed to delete category. Please try again.' });
     }
   };
 
@@ -366,7 +350,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         error.message.toLowerCase().includes('auth') ||
         error.message.toLowerCase().includes('permission') ||
         error.message.toLowerCase().includes('unauthorized')) {
-        alert('Authentication failed. Please sign in again.');
+        showToast({ type: 'error', message: 'Authentication failed. Please sign in again.' });
         signOut();
       }
     } else {
@@ -376,13 +360,9 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
 
   const handleSaveItem = async (itemData: Partial<MenuItem>, imageFile?: File) => {
     if (!vendor) {
-      console.error('No vendor found');
-      alert('No vendor found. Please refresh the page.');
+      showToast({ type: 'error', message: 'No vendor found. Please refresh the page.' });
       return;
     }
-
-    console.log('Saving menu item:', { itemData, hasImageFile: !!imageFile });
-    console.log('Vendor data:', vendor);
 
     // Ensure session is valid
     const sessionValid = await ensureSession();
@@ -396,7 +376,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       if (uploadedUrl) {
         finalImageUrl = uploadedUrl;
       } else {
-        alert('Failed to upload image. Please try again.');
+        showToast({ type: 'error', message: 'Failed to upload image. Please try again.' });
         return;
       }
     }
@@ -407,9 +387,6 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       seller_id: vendor.id,
       seller_type: vendor.vendor_type === 'late_night' ? 'late_night_vendor' : 'vendor',
     };
-
-    console.log('Full item data to save:', fullItemData);
-    console.log('Final image URL being saved:', finalImageUrl);
 
     let query;
     if (editingItem) {
@@ -425,22 +402,21 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
 
     const { error } = await query;
     if (error) {
-      console.error('Save failed:', error);
       // Check if it's an authentication error based on the error message
       if (error.message.includes('401') || error.message.includes('403') ||
         error.message.toLowerCase().includes('auth') ||
         error.message.toLowerCase().includes('permission') ||
         error.message.toLowerCase().includes('unauthorized')) {
-        alert('Authentication failed. Please sign in again.');
+        showToast({ type: 'error', message: 'Authentication failed. Please sign in again.' });
         signOut();
       } else {
-        alert('Failed to save menu item. Please try again.');
+        showToast({ type: 'error', message: 'Failed to save menu item. Please try again.' });
       }
     } else {
-      console.log('Menu item saved successfully');
       await fetchData();
       setShowForm(false);
       setEditingItem(null);
+      showToast({ type: 'success', message: 'Menu item saved successfully!' });
     }
   };
 
@@ -456,7 +432,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       if (uploadedUrl) {
         finalImageUrl = uploadedUrl;
       } else {
-        alert('Failed to upload store image. Please try again.');
+        showToast({ type: 'error', message: 'Failed to upload store image. Please try again.' });
         return;
       }
     }
@@ -474,7 +450,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
 
     if (error) {
       console.error('Update failed:', error);
-      alert('Failed to update store profile. Please try again.');
+      showToast({ type: 'error', message: 'Failed to update store profile. Please try again.' });
     } else {
       // Update local state
       setVendor({
@@ -486,7 +462,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       setShowProfileModal(false);
       setProfileImageFile(null);
       setProfileImagePreview('');
-      alert('Store profile updated successfully!');
+      showToast({ type: 'success', message: 'Store profile updated successfully!' });
     }
   };
 
@@ -495,11 +471,11 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) { // 2MB limit
-        alert('Image file must be less than 2MB');
+        showToast({ type: 'error', message: 'Image file must be less than 2MB' });
         return;
       }
       if (!file.type.startsWith('image/')) {
-        alert('Please upload an image file');
+        showToast({ type: 'error', message: 'Please upload an image file' });
         return;
       }
       setProfileImageFile(file);
@@ -533,7 +509,6 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     if (profile && ['vendor', 'late_night_vendor'].includes(profile.role)) {
       setLoadingApproval(true);
       const status = await checkApprovalStatus(profile.id, 'vendor');
-      console.log('[Vendor] Approval status determined:', status);
       setApprovalStatus(status);
       setLoadingApproval(false);
 
@@ -663,7 +638,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         error.message.toLowerCase().includes('auth') ||
         error.message.toLowerCase().includes('permission') ||
         error.message.toLowerCase().includes('unauthorized')) {
-        alert('Authentication failed. Please sign in again.');
+        showToast({ type: 'error', message: 'Authentication failed. Please sign in again.' });
         signOut();
         return;
       }
@@ -882,16 +857,8 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {menuItems.map(item => {
-                console.log('Rendering menu item:', {
-                  id: item.id,
-                  name: item.name,
-                  image_url: item.image_url,
-                  has_image: !!item.image_url
-                });
-
-                return (
-                  <div key={item.id} className={`bg-white rounded-xl shadow-md p-6 ${!item.is_available ? 'opacity-60' : ''}`}>
+              {menuItems.map(item => (
+                <div key={item.id} className={`bg-white rounded-xl shadow-md p-6 ${!item.is_available ? 'opacity-60' : ''}`}>
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex-1">
                         <h3 className="text-lg font-bold text-gray-900">{item.name}</h3>
@@ -954,8 +921,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
                       </button>
                     </div>
                   </div>
-                );
-              })}
+                ))}
             </div>
           )}
         </div>

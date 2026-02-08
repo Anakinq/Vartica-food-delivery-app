@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { User, Store, Truck, ArrowLeftRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { supabase } from '../../lib/supabase/client';
 
 interface RoleSwitcherProps {
@@ -16,6 +17,7 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
     id
 }) => {
     const { profile, refreshProfile, hasRole, getUserRoles } = useAuth();
+    const { error: showError } = useToast();
     const [isSwitching, setIsSwitching] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
 
@@ -31,19 +33,13 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
     const targetRoles = availableRoles.filter(role => role !== currentRole);
 
     const handleRoleSwitch = async (targetRole: 'customer' | 'vendor' | 'delivery_agent') => {
-        console.log('[RoleSwitch] Starting switch to:', targetRole);
-        console.log('[RoleSwitch] Current role:', currentRole);
-        console.log('[RoleSwitch] Available roles:', availableRoles);
-
         if (!profile) {
-            console.error('[RoleSwitch] ERROR: No profile found!');
-            alert('Please sign in to switch roles.');
+            showError('Please sign in to switch roles.');
             return;
         }
 
         setIsSwitching(true);
         try {
-            console.log('[RoleSwitch] Switching to role:', targetRole);
 
             // Store the preferred role in sessionStorage
             sessionStorage.setItem('preferredRole', targetRole);
@@ -68,15 +64,12 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
 
             // Refresh profile to ensure we have latest data
             await refreshProfile();
-            console.log('[RoleSwitch] Profile refreshed');
 
             // Close confirmation dialog
             setShowConfirmation(false);
-            console.log('[RoleSwitch] Switch completed successfully!');
-
         } catch (error) {
             console.error('[RoleSwitch] Error during switch:', error);
-            alert('Failed to switch roles. Please try again.');
+            showError('Failed to switch roles. Please try again.');
         } finally {
             setIsSwitching(false);
         }

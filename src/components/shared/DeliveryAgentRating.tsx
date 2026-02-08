@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Star } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { databaseService } from '../../services';
 
 interface DeliveryAgentRatingProps {
@@ -17,6 +18,7 @@ export const DeliveryAgentRating: React.FC<DeliveryAgentRatingProps> = ({
     onRatingSubmit
 }) => {
     const { user } = useAuth();
+    const { success: showSuccess, error: showError } = useToast();
     const [rating, setRating] = useState<number>(initialRating);
     const [hover, setHover] = useState<number>(0);
     const [hasRated, setHasRated] = useState<boolean>(false);
@@ -83,7 +85,7 @@ export const DeliveryAgentRating: React.FC<DeliveryAgentRatingProps> = ({
 
             if (error) {
                 console.error('Error submitting rating:', error);
-                alert('Failed to submit rating. Please try again.');
+                showError('Failed to submit rating. Please try again.');
                 return;
             }
 
@@ -94,7 +96,7 @@ export const DeliveryAgentRating: React.FC<DeliveryAgentRatingProps> = ({
             }
         } catch (err) {
             console.error('Error submitting rating:', err);
-            alert('Failed to submit rating. Please try again.');
+            showError('Failed to submit rating. Please try again.');
         } finally {
             setLoading(false);
         }

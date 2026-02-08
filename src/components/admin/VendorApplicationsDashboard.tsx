@@ -1,6 +1,7 @@
 // src/components/admin/VendorApplicationsDashboard.tsx
 import React, { useEffect, useState } from 'react';
 import { Check, X, Clock, AlertCircle, User, Store } from 'lucide-react';
+import { useToast } from '../../contexts/ToastContext';
 import { supabase } from '../../lib/supabase/client';
 
 interface VendorApplication {
@@ -23,6 +24,7 @@ interface VendorApplication {
 }
 
 export const VendorApplicationsDashboard: React.FC = () => {
+    const { success: showSuccess, error: showError } = useToast();
     const [applications, setApplications] = useState<VendorApplication[]>([]);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState<string | null>(null);
@@ -91,11 +93,11 @@ export const VendorApplicationsDashboard: React.FC = () => {
             ));
 
             // Show success message
-            alert(`${action === 'approve' ? 'Approved' : 'Rejected'} vendor application successfully!`);
+            showSuccess(`${action === 'approve' ? 'Approved' : 'Rejected'} vendor application successfully!`);
 
         } catch (err) {
             console.error('Error reviewing application:', err);
-            alert(`Error: ${(err as Error).message}`);
+            showError(`Error: ${(err as Error).message}`);
         } finally {
             setProcessing(null);
         }

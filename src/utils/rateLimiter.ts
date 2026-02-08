@@ -8,7 +8,7 @@ const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 /**
  * Rate limiter configuration
  */
-interface RateLimitConfig {
+export interface RateLimitConfig {
     windowMs: number; // Time window in milliseconds
     maxRequests: number; // Maximum requests per window
 }

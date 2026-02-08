@@ -86,33 +86,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Fetch profile only (no user reconstruction)
   const fetchProfile = async (supabaseUser: any) => {
-    console.log('fetchProfile called with user:', supabaseUser);
     if (!supabaseUser) {
-      console.log('No user provided, setting profile to null');
       setProfile(null);
       return;
     }
 
     try {
-      console.log('Fetching profile for user ID:', supabaseUser.id);
-
       // Single attempt with shorter timeout to avoid blocking
       const result = await databaseService.selectSingle<Profile>({
         table: 'profiles',
         match: { id: supabaseUser.id },
       });
 
-      console.log('Database query result:', result);
-
       if (result.error) {
-        console.warn('Profile fetch error:', result.error);
         setProfile(null);
       } else if (result.data) {
-        console.log('Profile found and set:', result.data);
         setProfile(result.data);
       } else {
-        console.warn('No profile data found for user:', supabaseUser.id);
-
         // Create basic profile from auth data if needed
         try {
           const { data: { user } } = await supabase.auth.getUser();
@@ -134,7 +124,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 window.sessionStorage.removeItem('oauth_phone');
               }
             } catch (storageError) {
-              console.warn('Error accessing sessionStorage:', storageError);
+              // Storage access failed, continue without stored data
             }
 
             const basicProfile = {
@@ -163,9 +153,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Enhanced fetch profile with real-time subscription
   const enhancedFetchProfile = async (supabaseUser: any) => {
-    console.log('enhancedFetchProfile called with user:', supabaseUser);
     if (!supabaseUser) {
-      console.log('No user provided, setting profile to null');
       setProfile(null);
       setVendorDataLoading(false);
       return;
@@ -174,39 +162,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setVendorDataLoading(true);
 
     try {
-      console.log('Fetching profile with vendor data for user ID:', supabaseUser.id);
-
       // Use the enhanced consolidated fetch method
       const result = await databaseService.fetchProfileWithVendor(supabaseUser.id);
 
-      console.log('=== CONSOLIDATED FETCH RESULT ===');
-      console.log('Full result object:', result);
-      console.log('Profile+Vendor data:', result.data);
-      console.log('Error:', result.error);
-
       if (result.error) {
-        console.error('Error fetching profile with vendor:', result.error);
         // Fallback to existing fetchProfile method
         await fetchProfile(supabaseUser);
       } else if (result.data) {
-        console.log('Profile with vendor data found and set:', result.data);
         setProfile(result.data);
-
         // Set up real-time subscription for this user
         setupRealTimeSubscription(supabaseUser.id);
       } else {
-        console.warn('No profile data found for user:', supabaseUser.id);
         // Fallback to existing fetchProfile method
         await fetchProfile(supabaseUser);
       }
     } catch (err) {
-      console.error('Error in enhanced fetchProfile:', err);
-      // More detailed error logging
-      if (err instanceof Error) {
-        console.error('Error name:', err.name);
-        console.error('Error message:', err.message);
-        console.error('Error stack:', err.stack);
-      }
       setProfile(null);
       // Fallback to existing fetchProfile method
       await fetchProfile(supabaseUser);
@@ -224,12 +194,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       // Clean up existing subscription
       if (subscriptionRef.current) {
-        console.log('Cleaning up existing subscription for user:', userId);
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
       }
-
-      console.log('Setting up real-time subscription for user:', userId);
 
       // Set up new subscription
       subscriptionRef.current = databaseService.subscribeProfileWithVendor(
@@ -237,27 +204,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         (updatedProfile, error) => {
           if (error) {
             console.error('Real-time subscription error for user', userId, ':', error);
-            // Handle subscription errors - maybe retry or notify user
             return;
           }
 
           if (updatedProfile) {
-            console.log('Profile updated via real-time subscription for user', userId, ':', updatedProfile);
             setProfile(updatedProfile);
           } else {
-            console.log('Profile deleted or no longer exists for user:', userId);
             setProfile(null);
           }
         }
       );
-
-      console.log('Real-time subscription successfully set up for user:', userId);
     } catch (err) {
       console.error('Error setting up real-time subscription for user', userId, ':', err);
-      // Don't let subscription errors break the main flow
-      if (err instanceof Error) {
-        console.error('Subscription error details:', err.name, err.message);
-      }
     }
   };
 
@@ -297,14 +255,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Load initial session first
     const loadInitialSession = async () => {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Loading initial session...');
-      }
       try {
         const { data } = await supabase.auth.getSession();
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Initial session data:', data);
-        }
         if (!isMounted) return;
 
         // Convert Supabase user to our format
@@ -313,9 +265,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           email: data.session.user.email || null,
         } : null;
 
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Setting user data:', userData);
-        }
         setUser(userData);
         // Don't wait for profile to load, just fetch it async
         if (userData) {
@@ -344,13 +293,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Supabase auth state listener (ONE listener total)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('=== AUTH STATE CHANGED ===');
-      console.log('Event type:', event);
-      console.log('Session data:', session);
-      console.log('User in session:', session?.user);
-      console.log('Session expires at:', session?.expires_at);
       if (!isMounted) {
-        console.log('Component not mounted, ignoring auth state change');
         return;
       }
 
@@ -360,24 +303,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         email: session.user.email || null,
       } : null;
 
-      console.log('Processing auth state change - setting user:', userData);
-      console.log('User ID:', userData?.id);
-      console.log('User email:', userData?.email);
       // Handle all auth events consistently
       setUser(userData);
       // Don't wait for profile to load, just fetch it async
       if (userData) {
-        console.log('Fetching enhanced profile for user:', userData.id);
         enhancedFetchProfile(session?.user ?? null);
       } else {
-        console.log('No user data, setting profile to null');
         setProfile(null);
         setVendorDataLoading(false);
       }
     });
 
     return () => {
-      console.log('Cleaning up auth state listener');
       isMounted = false;
       subscription?.unsubscribe();
     };
@@ -385,10 +322,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Sign in with rate limiting and debouncing
   const signIn = async (email: string, password: string) => {
-    console.log('=== AUTHCONTEXT SIGNIN FUNCTION STARTED ===');
-    console.log('Email parameter:', email);
-    console.log('Password parameter length:', password.length);
-
     // Check debounce
     if (!canAttemptAuth()) {
       const error = new Error('Please wait before trying again');
@@ -424,26 +357,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         throw error;
       }
 
-      console.log('Attempting to sign in with Supabase...');
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      console.log('Supabase signIn result:', { data, error });
-      console.log('Session data:', data?.session);
-      console.log('User data from Supabase:', data?.user);
 
       if (error) {
-        console.error('❌ Supabase signIn error:', error);
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
         setLoading(false);
         throw error;
       }
-
-      console.log('✅ Sign in successful, waiting for auth state change...');
-      console.log('User ID from response:', data?.user?.id);
-      console.log('User email from response:', data?.user?.email);
-      // Let the auth state listener handle user/profile updates
     } catch (err) {
-      console.error('❌ Error in signIn function:', err);
+      console.error('Sign in error:', err);
       setLoading(false);
       throw err;
     }
@@ -632,16 +553,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Add delivery agent role to existing user - using direct inserts instead of RPC
   const addDeliveryAgentRole = async (vehicleType: string = 'Foot') => {
     if (!user?.id) {
-      const error = 'User not authenticated';
-      console.error('[DeliveryAgent] Error:', error);
-      throw new Error(error);
+      throw new Error('User not authenticated');
     }
 
-    console.log('[DeliveryAgent] Starting registration for user:', user.id);
-    console.log('[DeliveryAgent] Vehicle type:', vehicleType);
-
     try {
-      console.log('[DeliveryAgent] Step 1: Checking profile exists...');
 
       // First check if profile exists
       const { data: profileData, error: profileError } = await supabase
@@ -650,19 +565,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .eq('id', user.id)
         .single();
 
-      console.log('[DeliveryAgent] Profile check result:', { profileData, profileError });
-
       if (profileError) {
-        console.error('[DeliveryAgent] Profile not found error:', profileError);
         throw new Error('Profile not found. Please log out and log in again.');
       }
 
       if (profileData?.is_delivery_agent) {
-        console.log('[DeliveryAgent] Already a delivery agent');
         throw new Error('You are already registered as a delivery agent.');
       }
-
-      console.log('[DeliveryAgent] Step 2: Updating profile...');
 
       // Update profile to set is_delivery_agent = true
       const { error: updateError } = await supabase
@@ -677,11 +586,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.log('[DeliveryAgent] Profile update result:', { error: updateError });
 
       if (updateError) {
-        console.error('[DeliveryAgent] Profile update error:', updateError);
         throw updateError;
       }
-
-      console.log('[DeliveryAgent] Step 3: Creating delivery agent record...');
 
       // Create delivery agent record
       const { error: agentError } = await supabase
@@ -700,13 +606,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.log('[DeliveryAgent] Agent insert result:', { error: agentError });
 
       if (agentError) {
-        console.error('[DeliveryAgent] Agent insert error:', agentError);
         throw agentError;
       }
 
-      console.log('[DeliveryAgent] Step 4: Creating agent wallet...');
-
-      // Get the delivery agent ID
+      // Get the delivery agent ID and create wallet
       const { data: agentData } = await supabase
         .from('delivery_agents')
         .select('id')
@@ -714,8 +617,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .single();
 
       if (agentData) {
-        // Create agent wallet
-        const { error: walletError } = await supabase
+        await supabase
           .from('agent_wallets')
           .insert({
             agent_id: agentData.id,
@@ -723,23 +625,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             delivery_earnings: 0,
             total_balance: 0
           });
-
-        console.log('[DeliveryAgent] Wallet insert result:', { error: walletError });
       }
 
-      console.log('[DeliveryAgent] Step 5: Refreshing profile...');
       await refreshProfile();
-      console.log('[DeliveryAgent] Registration complete!');
-
     } catch (err) {
-      console.error('[DeliveryAgent] Final error:', JSON.stringify(err, null, 2));
-      console.error('[DeliveryAgent] Error details:', {
-        message: (err as Error)?.message,
-        name: (err as Error)?.name,
-        code: (err as any)?.code,
-        details: (err as any)?.details,
-        hint: (err as any)?.hint
-      });
+      console.error('Error adding delivery agent role:', err);
       throw err;
     }
   };
@@ -795,7 +685,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Sign out
   const signOut = async () => {
-    console.log('Sign out initiated');
     setLoading(true);
     setAuthLoading(true);
     setVendorDataLoading(true);
@@ -809,13 +698,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error('Sign out error:', error);
         throw error;
       }
-      console.log('Sign out successful, auth state listener will handle cleanup');
-      // Let the auth state listener handle cleanup
     } catch (err) {
-      console.error('Error during sign out:', err);
+      console.error('Sign out error:', err);
       setLoading(false);
       setAuthLoading(false);
       setVendorDataLoading(false);

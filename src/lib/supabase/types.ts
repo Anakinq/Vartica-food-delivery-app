@@ -89,7 +89,7 @@ export interface Order {
     seller_id: string;
     seller_type: 'cafeteria' | 'vendor' | 'late_night_vendor';
     delivery_agent_id?: string;
-    status: 'pending' | 'accepted' | 'preparing' | 'ready' | 'picked_up' | 'delivered' | 'cancelled';
+    status: 'pending' | 'accepted' | 'preparing' | 'ready' | 'picked_up' | 'shipped' | 'delivered' | 'cancelled';
     subtotal: number;
     delivery_fee?: number;
     discount?: number;

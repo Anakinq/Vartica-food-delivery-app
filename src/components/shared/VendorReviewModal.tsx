@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Star } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { VendorReviewService } from '../../services/supabase/vendor.service';
 import { supabase } from '../../lib/supabase/client';
 
@@ -16,6 +17,7 @@ export const VendorReviewModal: React.FC<VendorReviewModalProps> = ({
     onClose
 }) => {
     const { user } = useAuth();
+    const { success: showSuccess, error: showError } = useToast();
     const [rating, setRating] = useState(0);
     const [hover, setHover] = useState(0);
     const [reviewText, setReviewText] = useState('');
@@ -68,10 +70,10 @@ export const VendorReviewModal: React.FC<VendorReviewModalProps> = ({
                 });
 
                 if (success) {
-                    alert('Review updated successfully!');
+                    showSuccess('Review updated successfully!');
                     onClose();
                 } else {
-                    alert('Failed to update review. Please try again.');
+                    showError('Failed to update review. Please try again.');
                 }
             } else {
                 // Create new review
@@ -84,15 +86,15 @@ export const VendorReviewModal: React.FC<VendorReviewModalProps> = ({
                 });
 
                 if (review) {
-                    alert('Review submitted successfully!');
+                    showSuccess('Review submitted successfully!');
                     onClose();
                 } else {
-                    alert('Failed to submit review. Please try again.');
+                    showError('Failed to submit review. Please try again.');
                 }
             }
         } catch (error) {
             console.error('Error submitting review:', error);
-            alert('An error occurred. Please try again.');
+            showError('An error occurred. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -105,14 +107,14 @@ export const VendorReviewModal: React.FC<VendorReviewModalProps> = ({
             try {
                 const success = await VendorReviewService.deleteReview(existingReview.id);
                 if (success) {
-                    alert('Review deleted successfully!');
+                    showSuccess('Review deleted successfully!');
                     onClose();
                 } else {
-                    alert('Failed to delete review. Please try again.');
+                    showError('Failed to delete review. Please try again.');
                 }
             } catch (error) {
                 console.error('Error deleting review:', error);
-                alert('An error occurred. Please try again.');
+                showError('An error occurred. Please try again.');
             }
         }
     };

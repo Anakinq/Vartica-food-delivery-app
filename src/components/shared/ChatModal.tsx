@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { X, Send, Paperclip, Image, File, Download, Phone } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { databaseService } from '../../services';
 import { ChatMessage } from '../../lib/supabase/types';
 import { supabase } from '../../lib/supabase/client';
@@ -17,6 +18,7 @@ interface ChatModalProps {
 
 export const ChatModal: React.FC<ChatModalProps> = ({ orderId, orderNumber, recipientName, onClose }) => {
   const { user } = useAuth();
+  const { error: showError } = useToast();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -94,7 +96,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ orderId, orderNumber, reci
 
         if (uploadError) {
           console.error('File upload error:', uploadError);
-          alert('Failed to upload file');
+          showError('Failed to upload file');
           return;
         }
 
@@ -127,7 +129,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ orderId, orderNumber, reci
       });
 
       if (error) {
-        alert('Failed to send message');
+        showError('Failed to send message');
         return;
       }
 

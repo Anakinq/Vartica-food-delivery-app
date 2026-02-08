@@ -732,7 +732,7 @@ const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ profile, onShow
           showForm && (
             <MenuItemForm
               item={editingItem}
-              onSave={handleSaveItem} // Now passes imageFile as 2nd arg
+              onSave={handleSaveItem as (data: any, imageFile?: File) => Promise<void>}
               onClose={() => {
                 setShowForm(false);
                 setEditingItem(null);

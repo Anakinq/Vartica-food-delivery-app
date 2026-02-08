@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Store, Clock, Truck, FileText, AlertCircle, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { supabase } from '../../lib/supabase/client';
 
 interface VendorUpgradeModalProps {
@@ -41,6 +42,7 @@ export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
         }
     }, [isOpen]);
     const { profile, refreshProfile } = useAuth();
+    const { success: showSuccess, error: showError } = useToast();
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState<FormData>({
         storeName: '',
@@ -128,7 +130,7 @@ export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
                 } catch (error) {
                     console.error('Error refreshing profile:', error);
                     // Fallback to showing a message to user
-                    alert('Application submitted! Please refresh the page to see profile changes.');
+                    showSuccess('Application submitted! Please refresh the page to see profile changes.');
                     onSuccess();
                     onClose();
                 }

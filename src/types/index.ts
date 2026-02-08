@@ -105,7 +105,7 @@ export interface LocationData {
 }
 
 // Order status type
-export type OrderStatus = 'pending' | 'accepted' | 'preparing' | 'ready' | 'picked_up' | 'delivered' | 'cancelled';
+export type OrderStatus = 'pending' | 'accepted' | 'preparing' | 'ready' | 'picked_up' | 'shipped' | 'delivered' | 'cancelled';
 
 // Seller type
 export type SellerType = 'cafeteria' | 'vendor' | 'late_night_vendor';

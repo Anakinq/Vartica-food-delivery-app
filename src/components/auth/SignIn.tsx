@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, LogIn } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { supabase } from '../../lib/supabase';
 
 interface SignInProps {
@@ -11,6 +12,7 @@ interface SignInProps {
 
 export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }) => {
   const { signIn, signInWithGoogle, user, profile, loading: authLoading } = useAuth();
+  const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -151,7 +153,7 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
         throw error;
       }
 
-      alert('✅ Password reset email sent! Check your inbox (and spam folder).');
+      showToast({ type: 'success', message: '✅ Password reset email sent! Check your inbox (and spam folder).' });
       setForgotPasswordMode(false);
     } catch (err: unknown) {
       if (process.env.NODE_ENV === 'development') {

@@ -4,6 +4,7 @@ import { X, Plus, Trash2 } from 'lucide-react';
 import { MenuItem, VendorCategory } from '../../lib/supabase/types';
 import { uploadVendorImage } from '../../utils/imageUploader';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { supabase } from '../../lib/supabase/client';
 
 interface MenuItemFormProps {
@@ -14,6 +15,7 @@ interface MenuItemFormProps {
 
 export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClose }) => {
   const { profile } = useAuth();
+  const { success: showSuccess, error: showError } = useToast();
   const [formData, setFormData] = useState({
     name: item?.name || '',
     description: item?.description || '',
@@ -101,7 +103,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
         .single();
 
       if (error) {
-        alert('Failed to add category: ' + error.message);
+        showError('Failed to add category: ' + error.message);
       } else {
         setVendorCategories([...vendorCategories, data]);
         setFormData({
@@ -114,7 +116,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
       }
     } catch (err) {
       console.error('Error adding category:', err);
-      alert('Failed to add category. Please try again.');
+      showError('Failed to add category. Please try again.');
     }
   };
 
@@ -129,7 +131,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
         .eq('id', categoryId);
 
       if (error) {
-        alert('Failed to delete category: ' + error.message);
+        showError('Failed to delete category: ' + error.message);
       } else {
         setVendorCategories(vendorCategories.filter(c => c.id !== categoryId));
         // Clear category selection if deleted category was selected
@@ -139,7 +141,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
       }
     } catch (err) {
       console.error('Error deleting category:', err);
-      alert('Failed to delete category. Please try again.');
+      showError('Failed to delete category. Please try again.');
     }
   };
 

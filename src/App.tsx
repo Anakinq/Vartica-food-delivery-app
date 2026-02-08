@@ -22,9 +22,10 @@ import { DarkModeProvider } from './contexts/DarkModeContext';
 import { UserRole } from './types';
 import { Profile } from './lib/supabase/types';
 import { BottomNavigation } from './components/shared/BottomNavigation';
+import NotificationsPanel from './components/shared/NotificationsPanel';
 
 function AppContent() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, signOut } = useAuth();
   const [showProfile, setShowProfile] = useState(false);
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [authView, setAuthView] = useState<'signin' | 'signup'>('signin');
@@ -49,7 +50,6 @@ function AppContent() {
             return; // Allow vendor view
           } else {
             // If not a vendor, show customer view but keep hash for clarity
-            console.log('User does not have vendor access');
             return;
           }
         } else if (locationHash === '#/delivery') {
@@ -58,7 +58,6 @@ function AppContent() {
             return; // Allow delivery agent view
           } else {
             // If not a delivery agent, show customer view but keep hash for clarity
-            console.log('User does not have delivery agent access');
             return;
           }
         }
@@ -130,14 +129,14 @@ function AppContent() {
     }
 
     if (locationHash === '#/notifications' || locationHash === '#/alerts') {
-      // TODO: Implement notifications component
       return (
         <div className="authenticated-view">
           <div className="main-content">
-            <div className="p-4">
-              <h2 className="text-xl font-bold mb-4">Notifications</h2>
-              <p className="text-gray-600">Notifications functionality coming soon...</p>
-            </div>
+            <NotificationsPanel
+              onClose={() => {
+                window.location.hash = '';
+              }}
+            />
           </div>
           <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
         </div>
@@ -152,9 +151,7 @@ function AppContent() {
               onBack={() => {
                 window.location.hash = '';
               }}
-              onSignOut={() => {
-                // Handle sign out
-              }}
+              onSignOut={() => signOut()}
             />
           </div>
           <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
@@ -162,8 +159,6 @@ function AppContent() {
       );
     }
 
-    // Show profile dashboard if requested
-    console.log('App: showProfile=', showProfile, 'user=', !!user, 'profile=', !!profile);
     if (showProfile) {
       return (
         <div className="authenticated-view">
@@ -171,6 +166,7 @@ function AppContent() {
             <ProfileDashboard
               onBack={() => setShowProfile(false)}
               onSignOut={() => {
+                signOut();
                 setShowProfile(false);
               }}
             />

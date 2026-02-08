@@ -133,28 +133,19 @@ export const DeliveryAgentUpgradeModal: React.FC<DeliveryAgentUpgradeModalProps>
     };
 
     const handleSubmit = async () => {
-        console.log('[DeliveryAgentModal] === STARTING SUBMISSION ===');
-
         if (!validateForm()) {
-            console.log('[DeliveryAgentModal] Form validation failed');
             return;
         }
 
         setLoading(true);
         setError('');
 
-        console.log('[DeliveryAgentModal] Form validated successfully');
-        console.log('[DeliveryAgentModal] Profile ID:', profile?.id);
-
         try {
             // Call the function to add delivery agent role with default 'Foot' vehicle type
-            console.log('[DeliveryAgentModal] Calling addDeliveryAgentRole...');
             await addDeliveryAgentRole('Foot');
-            console.log('[DeliveryAgentModal] addDeliveryAgentRole completed successfully');
 
             // Save bank details after creating delivery agent role
             if (profile?.id && formData.bankAccountNumber && formData.bankName) {
-                console.log('[DeliveryAgentModal] Saving bank details...');
                 const selectedBank = BANK_OPTIONS.find(bank =>
                     bank.name.toLowerCase() === formData.bankName.toLowerCase()
                 );
@@ -169,14 +160,11 @@ export const DeliveryAgentUpgradeModal: React.FC<DeliveryAgentUpgradeModalProps>
                         verified: false
                     });
 
-                console.log('[DeliveryAgentModal] Bank save result:', { error: bankError });
-
                 if (bankError) {
                     console.error('[DeliveryAgentModal] Bank save error:', bankError);
                 }
             }
 
-            console.log('[DeliveryAgentModal] SUCCESS - calling onSuccess and onClose');
             onSuccess();
             onClose();
 

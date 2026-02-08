@@ -8,4 +8,3 @@ export { debugUserLogin, checkUserExists, printAuthDebug } from './authDebugger'
 export { measurePerformance, debounce, throttle } from './performance';
 export { validateSignupForm, validateLoginForm, formatValidationErrors, ValidationRules, type ValidationError } from './validation';
 export { RATE_LIMITS, checkRateLimit, withRateLimit, RateLimitError, createRateLimiter, type RateLimitConfig } from './rateLimiter';
-export { LazyImage, Skeleton, CardSkeleton, ListSkeleton, skeletonStyles, type LazyImageProps } from './LazyImage';

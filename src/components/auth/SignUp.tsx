@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Upload, X, Mail, LogIn } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { supabase } from '../../lib/supabase';
 
 interface SignUpProps {
@@ -11,6 +12,7 @@ interface SignUpProps {
 
 export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }) => {
   const { signUp: authSignUp, signUpWithGoogle, user, profile, loading: authLoading } = useAuth();
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -335,9 +337,9 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
         email: formData.email,
       });
       if (error) throw error;
-      alert('✅ Confirmation email resent! Check your inbox (and spam folder).');
+      showToast({ type: 'success', message: '✅ Confirmation email resent! Check your inbox (and spam folder).' });
     } catch (err) {
-      alert('❌ Failed to resend. Please try again later.');
+      showToast({ type: 'error', message: '❌ Failed to resend. Please try again later.' });
       if (process.env.NODE_ENV === 'development') {
         console.error('Resend error:', err);
       }

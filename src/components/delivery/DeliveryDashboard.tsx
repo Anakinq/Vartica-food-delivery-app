@@ -146,7 +146,6 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
   // 🔁 Unified data fetcher — called on mount, interval, and after key actions
   const fetchData = useCallback(async () => {
-    console.log('DeliveryDashboard: fetchData called, profile ID:', profile?.id);
     if (!profile?.id) return;
 
     setLoading(true);
@@ -309,7 +308,6 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
   // Initial fetch and real-time subscriptions
   useEffect(() => {
-    console.log('DeliveryDashboard: useEffect triggered, profile ID:', profile?.id);
     fetchData();
 
     // Check approval status for delivery agents
@@ -332,11 +330,10 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
             schema: 'public',
             table: 'orders',
           },
-          (payload) => {
+          (payload: any) => {
             // Check if the order is related to this agent
-            if (payload.new.delivery_agent_id === agent?.id || payload.old.delivery_agent_id === agent?.id ||
-              (payload.new.delivery_agent_id === null && payload.new.status === 'pending')) {
-              console.log('Relevant order change detected:', payload);
+            if (payload.new?.delivery_agent_id === agent?.id || payload.old?.delivery_agent_id === agent?.id ||
+              (payload.new?.delivery_agent_id === null && payload.new?.status === 'pending')) {
               fetchData();  // Refresh data when a relevant order changes
             }
           }
@@ -345,7 +342,6 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     }
 
     return () => {
-      console.log('DeliveryDashboard: Cleaning up subscriptions');
       if (orderSubscription) {
         supabase.removeChannel(orderSubscription);
       }
@@ -697,7 +693,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                 </div>
                 <div>
                   <h1 className="text-lg font-bold text-gray-900">Delivery Dashboard</h1>
-                  <p className="text-xs text-gray-500">{profile?.full_name}</p>
+                  <p className="text-sm text-gray-600 font-medium">{profile?.full_name}</p>
                 </div>
               </div>
 

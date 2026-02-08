@@ -40,7 +40,7 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
 
     const { data } = await databaseService.select<Order>({
       table: 'orders',
-      match: { customer_id: user.id },
+      match: { user_id: user.id },
       order: { column: 'created_at', ascending: false },
       limit: 10,
     });
