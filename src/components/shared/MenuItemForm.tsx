@@ -38,9 +38,20 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryType, setNewCategoryType] = useState<'food' | 'product' | 'service' | 'general'>('general');
 
-  // Determine if this is a business vendor (late_night) vs food vendor (student)
-  const isBusinessVendor = profile?.vendor?.vendor_type === 'late_night';
-  const isFoodVendor = profile?.vendor?.vendor_type === 'student';
+  // Determine if this is a business vendor vs food vendor
+  // Business vendors: late_night_vendor, or any vendor that should show product categories
+  const isBusinessVendor = profile?.vendor?.vendor_type === 'late_night' ||
+    profile?.role === 'late_night_vendor' ||
+    (profile?.vendor?.vendor_type && !['student'].includes(profile.vendor.vendor_type));
+
+  // Default categories for business vendors
+  const businessDefaultCategories = [
+    { id: 'electronics', name: 'Electronics', category_type: 'product', sort_order: 1, is_active: true, vendor_id: profile?.vendor?.id || '' },
+    { id: 'accessories', name: 'Accessories', category_type: 'product', sort_order: 2, is_active: true, vendor_id: profile?.vendor?.id || '' },
+    { id: 'clothing', name: 'Clothing', category_type: 'product', sort_order: 3, is_active: true, vendor_id: profile?.vendor?.id || '' },
+    { id: 'services', name: 'Services', category_type: 'service', sort_order: 4, is_active: true, vendor_id: profile?.vendor?.id || '' },
+    { id: 'other', name: 'Other', category_type: 'general', sort_order: 5, is_active: true, vendor_id: profile?.vendor?.id || '' },
+  ];
 
   // Fetch vendor categories from database
   const fetchVendorCategories = async () => {
@@ -179,15 +190,18 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
     }
   };
 
-  // Get categories to display (only dynamic categories from database)
-  const displayCategories = vendorCategories;
+  // Get categories to display
+  // For business vendors, use default business categories if none exist in database
+  const displayCategories = vendorCategories.length > 0
+    ? vendorCategories
+    : (isBusinessVendor ? businessDefaultCategories : []);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl max-w-2xl w-full p-6 max-h-[90vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">
-            {item ? 'Edit Menu Item' : 'Add Menu Item'}
+            {item ? 'Edit Product' : isBusinessVendor ? 'Add Product' : 'Add Menu Item'}
           </h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
             <X className="h-6 w-6" />
@@ -254,6 +268,36 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
                 <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50">
                   Loading categories...
                 </div>
+              ) : vendorCategories.length === 0 && isBusinessVendor ? (
+                // Business vendors get default categories shown directly
+                <select
+                  value={formData.category_id || formData.category}
+                  onChange={(e) => {
+                    const selectedCat = businessDefaultCategories.find(c => c.id === e.target.value || c.name === e.target.value);
+                    if (selectedCat) {
+                      setFormData({
+                        ...formData,
+                        category: selectedCat.name,
+                        category_id: selectedCat.id
+                      });
+                    } else {
+                      setFormData({
+                        ...formData,
+                        category: e.target.value,
+                        category_id: ''
+                      });
+                    }
+                  }}
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select category</option>
+                  {businessDefaultCategories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
               ) : vendorCategories.length === 0 ? (
                 // No categories yet - prompt to add one
                 <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
@@ -423,7 +467,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
               disabled={isUploading}
               className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-70"
             >
-              {isUploading ? 'Saving...' : item ? 'Update Item' : 'Add Item'}
+              {isUploading ? 'Saving...' : item ? 'Update Product' : isBusinessVendor ? 'Add Product' : 'Add Item'}
             </button>
           </div>
         </form>
