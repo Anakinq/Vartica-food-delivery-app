@@ -9,7 +9,7 @@ import { VendorUpgradeModal } from '../customer/VendorUpgradeModal';
 import { DeliveryAgentUpgradeModal } from '../customer/DeliveryAgentUpgradeModal';
 import InstallPrompt from '../InstallPrompt';
 
-export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => void }> = ({ onBack, onSignOut }) => {
+export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => void; onClose?: () => void }> = ({ onBack, onSignOut, onClose }) => {
   const { profile, refreshProfile } = useAuth();
   const { showToast } = useToast();
   const [showSupportModal, setShowSupportModal] = useState(false);
@@ -389,8 +389,16 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
                     <button
                       type="button"
                       onClick={() => {
-                        // Switch to vendor view by changing the hash
-                        window.location.hash = '#/vendor';
+                        // Close the profile dashboard first
+                        if (onClose) {
+                          onClose();
+                        } else if (onBack) {
+                          onBack();
+                        }
+                        // Then switch to vendor view by changing the hash
+                        setTimeout(() => {
+                          window.location.hash = '#/vendor';
+                        }, 10);
                       }}
                       className="flex items-center px-6 py-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-xl font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors w-full justify-center"
                     >

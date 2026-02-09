@@ -6,7 +6,6 @@ import { supabase } from '../../lib/supabase/client';
 import { Vendor, Order } from '../../lib/supabase/types';
 import { MenuItemForm } from '../shared/MenuItemForm';
 import { ChatModal } from '../shared/ChatModal';
-import { RoleSwitcher } from '../shared/RoleSwitcher';
 import { uploadVendorImage } from '../../utils/imageUploader';
 import { ProfileWithVendor } from '../../services/supabase/database.service';
 import { useToast } from '../../contexts/ToastContext';
@@ -42,7 +41,6 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   const [reviews, setReviews] = useState<any[]>([]);
   const [averageRating, setAverageRating] = useState<number>(0);
   const [totalReviews, setTotalReviews] = useState<number>(0);
-  const [preferredRole, setPreferredRole] = useState<'customer' | 'vendor' | 'delivery_agent'>('vendor');
   const [metrics, setMetrics] = useState({
     totalOrders: 0,
     totalRevenue: 0,
@@ -519,47 +517,6 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     }
   };
 
-  // Check for preferred role in sessionStorage
-  useEffect(() => {
-    const savedRole = sessionStorage.getItem('preferredRole');
-    if (savedRole === 'customer' || savedRole === 'vendor') {
-      setPreferredRole(savedRole);
-    }
-  }, []);
-
-  // Handle role switching
-  const handleRoleSwitch = (newRole: 'customer' | 'vendor' | 'delivery_agent') => {
-    setPreferredRole(newRole);
-    // Store in sessionStorage for persistence
-    sessionStorage.setItem('preferredRole', newRole);
-
-    // Show a toast notification
-    const roleNames = {
-      customer: 'Customer',
-      vendor: 'Vendor',
-      delivery_agent: 'Delivery Agent'
-    };
-    const message = `Switching to ${roleNames[newRole]} view...`;
-    showToast({ type: 'info', message });
-
-    // Handle role switching
-    switch (newRole) {
-      case 'customer':
-        window.location.hash = '';
-        break;
-      case 'vendor':
-        if (profile?.role && ['vendor', 'late_night_vendor'].includes(profile.role)) {
-          window.location.hash = '#/vendor';
-        }
-        break;
-      case 'delivery_agent':
-        if (profile?.role === 'delivery_agent') {
-          window.location.hash = '#/delivery';
-        }
-        break;
-    }
-  };
-
   // Guard UI pattern to handle approval status without breaking hook rules
   let guardUI: React.ReactNode | null = null;
 
@@ -859,69 +816,69 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {menuItems.map(item => (
                 <div key={item.id} className={`bg-white rounded-xl shadow-md p-6 ${!item.is_available ? 'opacity-60' : ''}`}>
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-bold text-gray-900">{item.name}</h3>
-                        <p className="text-xl font-bold text-blue-600 mt-1">₦{item.price.toFixed(2)}</p>
-                      </div>
-                      <button
-                        onClick={() => handleToggleAvailability(item)}
-                        className={`p-2 rounded-lg ${item.is_available ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`}
-                      >
-                        {item.is_available ? <ToggleRight className="h-6 w-6" /> : <ToggleLeft className="h-6 w-6" />}
-                      </button>
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-gray-900">{item.name}</h3>
+                      <p className="text-xl font-bold text-blue-600 mt-1">₦{item.price.toFixed(2)}</p>
                     </div>
-
-                    {item.description && (
-                      <p className="text-sm text-gray-600 mb-3">{item.description}</p>
-                    )}
-
-                    {item.category && (
-                      <span className="inline-block px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full mb-3">
-                        {item.category}
-                      </span>
-                    )}
-
-                    {/* Image display section */}
-                    {item.image_url ? (
-                      <div className="mb-3">
-                        <img
-                          src={decodeURIComponent(item.image_url)}
-                          alt={item.name}
-                          className="w-full h-32 object-cover rounded-md border"
-                          onError={(e) => {
-                            const target = e.currentTarget;
-                            target.style.display = 'none';
-                            target.nextElementSibling?.classList.remove('hidden');
-                          }}
-                        />
-                        <div className="hidden w-full h-32 bg-gray-100 rounded-md border-2 border-dashed border-gray-300 flex items-center justify-center">
-                          <span className="text-gray-400 text-sm">No image available</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="mb-3 w-full h-32 bg-gray-100 rounded-md border-2 border-dashed border-gray-300 flex items-center justify-center">
-                        <span className="text-gray-400 text-sm">No image</span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-                      <span className={`text-sm font-medium ${item.is_available ? 'text-green-600' : 'text-red-600'}`}>
-                        {item.is_available ? 'In Stock' : 'Out of Stock'}
-                      </span>
-                      <button
-                        onClick={() => {
-                          setEditingItem(item);
-                          setShowForm(true);
-                        }}
-                        className="flex items-center space-x-1 text-blue-600 hover:text-blue-700"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                        <span>Edit</span>
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => handleToggleAvailability(item)}
+                      className={`p-2 rounded-lg ${item.is_available ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`}
+                    >
+                      {item.is_available ? <ToggleRight className="h-6 w-6" /> : <ToggleLeft className="h-6 w-6" />}
+                    </button>
                   </div>
-                ))}
+
+                  {item.description && (
+                    <p className="text-sm text-gray-600 mb-3">{item.description}</p>
+                  )}
+
+                  {item.category && (
+                    <span className="inline-block px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full mb-3">
+                      {item.category}
+                    </span>
+                  )}
+
+                  {/* Image display section */}
+                  {item.image_url ? (
+                    <div className="mb-3">
+                      <img
+                        src={decodeURIComponent(item.image_url)}
+                        alt={item.name}
+                        className="w-full h-32 object-cover rounded-md border"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          target.style.display = 'none';
+                          target.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                      <div className="hidden w-full h-32 bg-gray-100 rounded-md border-2 border-dashed border-gray-300 flex items-center justify-center">
+                        <span className="text-gray-400 text-sm">No image available</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mb-3 w-full h-32 bg-gray-100 rounded-md border-2 border-dashed border-gray-300 flex items-center justify-center">
+                      <span className="text-gray-400 text-sm">No image</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                    <span className={`text-sm font-medium ${item.is_available ? 'text-green-600' : 'text-red-600'}`}>
+                      {item.is_available ? 'In Stock' : 'Out of Stock'}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setEditingItem(item);
+                        setShowForm(true);
+                      }}
+                      className="flex items-center space-x-1 text-blue-600 hover:text-blue-700"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                      <span>Edit</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -1232,17 +1189,6 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
             onClose={() => setSelectedOrderForChat(null)}
           />
         )}
-
-        {/* Role Switcher - only show if user has both customer and vendor capabilities */}
-        {profile && (
-          ['customer', 'vendor', 'late_night_vendor'].includes(profile.role as string)
-        ) && (
-            <RoleSwitcher
-              currentRole={preferredRole}
-              onRoleSwitch={handleRoleSwitch}
-              id="role-switcher-button"
-            />
-          )}
       </div>
     </div>
   );

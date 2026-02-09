@@ -35,17 +35,16 @@ export const VendorBottomNavigation: React.FC<VendorBottomNavigationProps> = ({
         }
     };
 
-    // Handle role switch
+    // Handle role switch - switch to customer view
     const handleRoleSwitch = () => {
-        const roleSwitcher = document.getElementById('role-switcher-button');
-        if (roleSwitcher) {
-            roleSwitcher.click();
-        } else {
-            // Fallback: use sessionStorage and refresh
-            sessionStorage.setItem('preferredRole', 'customer');
-            window.location.hash = '';
+        // Store the preferred role in sessionStorage
+        sessionStorage.setItem('preferredRole', 'customer');
+        // Clear hash and reload to ensure proper state update
+        window.location.hash = '';
+        // Small delay to ensure sessionStorage is set before reload
+        setTimeout(() => {
             window.location.reload();
-        }
+        }, 50);
     };
 
     const navItems = [

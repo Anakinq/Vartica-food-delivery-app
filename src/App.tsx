@@ -164,6 +164,9 @@ function AppContent() {
                 window.location.hash = '';
               }}
               onSignOut={() => signOut()}
+              onClose={() => {
+                window.location.hash = '';
+              }}
             />
           </div>
           <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
