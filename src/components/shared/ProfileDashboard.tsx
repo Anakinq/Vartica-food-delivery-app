@@ -549,10 +549,16 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
             // Refresh the profile to reflect the role change
             try {
               await refreshProfile();
+              showToast({ 
+                type: 'success', 
+                message: 'Application submitted! Your delivery agent account is pending admin approval. You will be notified once approved.' 
+              });
             } catch (error) {
               console.error('Error refreshing profile:', error);
-              // Fallback to showing a message to user
-              showToast({ type: 'info', message: 'Please refresh the page to see profile changes.' });
+              showToast({ 
+                type: 'success', 
+                message: 'Application submitted! Awaiting admin approval.' 
+              });
             }
           }}
         />

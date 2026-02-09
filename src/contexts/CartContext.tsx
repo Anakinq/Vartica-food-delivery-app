@@ -17,6 +17,8 @@ interface CartContextType {
     clearCart: () => void;
     cartCount: number;
     subtotal: number;
+    cartPackCount: number;
+    setCartPackCount: (count: number) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -24,6 +26,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [items, setItems] = useState<CartItem[]>([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
+    const [cartPackCount, setCartPackCount] = useState(0);
 
     const openCart = useCallback(() => setIsCartOpen(true), []);
     const closeCart = useCallback(() => setIsCartOpen(false), []);
@@ -52,6 +55,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const clearCart = useCallback(() => {
         setItems([]);
+        setCartPackCount(0);
         closeCart();
     }, [closeCart]);
 
@@ -59,14 +63,19 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
     return (
-        <CartContext.Provider value={{ items, isCartOpen, openCart, closeCart, addItem, removeItem, updateQuantity, clearCart, cartCount, subtotal }}>
+        <CartContext.Provider value={{ items, isCartOpen, openCart, closeCart, addItem, removeItem, updateQuantity, clearCart, cartCount, subtotal, cartPackCount, setCartPackCount }}>
             {children}
             {isCartOpen && (
                 <Cart
                     items={items}
                     onUpdateQuantity={updateQuantity}
-                    onClear={() => setItems([])}
+                    onClear={() => {
+                        setItems([]);
+                        setCartPackCount(0);
+                    }}
                     onClose={closeCart}
+                    cartPackCount={cartPackCount}
+                    onCartPackChange={setCartPackCount}
                     onCheckout={() => {
                         closeCart();
                         window.location.hash = '#/checkout';

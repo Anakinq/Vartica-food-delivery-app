@@ -93,24 +93,17 @@ USING (is_available = true OR auth.uid() IN (
 -- Customers can view their own orders
 CREATE POLICY "Customers can view own orders"
 ON orders FOR SELECT
-USING (auth.uid() = customer_id);
+USING (auth.uid() = user_id);
+
+-- Customers can create orders
+CREATE POLICY "Customers can create orders"
+ON orders FOR INSERT
+WITH CHECK (auth.uid() = user_id);
 
 -- Vendors can view orders for their items
 CREATE POLICY "Vendors can view own orders"
 ON orders FOR SELECT
 USING (auth.uid() IN (
-  SELECT user_id FROM vendors WHERE id = seller_id
-));
-
--- Delivery agents can view assigned orders
-CREATE POLICY "Delivery agents can view assigned orders"
-ON orders FOR SELECT
-USING (auth.uid() = delivery_agent_id);
-
--- Vendors can create orders (system-generated)
-CREATE POLICY "Vendors can create orders"
-ON orders FOR INSERT
-WITH CHECK (auth.uid() IN (
   SELECT user_id FROM vendors WHERE id = seller_id
 ));
 
@@ -120,6 +113,11 @@ ON orders FOR UPDATE
 USING (auth.uid() IN (
   SELECT user_id FROM vendors WHERE id = seller_id
 ));
+
+-- Delivery agents can view assigned orders
+CREATE POLICY "Delivery agents can view assigned orders"
+ON orders FOR SELECT
+USING (auth.uid() = delivery_agent_id);
 ```
 
 ### 6. `wallet_transactions` table

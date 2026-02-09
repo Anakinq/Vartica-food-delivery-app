@@ -165,13 +165,13 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                         // Fetch order details to get customer and seller IDs
                         const { data: orderData, error: orderError } = await supabase
                             .from('orders')
-                            .select('customer_id, seller_id, seller_type, order_number')
+                            .select('user_id, seller_id, seller_type, order_number')
                             .eq('id', orderId)
                             .single();
 
                         if (orderData) {
                             // Send notification to customer about delivery progress
-                            await notificationService.sendOrderStatusUpdate(orderData.order_number, orderData.customer_id, 'picked_up');
+                            await notificationService.sendOrderStatusUpdate(orderData.order_number, orderData.user_id, 'picked_up');
 
                             // Send notification to seller
                             if (orderData.seller_id) {

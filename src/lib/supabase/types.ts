@@ -43,6 +43,10 @@ export interface Vendor {
     matric_number?: string;
     department?: string;
     delivery_option?: 'offers_hostel_delivery' | 'does_not_offer_hostel_delivery';
+    // Marketplace delivery mode
+    delivery_mode?: 'self_delivery' | 'pickup_only' | 'agent_delivery' | 'both';
+    delivery_fee_self?: number;
+    allow_agent_delivery?: boolean;
 }
 
 export interface VendorCategory {
@@ -85,17 +89,19 @@ export interface DeliveryAgent {
 export interface Order {
     id: string;
     order_number: string;
-    customer_id: string;
+    user_id: string;
     seller_id: string;
     seller_type: 'cafeteria' | 'vendor' | 'late_night_vendor';
     delivery_agent_id?: string;
-    status: 'pending' | 'accepted' | 'preparing' | 'ready' | 'picked_up' | 'shipped' | 'delivered' | 'cancelled';
+    status: 'pending' | 'accepted' | 'preparing' | 'ready' | 'ready_for_pickup' | 'picked_up' | 'delivered' | 'cancelled';
     subtotal: number;
     delivery_fee?: number;
+    delivery_fee_discount?: number;
     discount?: number;
     total: number;
     payment_method: 'cash' | 'online';
     payment_status?: 'pending' | 'paid' | 'failed';
+    payment_reference?: string;
     promo_code?: string;
     delivery_address: string;
     delivery_notes?: string;
@@ -104,6 +110,8 @@ export interface Order {
     updated_at?: string;
     platform_commission?: number;
     agent_earnings?: number;
+    // Marketplace delivery handler
+    delivery_handler?: 'vendor' | 'agent';
     // Added location tracking fields
     customer_location?: {
         latitude: number;

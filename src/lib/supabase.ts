@@ -34,6 +34,10 @@ export interface Vendor {
   available_from?: string;
   available_until?: string;
   created_at: string;
+  // Marketplace delivery mode
+  delivery_mode: 'self_delivery' | 'pickup_only' | 'agent_delivery' | 'both';
+  delivery_fee_self?: number;
+  allow_agent_delivery?: boolean;
 }
 
 export interface MenuItem {
@@ -64,23 +68,41 @@ export interface DeliveryAgent {
 export interface Order {
   id: string;
   order_number: string;
-  customer_id: string;
+  user_id: string;
   seller_id: string;
-  seller_type: 'cafeteria' | 'vendor';
+  seller_type: 'cafeteria' | 'vendor' | 'late_night_vendor';
   delivery_agent_id?: string;
-  status: 'pending' | 'accepted' | 'preparing' | 'ready' | 'picked_up' | 'delivered' | 'cancelled';
+  status: 'pending' | 'accepted' | 'preparing' | 'ready' | 'ready_for_pickup' | 'picked_up' | 'delivered' | 'cancelled';
   subtotal: number;
   delivery_fee: number;
+  delivery_fee_discount?: number;
   discount: number;
   total: number;
   payment_method: 'cash' | 'online';
   payment_status: 'pending' | 'paid' | 'failed';
+  payment_reference?: string;
   promo_code?: string;
   delivery_address: string;
   delivery_notes?: string;
   scheduled_for?: string;
   created_at: string;
   updated_at: string;
+  platform_commission?: number;
+  agent_earnings?: number;
+  // Marketplace delivery handler
+  delivery_handler?: 'vendor' | 'agent';
+  customer_location?: {
+    latitude: number;
+    longitude: number;
+    timestamp: string;
+    accuracy?: number;
+  };
+  delivery_agent_location?: {
+    latitude: number;
+    longitude: number;
+    timestamp: string;
+    accuracy?: number;
+  };
 }
 
 export interface OrderItem {

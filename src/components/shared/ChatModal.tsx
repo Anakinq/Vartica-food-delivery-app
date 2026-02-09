@@ -3,7 +3,8 @@ import { X, Send, Paperclip, Image, File, Download, Phone } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { databaseService } from '../../services';
-import { ChatMessage } from '../../lib/supabase/types';
+import { notificationService } from '../../services/notification.service';
+import { ChatMessage, Order } from '../../lib/supabase/types';
 import { supabase } from '../../lib/supabase/client';
 
 // Import the new VoiceCallModal
@@ -13,19 +14,44 @@ interface ChatModalProps {
   orderId: string;
   orderNumber: string;
   recipientName: string;
+  recipientId?: string; // Optional: pass recipient ID directly
   onClose: () => void;
 }
 
-export const ChatModal: React.FC<ChatModalProps> = ({ orderId, orderNumber, recipientName, onClose }) => {
+export const ChatModal: React.FC<ChatModalProps> = ({
+  orderId,
+  orderNumber,
+  recipientName,
+  recipientId,
+  onClose
+}) => {
   const { user } = useAuth();
-  const { error: showError } = useToast();
+  const { error: showError, success } = useToast();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [showVoiceCallModal, setShowVoiceCallModal] = useState(false);
+  const [orderData, setOrderData] = useState<Order | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Fetch order data to get recipient info
+  useEffect(() => {
+    const fetchOrderData = async () => {
+      const { data } = await supabase
+        .from('orders')
+        .select('user_id, delivery_agent_id, seller_id')
+        .eq('id', orderId)
+        .single();
+
+      if (data) {
+        setOrderData(data as unknown as Order);
+      }
+    };
+
+    fetchOrderData();
+  }, [orderId]);
 
   useEffect(() => {
     fetchMessages();
@@ -33,15 +59,33 @@ export const ChatModal: React.FC<ChatModalProps> = ({ orderId, orderNumber, reci
     const subscription = databaseService.subscribe<ChatMessage>(
       'chat_messages',
       (payload) => {
+        // Handle INSERT events for new messages
         if (payload.eventType === 'INSERT') {
-          setMessages((prev) => [...prev, payload.new]);
+          const newMsg = payload.new as ChatMessage;
+          // Only add if it's for this order
+          if (newMsg.order_id === orderId) {
+            setMessages((prev) => [...prev, newMsg]);
+            // Mark as read if not own message
+            if (newMsg.sender_id !== user?.id) {
+              markAsRead([newMsg]);
+            }
+          }
+        }
+        // Handle UPDATE events (for read receipts)
+        if (payload.eventType === 'UPDATE') {
+          const updatedMsg = payload.new as ChatMessage;
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === updatedMsg.id ? updatedMsg : msg
+            )
+          );
         }
       },
       { order_id: orderId }
     );
 
     return () => subscription.unsubscribe();
-  }, [orderId]);
+  }, [orderId, user?.id]);
 
   useEffect(() => {
     scrollToBottom();
@@ -131,6 +175,33 @@ export const ChatModal: React.FC<ChatModalProps> = ({ orderId, orderNumber, reci
       if (error) {
         showError('Failed to send message');
         return;
+      }
+
+      // Send notification to recipient
+      try {
+        // Determine recipient ID (not the sender)
+        let targetRecipientId = recipientId;
+
+        if (!targetRecipientId && orderData) {
+          // If customer sent, notify delivery agent
+          if (user.id === orderData.user_id) {
+            targetRecipientId = orderData.delivery_agent_id || undefined;
+          } else {
+            // If delivery agent sent, notify customer
+            targetRecipientId = orderData.user_id;
+          }
+        }
+
+        if (targetRecipientId) {
+          await notificationService.sendMessageNotification(
+            orderNumber,
+            targetRecipientId,
+            newMessage.trim() || 'Sent a file'
+          );
+        }
+      } catch (notifyError) {
+        console.error('Failed to send notification:', notifyError);
+        // Don't fail the message send if notification fails
       }
 
       setNewMessage('');

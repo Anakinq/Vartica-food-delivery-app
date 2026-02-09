@@ -1,6 +1,6 @@
 // src/components/customer/CustomerHome.tsx
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { Search, LogOut, User, Moon, Package, Heart } from 'lucide-react';
+import { Search, LogOut, User, Moon, Package, Heart, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Cafeteria, MenuItem } from '../../lib/supabase';
 import { Vendor } from '../../lib/supabase/types';
@@ -46,7 +46,9 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     subtotal,
     isCartOpen,
     openCart,
-    closeCart
+    closeCart,
+    cartPackCount,
+    setCartPackCount
   } = useCart();
 
   // Listen for cart modal open event from BottomNavigation
@@ -72,7 +74,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [pulseCategory, setPulseCategory] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [cartPackCount, setCartPackCount] = useState(0);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showVendorUpgrade, setShowVendorUpgrade] = useState(false);
   const [preferredRole, setPreferredRole] = useState<'customer' | 'vendor'>('customer');
@@ -522,16 +523,31 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Vartica Logo */}
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setSelectedSeller(null)}
-                className="text-2xl font-bold text-black hover:text-gray-700 transition-colors duration-200"
-                aria-label="Back to home"
-              >
-                Vartica
-              </button>
+            <div className="flex items-center space-x-3">
+              {selectedSeller ? (
+                <button
+                  onClick={() => {
+                    setSelectedSeller(null);
+                    setMenuItems([]);
+                    setGlobalSearchQuery('');
+                  }}
+                  className="flex items-center space-x-2 text-gray-800 hover:text-amber-500 transition-colors duration-200 font-semibold"
+                  aria-label="Back to home"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                  <span className="text-sm font-semibold">Back</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => window.location.reload()}
+                  className="text-3xl font-extrabold text-black hover:text-gray-700 transition-colors duration-200 tracking-tight"
+                  aria-label="Back to home"
+                >
+                  Vartica
+                </button>
+              )}
               {selectedSeller && (
-                <span className="text-gray-500 text-sm truncate max-w-[100px] sm:max-w-[200px]">/ {selectedSeller.name}</span>
+                <span className="text-gray-700 text-sm font-semibold truncate max-w-[100px] sm:max-w-[200px]">/ {selectedSeller.name}</span>
               )}
             </div>
 
@@ -540,7 +556,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
               {/* My Orders */}
               <button
                 onClick={() => setShowOrders(true)}
-                className="p-2 text-gray-700 hover:text-green-600 transition-colors duration-200"
+                className="p-2 text-gray-800 hover:text-green-600 transition-colors duration-200 font-medium"
                 title="My Orders"
                 aria-label="View orders"
               >
@@ -553,7 +569,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                   console.log('CustomerHome: Profile button clicked');
                   onShowProfile?.();
                 }}
-                className="flex items-center space-x-1 sm:space-x-2 text-gray-700 hover:text-green-600 transition-colors duration-200"
+                className="flex items-center space-x-1 sm:space-x-2 text-gray-800 hover:text-green-600 transition-colors duration-200 font-medium"
                 aria-label="View profile"
               >
                 {(profile as any)?.avatar_url ? (
@@ -572,7 +588,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                     {profile?.full_name?.charAt(0).toUpperCase() || 'U'}
                   </div>
                 )}
-                <span className="hidden sm:inline text-sm">{profile?.full_name}</span>
+                <span className="hidden sm:inline text-sm font-semibold">{profile?.full_name}</span>
               </button>
             </div>
           </div>
@@ -584,19 +600,19 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         <div className="mb-4 sm:mb-6">
           <div className="flex justify-between items-center mb-4">
             <div className="relative flex-1 mr-4">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-amber-500 h-5 w-5" />
               <input
                 type="text"
                 value={globalSearchQuery}
                 onChange={(e) => setGlobalSearchQuery(e.target.value)}
                 placeholder={selectedSeller ? "Search menu items..." : "Search for food, vendors, or cafeterias..."}
-                className="w-full pl-10 pr-4 py-3 sm:py-4 bg-[#1e1e1e] border border-[#333] rounded-full focus:ring-2 focus:ring-[#FF9500] focus:bg-[#1e1e1e] transition-all text-sm sm:text-base text-white placeholder-gray-400"
+                className="w-full pl-10 pr-4 py-3 sm:py-4 bg-[#2a2a2a] border-2 border-amber-400/30 rounded-full focus:ring-2 focus:ring-amber-400 focus:bg-[#2a2a2a] transition-all text-sm sm:text-base text-white placeholder-gray-400 shadow-lg"
                 aria-label={selectedSeller ? "Search menu items" : "Search food or vendors"}
               />
             </div>
             <button
               onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-              className={`p-3 rounded-full ${showFavoritesOnly ? 'bg-[#FF9500] text-black' : 'bg-[#1e1e1e] text-gray-400 hover:text-white'}`}
+              className={`p-3 rounded-full ${showFavoritesOnly ? 'bg-amber-400 text-black' : 'bg-[#2a2a2a] text-amber-500 hover:text-white border border-amber-500/30'}`}
             >
               <Heart className={`h-5 w-5 ${showFavoritesOnly ? 'fill-current' : ''}`} />
             </button>
@@ -614,10 +630,10 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                     className={`
                       whitespace-nowrap px-3 sm:px-5 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200
                       ${pulseCategory === category
-                        ? 'bg-[#FF9500] text-black scale-105'
+                        ? 'bg-amber-500 text-black scale-105'
                         : activeCategory === category
-                          ? 'bg-[#FF9500] text-black'
-                          : 'bg-[#1e1e1e] text-gray-300 hover:bg-[#2a2a2a] hover:text-white active:scale-95'}
+                          ? 'bg-amber-400 text-black'
+                          : 'bg-[#1e1e1e] text-amber-500 hover:bg-[#2a2a2a] hover:text-white active:scale-95'}
                     `}
                   >
                     {category}
@@ -631,7 +647,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         {!selectedSeller ? (
           <>
             <section className="mb-12">
-              <h2 className="text-xl sm:text-2xl font-bold text-black mb-4 sm:mb-6">Cafeterias</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-amber-500 mb-4 sm:mb-6">Cafeterias</h2>
               {loading ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
@@ -680,7 +696,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
             </section>
 
             <section className="mb-12">
-              <h2 className="text-xl sm:text-2xl font-bold text-black mb-4 sm:mb-6">Student Vendors</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-amber-500 mb-4 sm:mb-6">Student Vendors</h2>
               {loading ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
@@ -746,8 +762,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
             {lateNightVendors.length > 0 && (
               <section className="mb-12">
                 <div className="flex items-center space-x-2 mb-4 sm:mb-6">
-                  <Moon className="h-5 w-5 sm:h-6 sm:w-6 text-stone-700" />
-                  <h2 className="text-xl sm:text-2xl font-bold text-stone-800">Late-Night Vendors</h2>
+                  <Moon className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500" />
+                  <h2 className="text-xl sm:text-2xl font-bold text-amber-500">Late-Night Vendors</h2>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                   {lateNightVendors.map(vendor => (
@@ -792,7 +808,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                   className="mb-8"
                 >
                   <div className="flex items-center space-x-2 mb-4">
-                    <h2 className="text-xl sm:text-2xl font-bold text-black">{category}</h2>
+                    <h2 className="text-xl sm:text-2xl font-bold text-amber-500">{category}</h2>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                     {items.map(item => (

@@ -19,7 +19,9 @@ interface FormData {
     department?: string;
     availableFrom?: string;
     availableUntil?: string;
-    deliveryOption: 'offers_hostel_delivery' | 'does_not_offer_hostel_delivery';
+    deliveryMode: 'self_delivery' | 'pickup_only' | 'both';
+    deliveryFeeSelf?: number;
+    allowAgentDelivery: boolean;
 }
 
 export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
@@ -35,7 +37,8 @@ export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
                 storeName: '',
                 description: '',
                 vendorType: 'student',
-                deliveryOption: 'does_not_offer_hostel_delivery'
+                deliveryMode: 'both',
+                allowAgentDelivery: true
             });
             setError('');
             setApplicationSubmitted(false);
@@ -48,7 +51,8 @@ export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
         storeName: '',
         description: '',
         vendorType: 'student',
-        deliveryOption: 'does_not_offer_hostel_delivery'
+        deliveryMode: 'both',
+        allowAgentDelivery: true
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -109,7 +113,9 @@ export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
                 p_department: formData.department || null,
                 p_available_from: formData.availableFrom || null,
                 p_available_until: formData.availableUntil || null,
-                p_delivery_option: formData.deliveryOption
+                p_delivery_mode: formData.deliveryMode,
+                p_delivery_fee_self: formData.deliveryFeeSelf || 0,
+                p_allow_agent_delivery: formData.allowAgentDelivery
             });
 
             if (error) throw new Error(error.message);
@@ -289,13 +295,13 @@ export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Delivery Option *
+                                    Delivery Mode *
                                 </label>
                                 <div className="space-y-3">
                                     <button
                                         type="button"
-                                        onClick={() => handleInputChange('deliveryOption', 'offers_hostel_delivery')}
-                                        className={`w-full p-4 border rounded-lg text-left transition-colors ${formData.deliveryOption === 'offers_hostel_delivery'
+                                        onClick={() => handleInputChange('deliveryMode', 'self_delivery')}
+                                        className={`w-full p-4 border rounded-lg text-left transition-colors ${formData.deliveryMode === 'self_delivery'
                                             ? 'border-blue-500 bg-blue-50 text-blue-700'
                                             : 'border-gray-300 hover:border-gray-400'
                                             }`}
@@ -303,15 +309,15 @@ export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
                                         <div className="flex items-center">
                                             <Truck className="h-5 w-5 mr-3" />
                                             <div>
-                                                <div className="font-medium">Hostel Delivery</div>
-                                                <div className="text-sm text-gray-500">Deliver directly to hostels</div>
+                                                <div className="font-medium">Self Delivery</div>
+                                                <div className="text-sm text-gray-500">You deliver directly to hostels</div>
                                             </div>
                                         </div>
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => handleInputChange('deliveryOption', 'does_not_offer_hostel_delivery')}
-                                        className={`w-full p-4 border rounded-lg text-left transition-colors ${formData.deliveryOption === 'does_not_offer_hostel_delivery'
+                                        onClick={() => handleInputChange('deliveryMode', 'pickup_only')}
+                                        className={`w-full p-4 border rounded-lg text-left transition-colors ${formData.deliveryMode === 'pickup_only'
                                             ? 'border-blue-500 bg-blue-50 text-blue-700'
                                             : 'border-gray-300 hover:border-gray-400'
                                             }`}
@@ -320,7 +326,23 @@ export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
                                             <Store className="h-5 w-5 mr-3" />
                                             <div>
                                                 <div className="font-medium">Pickup Only</div>
-                                                <div className="text-sm text-gray-500">Customers pick up orders</div>
+                                                <div className="text-sm text-gray-500">Customers pick up from your location</div>
+                                            </div>
+                                        </div>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleInputChange('deliveryMode', 'both')}
+                                        className={`w-full p-4 border rounded-lg text-left transition-colors ${formData.deliveryMode === 'both'
+                                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                            : 'border-gray-300 hover:border-gray-400'
+                                            }`}
+                                    >
+                                        <div className="flex items-center">
+                                            <Truck className="h-5 w-5 mr-3" />
+                                            <div>
+                                                <div className="font-medium">Both</div>
+                                                <div className="text-sm text-gray-500">Customer chooses at checkout</div>
                                             </div>
                                         </div>
                                     </button>

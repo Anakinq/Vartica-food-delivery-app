@@ -100,6 +100,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   const [selectedOrderForChat, setSelectedOrderForChat] = useState<FullOrder | null>(null);
   const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<FullOrder | null>(null);
   const [loading, setLoading] = useState(true);
+  const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [activeTab, setActiveTab] = useState<'available' | 'active' | 'history'>('active');
@@ -218,10 +219,10 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         setIsBankVerified(bankData.verified || true); // Bank saved = verified for manual system
       }
 
-      // 5. Orders
+      // 5. Orders - My active orders
       const { data: myOrdersData, error: myOrdersError } = await supabase
         .from('orders')
-        .select('id, order_number, customer_id, subtotal, delivery_fee, discount, total, status, payment_method, payment_status, promo_code, delivery_address, delivery_notes, seller_id, seller_type, created_at, updated_at')
+        .select('id, order_number, user_id, subtotal, delivery_fee, discount, total, status, payment_method, payment_status, promo_code, delivery_address, delivery_notes, seller_id, seller_type, created_at, updated_at, delivery_agent_id, delivery_handler')
         .eq('delivery_agent_id', agentData.id)
         .neq('status', 'cancelled')
         .order('created_at', { ascending: false });
@@ -232,11 +233,14 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
       let availableOrdersData: FullOrder[] = [];
       if (agentData.is_available) {
+        // Marketplace flow: Show orders that need agent pickup
+        // Cafeteria orders: pending + agent delivery
+        // Vendor orders (pickup_only/both): ready_for_pickup + agent delivery
         const { data: available, error: availableOrdersError } = await supabase
           .from('orders')
-          .select('id, order_number, customer_id, subtotal, delivery_fee, discount, total, status, payment_method, payment_status, promo_code, delivery_address, delivery_notes, seller_id, seller_type, created_at, updated_at')
+          .select('id, order_number, user_id, subtotal, delivery_fee, discount, total, status, payment_method, payment_status, promo_code, delivery_address, delivery_notes, seller_id, seller_type, created_at, updated_at, delivery_handler')
+          .or('and(status.eq.pending,delivery_handler.eq.agent),and(status.eq.ready_for_pickup,delivery_handler.eq.agent)')
           .is('delivery_agent_id', null)
-          .eq('status', 'pending')
           .order('created_at', { ascending: false });
 
         if (availableOrdersError) {
@@ -528,15 +532,23 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     }
   };
 
-  // Accept order (unchanged)
+  // Accept order with better error handling
   const handleAcceptOrder = async (order: FullOrder) => {
-    if (!agent || !agent.is_available) return;
+    if (!agent) {
+      setMessage({ type: 'error', text: 'Error: Delivery agent profile not found. Please contact support.' });
+      return;
+    }
+    if (!agent.is_available) {
+      setMessage({ type: 'error', text: 'Please go online to accept orders.' });
+      return;
+    }
     const activeOrders = myOrders.filter(o => !['delivered', 'cancelled'].includes(o.status));
     if (activeOrders.length >= 2) {
       setMessage({ type: 'info', text: 'You can only have 2 active orders at a time.' });
       return;
     }
 
+    setProcessingOrderId(order.id);
     const { error } = await supabase
       .from('orders')
       .update({
@@ -546,11 +558,12 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       })
       .eq('id', order.id);
 
-    if (!error) {
-      // Don't call fetchData here since it will be called by the periodic effect
-      // Dashboard will update automatically via useEffect interval
+    setProcessingOrderId(null);
+    if (error) {
+      console.error('Accept order error:', error);
+      setMessage({ type: 'error', text: `Failed to accept order: ${error.message}` });
     } else {
-      setMessage({ type: 'error', text: 'Failed to accept order' });
+      setMessage({ type: 'success', text: `Order ${order.order_number} accepted!` });
     }
   };
 
@@ -566,13 +579,13 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         // Fetch order details to get customer and seller IDs
         const { data: orderData, error: orderError } = await supabase
           .from('orders')
-          .select('customer_id, seller_id, seller_type, order_number')
+          .select('user_id, seller_id, seller_type, order_number')
           .eq('id', orderId)
           .single();
 
         if (orderData) {
           // Send notification to customer
-          await notificationService.sendOrderStatusUpdate(orderData.order_number, orderData.customer_id, newStatus);
+          await notificationService.sendOrderStatusUpdate(orderData.order_number, orderData.user_id, newStatus);
 
           // Send notification to seller (vendor or cafeteria)
           if (orderData.seller_id) {
@@ -619,12 +632,23 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
             <p className="text-gray-600 mb-6">
               Your delivery agent account is currently under review by the admin. You will be notified once approved.
             </p>
-            <button
-              onClick={signOut}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
-            >
-              Sign Out
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={signOut}
+                className="w-full py-3 px-4 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition-colors"
+              >
+                Sign Out
+              </button>
+              <button
+                onClick={() => {
+                  // Simply go back - the user stays logged in as customer
+                  window.location.href = '/';
+                }}
+                className="w-full py-3 px-4 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
+              >
+                Continue as Customer
+              </button>
+            </div>
           </div>
         </div>
       );
@@ -639,12 +663,23 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
             <p className="text-gray-600 mb-6">
               Your delivery agent account needs to be approved by the admin before you can access the dashboard.
             </p>
-            <button
-              onClick={signOut}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
-            >
-              Sign Out
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={signOut}
+                className="w-full py-3 px-4 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition-colors"
+              >
+                Sign Out
+              </button>
+              <button
+                onClick={() => {
+                  // Simply go back - the user stays logged in as customer
+                  window.location.href = '/';
+                }}
+                className="w-full py-3 px-4 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
+              >
+                Continue as Customer
+              </button>
+            </div>
           </div>
         </div>
       );

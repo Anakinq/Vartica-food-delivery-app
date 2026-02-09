@@ -3,6 +3,7 @@ import { authService, databaseService, User as ServiceUser } from '../services';
 import { Profile } from '../lib/supabase';
 import { supabase } from '../lib/supabase/client';
 import { ProfileWithVendor } from '../services/supabase/database.service';
+import { notificationService } from '../services/notification.service';
 import { validateSignupForm, validateLoginForm } from '../utils/validation';
 import { RATE_LIMITS, checkRateLimit, RateLimitError, createRateLimiter } from '../utils/rateLimiter';
 
@@ -560,84 +561,51 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Add delivery agent role to existing user - using direct inserts instead of RPC
+  // Add delivery agent role to existing user - using database RPC function
   const addDeliveryAgentRole = async (vehicleType: string = 'Foot') => {
     if (!user?.id) {
       throw new Error('User not authenticated');
     }
 
     try {
+      console.log('[DeliveryAgent] Adding delivery agent role for user:', user.id, 'vehicleType:', vehicleType);
 
-      // First check if profile exists
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, is_delivery_agent')
-        .eq('id', user.id)
-        .single();
+      // Call the database function which handles all inserts with SECURITY DEFINER
+      const { data, error } = await supabase.rpc('add_delivery_agent_role', {
+        user_id: user.id,
+        vehicle_type: vehicleType
+      });
 
-      if (profileError) {
-        throw new Error('Profile not found. Please log out and log in again.');
+      console.log('[DeliveryAgent] RPC result:', { data, error });
+
+      if (error) {
+        throw new Error(error.message);
       }
 
-      if (profileData?.is_delivery_agent) {
-        throw new Error('You are already registered as a delivery agent.');
+      // Check if the RPC returned an error in the JSON response
+      if (data && typeof data === 'object' && !data.success) {
+        throw new Error(data.message || 'Failed to register as delivery agent');
       }
 
-      // Update profile to set is_delivery_agent = true
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          is_delivery_agent: true,
-          role: 'delivery_agent',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
-
-      console.log('[DeliveryAgent] Profile update result:', { error: updateError });
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      // Create delivery agent record
-      const { error: agentError } = await supabase
-        .from('delivery_agents')
-        .insert({
-          user_id: user.id,
-          vehicle_type: vehicleType,
-          is_available: false,
-          active_orders_count: 0,
-          total_deliveries: 0,
-          rating: 5.00,
-          is_approved: false,
-          is_foot_delivery: vehicleType.toLowerCase().includes('foot') || vehicleType === 'Foot'
-        });
-
-      console.log('[DeliveryAgent] Agent insert result:', { error: agentError });
-
-      if (agentError) {
-        throw agentError;
-      }
-
-      // Get the delivery agent ID and create wallet
+      // Get the agent ID
       const { data: agentData } = await supabase
         .from('delivery_agents')
         .select('id')
         .eq('user_id', user.id)
         .single();
 
-      if (agentData) {
-        await supabase
-          .from('agent_wallets')
-          .insert({
-            agent_id: agentData.id,
-            customer_funds: 0,
-            delivery_earnings: 0,
-            total_balance: 0
-          });
-      }
+      const agentId = agentData?.id || 'unknown';
 
+      // Send notification to admins about new delivery agent registration
+      await notificationService.sendDeliveryAgentRegistrationNotification(
+        user.id,
+        agentId,
+        vehicleType
+      );
+
+      // Refresh profile to get updated role
       await refreshProfile();
+      console.log('[DeliveryAgent] Successfully registered as delivery agent');
     } catch (err) {
       console.error('Error adding delivery agent role:', err);
       throw err;
@@ -710,12 +678,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (error) {
         throw error;
       }
+
+      // Reset all state variables after successful signout
+      setUser(null);
+      setProfile(null);
     } catch (err) {
       console.error('Sign out error:', err);
+      throw err;
+    } finally {
+      // Always reset loading states
       setLoading(false);
       setAuthLoading(false);
       setVendorDataLoading(false);
-      throw err;
     }
   };
 

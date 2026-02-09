@@ -220,6 +220,124 @@ class NotificationService {
             return false;
         }
     }
+
+    // Send chat message notification
+    async sendMessageNotification(orderNumber: string, userId: string, message: string): Promise<boolean> {
+        try {
+            // Fetch user profile to get contact information
+            const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('full_name, email, phone')
+                .eq('id', userId)
+                .single();
+
+            if (profileError || !profile) {
+                console.error('Error fetching user profile:', profileError);
+                return false;
+            }
+
+            const title = 'New Message';
+            const fullMessage = `New message on Order #${orderNumber}: ${message}`;
+
+            // Send email notification
+            if (profile.email) {
+                await this.sendNotification({
+                    userId,
+                    title,
+                    message: fullMessage,
+                    type: 'email',
+                    recipient: profile.email
+                });
+            }
+
+            // Send SMS notification if phone number exists
+            if (profile.phone) {
+                await this.sendNotification({
+                    userId,
+                    title,
+                    message: fullMessage,
+                    type: 'sms',
+                    recipient: profile.phone
+                });
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error sending message notification:', error);
+            return false;
+        }
+    }
+
+    // Send notification when a new delivery agent registers
+    async sendDeliveryAgentRegistrationNotification(
+        userId: string,
+        agentId: string,
+        vehicleType: string
+    ): Promise<boolean> {
+        try {
+            // Fetch user profile to get contact information
+            const { data: userProfile, error: userError } = await supabase
+                .from('profiles')
+                .select('full_name, email, phone')
+                .eq('id', userId)
+                .single();
+
+            if (userError || !userProfile) {
+                console.error('Error fetching user profile:', userError);
+                return false;
+            }
+
+            const title = 'New Delivery Agent Registration';
+            const message = `${userProfile.full_name || 'A user'} has registered as a delivery agent (${vehicleType}). Pending approval. Agent ID: ${agentId}`;
+
+            // Log the notification
+            console.log('[Notification] Delivery Agent Registration:', {
+                userId,
+                agentId,
+                vehicleType,
+                userName: userProfile.full_name
+            });
+
+            // Notify all admins about the new delivery agent registration
+            const { data: admins, error: adminError } = await supabase
+                .from('profiles')
+                .select('id, email, phone')
+                .eq('role', 'admin');
+
+            if (adminError) {
+                console.error('Error fetching admins:', adminError);
+            } else if (admins && admins.length > 0) {
+                for (const admin of admins) {
+                    // Send email notification to admin
+                    if (admin.email) {
+                        await this.sendNotification({
+                            userId: admin.id,
+                            title,
+                            message,
+                            type: 'email',
+                            recipient: admin.email
+                        });
+                    }
+
+                    // Send SMS notification to admin if available
+                    if (admin.phone) {
+                        await this.sendNotification({
+                            userId: admin.id,
+                            title,
+                            message,
+                            type: 'sms',
+                            recipient: admin.phone
+                        });
+                    }
+                }
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error sending delivery agent registration notification:', error);
+            return false;
+        }
+    }
 }
 
 export const notificationService = new NotificationService();

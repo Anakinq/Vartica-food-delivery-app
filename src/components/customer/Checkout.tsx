@@ -25,6 +25,9 @@ interface CheckoutProps {
   onSuccess: () => void;
 }
 
+// Delivery method options for BOTH vendors
+export type DeliveryMethod = 'vendor' | 'agent';
+
 export const Checkout: React.FC<CheckoutProps> = ({
   items,
   subtotal,
@@ -60,6 +63,11 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online');
   const [isDevMode, setIsDevMode] = useState(false);
 
+  // Marketplace delivery method state (for BOTH vendors)
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('agent');
+  const [vendorDeliveryMode, setVendorDeliveryMode] = useState<string | null>(null);
+  const [showDeliveryMethodChoice, setShowDeliveryMethodChoice] = useState(false);
+
   // Function to calculate delivery fee based on hostel location
   const calculateDeliveryFee = useCallback((hostel: string): number => {
     return HOSTEL_DELIVERY_FEES[hostel] || BUSINESS_CONSTANTS.DELIVERY_FEE_DEFAULT;
@@ -74,6 +82,31 @@ export const Checkout: React.FC<CheckoutProps> = ({
       setHostelBasedDeliveryFee(effectiveDeliveryFee);
     }
   }, [formData.deliveryAddress]);
+
+  // Fetch vendor's delivery_mode for marketplace flow
+  useEffect(() => {
+    const fetchVendorDeliveryMode = async () => {
+      if (items.length > 0) {
+        const sellerId = items[0].seller_id;
+        const sellerType = items[0].seller_type;
+
+        if (sellerType === 'vendor') {
+          const { data: vendorData } = await supabase
+            .from('vendors')
+            .select('delivery_mode')
+            .eq('id', sellerId)
+            .single();
+
+          if (vendorData?.delivery_mode) {
+            setVendorDeliveryMode(vendorData.delivery_mode);
+            setShowDeliveryMethodChoice(vendorData.delivery_mode === 'both');
+          }
+        }
+      }
+    };
+
+    fetchVendorDeliveryMode();
+  }, [items]);
 
   // Remove the old script loading functions since we're using the npm package
   const handleManualRetry = () => {
@@ -215,30 +248,28 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
     const orderNumber = `ORDER_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
-    const { data: vendorData, error: vendorError } = await supabase
-      .from('vendors')
-      .select('delivery_option')
-      .eq('id', sellerId)
-      .single();
+    // Marketplace flow: Determine delivery_handler based on vendor's delivery_mode
+    let deliveryHandler: 'vendor' | 'agent' = 'agent';
+    let deliveryAgentId: string | null = null;
 
-    let deliveryAgentId = null;
-
-    if (vendorData?.delivery_option === 'does_not_offer_hostel_delivery') {
-      const { data: availableAgent, error: agentError } = await supabase
-        .from('delivery_agents')
-        .select('id, active_orders_count')
-        .eq('is_active', true)
-        .eq('is_available', true)
-        .order('active_orders_count', { ascending: true })
-        .limit(1)
-        .single();
-
-      if (agentError) {
-        // Agent lookup failed, continue without agent
-      } else {
-        deliveryAgentId = availableAgent?.id || null;
+    if (sellerType === 'vendor' && vendorDeliveryMode) {
+      if (vendorDeliveryMode === 'self_delivery') {
+        // Vendor delivers themselves
+        deliveryHandler = 'vendor';
+        deliveryAgentId = null;
+      } else if (vendorDeliveryMode === 'pickup_only') {
+        // Agent picks up from vendor
+        deliveryHandler = 'agent';
+        // Don't assign agent yet - vendor marks as READY_FOR_PICKUP first
+        deliveryAgentId = null;
+      } else if (vendorDeliveryMode === 'both') {
+        // Customer chose at checkout
+        deliveryHandler = deliveryMethod;
+        // Don't assign agent yet - vendor marks as READY_FOR_PICKUP first
+        deliveryAgentId = null;
       }
     }
+    // Cafeteria orders always use agent delivery
 
     const orderPayload = {
       order_number: orderNumber,
@@ -261,6 +292,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
       scheduled_for: formData.scheduledFor || null,
       platform_commission: 200.0,
       agent_earnings: 0.0,
+      // Marketplace delivery handler
+      delivery_handler: deliveryHandler,
     };
 
     const { data: orderData, error: insertError } = await supabase
@@ -359,7 +392,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
     showToast({ type: 'info', message: 'Payment cancelled - your items are still in cart' });
   };
 
-  // Cash on Delivery - Create order without payment
+  // Cash on Delivery - Simplified: Just create order and show success
   const handleCashOnDelivery = async () => {
     try {
       setLoading(true);
@@ -374,13 +407,14 @@ export const Checkout: React.FC<CheckoutProps> = ({
         }
       }
 
+      // Show simplified success
       setSuccess(true);
-      showToast({ type: 'success', message: `Order ${orderResult.orderNumber} placed! Pay ₦${effectiveTotal.toFixed(2)} on delivery.` });
+      showToast({ type: 'success', message: `Order Complete! Order #${orderResult.orderNumber}` });
       setTimeout(() => onSuccess(), 2000);
     } catch (error) {
       showToast({
         type: 'error',
-        message: 'Failed to create order. Please try again.'
+        message: 'Failed to place order. Please try again.'
       });
     } finally {
       setLoading(false);
@@ -494,8 +528,11 @@ export const Checkout: React.FC<CheckoutProps> = ({
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Check className="h-10 w-10 text-green-600" />
           </div>
-          <h2 className="text-2xl font-bold text-black mb-2">Payment Successful!</h2>
-          <p className="text-gray-600">Your payment was successful. Order is being processed.</p>
+          <h2 className="text-2xl font-bold text-black mb-2">Order Complete!</h2>
+          <p className="text-gray-600">Your order has been placed successfully.</p>
+          {paymentMethod === 'cash' && (
+            <p className="text-gray-600 mt-2">Pay ₦{effectiveTotal.toFixed(2)} when your order arrives.</p>
+          )}
         </div>
       </div>
     );
@@ -567,6 +604,37 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 <option value="Female Medical Hostel 6">Female Medical Hostel 6</option>
               </select>
             </div>
+
+            {/* Delivery Method Choice - For BOTH vendors */}
+            {showDeliveryMethodChoice && (
+              <div>
+                <label className="block text-sm font-semibold text-black mb-2">Delivery Method *</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryMethod('vendor')}
+                    className={`p-4 border-2 rounded-xl transition-all ${deliveryMethod === 'vendor'
+                      ? 'border-green-500 bg-green-50 text-green-700'
+                      : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                  >
+                    <div className="text-lg font-semibold">Vendor Delivery</div>
+                    <div className="text-sm text-gray-500 mt-1">Vendor delivers to you</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryMethod('agent')}
+                    className={`p-4 border-2 rounded-xl transition-all ${deliveryMethod === 'agent'
+                      ? 'border-green-500 bg-green-50 text-green-700'
+                      : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                  >
+                    <div className="text-lg font-semibold">Agent Delivery</div>
+                    <div className="text-sm text-gray-500 mt-1">Agent picks up for you</div>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Delivery Notes */}
             <div>
@@ -674,13 +742,34 @@ export const Checkout: React.FC<CheckoutProps> = ({
             </div>
 
             {/* Pay Button */}
-            {paystackScriptLoaded ? (
-              <div className="space-y-3">
-                {error && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                    <p className="text-red-700 text-sm">{error}</p>
-                  </div>
-                )}
+            <div className="space-y-3">
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-red-700 text-sm">{error}</p>
+                </div>
+              )}
+
+              {paymentMethod === 'cash' ? (
+                // Cash on Delivery Button - Simplified
+                <button
+                  type="button"
+                  onClick={handleCashOnDelivery}
+                  disabled={loading || !formData.deliveryAddress}
+                  className="w-full bg-blue-600 text-white py-4 rounded-full font-bold text-lg hover:bg-blue-700 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Placing Order...
+                    </>
+                  ) : (
+                    <>
+                      Cash on Delivery • ₦{effectiveTotal.toFixed(2)}
+                    </>
+                  )}
+                </button>
+              ) : (
+                // Pay Online Button
                 <button
                   type="button"
                   onClick={initializePaystackPayment}
@@ -695,59 +784,30 @@ export const Checkout: React.FC<CheckoutProps> = ({
                   ) : (
                     <>
                       <RefreshCw className="h-5 w-5 mr-2" />
-                      Load Payment System
+                      Pay Now • ₦{effectiveTotal.toFixed(2)}
                     </>
                   )}
                 </button>
-              </div>
-            ) : (
-              <div className="w-full space-y-3">
-                {paymentMethod === 'cash' ? (
-                  // Cash on Delivery Button
-                  <button
-                    type="button"
-                    onClick={handleCashOnDelivery}
-                    disabled={loading || !formData.deliveryAddress}
-                    className="w-full bg-blue-600 text-white py-4 rounded-full font-bold text-lg hover:bg-blue-700 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                  >
-                    {loading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                        Placing Order...
-                      </>
-                    ) : (
-                      <>
-                        Cash on Delivery • ₦{effectiveTotal.toFixed(2)}
-                      </>
-                    )}
-                  </button>
-                ) : (
-                  // Pay Online Button
-                  <PaystackButton
-                    {...paystackConfig}
-                    className="w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                    disabled={loading || !formData.deliveryAddress}
-                  />
-                )}
-                <p className="text-center text-sm text-gray-500">
-                  {paymentMethod === 'cash'
-                    ? `Pay ₦${effectiveTotal.toFixed(2)} when your order arrives`
-                    : `Secure payment powered by Paystack • ₦${effectiveTotal.toFixed(2)}`
-                  }
-                </p>
-                {/* Dev Mode Button */}
-                {import.meta.env.DEV && (
-                  <button
-                    type="button"
-                    onClick={handleDevModePayment}
-                    disabled={loading || !formData.deliveryAddress}
-                    className="w-full bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    🔧 DEV: Simulate Payment
-                  </button>
-                )}
-              </div>
-            )}
+              )}
+
+              <p className="text-center text-sm text-gray-500">
+                {paymentMethod === 'cash'
+                  ? `Order complete! Pay ₦${effectiveTotal.toFixed(2)} when your order arrives`
+                  : `Secure payment powered by Paystack • ₦${effectiveTotal.toFixed(2)}`
+                }
+              </p>
+              {/* Dev Mode Button */}
+              {import.meta.env.DEV && (
+                <button
+                  type="button"
+                  onClick={handleDevModePayment}
+                  disabled={loading || !formData.deliveryAddress}
+                  className="w-full bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  🔧 DEV: Simulate Payment
+                </button>
+              )}
+            </div>
           </form>
         </div>
       </div>

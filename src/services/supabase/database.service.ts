@@ -458,7 +458,7 @@ class SupabaseDatabaseService implements IDatabaseService {
         created_at
       `)
       .or('vendor_approved.is.null,delivery_approved.is.null')
-      .in('role', ['vendor', 'late_night_vendor'])
+      .in('role', ['vendor', 'late_night_vendor', 'delivery_agent'])
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -520,7 +520,7 @@ class SupabaseDatabaseService implements IDatabaseService {
         }
       }
     } else if (role === 'delivery_agent') {
-      // For delivery agents, use the existing logic
+      // For delivery agents, update both profile and delivery_agents table
       const updateData = { delivery_approved: approved };
 
       const { error } = await supabase
@@ -529,8 +529,19 @@ class SupabaseDatabaseService implements IDatabaseService {
         .eq('id', userId);
 
       if (error) {
-        console.error('Error updating approval:', error);
+        console.error('Error updating approval in profiles:', error);
         throw error;
+      }
+
+      // Also update the delivery_agents table
+      const { error: agentError } = await supabase
+        .from('delivery_agents')
+        .update({ is_approved: approved })
+        .eq('user_id', userId);
+
+      if (agentError) {
+        console.error('Error updating is_approved in delivery_agents:', agentError);
+        // Don't throw here - the profile update succeeded
       }
     } else {
       // For general cases where adminId is not provided
