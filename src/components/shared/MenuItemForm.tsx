@@ -106,7 +106,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
         .insert({
           vendor_id: profile.vendor.id,
           name: newCategoryName.trim(),
-          category_type: isBusinessVendor ? 'product' : isFoodVendor ? 'food' : 'general',
+          category_type: 'general', // All custom categories are general type
           sort_order: vendorCategories.length + 1,
           is_active: true,
         })
