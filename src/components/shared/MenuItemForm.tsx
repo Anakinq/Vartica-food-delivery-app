@@ -191,10 +191,10 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
   };
 
   // Get categories to display
-  // For business vendors, use default business categories if none exist in database
+  // Use database categories if they exist, otherwise use default categories
   const displayCategories = vendorCategories.length > 0
     ? vendorCategories
-    : (isBusinessVendor ? businessDefaultCategories : []);
+    : businessDefaultCategories;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
@@ -268,8 +268,8 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
                 <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50">
                   Loading categories...
                 </div>
-              ) : vendorCategories.length === 0 && isBusinessVendor ? (
-                // Business vendors get default categories shown directly
+              ) : vendorCategories.length === 0 ? (
+                // Default categories shown directly
                 <select
                   value={formData.category_id || formData.category}
                   onChange={(e) => {
@@ -422,7 +422,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              {isBusinessVendor ? "Product Image" : "Food Image"}
+              {isBusinessVendor ? "Product Image" : "Product Image"}
             </label>
             <input
               type="file"

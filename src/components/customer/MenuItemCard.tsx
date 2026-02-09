@@ -55,7 +55,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, quantity, onQu
 
   return (
     <div className="bg-[#1a1a1a] rounded-xl p-3 sm:p-4 mb-2 sm:mb-3 flex items-center">
-      {/* Food Image */}
+      {/* Product Image */}
       <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden bg-[#2a2a2a] mr-3 sm:mr-4 flex-shrink-0">
         <LazyImage
           src={imageUrl}
