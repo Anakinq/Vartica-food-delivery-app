@@ -24,6 +24,13 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
         window.location.hash = path;
     };
 
+    // Handle cart click - dispatch event to open cart modal
+    const handleCartClick = () => {
+        setActiveTab('cart');
+        // Dispatch custom event that CustomerHome can listen for
+        window.dispatchEvent(new CustomEvent('open-cart-modal'));
+    };
+
     // Determine active state based on React state
     const isActive = (path: string) => {
         if (path === '' || path === '/') {
@@ -38,24 +45,28 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
             label: 'Dashboard',
             icon: Home,
             path: '',
+            onClick: () => navigateTo(''),
         },
         {
             id: 'orders',
             label: 'Orders',
             icon: Package,
             path: '/orders',
+            onClick: () => navigateTo('/orders'),
         },
         {
             id: 'location',
             label: 'Track',
             icon: MapPin,
             path: '/location',
+            onClick: () => navigateTo('/location'),
         },
         {
             id: 'profile',
             label: 'Profile',
             icon: User,
             path: '/profile',
+            onClick: () => navigateTo('/profile'),
         },
     ] : [
         {
@@ -63,24 +74,28 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
             label: 'Home',
             icon: Home,
             path: '',
+            onClick: () => navigateTo(''),
         },
         {
             id: 'cart',
             label: 'Cart',
             icon: ShoppingCart,
             path: '/cart',
+            onClick: handleCartClick,
         },
         {
             id: 'notifications',
             label: 'Alerts',
             icon: Bell,
             path: '/notifications',
+            onClick: () => navigateTo('/notifications'),
         },
         {
             id: 'profile',
             label: 'Profile',
             icon: User,
             path: '/profile',
+            onClick: () => navigateTo('/profile'),
         },
     ];
 
@@ -93,7 +108,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
                 return (
                     <button
                         key={item.id}
-                        onClick={() => navigateTo(item.path)}
+                        onClick={item.onClick}
                         className={`nav-item ${active ? 'active' : ''}`}
                         aria-label={item.label}
                         aria-current={active ? 'page' : undefined}

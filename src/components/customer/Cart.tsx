@@ -130,51 +130,53 @@ export const Cart: React.FC<CartProps> = ({
           ) : (
             <>
               {/* Cart Items */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
                 {items.map(item => (
                   <div
                     key={item.id}
-                    className="flex items-center space-x-4 bg-gray-50 rounded-xl p-4 transition-all hover:bg-gray-100"
+                    className="bg-gray-50 rounded-xl p-4 transition-all hover:bg-gray-100"
                   >
-                    {/* Item Image Placeholder */}
-                    <div className="w-16 h-16 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      {item.image_url ? (
-                        <img
-                          src={item.image_url}
-                          alt={item.name}
-                          className="w-full h-full object-cover rounded-lg"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <ShoppingBag className="h-8 w-8 text-orange-400" />
-                      )}
+                    <div className="flex flex-row items-start gap-4">
+                      {/* Item Image */}
+                      <div className="w-16 h-16 bg-orange-100 rounded-lg flex-shrink-0 flex items-center justify-center">
+                        {item.image_url ? (
+                          <img
+                            src={item.image_url}
+                            alt={item.name}
+                            className="w-full h-full object-cover rounded-lg"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <ShoppingBag className="h-8 w-8 text-orange-400" />
+                        )}
+                      </div>
+
+                      {/* Item Details */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-black">{item.name}</h3>
+                        <p className="text-sm text-gray-600 mt-1">₦{item.price.toLocaleString()} each</p>
+                        <p className="text-sm font-bold text-orange-600 mt-1">
+                          ₦{(item.price * item.quantity).toLocaleString()}
+                        </p>
+                      </div>
                     </div>
 
-                    {/* Item Details */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-black truncate">{item.name}</h3>
-                      <p className="text-sm text-gray-600">₦{item.price.toLocaleString()} each</p>
-                      <p className="text-sm font-bold text-orange-600 mt-1">
-                        ₦{(item.price * item.quantity).toLocaleString()}
-                      </p>
+                    {/* Quantity Controls and Remove */}
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-200">
+                      <QuantityButton
+                        quantity={item.quantity}
+                        itemName={item.name}
+                        onDecrease={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                        onIncrease={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                      />
+                      <button
+                        onClick={() => onUpdateQuantity(item.id, 0)}
+                        className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                        aria-label={`Remove ${item.name} from cart`}
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
                     </div>
-
-                    {/* Quantity Controls */}
-                    <QuantityButton
-                      quantity={item.quantity}
-                      itemName={item.name}
-                      onDecrease={() => onUpdateQuantity(item.id, item.quantity - 1)}
-                      onIncrease={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                    />
-
-                    {/* Remove Button */}
-                    <button
-                      onClick={() => onUpdateQuantity(item.id, 0)}
-                      className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                      aria-label={`Remove ${item.name} from cart`}
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </button>
                   </div>
                 ))}
               </div>

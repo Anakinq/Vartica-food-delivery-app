@@ -11,6 +11,7 @@ import { ProfileDashboard } from './components/shared/ProfileDashboard';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { DeliveryDashboard } from './components/delivery/DeliveryDashboard';
 import { Cart } from './components/customer/Cart';
+import { Checkout } from './components/customer/Checkout';
 import CafeteriaDashboard from './components/cafeteria/CafeteriaDashboard';
 import AuthCallback from './components/auth/AuthCallback';
 
@@ -23,10 +24,12 @@ import { UserRole } from './types';
 import { Profile } from './lib/supabase/types';
 import { BottomNavigation } from './components/shared/BottomNavigation';
 import NotificationsPanel from './components/shared/NotificationsPanel';
+import { CartProvider, useCart } from './contexts/CartContext';
 
 function AppContent() {
   const { user, profile, loading, signOut } = useAuth();
   const [showProfile, setShowProfile] = useState(false);
+  const { items, cartCount, updateQuantity, clearCart } = useCart();
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [authView, setAuthView] = useState<'signin' | 'signup'>('signin');
   // Add state to track location changes
@@ -110,20 +113,29 @@ function AppContent() {
   // Handle hash-based routing
   if (user && profile) {
 
-    // Handle bottom navigation routes
-    if (locationHash === '#/cart') {
+    // Handle checkout route
+    if (locationHash === '#/checkout') {
+      const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const deliveryFee = 500;
+      const packCount = 0; // You may need to add pack count to context
+
       return (
         <div className="authenticated-view">
-          <div className="main-content">
-            <Cart
-              items={[]}
-              onUpdateQuantity={() => { }}
-              onClear={() => { }}
+          <div className="main-content cart-full-height">
+            <Checkout
+              items={items}
+              subtotal={subtotal}
+              deliveryFee={deliveryFee}
+              packCount={packCount}
+              onBack={() => { window.location.hash = ''; }}
               onClose={() => { window.location.hash = ''; }}
-              onCheckout={() => { }}
+              onSuccess={() => {
+                clearCart();
+                window.location.hash = '';
+              }}
             />
           </div>
-          <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
+          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
         </div>
       );
     }
@@ -138,7 +150,7 @@ function AppContent() {
               }}
             />
           </div>
-          <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
+          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
         </div>
       );
     }
@@ -154,7 +166,7 @@ function AppContent() {
               onSignOut={() => signOut()}
             />
           </div>
-          <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
+          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
         </div>
       );
     }
@@ -171,7 +183,7 @@ function AppContent() {
               }}
             />
           </div>
-          <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
+          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
         </div>
       );
     }
@@ -197,7 +209,7 @@ function AppContent() {
             <div className="main-content">
               <CustomerHome onShowProfile={() => setShowProfile(true)} />
             </div>
-            <BottomNavigation cartCount={0} notificationCount={0} />
+            <BottomNavigation cartCount={cartCount} notificationCount={0} />
           </div>
         );
       }
@@ -208,7 +220,7 @@ function AppContent() {
             <div className="main-content">
               <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />
             </div>
-            <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
+            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
           </div>
         );
       } else {
@@ -218,7 +230,7 @@ function AppContent() {
             <div className="main-content">
               <CustomerHome onShowProfile={() => setShowProfile(true)} />
             </div>
-            <BottomNavigation cartCount={0} notificationCount={0} />
+            <BottomNavigation cartCount={cartCount} notificationCount={0} />
           </div>
         );
       }
@@ -232,7 +244,7 @@ function AppContent() {
             <div className="main-content">
               <AdminDashboard onShowProfile={() => setShowProfile(true)} />
             </div>
-            <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
+            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
           </div>
         );
       case 'delivery_agent':
@@ -241,7 +253,7 @@ function AppContent() {
             <div className="main-content">
               <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />
             </div>
-            <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
+            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
           </div>
         );
       case 'cafeteria':
@@ -250,7 +262,7 @@ function AppContent() {
             <div className="main-content">
               <CafeteriaDashboard profile={profile} onShowProfile={() => setShowProfile(true)} />
             </div>
-            <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
+            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
           </div>
         );
       case 'vendor':
@@ -272,7 +284,7 @@ function AppContent() {
             <div className="main-content">
               <CustomerHome onShowProfile={() => setShowProfile(true)} />
             </div>
-            <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
+            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
           </div>
         );
       case 'customer':
@@ -282,7 +294,7 @@ function AppContent() {
             <div className="main-content">
               <CustomerHome onShowProfile={() => setShowProfile(true)} />
             </div>
-            <BottomNavigation cartCount={0} notificationCount={0} userRole={profile?.role} />
+            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
           </div>
         );
     }
@@ -347,18 +359,20 @@ function App() {
       <DarkModeProvider>
         <AuthProvider>
           <ToastProvider>
-            <div className="app-container">
-              {/* Accessibility elements */}
-              <div role="status" aria-live="polite" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
-                Loading application
-              </div>
-              <div role="alert" aria-live="assertive" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
-                {/* For error messages */}
-              </div>
-              <AppContent />
+            <CartProvider>
+              <div className="app-container">
+                {/* Accessibility elements */}
+                <div role="status" aria-live="polite" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
+                  Loading application
+                </div>
+                <div role="alert" aria-live="assertive" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
+                  {/* For error messages */}
+                </div>
+                <AppContent />
 
-              <Analytics />
-            </div>
+                <Analytics />
+              </div>
+            </CartProvider>
           </ToastProvider>
         </AuthProvider>
       </DarkModeProvider>

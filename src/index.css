@@ -95,6 +95,26 @@ body {
   border-top: 1px solid #eee;
 }
 
+/* Cart full height - makes cart page fully visible without scrolling */
+.cart-full-height {
+  min-height: calc(100dvh - 72px);
+  height: auto;
+  overflow-y: visible;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Top navigation fixed */
+.top-nav-fixed {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: #fff;
+  border-bottom: 1px solid #eee;
+}
+
 /* Prevent horizontal overflow globally */
 * {
   box-sizing: border-box;
@@ -628,6 +648,11 @@ select:focus {
 
 /* Improved bottom navigation styling for native app feel */
 .bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
   background-color: #ffffff;
   border-top: 1px solid #e5e7eb;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);

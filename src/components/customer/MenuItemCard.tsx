@@ -92,7 +92,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, quantity, onQu
 
         {/* Description */}
         {item.description && (
-          <p className="text-gray-400 text-sm line-clamp-2 mb-2">
+          <p className="text-gray-300 text-sm line-clamp-2 mb-2">
             {item.description}
           </p>
         )}

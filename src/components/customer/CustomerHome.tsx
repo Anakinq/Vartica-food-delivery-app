@@ -1,25 +1,19 @@
 // src/components/customer/CustomerHome.tsx
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { Search, ShoppingCart, LogOut, User, Moon, Package, Heart } from 'lucide-react';
+import { Search, LogOut, User, Moon, Package, Heart } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Cafeteria, MenuItem } from '../../lib/supabase';
 import { Vendor } from '../../lib/supabase/types';
 import { supabase } from '../../lib/supabase/client';
 import { MenuItemCard } from './MenuItemCard';
-import { Cart } from './Cart';
 import { Checkout } from './Checkout';
 import { OrderTracking } from './OrderTracking';
 import { VendorUpgradeModal } from './VendorUpgradeModal';
-import { RoleSwitcher } from '../shared/RoleSwitcher';
 import LazyImage from '../common/LazyImage';
-
 import { CardSkeleton, ListSkeleton } from '../shared/LoadingSkeleton';
 import { Skeleton } from '../shared/LoadingSkeleton';
 import { useToast } from '../../contexts/ToastContext';
-
-interface CartItem extends MenuItem {
-  quantity: number;
-}
+import { useCart } from '../../contexts/CartContext';
 
 interface CustomerHomeProps {
   onShowProfile?: () => void;
@@ -42,6 +36,28 @@ const SkeletonCard = () => (
 export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => {
   const { profile, signOut, refreshProfile } = useAuth();
   const { showToast } = useToast();
+  const {
+    items: cartItems,
+    addItem,
+    removeItem,
+    updateQuantity,
+    clearCart,
+    cartCount,
+    subtotal,
+    isCartOpen,
+    openCart,
+    closeCart
+  } = useCart();
+
+  // Listen for cart modal open event from BottomNavigation
+  useEffect(() => {
+    const handleOpenCart = () => {
+      openCart();
+    };
+    window.addEventListener('open-cart-modal', handleOpenCart);
+    return () => window.removeEventListener('open-cart-modal', handleOpenCart);
+  }, [openCart]);
+
   const [cafeterias, setCafeterias] = useState<Cafeteria[]>([]);
   const [studentVendors, setStudentVendors] = useState<Vendor[]>([]);
   const [lateNightVendors, setLateNightVendors] = useState<Vendor[]>([]);
@@ -51,8 +67,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const [selectedSeller, setSelectedSeller] = useState<{ id: string; type: 'cafeteria' | 'vendor' | 'late_night_vendor'; name: string } | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [showCart, setShowCart] = useState(false);
   const [showOrders, setShowOrders] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -301,16 +315,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     await fetchMenuItems(id, type);
   };
 
-  const handleUpdateQuantity = (itemId: string, quantity: number) => {
-    if (quantity === 0) {
-      setCart(cart.filter(i => i.id !== itemId));
-    } else {
-      setCart(cart.map(i => i.id === itemId ? { ...i, quantity } : i));
-    }
-  };
-
   const handleClearCart = () => {
-    setCart([]);
+    clearCart();
   };
 
   const filteredCafeterias = useMemo(() => {
@@ -325,8 +331,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     );
   }, [studentVendors, globalSearchQuery]);
 
-  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const deliveryFee = 500;
 
   const allSellersInOrder = useMemo(() => {
@@ -484,13 +488,13 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     }
 
     const newQuantities: Record<string, number> = {};
-    cart.forEach(item => {
+    cartItems.forEach(item => {
       if (item.seller_id === selectedSeller.id && item.seller_type === selectedSeller.type) {
         newQuantities[item.id] = item.quantity;
       }
     });
     setItemQuantities(newQuantities);
-  }, [selectedSeller, cart]);
+  }, [selectedSeller, cartItems]);
 
   const handleQuantityChange = (itemId: string, newQuantity: number) => {
     const oldQuantity = itemQuantities[itemId] || 0;
@@ -499,36 +503,25 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     const item = menuItems.find(m => m.id === itemId);
     if (!item) return;
 
-    if (newQuantity > oldQuantity) {
-      const added = newQuantity - oldQuantity;
-      showToast({ type: 'info', message: `${added} ${added === 1 ? 'item' : 'items'} added` });
+    // If quantity is decreasing, just update the cart
+    if (newQuantity < oldQuantity) {
+      updateQuantity(itemId, newQuantity);
+      return;
     }
 
-    if (newQuantity === 0) {
-      setCart(prev => prev.filter(i => i.id !== itemId));
-    } else {
-      if (cart.length > 0 && (cart[0].seller_id !== item.seller_id || cart[0].seller_type !== item.seller_type)) {
-        if (!confirm('Adding items from a different vendor will clear your current cart. Continue?')) {
-          setItemQuantities(prev => ({ ...prev, [itemId]: oldQuantity }));
-          return;
-        }
-        setCart([{ ...item, quantity: newQuantity }]);
-      } else {
-        const existing = cart.find(i => i.id === itemId);
-        if (existing) {
-          setCart(cart.map(i => i.id === itemId ? { ...i, quantity: newQuantity } : i));
-        } else {
-          setCart([...cart, { ...item, quantity: newQuantity }]);
-        }
-      }
+    // If quantity is increasing by 1 from cart, update the cart
+    if (newQuantity === oldQuantity + 1) {
+      addItem(item);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 w-full max-w-full">
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
+      {/* Fixed Top Navigation */}
+      <nav className="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
+            {/* Vartica Logo */}
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => setSelectedSeller(null)}
@@ -542,8 +535,9 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
               )}
             </div>
 
+            {/* Right side icons: My Orders, Profile */}
             <div className="flex items-center space-x-4">
-              <RoleSwitcher currentRole="customer" />
+              {/* My Orders */}
               <button
                 onClick={() => setShowOrders(true)}
                 className="p-2 text-gray-700 hover:text-green-600 transition-colors duration-200"
@@ -553,19 +547,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                 <Package className="h-5 w-5 sm:h-6 sm:w-6" />
               </button>
 
-              <button
-                onClick={() => setShowCart(true)}
-                className="relative p-2 text-gray-700 hover:text-green-600 transition-colors duration-200"
-                aria-label={`Cart, ${cartCount} items`}
-              >
-                <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6" />
-                {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-green-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                    {cartCount}
-                  </span>
-                )}
-              </button>
-
+              {/* Profile */}
               <button
                 onClick={() => {
                   console.log('CustomerHome: Profile button clicked');
@@ -581,7 +563,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                     className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-gray-200"
                     onError={(e) => {
                       const target = e.currentTarget;
-                      target.onerror = null; // prevents looping
+                      target.onerror = null;
                       target.src = 'https://placehold.co/40x40/4ade80/ffffff?text=' + (profile?.full_name?.charAt(0).toUpperCase() || 'U');
                     }}
                   />
@@ -592,21 +574,13 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                 )}
                 <span className="hidden sm:inline text-sm">{profile?.full_name}</span>
               </button>
-
-
-              <button
-                onClick={signOut}
-                className="p-2 text-gray-700 hover:text-red-600 transition-colors duration-200"
-                aria-label="Sign out"
-              >
-                <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
-              </button>
             </div>
           </div>
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 bg-[#121212] min-h-screen">
+      {/* Main Content - scrolls independently */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 bg-[#121212] min-h-screen pt-20 pb-20">
         <div className="mb-4 sm:mb-6">
           <div className="flex justify-between items-center mb-4">
             <div className="relative flex-1 mr-4">
@@ -643,7 +617,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                         ? 'bg-[#FF9500] text-black scale-105'
                         : activeCategory === category
                           ? 'bg-[#FF9500] text-black'
-                          : 'bg-[#1e1e1e] text-gray-400 hover:bg-[#2a2a2a] active:scale-95'}
+                          : 'bg-[#1e1e1e] text-gray-300 hover:bg-[#2a2a2a] hover:text-white active:scale-95'}
                     `}
                   >
                     {category}
@@ -691,17 +665,12 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                           className="w-full h-32 sm:h-40 object-cover"
                           fallback="https://placehold.co/600x400/e2e8f0/64748b?text=No+Image"
                           onError={() => {
-                            console.log('Image error for:', cafeteria.name);
+                            console.log('Image error for cafeteria:', cafeteria.name);
                           }}
                         />
                         <div className="p-4">
-                          <div className="flex items-center space-x-2">
-                            <h3 className="font-bold text-black text-base sm:text-lg truncate">{cafeteria.name}</h3>
-                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${isCafeteriaOpen(cafeteria.id) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                              {isCafeteriaOpen(cafeteria.id) ? 'Open' : 'Closed'}
-                            </span>
-                          </div>
-                          <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-1">{cafeteria.description}</p>
+                          <h3 className="font-bold text-black text-base sm:text-lg truncate">{cafeteria.name}</h3>
+                          {/* Description removed - showing only cafeteria name/logo */}
                         </div>
                       </div>
                     );
@@ -802,14 +771,11 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                           return supabaseUrl || vendor.image_url || getImagePath(vendor.id, 'vendor');
                         })()}
                         alt={vendor.store_name}
-                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover mb-3 sm:mb-4"
+                        className="w-full h-32 sm:h-40 object-cover rounded-xl mb-4"
                         fallback="https://placehold.co/600x400/e2e8f0/64748b?text=No+Image"
-                        onError={() => {
-                          console.log('Image error for late-night vendor:', vendor.store_name);
-                        }}
                       />
-                      <h3 className="font-bold text-stone-800 text-base sm:text-lg truncate">{vendor.store_name}</h3>
-                      <p className="text-xs sm:text-sm text-stone-600 mt-1 line-clamp-2">{vendor.description}</p>
+                      <h3 className="font-bold text-stone-800 text-lg sm:text-xl truncate">{vendor.store_name}</h3>
+                      <p className="text-xs sm:text-sm text-stone-600 mt-1 line-clamp-1">{vendor.description}</p>
                     </div>
                   ))}
                 </div>
@@ -817,51 +783,57 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
             )}
           </>
         ) : (
-          <section>
-            <button
-              onClick={() => setSelectedSeller(null)}
-              className="mb-4 sm:mb-6 text-orange-600 hover:text-orange-700 font-medium transition-colors duration-200 text-sm sm:text-base"
-              aria-label="Go back to vendors"
-            >
-              ← Back to vendors
-            </button>
-
-            {sellerFilteredMenuItems.length > 0 ? (
-              <div>
-                {groupedSellerCategories.map(({ category, items }) => (
-                  <div
-                    key={category}
-                    ref={(el) => (categoryRefs.current[category] = el)}
-                    className="mb-10"
-                  >
-                    <div className="space-y-3">
-                      {items.map(item => (
-                        <MenuItemCard
-                          key={item.id}
-                          item={item}
-                          quantity={itemQuantities[item.id] || 0}
-                          onQuantityChange={handleQuantityChange}
-                          isFavorite={favorites.includes(item.id)}
-                          onToggleFavorite={() => toggleFavorite(item.id)}
-                        />
-                      ))}
-                    </div>
+          <section className="mb-20">
+            <div ref={(el) => { categoryRefs.current['all'] = el; }}>
+              {groupedCategories.map(({ category, items }) => (
+                <div
+                  key={category}
+                  ref={(el) => { categoryRefs.current[category] = el; }}
+                  className="mb-8"
+                >
+                  <div className="flex items-center space-x-2 mb-4">
+                    <h2 className="text-xl sm:text-2xl font-bold text-black">{category}</h2>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12 text-gray-500">
-                {globalSearchQuery
-                  ? 'No items found matching your search'
-                  : showFavoritesOnly
-                    ? 'No favorite items yet. Tap the heart icon on items to save them!'
-                    : 'No menu items available'}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                    {items.map(item => (
+                      <MenuItemCard
+                        key={item.id}
+                        item={item}
+                        quantity={itemQuantities[item.id] || 0}
+                        onQuantityChange={(_, newQuantity) => handleQuantityChange(item.id, newQuantity)}
+                        isFavorite={favorites.includes(item.id)}
+                        onToggleFavorite={() => toggleFavorite(item.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {sellerFilteredMenuItems.length === 0 && (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">🍽️</div>
+                <h3 className="text-xl font-bold text-gray-700 mb-2">
+                  {globalSearchQuery
+                    ? 'No items found'
+                    : showFavoritesOnly
+                      ? 'No favorite items yet'
+                      : 'No items available'}
+                </h3>
+                <p className="text-gray-500">
+                  {globalSearchQuery
+                    ? 'Try adjusting your search'
+                    : showFavoritesOnly
+                      ? 'Tap the heart icon on items to save them!'
+                      : 'Check back later for new items'}
+                </p>
               </div>
             )}
           </section>
         )}
       </div>
 
+      {/* Toast notifications */}
       <div className="fixed bottom-4 right-4 z-50 space-y-2">
         {toasts.map(toast => (
           <div
@@ -873,30 +845,16 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         ))}
       </div>
 
-      {
-        showCart && (
-          <Cart
-            items={cart}
-            onUpdateQuantity={handleUpdateQuantity}
-            onClear={handleClearCart}
-            onClose={() => setShowCart(false)}
-            cartPackCount={cartPackCount}
-            onCartPackChange={setCartPackCount}
-            onCheckout={() => setShowCheckout(true)}
-          />
-        )
-      }
-
+      {/* Checkout Modal */}
       {showCheckout && (
         <Checkout
-          items={cart}
+          items={cartItems}
           subtotal={subtotal}
           deliveryFee={deliveryFee}
           packCount={cartPackCount}
           onBack={() => setShowCheckout(false)}
           onClose={() => setShowCheckout(false)}
           onSuccess={() => {
-            setCart([]);
             setCartPackCount(0);
             setShowCheckout(false);
             showToast({ type: 'success', message: 'Order placed successfully!' });
@@ -928,6 +886,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         />
       )}
 
-    </div >
+    </div>
   );
-}
+};

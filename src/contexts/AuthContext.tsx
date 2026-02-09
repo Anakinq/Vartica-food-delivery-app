@@ -363,6 +363,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setLoading(false);
         throw error;
       }
+
+      // Force profile refresh after successful login
+      // The auth state listener should trigger, but we also explicitly fetch to ensure
+      const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+      if (supabaseUser) {
+        await enhancedFetchProfile(supabaseUser);
+      }
+
+      // Ensure loading is set to false
+      setLoading(false);
     } catch (err) {
       console.error('Sign in error:', err);
       setLoading(false);
