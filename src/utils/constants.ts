@@ -133,21 +133,13 @@ export const BANK_OPTIONS = [
     { code: '057', name: 'Zenith Bank' },
 ];
 
-// Category Priority Order
+// Category Priority Order - For vendors using default categories
 export const CATEGORY_PRIORITY = [
-    'Main Food',
-    'Protein',
-    'Swallow',
-    'Soup',
+    'Electronics',
+    'Accessories',
+    'Clothing',
+    'Services',
     'Other',
-    'Rice & Pasta',
-    'Proteins & Sides',
-    'Drinks',
-    'Meals',
-    'Main Course',
-    'Sides',
-    'Snacks',
-    'Salad',
 ];
 
 // Fallback Images
