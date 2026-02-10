@@ -2,7 +2,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   LogOut, Package, MessageCircle, Wallet, Settings, Menu, X,
-  CheckCircle, Clock, DollarSign, Star, Phone, ChevronRight, BarChart3
+  CheckCircle, Clock, DollarSign, Star, Phone, ChevronRight, BarChart3,
+  Building2, CreditCard
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Order, Vendor, Profile } from '../../lib/supabase';
@@ -33,6 +34,48 @@ interface VendorStats {
   reviewCount: number;
 }
 
+interface VendorPayoutProfile {
+  id: string;
+  vendor_id: string;
+  account_number: string;
+  bank_code: string;
+  account_name: string;
+  verified: boolean;
+}
+
+// Nigerian banks list
+const BANK_OPTIONS = [
+  { code: '044', name: 'Access Bank' },
+  { code: '063', name: 'Access Bank (Diamond)' },
+  { code: '035A', name: 'ALAT by WEMA' },
+  { code: '401', name: 'ASO Savings and Loans' },
+  { code: '023', name: 'Citibank Nigeria' },
+  { code: '050', name: 'Ecobank Nigeria' },
+  { code: '562', name: 'Ekondo Microfinance Bank' },
+  { code: '070', name: 'Fidelity Bank' },
+  { code: '011', name: 'First Bank of Nigeria' },
+  { code: '214', name: 'First City Monument Bank' },
+  { code: '058', name: 'Guaranty Trust Bank' },
+  { code: '030', name: 'Heritage Bank' },
+  { code: '301', name: 'Jaiz Bank' },
+  { code: '082', name: 'Keystone Bank' },
+  { code: '559', name: 'Kuda Bank' },
+  { code: '50211', name: 'Kuda Microfinance Bank' },
+  { code: '999992', name: 'OPay' },
+  { code: '526', name: 'Parallex Bank' },
+  { code: '999991', name: 'PalmPay' },
+  { code: '076', name: 'Polaris Bank' },
+  { code: '101', name: 'Providus Bank' },
+  { code: '125', name: 'Rubies MFB' },
+  { code: '232', name: 'Sterling Bank' },
+  { code: '068', name: 'Standard Chartered Bank' },
+  { code: '033', name: 'Union Bank of Nigeria' },
+  { code: '032', name: 'United Bank For Africa' },
+  { code: '215', name: 'Unity Bank' },
+  { code: '035', name: 'Wema Bank' },
+  { code: '057', name: 'Zenith Bank' },
+];
+
 export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile }) => {
   const { profile, signOut } = useAuth();
   const { showToast } = useToast();
@@ -50,6 +93,20 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'completed'>('pending');
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isStoreOpen, setIsStoreOpen] = useState(true);
+
+  // Bank/payout profile state
+  const [bankAccount, setBankAccount] = useState('');
+  const [bankCode, setBankCode] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [savingBank, setSavingBank] = useState(false);
+  const [isBankVerified, setIsBankVerified] = useState(false);
+  const [showBankModal, setShowBankModal] = useState(false);
+
+  // Wallet state
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState<number | null>(null);
+  const [processingWithdrawal, setProcessingWithdrawal] = useState(false);
 
   const menuRef = useRef<HTMLDivElement>(null);
   const hamburgerButtonRef = useRef<HTMLButtonElement>(null);
@@ -93,6 +150,12 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         if (savedStatus !== null) {
           setIsStoreOpen(JSON.parse(savedStatus));
         }
+
+        // Fetch payout profile
+        await fetchPayoutProfile(vendorData.id);
+
+        // Fetch wallet balance
+        await fetchWalletBalance(vendorData.id);
       }
 
       // Fetch orders
@@ -107,6 +170,151 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       showToast({ type: 'error', message: 'Failed to load vendor data' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch payout profile
+  const fetchPayoutProfile = async (vendorId: string) => {
+    try {
+      const { data: payoutData, error } = await supabase
+        .from('vendor_payout_profiles')
+        .select('*')
+        .eq('vendor_id', vendorId)
+        .maybeSingle();
+
+      if (payoutData && !error) {
+        setBankAccount(payoutData.account_number);
+        setBankCode(payoutData.bank_code || '');
+        setBankName(payoutData.account_name || 'Unknown Bank');
+        setIsBankVerified(payoutData.verified || true);
+      }
+    } catch (error) {
+      console.error('Error fetching payout profile:', error);
+    }
+  };
+
+  // Fetch wallet balance
+  const fetchWalletBalance = async (vendorId: string) => {
+    try {
+      const wallet = await VendorWalletService.getVendorWallet(vendorId);
+      if (wallet) {
+        setWalletBalance(wallet.total_earnings - wallet.withdrawn_earnings);
+      }
+    } catch (error) {
+      console.error('Error fetching wallet balance:', error);
+    }
+  };
+
+  // Save bank details
+  const saveBankDetails = async () => {
+    if (!vendor || !profile) return;
+
+    if (bankAccount.length !== 10 || !bankCode) {
+      showToast({ type: 'error', message: 'Please enter a valid 10-digit account number and select a bank.' });
+      return;
+    }
+
+    if (!/^\d{10}$/.test(bankAccount)) {
+      showToast({ type: 'error', message: 'Account number must be exactly 10 digits.' });
+      return;
+    }
+
+    setSavingBank(true);
+
+    try {
+      // Check if profile exists
+      const { data: existingProfile } = await supabase
+        .from('vendor_payout_profiles')
+        .select('id')
+        .eq('vendor_id', vendor.id)
+        .maybeSingle();
+
+      let result;
+      if (existingProfile) {
+        // Update existing profile
+        result = await supabase
+          .from('vendor_payout_profiles')
+          .update({
+            account_number: bankAccount.trim(),
+            account_name: profile.full_name || 'Unknown',
+            bank_code: bankCode,
+            verified: false
+          })
+          .eq('vendor_id', vendor.id);
+      } else {
+        // Create new profile
+        result = await supabase
+          .from('vendor_payout_profiles')
+          .insert([{
+            vendor_id: vendor.id,
+            account_number: bankAccount.trim(),
+            account_name: profile.full_name || 'Unknown',
+            bank_code: bankCode,
+            verified: false
+          }]);
+      }
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      showToast({ type: 'success', message: 'Bank details saved successfully!' });
+      setIsBankVerified(true);
+      setShowBankModal(false);
+    } catch (error: any) {
+      console.error('Save bank error:', error);
+      showToast({ type: 'error', message: `Failed to save bank details: ${error.message}` });
+    } finally {
+      setSavingBank(false);
+    }
+  };
+
+  // Handle withdrawal
+  const handleWithdrawal = async () => {
+    if (!vendor || !withdrawAmount || withdrawAmount <= 0) return;
+
+    if (withdrawAmount > walletBalance) {
+      showToast({ type: 'error', message: 'Insufficient balance.' });
+      return;
+    }
+
+    if (withdrawAmount < 100) {
+      showToast({ type: 'error', message: 'Minimum withdrawal amount is ₦100.' });
+      return;
+    }
+
+    if (!isBankVerified) {
+      showToast({ type: 'error', message: 'Please set up your bank details first.' });
+      return;
+    }
+
+    setProcessingWithdrawal(true);
+
+    try {
+      const response = await fetch('/api/vendor-withdraw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vendor_id: vendor.id,
+          amount: withdrawAmount
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        showToast({ type: 'success', message: 'Withdrawal request submitted! Funds will be transferred shortly.' });
+        setShowWithdrawModal(false);
+        setWithdrawAmount(null);
+        fetchWalletBalance(vendor.id);
+      } else {
+        showToast({ type: 'error', message: result.message || 'Withdrawal failed.' });
+      }
+    } catch (error) {
+      console.error('Withdrawal error:', error);
+      showToast({ type: 'error', message: 'Failed to process withdrawal.' });
+    } finally {
+      setProcessingWithdrawal(false);
     }
   };
 
@@ -313,8 +521,8 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
               <button
                 onClick={toggleStoreOpen}
                 className={`px-3 py-1 rounded-full text-sm font-medium ${isStoreOpen
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-red-100 text-red-700'
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-red-100 text-red-700'
                   }`}
               >
                 {isStoreOpen ? '🟢 Open' : '🔴 Closed'}
@@ -334,6 +542,30 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
           {/* Mobile Menu Dropdown */}
           {showMobileMenu && (
             <div ref={menuRef} className="absolute right-4 top-16 bg-white shadow-lg rounded-md py-2 w-48 z-50 border border-gray-200">
+              <button
+                onClick={() => {
+                  setShowBankModal(true);
+                  setShowMobileMenu(false);
+                }}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <div className="flex items-center space-x-2">
+                  <Building2 className="h-4 w-4" />
+                  <span>Bank Details</span>
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  setShowWithdrawModal(true);
+                  setShowMobileMenu(false);
+                }}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <div className="flex items-center space-x-2">
+                  <CreditCard className="h-4 w-4" />
+                  <span>Withdraw</span>
+                </div>
+              </button>
               <button
                 onClick={() => {
                   onShowProfile?.();
@@ -362,7 +594,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <div className="bg-white rounded-xl p-6 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
@@ -376,8 +608,25 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
           <div className="bg-white rounded-xl p-6 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
+                <p className="text-sm text-gray-600">Wallet</p>
+                <p className="text-xl font-bold text-green-600">{formatCurrency(walletBalance)}</p>
+              </div>
+              <Wallet className="h-10 w-10 text-green-600" />
+            </div>
+            <button
+              onClick={() => setShowWithdrawModal(true)}
+              disabled={walletBalance < 100}
+              className="mt-3 w-full py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              Withdraw
+            </button>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
                 <p className="text-sm text-gray-600">Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalRevenue)}</p>
+                <p className="text-xl font-bold text-gray-900">{formatCurrency(stats.totalRevenue)}</p>
               </div>
               <DollarSign className="h-10 w-10 text-green-600" />
             </div>
@@ -387,7 +636,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Rating</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-xl font-bold text-gray-900">
                   {stats.avgRating > 0 ? stats.avgRating.toFixed(1) : 'N/A'}
                 </p>
               </div>
@@ -399,7 +648,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Reviews</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.reviewCount}</p>
+                <p className="text-xl font-bold text-gray-900">{stats.reviewCount}</p>
               </div>
               <BarChart3 className="h-10 w-10 text-blue-600" />
             </div>
@@ -412,8 +661,8 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
             <button
               onClick={() => setActiveTab('pending')}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'pending'
-                  ? 'border-purple-600 text-purple-600'
-                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
             >
               🕐 Pending ({pendingOrders.length})
@@ -421,8 +670,8 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
             <button
               onClick={() => setActiveTab('active')}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'active'
-                  ? 'border-purple-600 text-purple-600'
-                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
             >
               🔥 Active ({activeOrders.length})
@@ -430,8 +679,8 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
             <button
               onClick={() => setActiveTab('completed')}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'completed'
-                  ? 'border-purple-600 text-purple-600'
-                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
             >
               ✅ Completed ({completedOrders.length})
@@ -455,6 +704,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
                   onAccept={() => handleAcceptOrder(order)}
                   onReject={() => handleRejectOrder(order)}
                   onChat={() => setSelectedOrderForChat(order)}
+                  isBusinessVendor={vendor?.vendor_type === 'late_night'}
                 />
               ))
             )
@@ -504,6 +754,148 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
           onClose={() => setSelectedOrderForChat(null)}
         />
       )}
+
+      {/* Bank Details Modal */}
+      {showBankModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Bank Details</h2>
+              <button onClick={() => setShowBankModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+                <select
+                  value={bankCode}
+                  onChange={(e) => {
+                    setBankCode(e.target.value);
+                    const bank = BANK_OPTIONS.find(b => b.code === e.target.value);
+                    setBankName(bank?.name || '');
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">Select Bank</option>
+                  {BANK_OPTIONS.map(bank => (
+                    <option key={bank.code} value={bank.code}>{bank.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                <input
+                  type="text"
+                  value={bankAccount}
+                  onChange={(e) => setBankAccount(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  placeholder="10-digit account number"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              {bankCode && bankAccount.length === 10 && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600">Account Name:</p>
+                  <p className="font-medium">{profile?.full_name || 'Loading...'}</p>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowBankModal(false)}
+                  className="flex-1 py-2 px-4 border border-gray-300 rounded-lg font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveBankDetails}
+                  disabled={savingBank || bankAccount.length !== 10 || !bankCode}
+                  className="flex-1 py-2 px-4 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50"
+                >
+                  {savingBank ? 'Saving...' : 'Save Bank Details'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Withdrawal Modal */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Withdraw Funds</h2>
+              <button onClick={() => setShowWithdrawModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="p-4 bg-green-50 rounded-lg">
+                <p className="text-sm text-gray-600">Available Balance</p>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(walletBalance)}</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₦)</label>
+                <input
+                  type="number"
+                  value={withdrawAmount || ''}
+                  onChange={(e) => setWithdrawAmount(parseFloat(e.target.value) || 0)}
+                  placeholder="Enter amount"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                {[100, 500, 1000, 2000].map(amount => (
+                  <button
+                    key={amount}
+                    onClick={() => setWithdrawAmount(Math.min(amount, walletBalance))}
+                    disabled={amount > walletBalance}
+                    className="flex-1 py-2 px-3 border border-gray-200 rounded-lg font-medium hover:bg-gray-50 disabled:opacity-50 text-sm"
+                  >
+                    ₦{amount}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setWithdrawAmount(walletBalance)}
+                  disabled={walletBalance <= 0}
+                  className="flex-1 py-2 px-3 border border-gray-200 rounded-lg font-medium hover:bg-gray-50 disabled:opacity-50 text-sm"
+                >
+                  Max
+                </button>
+              </div>
+
+              {!isBankVerified && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-700">Please set up your bank details first.</p>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowWithdrawModal(false)}
+                  className="flex-1 py-2 px-4 border border-gray-300 rounded-lg font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleWithdrawal}
+                  disabled={processingWithdrawal || !withdrawAmount || withdrawAmount > walletBalance || withdrawAmount < 100 || !isBankVerified}
+                  className="flex-1 py-2 px-4 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50"
+                >
+                  {processingWithdrawal ? 'Processing...' : 'Withdraw'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -514,7 +906,8 @@ const OrderCard: React.FC<{
   onAccept: () => void;
   onReject: () => void;
   onChat: () => void;
-}> = ({ order, onAccept, onReject, onChat }) => (
+  isBusinessVendor: boolean;
+}> = ({ order, onAccept, onReject, onChat, isBusinessVendor }) => (
   <div className="bg-white rounded-xl p-6 shadow-sm">
     <div className="flex justify-between items-start mb-4">
       <div>
@@ -546,12 +939,15 @@ const OrderCard: React.FC<{
         >
           <MessageCircle className="h-5 w-5" />
         </button>
-        <button
-          onClick={onReject}
-          className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 font-medium"
-        >
-          Reject
-        </button>
+        {/* Only show Reject button for student vendors, not business vendors */}
+        {!isBusinessVendor && (
+          <button
+            onClick={onReject}
+            className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 font-medium"
+          >
+            Reject
+          </button>
+        )}
         <button
           onClick={onAccept}
           className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"

@@ -224,8 +224,10 @@ export const ChatModal: React.FC<ChatModalProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4">
-        <div className="bg-white w-full max-w-lg max-h-[90vh] sm:max-h-[85vh] rounded-2xl flex flex-col shadow-2xl">
+      {/* Full-screen overlay with better mobile handling */}
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        {/* Modal - Fullscreen on mobile, dialog on desktop */}
+        <div className="bg-white w-full h-full sm:w-full sm:max-w-md md:max-w-lg sm:h-auto sm:max-h-[85vh] rounded-none sm:rounded-2xl flex flex-col shadow-2xl sm:my-auto">
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-bold text-gray-900">Chat - Order #{orderNumber}</h2>

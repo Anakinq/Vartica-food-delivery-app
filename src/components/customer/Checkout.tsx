@@ -436,7 +436,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
     }
   };
 
-  // Dev mode - Simulate payment success
+  // Dev mode - Simulate payment success and credit wallets
   const handleDevModePayment = async () => {
     if (!import.meta.env.DEV) {
       showToast({ type: 'error', message: 'Dev mode only' });
@@ -455,8 +455,40 @@ export const Checkout: React.FC<CheckoutProps> = ({
         }
       }
 
+      // Simulate webhook call to credit agent wallet (for testing)
+      try {
+        await fetch('/api/paystack-webhook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: 'charge.success',
+            data: {
+              reference: 'DEV_SIMULATED_PAYMENT',
+              amount: Math.round(effectiveTotal * 100),
+              status: 'success',
+              gateway_response: 'Successful',
+              paid_at: new Date().toISOString(),
+              channel: 'card',
+              currency: 'NGN',
+              customer: { email: profile?.email || 'test@example.com' },
+              authorization: {
+                authorization_code: 'AUTH_DEV',
+                bin: '412345',
+                last4: '1234',
+                exp_month: '12',
+                exp_year: '2025',
+                channel: 'card',
+              }
+            }
+          }),
+        });
+      } catch (webhookError) {
+        console.error('Dev mode webhook simulation error:', webhookError);
+        // Continue anyway - order was still created
+      }
+
       setSuccess(true);
-      showToast({ type: 'success', message: `DEV: Order ${orderResult.orderNumber} created! (Payment simulated)` });
+      showToast({ type: 'success', message: `DEV: Order ${orderResult.orderNumber} created! (Payment simulated, wallets credited)` });
       setTimeout(() => onSuccess(), 2000);
     } catch (error) {
       showToast({

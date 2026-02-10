@@ -312,45 +312,63 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
   // Initial fetch and real-time subscriptions
   useEffect(() => {
-    fetchData();
+    // First fetch agent data, then set up subscriptions
+    const initializeDashboard = async () => {
+      await fetchData();
+    };
+    initializeDashboard();
 
     // Check approval status for delivery agents
     if (profile && profile.role === 'delivery_agent') {
       checkAgentApproval();
     }
+  }, [profile?.id]);
 
-    // Set up real-time subscriptions for order changes
-    let orderSubscription: any;
+  // Set up real-time subscriptions after agent data is available
+  useEffect(() => {
+    if (!agent?.id) return;
 
-    // Subscribe to order changes once profile and agent data are available
-    if (profile?.id) {
-      // Subscribe to orders assigned to this delivery agent
-      orderSubscription = supabase
-        .channel('orders-changes-' + profile.id)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'orders',
-          },
-          (payload: any) => {
-            // Check if the order is related to this agent
-            if (payload.new?.delivery_agent_id === agent?.id || payload.old?.delivery_agent_id === agent?.id ||
-              (payload.new?.delivery_agent_id === null && payload.new?.status === 'pending')) {
-              fetchData();  // Refresh data when a relevant order changes
-            }
-          }
-        )
-        .subscribe();
-    }
+    // Subscribe to order changes for this delivery agent
+    const orderSubscription = supabase
+      .channel('orders-changes-' + agent.id)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          filter: `delivery_agent_id=eq.${agent.id}`,
+        },
+        (payload: any) => {
+          // Refresh data when a relevant order changes
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    // Also subscribe to available orders (pending status) so agent sees new orders immediately
+    const availableOrdersSubscription = supabase
+      .channel('available-orders-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'orders',
+          filter: 'status=eq.pending',
+        },
+        (payload: any) => {
+          // Refresh available orders when a new pending order is created
+          fetchData();
+        }
+      )
+      .subscribe();
 
     return () => {
-      if (orderSubscription) {
-        supabase.removeChannel(orderSubscription);
-      }
+      supabase.removeChannel(orderSubscription);
+      supabase.removeChannel(availableOrdersSubscription);
     };
-  }, [profile?.id, agent?.id]);
+  }, [agent?.id, fetchData]);
 
   const checkAgentApproval = async () => {
     if (profile && profile.role === 'delivery_agent') {
@@ -564,6 +582,8 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       setMessage({ type: 'error', text: `Failed to accept order: ${error.message}` });
     } else {
       setMessage({ type: 'success', text: `Order ${order.order_number} accepted!` });
+      // Immediately refresh data to show the accepted order without delay
+      fetchData();
     }
   };
 
