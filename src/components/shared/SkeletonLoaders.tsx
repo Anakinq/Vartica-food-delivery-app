@@ -1,333 +1,174 @@
-import React from 'react';
+// src/components/shared/SkeletonLoaders.tsx
+// Skeleton loaders for better loading states
+
+import React, { memo } from 'react';
 
 interface SkeletonProps {
     className?: string;
-    style?: React.CSSProperties;
-}
-
-/**
- * Base skeleton component
- */
-export const Skeleton: React.FC<SkeletonProps> = ({ className = '', style }) => (
-    <div
-        className={`bg-gray-200 rounded animate-pulse ${className}`}
-        style={style}
-    />
-);
-
-/**
- * Text skeleton for placeholder text
- */
-interface TextSkeletonProps extends SkeletonProps {
+    variant?: 'text' | 'circular' | 'rectangular';
     width?: string | number;
     height?: string | number;
-    lines?: number;
+    animation?: 'pulse' | 'shimmer' | 'none';
 }
 
-export const TextSkeleton: React.FC<TextSkeletonProps> = ({
-    width = '100%',
-    height = '1em',
-    lines = 1,
+export const Skeleton = memo<SkeletonProps>(({
     className = '',
-    style
+    variant = 'text',
+    width,
+    height,
+    animation = 'pulse'
 }) => {
-    if (lines === 1) {
-        return (
-            <Skeleton
-                className={className}
-                style={{
-                    width,
-                    height,
-                    borderRadius: '0.25rem',
-                    ...style
-                }}
-            />
-        );
-    }
+    const baseStyles = 'bg-gray-200 dark:bg-gray-700';
 
-    return (
-        <div className={className} style={{ width }}>
-            {Array.from({ length: lines }).map((_, index) => (
-                <div key={index} className="space-y-2">
-                    <Skeleton
-                        style={{
-                            width: index === lines - 1 ? '70%' : '100%',
-                            height,
-                            borderRadius: '0.25rem',
-                            ...style
-                        }}
-                    />
-                </div>
-            ))}
-        </div>
-    );
-};
-
-/**
- * Card skeleton for loading states
- */
-export const CardSkeleton: React.FC<SkeletonProps> = ({ className = '', style }) => (
-    <div
-        className={`bg-white rounded-xl shadow-sm overflow-hidden animate-pulse ${className}`}
-        style={style}
-    >
-        <Skeleton className="w-full h-48" />
-        <div className="p-4 space-y-3">
-            <TextSkeleton width="70%" height="1.25rem" />
-            <TextSkeleton width="90%" height="1rem" lines={2} />
-            <div className="flex justify-between items-center pt-2">
-                <TextSkeleton width="40%" height="1.5rem" />
-                <Skeleton className="w-8 h-8 rounded-full" />
-            </div>
-        </div>
-    </div>
-);
-
-/**
- * Menu item skeleton
- */
-export const MenuItemSkeleton: React.FC<SkeletonProps> = ({ className = '', style }) => (
-    <div
-        className={`bg-white rounded-lg shadow-sm overflow-hidden animate-pulse ${className}`}
-        style={style}
-    >
-        <Skeleton className="w-full h-32" />
-        <div className="p-3 space-y-2">
-            <TextSkeleton width="80%" height="1.125rem" />
-            <TextSkeleton width="60%" height="0.875rem" />
-            <div className="flex justify-between items-center pt-1">
-                <TextSkeleton width="30%" height="1.25rem" />
-                <Skeleton className="w-6 h-6 rounded" />
-            </div>
-        </div>
-    </div>
-);
-
-/**
- * Vendor card skeleton
- */
-export const VendorCardSkeleton: React.FC<SkeletonProps> = ({ className = '', style }) => (
-    <div
-        className={`bg-white rounded-xl shadow-md overflow-hidden animate-pulse ${className}`}
-        style={style}
-    >
-        <Skeleton className="w-full h-32" />
-        <div className="p-4 space-y-3">
-            <div className="flex items-center space-x-3">
-                <Skeleton className="w-12 h-12 rounded-full" />
-                <div className="flex-1 space-y-1">
-                    <TextSkeleton width="70%" height="1.125rem" />
-                    <TextSkeleton width="50%" height="0.875rem" />
-                </div>
-            </div>
-            <TextSkeleton width="90%" height="0.875rem" lines={2} />
-            <div className="flex justify-between items-center">
-                <TextSkeleton width="40%" height="1rem" />
-                <Skeleton className="w-20 h-6 rounded-full" />
-            </div>
-        </div>
-    </div>
-);
-
-/**
- * Dashboard skeleton for admin panels
- */
-export const DashboardSkeleton: React.FC<SkeletonProps> = ({ className = '', style }) => (
-    <div
-        className={`space-y-6 animate-pulse ${className}`}
-        style={style}
-    >
-        {/* Header stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="bg-white rounded-lg shadow p-4">
-                    <TextSkeleton width="60%" height="1rem" />
-                    <TextSkeleton width="80%" height="1.5rem" className="mt-2" />
-                    <TextSkeleton width="40%" height="0.75rem" className="mt-1" />
-                </div>
-            ))}
-        </div>
-
-        {/* Charts placeholder */}
-        <div className="bg-white rounded-lg shadow p-6">
-            <TextSkeleton width="30%" height="1.25rem" className="mb-4" />
-            <Skeleton className="w-full h-64 rounded" />
-        </div>
-
-        {/* Tables */}
-        <div className="bg-white rounded-lg shadow">
-            <div className="p-6 border-b">
-                <TextSkeleton width="25%" height="1.25rem" />
-            </div>
-            <div className="p-6">
-                {Array.from({ length: 5 }).map((_, index) => (
-                    <div key={index} className="flex items-center justify-between py-3 border-b last:border-0">
-                        <TextSkeleton width="20%" height="1rem" />
-                        <TextSkeleton width="15%" height="1rem" />
-                        <TextSkeleton width="25%" height="1rem" />
-                        <TextSkeleton width="15%" height="1rem" />
-                        <Skeleton className="w-8 h-8 rounded" />
-                    </div>
-                ))}
-            </div>
-        </div>
-    </div>
-);
-
-/**
- * Profile skeleton
- */
-export const ProfileSkeleton: React.FC<SkeletonProps> = ({ className = '', style }) => (
-    <div
-        className={`bg-white rounded-xl shadow-sm p-6 animate-pulse ${className}`}
-        style={style}
-    >
-        <div className="flex flex-col items-center space-y-4 mb-6">
-            <Skeleton className="w-24 h-24 rounded-full" />
-            <div className="text-center space-y-2">
-                <TextSkeleton width="60%" height="1.25rem" />
-                <TextSkeleton width="40%" height="0.875rem" />
-            </div>
-        </div>
-
-        <div className="space-y-4">
-            {Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="flex items-center justify-between py-2">
-                    <TextSkeleton width="30%" height="1rem" />
-                    <TextSkeleton width="60%" height="1rem" />
-                </div>
-            ))}
-        </div>
-    </div>
-);
-
-/**
- * List skeleton with specified count
- */
-interface ListSkeletonProps extends SkeletonProps {
-    count?: number;
-    variant?: 'card' | 'menu' | 'vendor';
-}
-
-export const ListSkeleton: React.FC<ListSkeletonProps> = ({
-    count = 6,
-    variant = 'card',
-    className = '',
-    style
-}) => {
-    const getSkeletonComponent = () => {
-        switch (variant) {
-            case 'menu':
-                return MenuItemSkeleton;
-            case 'vendor':
-                return VendorCardSkeleton;
-            case 'card':
-            default:
-                return CardSkeleton;
-        }
+    const variantStyles = {
+        text: 'rounded',
+        circular: 'rounded-full',
+        rectangular: 'rounded-lg'
     };
 
-    const SkeletonComponent = getSkeletonComponent();
+    const animationStyles = {
+        pulse: 'animate-pulse',
+        shimmer: 'shimmer',
+        none: ''
+    };
 
     return (
         <div
-            className={`space-y-4 ${className}`}
-            style={style}
-        >
-            {Array.from({ length: count }).map((_, index) => (
-                <SkeletonComponent key={index} />
-            ))}
-        </div>
+            className={`${baseStyles} ${variantStyles[variant]} ${animationStyles[animation]} ${className}`}
+            style={{
+                width: typeof width === 'number' ? `${width}px` : width,
+                height: typeof height === 'number' ? `${height}px` : height
+            }}
+            aria-hidden="true"
+        />
     );
-};
+});
 
-/**
- * Form skeleton
- */
-export const FormSkeleton: React.FC<SkeletonProps> = ({ className = '', style }) => (
-    <div
-        className={`bg-white rounded-lg shadow-sm p-6 animate-pulse space-y-6 ${className}`}
-        style={style}
-    >
-        {/* Form header */}
-        <TextSkeleton width="40%" height="1.5rem" />
+Skeleton.displayName = 'Skeleton';
 
-        {/* Form fields */}
-        <div className="space-y-4">
-            {Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="space-y-2">
-                    <TextSkeleton width="30%" height="0.875rem" />
-                    <Skeleton className="w-full h-10 rounded" />
-                </div>
-            ))}
-        </div>
-
-        {/* Submit button */}
-        <div className="flex justify-end">
-            <Skeleton className="w-24 h-10 rounded" />
-        </div>
-    </div>
-);
-
-/**
- * Table skeleton
- */
-export const TableSkeleton: React.FC<{ rows?: number; columns?: number } & SkeletonProps> = ({
-    rows = 5,
-    columns = 4,
-    className = '',
-    style
-}) => (
-    <div
-        className={`bg-white rounded-lg shadow-sm overflow-hidden ${className}`}
-        style={style}
-    >
-        {/* Table header */}
-        <div className="bg-gray-50 px-6 py-3 border-b">
-            <div className="flex justify-between items-center">
-                <TextSkeleton width="20%" height="1.25rem" />
-                <Skeleton className="w-10 h-8 rounded" />
-            </div>
-        </div>
-
-        {/* Table body */}
-        <div className="divide-y">
-            {Array.from({ length: rows }).map((_, rowIndex) => (
-                <div key={rowIndex} className="px-6 py-4 flex items-center justify-between">
-                    {Array.from({ length: columns }).map((_, colIndex) => (
-                        <TextSkeleton
-                            key={colIndex}
-                            width="20%"
-                            height="1rem"
-                            className="mx-2"
-                        />
-                    ))}
-                    <Skeleton className="w-8 h-8 rounded" />
-                </div>
-            ))}
-        </div>
-
-        {/* Table footer */}
-        <div className="bg-gray-50 px-6 py-3 border-t flex justify-between items-center">
-            <TextSkeleton width="15%" height="0.875rem" />
-            <div className="flex space-x-2">
-                <Skeleton className="w-20 h-8 rounded" />
-                <Skeleton className="w-20 h-8 rounded" />
+// Menu Item Card Skeleton
+export const MenuItemCardSkeleton = memo(() => (
+    <div className="bg-[#1a1a1a] rounded-xl p-3 sm:p-4 mb-2 sm:mb-3 flex items-center">
+        <Skeleton
+            variant="rectangular"
+            width={96}
+            height={96}
+            className="rounded-lg mr-3 sm:mr-4 flex-shrink-0"
+        />
+        <div className="flex-1">
+            <Skeleton width="60%" height={20} className="mb-2" />
+            <Skeleton width="40%" height={14} className="mb-3" />
+            <div className="flex items-center space-x-2">
+                <Skeleton width={32} height={32} variant="circular" />
+                <Skeleton width={24} height={24} variant="circular" />
+                <Skeleton width={24} height={24} variant="circular" />
             </div>
         </div>
     </div>
-);
+));
 
-// Export all skeletons as a single object for convenience
-export const skeletons = {
-    Skeleton,
-    TextSkeleton,
-    CardSkeleton,
-    MenuItemSkeleton,
-    VendorCardSkeleton,
-    DashboardSkeleton,
-    ProfileSkeleton,
-    ListSkeleton,
-    FormSkeleton,
-    TableSkeleton
-};
+MenuItemCardSkeleton.displayName = 'MenuItemCardSkeleton';
+
+// Vendor Card Skeleton
+export const VendorCardSkeleton = memo(() => (
+    <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
+        <Skeleton
+            variant="rectangular"
+            width="100%"
+            height={180}
+            className="rounded-lg mb-4"
+        />
+        <Skeleton width="70%" height={20} className="mb-2" />
+        <Skeleton width="50%" height={14} />
+    </div>
+));
+
+VendorCardSkeleton.displayName = 'VendorCardSkeleton';
+
+// Stats Card Skeleton
+export const StatsCardSkeleton = memo(() => (
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-6">
+        <Skeleton width={40} height={40} variant="circular" className="mb-3" />
+        <Skeleton width={60} height={24} className="mb-1" />
+        <Skeleton width={80} height={14} />
+    </div>
+));
+
+StatsCardSkeleton.displayName = 'StatsCardSkeleton';
+
+// Order Card Skeleton
+export const OrderCardSkeleton = memo(() => (
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 mb-3">
+        <div className="flex justify-between items-start mb-3">
+            <Skeleton width={100} height={20} />
+            <Skeleton width={60} height={20} variant="rectangular" />
+        </div>
+        <Skeleton width="80%" height={14} className="mb-2" />
+        <Skeleton width="60%" height={14} className="mb-3" />
+        <div className="flex justify-between items-center">
+            <Skeleton width={80} height={16} />
+            <Skeleton width={70} height={24} variant="rectangular" />
+        </div>
+    </div>
+));
+
+OrderCardSkeleton.displayName = 'OrderCardSkeleton';
+
+// Profile Header Skeleton
+export const ProfileHeaderSkeleton = memo(() => (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 mb-4">
+        <div className="flex items-center space-x-4">
+            <Skeleton width={80} height={80} variant="circular" />
+            <div className="flex-1">
+                <Skeleton width={150} height={24} className="mb-2" />
+                <Skeleton width={200} height={16} />
+            </div>
+        </div>
+    </div>
+));
+
+ProfileHeaderSkeleton.displayName = 'ProfileHeaderSkeleton';
+
+// Chat Message Skeleton
+export const ChatMessageSkeleton = memo(() => (
+    <div className="flex space-x-3 mb-4">
+        <Skeleton width={36} height={36} variant="circular" />
+        <div className="flex-1">
+            <Skeleton width={80} height={12} className="mb-1" />
+            <Skeleton width="70%" height={40} className="rounded-lg" />
+        </div>
+    </div>
+));
+
+ChatMessageSkeleton.displayName = 'ChatMessageSkeleton';
+
+// Table Row Skeleton
+export const TableRowSkeleton = memo(() => (
+    <tr className="border-b border-gray-100 dark:border-gray-700">
+        <td className="p-4"><Skeleton width={40} height={40} variant="circular" /></td>
+        <td className="p-4"><Skeleton width={100} height={16} /></td>
+        <td className="p-4"><Skeleton width={60} height={16} /></td>
+        <td className="p-4"><Skeleton width={80} height={16} /></td>
+        <td className="p-4"><Skeleton width={50} height={24} variant="rectangular" /></td>
+    </tr>
+));
+
+TableRowSkeleton.displayName = 'TableRowSkeleton';
+
+// Grid of skeletons
+interface SkeletonGridProps {
+    count: number;
+    children: React.ReactNode;
+}
+
+export const SkeletonGrid = memo<SkeletonGridProps>(({ count, children }) => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Array.from({ length: count }).map((_, i) => (
+            <React.Fragment key={i}>{children}</React.Fragment>
+        ))}
+    </div>
+));
+
+SkeletonGrid.displayName = 'SkeletonGrid';
+
+export default Skeleton;

@@ -53,12 +53,12 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
-  height: auto;
-  overflow-y: visible;
+  height: 100dvh;
+  overflow: hidden;
   -webkit-overflow-scrolling: touch;
   /* Prevent horizontal scrolling */
   width: 100%;
-  max-width: 100%;
+  max-width: 100vw;
   box-sizing: border-box;
 }
 
@@ -67,20 +67,23 @@ body {
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-height: 100dvh;
-  height: auto;
-  overflow-y: visible;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 /* Scrollable main content - ONLY this area scrolls */
 .main-content {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   padding-bottom: 72px;
   /* MUST be >= bottom nav height */
   min-height: 0;
   /* Important for flex scrolling */
+  width: 100%;
+  max-width: 100%;
 }
 
 /* Fixed bottom navigation - NEVER scrolls */
@@ -93,15 +96,19 @@ body {
   z-index: 1000;
   background: #fff;
   border-top: 1px solid #eee;
+  /* Safe area for iOS home indicator */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* Cart full height - makes cart page fully visible without scrolling */
 .cart-full-height {
-  min-height: calc(100dvh - 72px);
+  min-height: calc(100dvh - 72px - env(safe-area-inset-bottom, 0px));
   height: auto;
   overflow-y: visible;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 100%;
 }
 
 /* Top navigation fixed */
@@ -905,4 +912,92 @@ select:focus {
   flex-direction: column;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Shimmer animation for loading states */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg,
+      #f0f0f0 25%,
+      #e0e0e0 50%,
+      #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.shimmer-dark {
+  background: linear-gradient(90deg,
+      #374151 25%,
+      #4b5563 50%,
+      #374151 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Progressive image loading */
+.progressive-image-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.progressive-image {
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.progressive-image.loaded {
+  opacity: 1;
+}
+
+.progressive-image-skeleton {
+  position: absolute;
+  inset: 0;
+}
+
+.progressive-image-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f9fafb;
+}
+
+/* Image lazy loading indicator */
+.lazy-image-loading {
+  background-color: #f3f4f6;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+
+  .progressive-image,
+  .shimmer,
+  .shimmer-dark,
+  .lazy-image-loading {
+    animation: none !important;
+    transition: none !important;
+  }
 }

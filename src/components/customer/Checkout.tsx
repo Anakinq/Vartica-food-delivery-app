@@ -586,22 +586,22 @@ export const Checkout: React.FC<CheckoutProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto overflow-x-hidden">
       <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl max-w-2xl w-full p-6">
-          <div className="flex items-center justify-between mb-6">
+        <div className="bg-white rounded-2xl max-w-md w-full p-4 sm:p-6 overflow-x-hidden">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
             <div className="flex items-center">
               <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                 <ArrowLeft className="h-6 w-6" />
               </button>
-              <h2 className="text-2xl font-bold text-black ml-4">Checkout</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-black ml-2 sm:ml-4">Checkout</h2>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
               <X className="h-6 w-6" />
             </button>
           </div>
 
-          <form className="space-y-6">
+          <form className="space-y-4 sm:space-y-6">
             {/* Error Display */}
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">

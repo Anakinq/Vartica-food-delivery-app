@@ -1,18 +1,20 @@
-﻿// src/App.tsx - Hash-based Routing Implementation for Role Switching
-import React, { useState, useEffect } from 'react';
+﻿// src/App.tsx - Hash-based Routing Implementation with Code Splitting
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from './contexts/AuthContext';
-import { CustomerHome } from './components/customer/CustomerHome';
-import { VendorDashboard } from './components/vendor/VendorDashboard';
+
+// Lazy load route components for better performance (code splitting)
+const CustomerHome = lazy(() => import('./components/customer/CustomerHome').then(module => ({ default: module.CustomerHome })));
+const VendorDashboard = lazy(() => import('./components/vendor/VendorDashboard').then(module => ({ default: module.VendorDashboard })));
 import { VendorBottomNavigation } from './components/vendor/VendorBottomNavigation';
 import { LandingPage } from './components/LandingPage';
-import { SignIn } from './components/auth/SignIn';
-import { SignUp } from './components/auth/SignUp';
+const SignIn = lazy(() => import('./components/auth/SignIn').then(module => ({ default: module.SignIn })));
+const SignUp = lazy(() => import('./components/auth/SignUp').then(module => ({ default: module.SignUp })));
 import { ProfileDashboard } from './components/shared/ProfileDashboard';
-import { AdminDashboard } from './components/admin/AdminDashboard';
-import { DeliveryDashboard } from './components/delivery/DeliveryDashboard';
+const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
+const DeliveryDashboard = lazy(() => import('./components/delivery/DeliveryDashboard').then(module => ({ default: module.DeliveryDashboard })));
 import { Cart } from './components/customer/Cart';
 import { Checkout } from './components/customer/Checkout';
-import CafeteriaDashboard from './components/cafeteria/CafeteriaDashboard';
+const CafeteriaDashboard = lazy(() => import('./components/cafeteria/CafeteriaDashboard').then(module => ({ default: module.default })));
 import AuthCallback from './components/auth/AuthCallback';
 
 import { Analytics } from '@vercel/analytics/react';
@@ -26,13 +28,33 @@ import { BottomNavigation } from './components/shared/BottomNavigation';
 import NotificationsPanel from './components/shared/NotificationsPanel';
 import { CartProvider, useCart } from './contexts/CartContext';
 
+// Loading fallback for Suspense
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+      <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+    </div>
+  </div>
+);
+
+// Wrap lazy component with Suspense helper
+const withSuspense = <P extends object>(Component: React.ComponentType<P>) => {
+  return function SuspendedComponent(props: P) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <Component {...props} />
+      </Suspense>
+    );
+  };
+};
+
 function AppContent() {
   const { user, profile, loading, signOut } = useAuth();
   const [showProfile, setShowProfile] = useState(false);
-  const { items, cartCount, updateQuantity, clearCart } = useCart();
+  const { items, cartCount, clearCart } = useCart();
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [authView, setAuthView] = useState<'signin' | 'signup'>('signin');
-  // Add state to track location changes
   const [locationHash, setLocationHash] = useState(window.location.hash);
 
   // Force re-evaluation of routing when auth state changes
@@ -46,78 +68,39 @@ function AppContent() {
   useEffect(() => {
     const handleHashChange = () => {
       setLocationHash(window.location.hash);
-      if (user && profile) {
-        if (locationHash === '#/vendor') {
-          // Check if user has vendor role
-          if ((profile as Profile).is_vendor || ['vendor', 'late_night_vendor'].includes(profile.role)) {
-            return; // Allow vendor view
-          } else {
-            // If not a vendor, show customer view but keep hash for clarity
-            return;
-          }
-        } else if (locationHash === '#/delivery') {
-          // Check if user has delivery_agent role
-          if ((profile as Profile).is_delivery_agent || profile.role === 'delivery_agent') {
-            return; // Allow delivery agent view
-          } else {
-            // If not a delivery agent, show customer view but keep hash for clarity
-            return;
-          }
-        }
-      }
     };
 
-    // Initial check
     handleHashChange();
-
-    // Listen for hash changes
     window.addEventListener('hashchange', handleHashChange);
-
-    return () => {
-      window.removeEventListener('hashchange', handleHashChange);
-    };
+    return () => window.removeEventListener('hashchange', handleHashChange);
   }, [user, profile]);
 
-  // Handle empty hash for authenticated users - redirect to appropriate dashboard
+  // Handle empty hash for authenticated users
   useEffect(() => {
-    if (user && profile && !loading) {
-      // If we're on an empty hash or landing page, redirect to appropriate dashboard
-      if (!locationHash || locationHash === '#/' || locationHash === '') {
-        // Clear hash to trigger role-based routing
-        window.location.hash = '';
-      }
+    if (user && profile && !loading && !locationHash) {
+      window.location.hash = '';
     }
   }, [user, profile, loading, locationHash]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
+    return <PageLoader />;
   }
 
-  // Handle auth callback route - redirect to dashboard after OAuth
+  // Handle auth callback route
   const isAuthCallback = locationHash.startsWith('#/auth/callback') ||
     window.location.search.includes('access_token') ||
     window.location.search.includes('type=oauth');
 
   if (isAuthCallback) {
-    // Show AuthCallback component which will handle the redirect
     return <AuthCallback />;
   }
 
   // Handle hash-based routing
   if (user && profile) {
-
     // Handle checkout route
     if (locationHash === '#/checkout') {
       const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
       const deliveryFee = 500;
-      const packCount = 0; // You may need to add pack count to context
 
       return (
         <div className="authenticated-view">
@@ -126,7 +109,7 @@ function AppContent() {
               items={items}
               subtotal={subtotal}
               deliveryFee={deliveryFee}
-              packCount={packCount}
+              packCount={0}
               onBack={() => { window.location.hash = ''; }}
               onClose={() => { window.location.hash = ''; }}
               onSuccess={() => {
@@ -140,33 +123,27 @@ function AppContent() {
       );
     }
 
+    // Handle notifications
     if (locationHash === '#/notifications' || locationHash === '#/alerts') {
       return (
         <div className="authenticated-view">
           <div className="main-content">
-            <NotificationsPanel
-              onClose={() => {
-                window.location.hash = '';
-              }}
-            />
+            <NotificationsPanel onClose={() => { window.location.hash = ''; }} />
           </div>
           <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
         </div>
       );
     }
 
+    // Handle profile
     if (locationHash === '#/profile') {
       return (
         <div className="authenticated-view">
           <div className="main-content">
             <ProfileDashboard
-              onBack={() => {
-                window.location.hash = '';
-              }}
+              onBack={() => { window.location.hash = ''; }}
               onSignOut={() => signOut()}
-              onClose={() => {
-                window.location.hash = '';
-              }}
+              onClose={() => { window.location.hash = ''; }}
             />
           </div>
           <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
@@ -174,24 +151,7 @@ function AppContent() {
       );
     }
 
-    if (showProfile) {
-      return (
-        <div className="authenticated-view">
-          <div className="main-content">
-            <ProfileDashboard
-              onBack={() => setShowProfile(false)}
-              onSignOut={() => {
-                signOut();
-                setShowProfile(false);
-              }}
-            />
-          </div>
-          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
-        </div>
-      );
-    }
-
-    // Handle role-based routing with proper SPA navigation
+    // Handle role-based routing
     const userRole = profile.role as UserRole;
 
     // Check hash for explicit role routing
@@ -200,52 +160,50 @@ function AppContent() {
         return (
           <div className="authenticated-view">
             <div className="main-content">
-              <VendorDashboard onShowProfile={() => setShowProfile(true)} />
+              {withSuspense(VendorDashboard)({ onShowProfile: () => setShowProfile(true) })}
             </div>
             <VendorBottomNavigation />
           </div>
         );
-      } else {
-        // Redirect to customer view but don't clear hash - let user see they don't have access
-        return (
-          <div className="authenticated-view">
-            <div className="main-content">
-              <CustomerHome onShowProfile={() => setShowProfile(true)} />
-            </div>
-            <BottomNavigation cartCount={cartCount} notificationCount={0} />
-          </div>
-        );
       }
-    } else if (locationHash === '#/delivery') {
+      return (
+        <div className="authenticated-view">
+          <div className="main-content">
+            {withSuspense(CustomerHome)({ onShowProfile: () => setShowProfile(true) })}
+          </div>
+          <BottomNavigation cartCount={cartCount} notificationCount={0} />
+        </div>
+      );
+    }
+
+    if (locationHash === '#/delivery') {
       if ((profile as Profile).is_delivery_agent || profile.role === 'delivery_agent') {
         return (
           <div className="authenticated-view">
             <div className="main-content">
-              <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />
+              {withSuspense(DeliveryDashboard)({ onShowProfile: () => setShowProfile(true) })}
             </div>
             <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
           </div>
         );
-      } else {
-        // Redirect to customer view but don't clear hash - let user see they don't have access
-        return (
-          <div className="authenticated-view">
-            <div className="main-content">
-              <CustomerHome onShowProfile={() => setShowProfile(true)} />
-            </div>
-            <BottomNavigation cartCount={cartCount} notificationCount={0} />
-          </div>
-        );
       }
+      return (
+        <div className="authenticated-view">
+          <div className="main-content">
+            {withSuspense(CustomerHome)({ onShowProfile: () => setShowProfile(true) })}
+          </div>
+          <BottomNavigation cartCount={cartCount} notificationCount={0} />
+        </div>
+      );
     }
 
-    // Default routing based on primary role when no hash is specified
+    // Default routing based on primary role
     switch (userRole) {
       case 'admin':
         return (
           <div className="authenticated-view">
             <div className="main-content">
-              <AdminDashboard onShowProfile={() => setShowProfile(true)} />
+              {withSuspense(AdminDashboard)({ onShowProfile: () => setShowProfile(true) })}
             </div>
             <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
           </div>
@@ -254,7 +212,7 @@ function AppContent() {
         return (
           <div className="authenticated-view">
             <div className="main-content">
-              <DeliveryDashboard onShowProfile={() => setShowProfile(true)} />
+              {withSuspense(DeliveryDashboard)({ onShowProfile: () => setShowProfile(true) })}
             </div>
             <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
           </div>
@@ -263,29 +221,17 @@ function AppContent() {
         return (
           <div className="authenticated-view">
             <div className="main-content">
-              <CafeteriaDashboard profile={profile} onShowProfile={() => setShowProfile(true)} />
+              {withSuspense(CafeteriaDashboard)({ profile, onShowProfile: () => setShowProfile(true) })}
             </div>
             <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
           </div>
         );
       case 'vendor':
       case 'late_night_vendor':
-        // For vendors, check if they want to see vendor dashboard via hash
-        if (window.location.hash === '#/vendor-dashboard') {
-          return (
-            <div className="authenticated-view">
-              <div className="main-content">
-                <VendorDashboard onShowProfile={() => setShowProfile(true)} />
-              </div>
-              <VendorBottomNavigation />
-            </div>
-          );
-        }
-        // Otherwise show customer view by default
         return (
           <div className="authenticated-view">
             <div className="main-content">
-              <CustomerHome onShowProfile={() => setShowProfile(true)} />
+              {withSuspense(CustomerHome)({ onShowProfile: () => setShowProfile(true) })}
             </div>
             <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
           </div>
@@ -295,7 +241,7 @@ function AppContent() {
         return (
           <div className="authenticated-view">
             <div className="main-content">
-              <CustomerHome onShowProfile={() => setShowProfile(true)} />
+              {withSuspense(CustomerHome)({ onShowProfile: () => setShowProfile(true) })}
             </div>
             <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
           </div>
@@ -305,14 +251,11 @@ function AppContent() {
 
   // Show sign in form if role is selected
   if (selectedRole) {
-    if (authView === 'signup' && (selectedRole === 'customer' || selectedRole === 'vendor' || selectedRole === 'late_night_vendor' || selectedRole === 'delivery_agent')) {
+    if (authView === 'signup') {
       return (
         <SignUp
           role={selectedRole === 'late_night_vendor' ? 'late_night_vendor' : selectedRole as 'customer' | 'vendor' | 'delivery_agent'}
-          onBack={() => {
-            setSelectedRole(null);
-            setAuthView('signin');
-          }}
+          onBack={() => { setSelectedRole(null); setAuthView('signin'); }}
           onSwitchToSignIn={() => setAuthView('signin')}
         />
       );
@@ -351,7 +294,7 @@ function App() {
       originalError.apply(console, args);
     };
 
-    // Validate environment variables (silent check)
+    // Validate environment variables
     if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
       console.warn('Configuration error: Missing Supabase credentials. Check your .env file.');
     }
@@ -364,15 +307,12 @@ function App() {
           <ToastProvider>
             <CartProvider>
               <div className="app-container">
-                {/* Accessibility elements */}
                 <div role="status" aria-live="polite" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
                   Loading application
                 </div>
                 <div role="alert" aria-live="assertive" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
-                  {/* For error messages */}
                 </div>
                 <AppContent />
-
                 <Analytics />
               </div>
             </CartProvider>

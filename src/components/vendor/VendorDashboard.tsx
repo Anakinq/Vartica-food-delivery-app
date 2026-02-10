@@ -135,7 +135,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     if (!profile) return;
 
     try {
-      // Fetch vendor record
+      // Fetch vendor record first (needed for ID)
       const { data: vendorData } = await supabase
         .from('vendors')
         .select('*')
@@ -151,19 +151,19 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
           setIsStoreOpen(JSON.parse(savedStatus));
         }
 
-        // Fetch payout profile
-        await fetchPayoutProfile(vendorData.id);
-
-        // Fetch wallet balance
-        await fetchWalletBalance(vendorData.id);
-      }
-
-      // Fetch orders
-      await fetchOrders(vendorData?.id);
-
-      // Fetch stats
-      if (vendorData?.id) {
-        await fetchStats(vendorData.id);
+        // Fetch all independent data in parallel for better performance
+        await Promise.all([
+          fetchPayoutProfile(vendorData.id),
+          fetchWalletBalance(vendorData.id),
+          fetchOrders(vendorData.id),
+          fetchStats(vendorData.id)
+        ]);
+      } else {
+        // Even without vendor record, try to fetch orders and stats
+        await Promise.all([
+          fetchOrders(undefined),
+          fetchStats(undefined)
+        ]);
       }
     } catch (error) {
       console.error('Error fetching vendor data:', error);

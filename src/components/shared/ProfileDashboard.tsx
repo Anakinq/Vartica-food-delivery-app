@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, HelpCircle, CreditCard, MapPin, MessageCircle, Camera, Store, ArrowLeftRight } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, HelpCircle, CreditCard, MapPin, MessageCircle, Camera, Store, ArrowLeftRight, Download } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { supabase } from '../../lib/supabase/client';
@@ -15,6 +15,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showVendorUpgrade, setShowVendorUpgrade] = useState(false);
   const [showDeliveryAgentUpgrade, setShowDeliveryAgentUpgrade] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || '',
     phone: profile?.phone || '',
@@ -189,7 +190,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
           </div>
         </nav>
 
-        <div className="max-w-4xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
+        <div className="max-w-md mx-auto px-3 sm:px-4 py-6 sm:py-8 overflow-x-hidden">
           {/* Profile Header Card */}
           <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
             <div className="flex items-center space-x-4">
@@ -482,6 +483,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
               {/* Other Settings */}
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
                 {[
+                  { icon: Download, title: 'Download App', desc: 'Install Vartica Food on your device' },
                   { icon: Lock, title: 'Privacy & Security', desc: 'Manage your account security' },
                   { icon: CreditCard, title: 'Payment Methods', desc: 'Manage saved cards' },
                   { icon: MapPin, title: 'Saved Addresses', desc: 'Manage delivery locations' },
@@ -494,6 +496,8 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
                       onClick={() => {
                         if (item.title === 'Contact Support') {
                           setShowSupportModal(true);
+                        } else if (item.title === 'Download App') {
+                          setShowDownloadModal(true);
                         }
                       }}
                     >
@@ -549,15 +553,15 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
             // Refresh the profile to reflect the role change
             try {
               await refreshProfile();
-              showToast({ 
-                type: 'success', 
-                message: 'Application submitted! Your delivery agent account is pending admin approval. You will be notified once approved.' 
+              showToast({
+                type: 'success',
+                message: 'Application submitted! Your delivery agent account is pending admin approval. You will be notified once approved.'
               });
             } catch (error) {
               console.error('Error refreshing profile:', error);
-              showToast({ 
-                type: 'success', 
-                message: 'Application submitted! Awaiting admin approval.' 
+              showToast({
+                type: 'success',
+                message: 'Application submitted! Awaiting admin approval.'
               });
             }
           }}
@@ -566,6 +570,60 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
 
       {/* PWA Install Prompt */}
       <InstallPrompt />
+
+      {/* Download App Modal */}
+      {showDownloadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-black dark:text-white">Download Vartica Food</h2>
+              <button
+                onClick={() => setShowDownloadModal(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+              >
+                <ArrowLeft className="h-5 w-5 text-gray-500 rotate-180" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4">
+                <div className="flex items-center space-x-3 mb-2">
+                  <Download className="h-8 w-8 text-blue-600" />
+                  <span className="font-semibold text-blue-600 dark:text-blue-400">Install as App</span>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Tap the <strong>Share</strong> button (iOS) or <strong>Menu</strong> (Android) and select <strong>"Add to Home Screen"</strong>
+                </p>
+              </div>
+
+              <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                <p className="font-medium text-black dark:text-white">Benefits of installing:</p>
+                <ul className="space-y-1 ml-4">
+                  <li>• Faster access from home screen</li>
+                  <li>• Works offline (basic features)</li>
+                  <li>• Push notifications for orders</li>
+                  <li>• Full-screen experience</li>
+                </ul>
+              </div>
+
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <strong>iOS (Safari):</strong> Tap Share → Add to Home Screen
+                  <br />
+                  <strong>Android (Chrome):</strong> Tap Menu → Install App
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowDownloadModal(false)}
+              className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MenuItem } from '../../lib/supabase';
 import { supabase } from '../../lib/supabase';
+import LazyImage from '../common/LazyImage';
 
 interface MenuItemDetailProps {
   item: MenuItem;
@@ -64,22 +65,11 @@ export const MenuItemDetail: React.FC<MenuItemDetailProps> = ({
       {/* Product Image */}
       <div className="px-4 mt-2">
         <div className="h-64 rounded-xl overflow-hidden bg-gray-100">
-          <img
+          <LazyImage
             src={imageUrl}
             alt={item.name}
             className="w-full h-full object-cover"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              const currentSrc = target.src;
-
-              // If the current src is not already the fallback, try the fallback
-              if (!currentSrc.includes('placehold.co')) {
-                target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=Image+Error';
-              } else {
-                // If already showing fallback, try the local fallback
-                target.src = '/images/1.jpg';
-              }
-            }}
+            placeholder={imageUrl}
           />
         </div>
       </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo, useCallback } from 'react';
 import { MenuItem } from '../../lib/supabase';
 import LazyImage from '../common/LazyImage';
 import { Plus, Minus, Heart } from 'lucide-react';
@@ -13,7 +13,6 @@ interface MenuItemCardProps {
 
 // Fallback image URL
 const FALLBACK_IMAGE = '/images/1.jpg';
-const PLACEHOLDER_IMAGE = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
 
 // Properly format the image URL to handle special characters and ensure validity
 const getImageUrl = (imageUrl: string | null | undefined): string => {
@@ -22,36 +21,30 @@ const getImageUrl = (imageUrl: string | null | undefined): string => {
   try {
     // Check if it's already a full URL
     if (imageUrl.startsWith('http')) {
-      // Supabase storage URLs don't include /public/ in the path
-      // URL format: https://project.supabase.co/storage/v1/object/menu-images/filename
       return decodeURIComponent(imageUrl);
     }
     return imageUrl;
-  } catch (error) {
-    console.warn('Error processing image URL:', error);
+  } catch {
     return FALLBACK_IMAGE;
   }
 };
 
-export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, quantity, onQuantityChange, isFavorite = false, onToggleFavorite }) => {
-  const [isAnimating, setIsAnimating] = useState<'increment' | 'decrement' | null>(null);
+export const MenuItemCard = memo<MenuItemCardProps>(({ item, quantity, onQuantityChange, isFavorite = false, onToggleFavorite }) => {
   const imageUrl = getImageUrl(item.image_url);
 
-  const handleIncrement = () => {
-    setIsAnimating('increment');
+  const handleIncrement = useCallback(() => {
     onQuantityChange(item.id, quantity + 1);
-    setTimeout(() => setIsAnimating(null), 200);
-  };
+  }, [item.id, quantity, onQuantityChange]);
 
-  const handleDecrement = () => {
+  const handleDecrement = useCallback(() => {
     if (quantity > 0) {
-      setIsAnimating('decrement');
       onQuantityChange(item.id, quantity - 1);
-      setTimeout(() => setIsAnimating(null), 200);
     }
-  };
+  }, [item.id, quantity, onQuantityChange]);
 
-  const totalPrice = item.price * quantity;
+  const handleToggleFavorite = useCallback(() => {
+    onToggleFavorite?.();
+  }, [onToggleFavorite]);
 
   return (
     <div className="bg-[#1a1a1a] rounded-xl p-3 sm:p-4 mb-2 sm:mb-3 flex items-center">
@@ -61,7 +54,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, quantity, onQu
           src={imageUrl}
           alt={item.name}
           className="w-full h-full object-cover"
-          fallback="/images/1.jpg"
+          fallback={FALLBACK_IMAGE}
         />
 
         {/* Quantity Badge */}
@@ -78,12 +71,10 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, quantity, onQu
           <h3 className="font-bold text-white text-base sm:text-lg line-clamp-1">{item.name}</h3>
           {onToggleFavorite && (
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleFavorite();
-              }}
+              onClick={handleToggleFavorite}
               className="text-gray-400 hover:text-red-500 p-1"
               aria-label={isFavorite ? `Remove ${item.name} from favorites` : `Add ${item.name} to favorites`}
+              aria-pressed={isFavorite}
             >
               <Heart className={`h-5 w-5 ${isFavorite ? 'text-red-500 fill-red-500' : ''}`} />
             </button>
@@ -112,10 +103,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, quantity, onQu
               <Minus className="h-4 w-4" />
             </button>
 
-            <span
-              className={`mx-2 text-white font-bold min-w-[24px] text-center transition-transform duration-200 ${isAnimating ? 'scale-125 text-[#FF9500]' : ''
-                }`}
-            >
+            <span className="mx-2 text-white font-bold min-w-[24px] text-center">
               {quantity}
             </span>
 
@@ -135,4 +123,6 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, quantity, onQu
       </div>
     </div>
   );
-};
+});
+
+MenuItemCard.displayName = 'MenuItemCard';
