@@ -1,108 +1,53 @@
-import React, { useState } from 'react';
-import { Home, Package, User, ArrowLeftRight } from 'lucide-react';
+// src/components/vendor/VendorBottomNavigation.tsx
+import React from 'react';
+import { Home, Package, BarChart3, User } from 'lucide-react';
 
 interface VendorBottomNavigationProps {
-    orderCount?: number;
-    itemCount?: number;
+    cartCount?: number;
+    notificationCount?: number;
+    userRole?: string;
 }
 
 export const VendorBottomNavigation: React.FC<VendorBottomNavigationProps> = ({
-    orderCount = 0,
-    itemCount = 0
+    cartCount = 0,
+    notificationCount = 0,
 }) => {
-    const [activeTab, setActiveTab] = React.useState(() => {
-        const hash = window.location.hash.replace('#', '');
-        return hash || '';
-    });
-
-    const navigateTo = (path: string) => {
-        setActiveTab(path);
-        window.location.hash = path;
-    };
-
-    const isActive = (path: string) => {
-        if (path === '' || path === '/') {
-            return activeTab === '' || activeTab === '/';
-        }
-        return activeTab === path;
-    };
-
-    // Scroll to section function
-    const scrollToSection = (sectionId: string) => {
-        const element = document.getElementById(sectionId);
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    };
-
-    // Handle role switch - switch to customer view
-    const handleRoleSwitch = () => {
-        // Store the preferred role in sessionStorage
-        sessionStorage.setItem('preferredRole', 'customer');
-        // Clear hash and reload to ensure proper state update
-        window.location.hash = '';
-        // Small delay to ensure sessionStorage is set before reload
-        setTimeout(() => {
-            window.location.reload();
-        }, 50);
-    };
-
     const navItems = [
-        {
-            id: 'dashboard',
-            label: 'Dashboard',
-            icon: Home,
-            action: () => scrollToSection('dashboard'),
-        },
-        {
-            id: 'orders',
-            label: 'Orders',
-            icon: Package,
-            action: () => scrollToSection('orders-section'),
-            badge: orderCount > 0 ? orderCount : undefined,
-        },
-        {
-            id: 'items',
-            label: 'Items',
-            icon: User,
-            action: () => scrollToSection('menu-management'),
-            badge: itemCount > 0 ? itemCount : undefined,
-        },
-        {
-            id: 'switch-role',
-            label: 'Switch Role',
-            icon: ArrowLeftRight,
-            action: handleRoleSwitch,
-        },
+        { icon: Home, label: 'Home', href: '#/vendor', active: true },
+        { icon: Package, label: 'Orders', href: '#/vendor-orders', active: false },
+        { icon: BarChart3, label: 'Earnings', href: '#/vendor-earnings', active: false },
+        { icon: User, label: 'Profile', href: '#/profile', active: false },
     ];
 
     return (
-        <nav className="bottom-nav safe-area-bottom" id="vendor-bottom-nav">
-            {navItems.map((item) => {
-                const IconComponent = item.icon;
-                const active = activeTab === item.id ||
-                    (item.id === 'dashboard' && (activeTab === '' || activeTab === '/'));
-
-                return (
-                    <button
-                        key={item.id}
-                        onClick={item.action}
-                        className={`nav-item ${active ? 'active' : ''}`}
-                        aria-label={item.label}
-                        id={item.id === 'switch-role' ? 'role-switcher-button' : undefined}
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 safe-area-bottom">
+            <div className="flex justify-around items-center h-16 max-w-md mx-auto">
+                {navItems.map((item, idx) => (
+                    <a
+                        key={idx}
+                        href={item.href}
+                        className={`flex flex-col items-center justify-center flex-1 h-full ${item.active ? 'text-purple-600' : 'text-gray-500'
+                            }`}
                     >
-                        <div className="nav-icon relative">
-                            <IconComponent size={24} />
-                            {item.badge !== undefined && (
-                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                                    {item.badge > 99 ? '99+' : item.badge}
+                        <div className="relative">
+                            <item.icon className="h-6 w-6" />
+                            {item.label === 'Orders' && cartCount > 0 && (
+                                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                                    {cartCount > 99 ? '99+' : cartCount}
+                                </span>
+                            )}
+                            {item.label === 'Profile' && notificationCount > 0 && (
+                                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                                    {notificationCount > 99 ? '99+' : notificationCount}
                                 </span>
                             )}
                         </div>
-                        <span className="nav-label">{item.label}</span>
-                    </button>
-                );
-            })}
+                        <span className="text-xs mt-1">{item.label}</span>
+                    </a>
+                ))}
+            </div>
         </nav>
     );
 };
+
+export default VendorBottomNavigation;

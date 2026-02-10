@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { X, Send, Paperclip, Image, File, Download, Phone } from 'lucide-react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { X, Send, Paperclip, Image, File, Download, Phone, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { databaseService } from '../../services';
@@ -35,6 +35,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
   const [showVoiceCallModal, setShowVoiceCallModal] = useState(false);
   const [orderData, setOrderData] = useState<Order | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Fetch order data to get recipient info
   useEffect(() => {
@@ -91,18 +92,25 @@ export const ChatModal: React.FC<ChatModalProps> = ({
     scrollToBottom();
   }, [messages]);
 
-  const fetchMessages = async () => {
-    const { data } = await databaseService.select<ChatMessage>({
-      table: 'chat_messages',
-      match: { order_id: orderId },
-      order: { column: 'created_at', ascending: true },
-    });
+  const fetchMessages = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      const { data } = await databaseService.select<ChatMessage>({
+        table: 'chat_messages',
+        match: { order_id: orderId },
+        order: { column: 'created_at', ascending: true },
+      });
 
-    if (data) {
-      setMessages(data);
-      markAsRead(data);
+      if (data) {
+        setMessages(data);
+        markAsRead(data);
+      }
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    } finally {
+      setIsRefreshing(false);
     }
-  };
+  }, [orderId]);
 
   const markAsRead = async (msgs: ChatMessage[]) => {
     const unreadMessages = msgs.filter((m) => !m.is_read && m.sender_id !== user?.id);
@@ -216,22 +224,31 @@ export const ChatModal: React.FC<ChatModalProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center">
-        <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl max-h-[90vh] flex flex-col">
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4">
+        <div className="bg-white w-full max-w-lg max-h-[90vh] sm:max-h-[85vh] rounded-2xl flex flex-col shadow-2xl">
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
-            <div>
+            <div className="flex items-center gap-2">
               <h2 className="text-lg font-bold text-gray-900">Chat - Order #{orderNumber}</h2>
-              <p className="text-sm text-gray-600">With {recipientName}</p>
+              <button
+                onClick={fetchMessages}
+                disabled={isRefreshing}
+                className={`p-1 hover:bg-gray-100 rounded-full text-gray-500 ${isRefreshing ? 'animate-spin' : ''}`}
+                title="Refresh messages"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
             </div>
-            <div className="flex space-x-2">
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-gray-600 hidden sm:block">With {recipientName}</p>
               <button
                 onClick={() => setShowVoiceCallModal(true)}
                 className="p-2 hover:bg-gray-100 rounded-full text-green-600"
+                title="Voice call"
               >
-                <Phone className="h-6 w-6" />
+                <Phone className="h-5 w-5" />
               </button>
               <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
-                <X className="h-6 w-6" />
+                <X className="h-5 w-5" />
               </button>
             </div>
           </div>

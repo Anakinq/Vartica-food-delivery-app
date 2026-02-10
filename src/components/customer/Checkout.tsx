@@ -66,7 +66,11 @@ export const Checkout: React.FC<CheckoutProps> = ({
   // Marketplace delivery method state (for BOTH vendors)
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('agent');
   const [vendorDeliveryMode, setVendorDeliveryMode] = useState<string | null>(null);
+  const [vendorType, setVendorType] = useState<string | null>(null);
   const [showDeliveryMethodChoice, setShowDeliveryMethodChoice] = useState(false);
+
+  // Check if current order is from a student vendor (no hostel delivery fee)
+  const isStudentVendor = vendorType === 'student';
 
   // Function to calculate delivery fee based on hostel location
   const calculateDeliveryFee = useCallback((hostel: string): number => {
@@ -76,14 +80,19 @@ export const Checkout: React.FC<CheckoutProps> = ({
   // Update delivery fee when hostel selection changes
   useEffect(() => {
     if (formData.deliveryAddress) {
-      const fee = calculateDeliveryFee(formData.deliveryAddress);
-      setHostelBasedDeliveryFee(fee);
+      // Student vendors have no hostel delivery fee
+      if (isStudentVendor) {
+        setHostelBasedDeliveryFee(0);
+      } else {
+        const fee = calculateDeliveryFee(formData.deliveryAddress);
+        setHostelBasedDeliveryFee(fee);
+      }
     } else {
       setHostelBasedDeliveryFee(effectiveDeliveryFee);
     }
-  }, [formData.deliveryAddress]);
+  }, [formData.deliveryAddress, isStudentVendor]);
 
-  // Fetch vendor's delivery_mode for marketplace flow
+  // Fetch vendor's delivery_mode and vendor_type for marketplace flow
   useEffect(() => {
     const fetchVendorDeliveryMode = async () => {
       if (items.length > 0) {
@@ -93,14 +102,20 @@ export const Checkout: React.FC<CheckoutProps> = ({
         if (sellerType === 'vendor') {
           const { data: vendorData } = await supabase
             .from('vendors')
-            .select('delivery_mode')
+            .select('delivery_mode, vendor_type')
             .eq('id', sellerId)
             .single();
 
-          if (vendorData?.delivery_mode) {
-            setVendorDeliveryMode(vendorData.delivery_mode);
+          if (vendorData) {
+            setVendorDeliveryMode(vendorData.delivery_mode || null);
+            setVendorType(vendorData.vendor_type || null);
             setShowDeliveryMethodChoice(vendorData.delivery_mode === 'both');
           }
+        } else if (sellerType === 'late_night_vendor') {
+          // Late night vendors have delivery fees like cafeterias
+          setVendorType('late_night_vendor');
+        } else if (sellerType === 'cafeteria') {
+          setVendorType('cafeteria');
         }
       }
     };

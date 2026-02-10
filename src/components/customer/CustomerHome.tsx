@@ -1,6 +1,6 @@
 // src/components/customer/CustomerHome.tsx
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { Search, LogOut, User, Moon, Package, Heart, ArrowLeft } from 'lucide-react';
+import { Search, LogOut, User, Moon, Package, Heart, ArrowLeft, Star } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Cafeteria, MenuItem } from '../../lib/supabase';
 import { Vendor } from '../../lib/supabase/types';
@@ -14,6 +14,7 @@ import { CardSkeleton, ListSkeleton } from '../shared/LoadingSkeleton';
 import { Skeleton } from '../shared/LoadingSkeleton';
 import { useToast } from '../../contexts/ToastContext';
 import { useCart } from '../../contexts/CartContext';
+import { VendorReviewService } from '../../services/supabase/vendor.service';
 
 interface CustomerHomeProps {
   onShowProfile?: () => void;
@@ -63,6 +64,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const [cafeterias, setCafeterias] = useState<Cafeteria[]>([]);
   const [studentVendors, setStudentVendors] = useState<Vendor[]>([]);
   const [lateNightVendors, setLateNightVendors] = useState<Vendor[]>([]);
+  const [vendorRatings, setVendorRatings] = useState<Record<string, { avgRating: number; reviewCount: number }>>({});
 
   // State to track cafeteria open status
   const [cafeteriaStatus, setCafeteriaStatus] = useState<Record<string, boolean>>({});
@@ -284,6 +286,24 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         const lateNight = vendorsRes.data.filter(v => v.vendor_type === 'late_night');
         setStudentVendors(students);
         setLateNightVendors(lateNight);
+
+        // Fetch ratings for all vendors
+        const allVendors = [...students, ...lateNight];
+        const ratings: Record<string, { avgRating: number; reviewCount: number }> = {};
+
+        for (const vendor of allVendors) {
+          try {
+            const [avgRating, reviewCount] = await Promise.all([
+              VendorReviewService.getVendorAverageRating(vendor.id),
+              VendorReviewService.getVendorReviewCount(vendor.id)
+            ]);
+            ratings[vendor.id] = { avgRating, reviewCount };
+          } catch (error) {
+            console.error('Error fetching ratings for vendor:', vendor.id, error);
+            ratings[vendor.id] = { avgRating: 0, reviewCount: 0 };
+          }
+        }
+        setVendorRatings(ratings);
       }
     } catch (error) {
       console.error('Unexpected error in fetchData:', error);
@@ -747,6 +767,18 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                         <div className="p-4">
                           <h3 className="font-bold text-black text-base sm:text-lg truncate">{vendor.store_name}</h3>
                           <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-1">{vendor.description}</p>
+                          {/* Vendor Rating Display */}
+                          {vendorRatings[vendor.id] && vendorRatings[vendor.id].reviewCount > 0 && (
+                            <div className="flex items-center mt-2">
+                              <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                              <span className="ml-1 text-sm font-medium text-gray-700">
+                                {vendorRatings[vendor.id].avgRating.toFixed(1)}
+                              </span>
+                              <span className="ml-1 text-xs text-gray-500">
+                                ({vendorRatings[vendor.id].reviewCount} reviews)
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -792,6 +824,18 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                       />
                       <h3 className="font-bold text-stone-800 text-lg sm:text-xl truncate">{vendor.store_name}</h3>
                       <p className="text-xs sm:text-sm text-stone-600 mt-1 line-clamp-1">{vendor.description}</p>
+                      {/* Vendor Rating Display */}
+                      {vendorRatings[vendor.id] && vendorRatings[vendor.id].reviewCount > 0 && (
+                        <div className="flex items-center mt-2">
+                          <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                          <span className="ml-1 text-sm font-medium text-stone-700">
+                            {vendorRatings[vendor.id].avgRating.toFixed(1)}
+                          </span>
+                          <span className="ml-1 text-xs text-stone-500">
+                            ({vendorRatings[vendor.id].reviewCount} reviews)
+                          </span>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -1,1195 +1,653 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { LogOut, Plus, Edit2, ToggleLeft, ToggleRight, Menu, X, User, Camera, Save, MessageCircle } from 'lucide-react';
+// src/components/vendor/VendorDashboard.tsx
+import React, { useEffect, useState, useRef } from 'react';
+import {
+  LogOut, Package, MessageCircle, Wallet, Settings, Menu, X,
+  CheckCircle, Clock, DollarSign, Star, Phone, ChevronRight, BarChart3
+} from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { MenuItem, VendorCategory } from '../../lib/supabase/types';
-import { supabase } from '../../lib/supabase/client';
-import { Vendor, Order } from '../../lib/supabase/types';
-import { MenuItemForm } from '../shared/MenuItemForm';
+import { supabase, Order, Vendor, Profile } from '../../lib/supabase';
 import { ChatModal } from '../shared/ChatModal';
-import { uploadVendorImage } from '../../utils/imageUploader';
-import { ProfileWithVendor } from '../../services/supabase/database.service';
-import { useToast } from '../../contexts/ToastContext';
 import { VendorWalletService, VendorReviewService } from '../../services/supabase/vendor.service';
+import { databaseService } from '../../services';
+import { useToast } from '../../contexts/ToastContext';
 
 interface VendorDashboardProps {
   onShowProfile?: () => void;
 }
 
+interface FullOrder extends Order {
+  order_items?: Array<{
+    id: string;
+    quantity: number;
+    price: number;
+    menu_item_id: string;
+    menu_item?: { name: string };
+  }>;
+  customer?: { full_name: string; phone?: string };
+}
+
+interface VendorStats {
+  totalOrders: number;
+  totalRevenue: number;
+  avgRating: number;
+  reviewCount: number;
+}
+
 export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile }) => {
-  const { profile, signOut, checkApprovalStatus, authLoading, vendorDataLoading } = useAuth();
+  const { profile, signOut } = useAuth();
   const { showToast } = useToast();
+
   const [vendor, setVendor] = useState<Vendor | null>(null);
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [vendorLoading, setVendorLoading] = useState(true); // Explicit loading state for vendor fetch
-  const [showMenu, setShowMenu] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
-  const [profileImagePreview, setProfileImagePreview] = useState<string>('');
-  const [profileFormData, setProfileFormData] = useState({
-    store_name: '',
-    description: '',
-    delivery_option: 'offers_hostel_delivery' as 'offers_hostel_delivery' | 'does_not_offer_hostel_delivery',
-  });
-  const [approvalStatus, setApprovalStatus] = useState<boolean | null>(null);
-  const [loadingApproval, setLoadingApproval] = useState(true);
-  const [myOrders, setMyOrders] = useState<Order[]>([]);
-  const [selectedOrderForChat, setSelectedOrderForChat] = useState<{ order: Order, chatWith: 'customer' | 'delivery' } | null>(null);
-  const [walletBalance, setWalletBalance] = useState<number>(0);
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [averageRating, setAverageRating] = useState<number>(0);
-  const [totalReviews, setTotalReviews] = useState<number>(0);
-  const [metrics, setMetrics] = useState({
+  const [orders, setOrders] = useState<FullOrder[]>([]);
+  const [stats, setStats] = useState<VendorStats>({
     totalOrders: 0,
     totalRevenue: 0,
-    avgOrderValue: 0,
-    pendingOrders: 0,
-    completedOrders: 0,
+    avgRating: 0,
+    reviewCount: 0
   });
+  const [selectedOrderForChat, setSelectedOrderForChat] = useState<FullOrder | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'completed'>('pending');
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [isStoreOpen, setIsStoreOpen] = useState(true);
 
-  // Category management state
-  const [vendorCategories, setVendorCategories] = useState<VendorCategory[]>([]);
-  const [loadingCategories, setLoadingCategories] = useState(false);
-  const [showAddCategory, setShowAddCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [editingCategory, setEditingCategory] = useState<VendorCategory | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const hamburgerButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Memoize expensive computations
-  const filteredOrders = useMemo(() => {
-    return myOrders.filter(order => order.seller_id === vendor?.id);
-  }, [myOrders, vendor]);
-
-  const computedMetrics = useMemo(() => {
-    return {
-      totalOrders: myOrders.length,
-      totalRevenue: myOrders.reduce((sum, order) => sum + order.total, 0),
-      avgOrderValue: myOrders.length > 0 ? myOrders.reduce((sum, order) => sum + order.total, 0) / myOrders.length : 0,
-      pendingOrders: myOrders.filter(order => ['pending', 'accepted', 'preparing', 'ready'].includes(order.status)).length,
-      completedOrders: myOrders.filter(order => order.status === 'delivered').length,
+  // Close mobile menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (showMobileMenu && menuRef.current && !menuRef.current.contains(target) &&
+        hamburgerButtonRef.current && !hamburgerButtonRef.current.contains(target)) {
+        setShowMobileMenu(false);
+      }
     };
-  }, [myOrders]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMobileMenu]);
 
-  // Update metrics when computed metrics change
+  // Initial data fetch
   useEffect(() => {
-    setMetrics(computedMetrics);
-  }, [computedMetrics]);
-
-  const getStatusColor = (status: Order['status']) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-700';
-      case 'accepted':
-      case 'preparing':
-        return 'bg-blue-100 text-blue-700';
-      case 'ready':
-      case 'picked_up':
-      case 'shipped':
-        return 'bg-orange-100 text-orange-700';
-      case 'delivered':
-        return 'bg-green-100 text-green-700';
-      case 'cancelled':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
-  };
-
-  useEffect(() => {
-    if (profile && ['vendor', 'late_night_vendor'].includes(profile.role)) {
-      fetchData();
+    if (profile) {
+      fetchVendorData();
     }
   }, [profile]);
 
-  // Fetch vendor categories when vendor is loaded
-  useEffect(() => {
-    if (vendor) {
-      fetchVendorCategories();
-    }
-  }, [vendor]);
+  const fetchVendorData = async () => {
+    if (!profile) return;
 
-  useEffect(() => {
-    // Check approval status for vendors
-    if (profile && profile.role === 'vendor') {
-      checkVendorApproval();
-    }
-  }, [profile]);
-
-  // Show welcome message for new vendors who haven't uploaded a logo yet
-  useEffect(() => {
-    if (vendor && vendor.image_url && vendor.image_url.includes('placehold.co')) {
-      // Show a subtle notification encouraging logo upload
-      const showLogoPrompt = () => {
-        const shouldShow = localStorage.getItem('vendorLogoPromptShown') !== 'true';
-        if (shouldShow && vendor) {
-          const shouldPrompt = confirm(
-            `Welcome ${vendor.store_name}! \n\n` +
-            `Your store has been created successfully. \n` +
-            `To make your store stand out, consider uploading your business logo. \n\n` +
-            `Would you like to upload your logo now?`
-          );
-
-          if (shouldPrompt) {
-            openProfileModal();
-          }
-
-          localStorage.setItem('vendorLogoPromptShown', 'true');
-        }
-      };
-
-      // Show prompt after a short delay to ensure UI is loaded
-      const timer = setTimeout(showLogoPrompt, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [vendor]);
-
-  // Helper function to ensure session is valid
-  const ensureSession = async () => {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (!session || error) {
-      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError || !refreshedSession) {
-        console.error('Session refresh failed:', refreshError);
-        showToast({ type: 'error', message: 'Session expired. Please sign in again.' });
-        signOut();
-        return false;
-      }
-    }
-    return true;
-  };
-
-  const fetchData = async () => {
-    if (!profile) {
-      setVendorLoading(false);
-      return;
-    }
-
-    // Set explicit loading state
-    setVendorLoading(true);
-    setLoading(true);
-
-    // Wait for approval status if it's still loading
-    if (['vendor', 'late_night_vendor'].includes(profile.role) && approvalStatus === null) {
-      // Approval status is still loading, wait for it
-      // Don't return yet - wait for checkVendorApproval to set it
-    }
-
-    // Only check approval if it's been loaded (not null)
-    if (['vendor', 'late_night_vendor'].includes(profile.role) && approvalStatus !== null && approvalStatus !== true) {
-      setVendorLoading(false);
-      setLoading(false);
-      return;
-    }
-
-    // Use the enhanced profile with vendor data from auth context
-    if ('vendor' in profile && profile.vendor) {
-      const vendorData = profile.vendor;
-      setVendor(vendorData);
-      setVendorLoading(false);
-      setLoading(false);
-
-      const { data: items } = await supabase
-        .from('menu_items')
-        .select('*')
-        .eq('seller_id', vendorData.id)
-        .in('seller_type', ['vendor', 'late_night_vendor'])
-        .order('name');
-
-      if (items) {
-        setMenuItems(items);
-      }
-      setVendorLoading(false);
-      setLoading(false);
-    } else {
-      // Fallback: fetch vendor data separately if not available in profile
-      const { data: vendorData, error } = await supabase
+    try {
+      // Fetch vendor record
+      const { data: vendorData } = await supabase
         .from('vendors')
         .select('*')
         .eq('user_id', profile.id)
         .maybeSingle();
 
-      if (error) {
-        console.error('[Vendor] Error fetching vendor:', error);
-      }
-
       if (vendorData) {
         setVendor(vendorData);
 
-        const { data: items } = await supabase
-          .from('menu_items')
-          .select('*')
-          .eq('seller_id', vendorData.id)
-          .in('seller_type', ['vendor', 'late_night_vendor'])
-          .order('name');
-
-        if (items) setMenuItems(items);
-      } else {
-        // No vendor found for user
+        // Load store open status from localStorage
+        const savedStatus = localStorage.getItem(`vendor-open-${vendorData.id}`);
+        if (savedStatus !== null) {
+          setIsStoreOpen(JSON.parse(savedStatus));
+        }
       }
-      setVendorLoading(false);
+
+      // Fetch orders
+      await fetchOrders(vendorData?.id);
+
+      // Fetch stats
+      if (vendorData?.id) {
+        await fetchStats(vendorData.id);
+      }
+    } catch (error) {
+      console.error('Error fetching vendor data:', error);
+      showToast({ type: 'error', message: 'Failed to load vendor data' });
+    } finally {
       setLoading(false);
     }
   };
 
-  // Fetch vendor categories
-  const fetchVendorCategories = async () => {
-    if (!vendor) return;
+  const fetchOrders = async (vendorId: string | undefined) => {
+    if (!vendorId) return;
 
-    setLoadingCategories(true);
     try {
-      const { data, error } = await supabase
-        .from('vendor_categories')
-        .select('*')
-        .eq('vendor_id', vendor.id)
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
+      const { data: ordersData, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          customer:user_id (full_name, phone)
+        `)
+        .eq('seller_id', vendorId)
+        .order('created_at', { ascending: false })
+        .limit(50);
 
       if (error) {
-        console.error('Error fetching categories:', error);
-      } else if (data) {
-        setVendorCategories(data);
+        console.error('Error fetching orders:', error);
+        return;
       }
-    } catch (err) {
-      console.error('Error fetching categories:', err);
-    } finally {
-      setLoadingCategories(false);
+
+      // Fetch order items
+      const orderIds = ordersData?.map(o => o.id) || [];
+      let orderItemsByOrderId: Record<string, any[]> = {};
+
+      if (orderIds.length > 0) {
+        const { data: orderItems } = await supabase
+          .from('order_items')
+          .select('id, order_id, quantity, price, menu_item_id')
+          .in('order_id', orderIds);
+
+        orderItemsByOrderId = (orderItems || []).reduce((acc, item) => {
+          if (!acc[item.order_id]) acc[item.order_id] = [];
+          acc[item.order_id].push(item);
+          return acc;
+        }, {} as Record<string, any[]>);
+      }
+
+      // Attach items to orders
+      const fullOrders: FullOrder[] = (ordersData || []).map(order => ({
+        ...order,
+        order_items: orderItemsByOrderId[order.id] || []
+      }));
+
+      setOrders(fullOrders);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
     }
   };
 
-  // Add new category
-  const handleAddCategory = async () => {
-    if (!newCategoryName.trim() || !vendor) return;
-
+  const fetchStats = async (vendorId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('vendor_categories')
-        .insert({
-          vendor_id: vendor.id,
-          name: newCategoryName.trim(),
-          category_type: vendor.vendor_type === 'late_night' ? 'product' : 'food',
-          sort_order: vendorCategories.length + 1,
-          is_active: true,
-        })
-        .select()
-        .single();
+      const [earningsSummary, rating, count] = await Promise.all([
+        VendorWalletService.getEarningsSummary(vendorId),
+        VendorReviewService.getVendorAverageRating(vendorId),
+        VendorReviewService.getVendorReviewCount(vendorId)
+      ]);
 
-      if (error) {
-        showToast({ type: 'error', message: 'Failed to add category: ' + error.message });
-      } else {
-        setVendorCategories([...vendorCategories, data]);
-        setNewCategoryName('');
-        setShowAddCategory(false);
-        showToast({ type: 'success', message: 'Category added successfully!' });
-      }
-    } catch (err) {
-      console.error('Error adding category:', err);
-      showToast({ type: 'error', message: 'Failed to add category. Please try again.' });
+      setStats({
+        totalOrders: earningsSummary.totalOrders,
+        totalRevenue: earningsSummary.totalRevenue,
+        avgRating: rating,
+        reviewCount: count
+      });
+    } catch (error) {
+      console.error('Error fetching stats:', error);
     }
   };
 
-  // Delete category
-  const handleDeleteCategory = async (categoryId: string) => {
-    if (!confirm('Are you sure you want to delete this category? Items in this category will not be deleted.')) return;
+  const handleAcceptOrder = async (order: FullOrder) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'accepted' })
+        .eq('id', order.id);
+
+      if (error) {
+        showToast({ type: 'error', message: 'Failed to accept order' });
+        return;
+      }
+
+      showToast({ type: 'success', message: 'Order accepted!' });
+      fetchOrders(vendor?.id);
+    } catch (error) {
+      console.error('Error accepting order:', error);
+      showToast({ type: 'error', message: 'Failed to accept order' });
+    }
+  };
+
+  const handleStartPreparing = async (order: FullOrder) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'preparing' })
+        .eq('id', order.id);
+
+      if (error) {
+        showToast({ type: 'error', message: 'Failed to update order' });
+        return;
+      }
+
+      showToast({ type: 'success', message: 'Started preparing order' });
+      fetchOrders(vendor?.id);
+    } catch (error) {
+      console.error('Error updating order:', error);
+      showToast({ type: 'error', message: 'Failed to update order' });
+    }
+  };
+
+  const handleMarkReady = async (order: FullOrder) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'ready' })
+        .eq('id', order.id);
+
+      if (error) {
+        showToast({ type: 'error', message: 'Failed to mark order as ready' });
+        return;
+      }
+
+      showToast({ type: 'success', message: 'Order marked as ready for pickup!' });
+      fetchOrders(vendor?.id);
+    } catch (error) {
+      console.error('Error marking order ready:', error);
+      showToast({ type: 'error', message: 'Failed to mark order as ready' });
+    }
+  };
+
+  const handleRejectOrder = async (order: FullOrder) => {
+    if (!window.confirm('Are you sure you want to reject this order?')) return;
 
     try {
       const { error } = await supabase
-        .from('vendor_categories')
-        .update({ is_active: false })
-        .eq('id', categoryId);
+        .from('orders')
+        .update({ status: 'cancelled' })
+        .eq('id', order.id);
 
       if (error) {
-        showToast({ type: 'error', message: 'Failed to delete category: ' + error.message });
-      } else {
-        setVendorCategories(vendorCategories.filter(c => c.id !== categoryId));
-        showToast({ type: 'success', message: 'Category deleted!' });
-      }
-    } catch (err) {
-      console.error('Error deleting category:', err);
-      showToast({ type: 'error', message: 'Failed to delete category. Please try again.' });
-    }
-  };
-
-  // Update category sort order
-  const handleUpdateCategoryOrder = async (categoryId: string, newOrder: number) => {
-    try {
-      const { error } = await supabase
-        .from('vendor_categories')
-        .update({ sort_order: newOrder })
-        .eq('id', categoryId);
-
-      if (error) {
-        console.error('Error updating category order:', error);
-      } else {
-        // Update local state
-        setVendorCategories(vendorCategories.map(c =>
-          c.id === categoryId ? { ...c, sort_order: newOrder } : c
-        ).sort((a, b) => a.sort_order - b.sort_order));
-      }
-    } catch (err) {
-      console.error('Error updating category order:', err);
-    }
-  };
-
-  const handleToggleAvailability = async (item: MenuItem) => {
-    // Ensure session is valid
-    const sessionValid = await ensureSession();
-    if (!sessionValid) return;
-
-    const { error } = await supabase
-      .from('menu_items')
-      .update({ is_available: !item.is_available })
-      .eq('id', item.id);
-
-    if (error) {
-      console.error('Toggle availability failed:', error);
-      // Check if it's an authentication error
-      if (error.message.includes('401') || error.message.includes('403') ||
-        error.message.toLowerCase().includes('auth') ||
-        error.message.toLowerCase().includes('permission') ||
-        error.message.toLowerCase().includes('unauthorized')) {
-        showToast({ type: 'error', message: 'Authentication failed. Please sign in again.' });
-        signOut();
-      }
-    } else {
-      setMenuItems(menuItems.map(i => i.id === item.id ? { ...i, is_available: !i.is_available } : i));
-    }
-  };
-
-  const handleSaveItem = async (itemData: Partial<MenuItem>, imageFile?: File) => {
-    if (!vendor) {
-      showToast({ type: 'error', message: 'No vendor found. Please refresh the page.' });
-      return;
-    }
-
-    // Ensure session is valid
-    const sessionValid = await ensureSession();
-    if (!sessionValid) return;
-
-    let finalImageUrl = itemData.image_url || '';
-
-    // Upload new image if provided
-    if (imageFile) {
-      const uploadedUrl = await uploadVendorImage(imageFile, 'menu-images');
-      if (uploadedUrl) {
-        finalImageUrl = uploadedUrl;
-      } else {
-        showToast({ type: 'error', message: 'Failed to upload image. Please try again.' });
+        showToast({ type: 'error', message: 'Failed to reject order' });
         return;
       }
-    }
 
-    const fullItemData = {
-      ...itemData,
-      image_url: finalImageUrl,
-      seller_id: vendor.id,
-      seller_type: vendor.vendor_type === 'late_night' ? 'late_night_vendor' : 'vendor',
-    };
-
-    let query;
-    if (editingItem) {
-      query = supabase
-        .from('menu_items')
-        .update(fullItemData)
-        .eq('id', editingItem.id);
-    } else {
-      query = supabase
-        .from('menu_items')
-        .insert([fullItemData]);
-    }
-
-    const { error } = await query;
-    if (error) {
-      // Check if it's an authentication error based on the error message
-      if (error.message.includes('401') || error.message.includes('403') ||
-        error.message.toLowerCase().includes('auth') ||
-        error.message.toLowerCase().includes('permission') ||
-        error.message.toLowerCase().includes('unauthorized')) {
-        showToast({ type: 'error', message: 'Authentication failed. Please sign in again.' });
-        signOut();
-      } else {
-        showToast({ type: 'error', message: 'Failed to save menu item. Please try again.' });
-      }
-    } else {
-      await fetchData();
-      setShowForm(false);
-      setEditingItem(null);
-      showToast({ type: 'success', message: 'Menu item saved successfully!' });
-    }
-  };
-
-  // Function to handle store profile update
-  const handleUpdateStoreProfile = async () => {
-    if (!vendor) return;
-
-    let finalImageUrl = vendor.image_url || '';
-
-    // Upload new profile image if provided
-    if (profileImageFile) {
-      const uploadedUrl = await uploadVendorImage(profileImageFile, 'vendor-logos');
-      if (uploadedUrl) {
-        finalImageUrl = uploadedUrl;
-      } else {
-        showToast({ type: 'error', message: 'Failed to upload store image. Please try again.' });
-        return;
-      }
-    }
-
-    // Update vendor profile
-    const { error } = await supabase
-      .from('vendors')
-      .update({
-        store_name: profileFormData.store_name,
-        description: profileFormData.description,
-        image_url: finalImageUrl,
-        delivery_option: profileFormData.delivery_option,
-      })
-      .eq('id', vendor.id);
-
-    if (error) {
-      console.error('Update failed:', error);
-      showToast({ type: 'error', message: 'Failed to update store profile. Please try again.' });
-    } else {
-      // Update local state
-      setVendor({
-        ...vendor,
-        store_name: profileFormData.store_name,
-        description: profileFormData.description,
-        image_url: finalImageUrl,
-      });
-      setShowProfileModal(false);
-      setProfileImageFile(null);
-      setProfileImagePreview('');
-      showToast({ type: 'success', message: 'Store profile updated successfully!' });
-    }
-  };
-
-  // Function to handle profile image change
-  const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit
-        showToast({ type: 'error', message: 'Image file must be less than 2MB' });
-        return;
-      }
-      if (!file.type.startsWith('image/')) {
-        showToast({ type: 'error', message: 'Please upload an image file' });
-        return;
-      }
-      setProfileImageFile(file);
-      setProfileImagePreview(URL.createObjectURL(file));
-    }
-  };
-
-  // Function to remove profile image
-  const removeProfileImage = () => {
-    setProfileImageFile(null);
-    setProfileImagePreview('');
-    if (profileImagePreview) {
-      URL.revokeObjectURL(profileImagePreview);
-    }
-  };
-
-  // Function to open profile modal with current data
-  const openProfileModal = () => {
-    if (vendor) {
-      setProfileFormData({
-        store_name: vendor.store_name,
-        description: vendor.description || '',
-        delivery_option: vendor.delivery_option || 'offers_hostel_delivery',
-      });
-      setProfileImagePreview(vendor.image_url || '');
-      setShowProfileModal(true);
-    }
-  };
-
-  const checkVendorApproval = async () => {
-    if (profile && ['vendor', 'late_night_vendor'].includes(profile.role)) {
-      setLoadingApproval(true);
-      const status = await checkApprovalStatus(profile.id, 'vendor');
-      setApprovalStatus(status);
-      setLoadingApproval(false);
-
-      // If approved, fetch vendor data
-      if (status === true) {
-        fetchData();
-      }
-    }
-  };
-
-  // Guard UI pattern to handle approval status without breaking hook rules
-  let guardUI: React.ReactNode | null = null;
-
-  if (profile && ['vendor', 'late_night_vendor'].includes(profile.role)) {
-    if (loadingApproval) {
-      guardUI = (
-        <div className="min-h-screen flex items-center justify-center">
-          Checking approval status...
-        </div>
-      );
-    } else if (approvalStatus === false) {
-      guardUI = (
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-red-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Account Pending Approval</h2>
-            <p className="text-gray-600 mb-6">
-              Your vendor account is currently under review by the admin. You will be notified once approved.
-            </p>
-            <button
-              onClick={signOut}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
-            >
-              Sign Out
-            </button>
-          </div>
-        </div>
-      );
-    } else if (approvalStatus === null) {
-      guardUI = (
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-yellow-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Account Approval Required</h2>
-            <p className="text-gray-600 mb-6">
-              Your vendor account needs to be approved by the admin before you can access the dashboard.
-            </p>
-            <button
-              onClick={signOut}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
-            >
-              Sign Out
-            </button>
-          </div>
-        </div>
-      );
-    }
-  }
-
-  useEffect(() => {
-    if (!vendor) return;
-    fetchVendorOrders();
-  }, [vendor]);
-
-  const fetchVendorOrders = async () => {
-    if (!vendor) return;
-
-    // Ensure session is valid
-    const sessionValid = await ensureSession();
-    if (!sessionValid) return;
-
-    const { data: ordersData, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('seller_id', vendor.id)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching vendor orders:', error);
-      // Check if it's an authentication error
-      if (error.message.includes('401') || error.message.includes('403') ||
-        error.message.toLowerCase().includes('auth') ||
-        error.message.toLowerCase().includes('permission') ||
-        error.message.toLowerCase().includes('unauthorized')) {
-        showToast({ type: 'error', message: 'Authentication failed. Please sign in again.' });
-        signOut();
-        return;
-      }
-    }
-
-    if (ordersData) {
-      setMyOrders(ordersData);
-      calculateMetrics(ordersData);
-      fetchWalletInfo();
-      fetchReviews();
-      fetchReviewStats();
-    }
-  };
-
-  // Return guard UI if needed (hooks already ran)
-  if (guardUI) return guardUI;
-
-
-
-  const fetchWalletInfo = async () => {
-    try {
-      if (vendor) {
-        // Use the new vendor wallet service
-        const wallet = await VendorWalletService.getVendorWallet(vendor.id);
-        if (wallet) {
-          setWalletBalance(wallet.total_earnings);
-        } else {
-          // Fallback to manual calculation
-          const earnings = await VendorWalletService.calculateVendorEarnings(vendor.id);
-          setWalletBalance(earnings);
-        }
-      }
+      showToast({ type: 'success', message: 'Order rejected' });
+      fetchOrders(vendor?.id);
     } catch (error) {
-      console.error('Error fetching vendor wallet info:', error);
-      setWalletBalance(0);
+      console.error('Error rejecting order:', error);
+      showToast({ type: 'error', message: 'Failed to reject order' });
     }
   };
 
-  const fetchReviews = async () => {
-    try {
-      if (vendor) {
-        const vendorReviews = await VendorReviewService.getVendorReviews(vendor.id, 6);
-        setReviews(vendorReviews);
-      }
-    } catch (error) {
-      console.error('Error fetching vendor reviews:', error);
-      setReviews([]);
-    }
-  };
-
-  const fetchReviewStats = async () => {
-    try {
-      if (vendor) {
-        const avgRating = await VendorReviewService.getVendorAverageRating(vendor.id);
-        const reviewCount = await VendorReviewService.getVendorReviewCount(vendor.id);
-        setAverageRating(avgRating);
-        setTotalReviews(reviewCount);
-      }
-    } catch (error) {
-      console.error('Error fetching review stats:', error);
-      setAverageRating(0);
-      setTotalReviews(0);
-    }
-  };
-
-  const calculateMetrics = (orders: Order[]) => {
-    const totalOrders = orders.length;
-    const completedOrders = orders.filter(o => o.status === 'delivered').length;
-    const pendingOrders = orders.filter(o => ['pending', 'accepted', 'preparing', 'ready'].includes(o.status)).length;
-    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
-    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-
-    setMetrics({
-      totalOrders,
-      totalRevenue,
-      avgOrderValue,
-      pendingOrders,
-      completedOrders,
+  const toggleStoreOpen = () => {
+    const newStatus = !isStoreOpen;
+    setIsStoreOpen(newStatus);
+    localStorage.setItem(`vendor-open-${vendor?.id}`, JSON.stringify(newStatus));
+    showToast({
+      type: 'success',
+      message: newStatus ? 'Store is now open!' : 'Store is now closed'
     });
   };
 
-  // Show loading state while auth or vendor data is loading
-  if (loading || authLoading || vendorLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your vendor data...</p>
-        </div>
-      </div>
-    );
-  }
+  const formatCurrency = (n?: number) => `₦${(typeof n === 'number' ? n : 0).toFixed(2)}`;
 
-  // Vendor truly doesn't exist (not just loading)
-  if (!vendor) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">No Vendor Store Found</h2>
-          <p className="text-gray-600 mb-4">Your account is not linked to a vendor store.</p>
-          <button
-            onClick={() => fetchData()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Refresh
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const pendingOrders = orders.filter(o => o.status === 'pending');
+  const activeOrders = orders.filter(o => ['accepted', 'preparing'].includes(o.status));
+  const completedOrders = orders.filter(o => ['ready', 'delivered', 'completed', 'cancelled'].includes(o.status));
 
-  // Function to close profile modal
-  const closeProfileModal = () => {
-    setShowProfileModal(false);
-    setProfileImageFile(null);
-    setProfileImagePreview('');
+  const getStatusBadge = (status: string) => {
+    const colors: Record<string, string> = {
+      pending: 'bg-yellow-100 text-yellow-700',
+      accepted: 'bg-blue-100 text-blue-700',
+      preparing: 'bg-blue-100 text-blue-700',
+      ready: 'bg-orange-100 text-orange-700',
+      delivered: 'bg-green-100 text-green-700',
+      cancelled: 'bg-red-100 text-red-700',
+    };
+    return colors[status] || 'bg-gray-100 text-gray-700';
   };
 
-  return (
-    <div className="min-h-screen bg-black">
-      {/* Full-screen food background with dark overlay */}
-      <div
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: "url('/images/1.jpg')",
-        }}
-      />
-      <div className="fixed inset-0 bg-black bg-opacity-70" />
-
-      {/* Main content with proper z-index and scrolling */}
-      <div className="relative z-10 min-h-screen" id="dashboard">
-        <nav className="bg-white shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{vendor.store_name}</h1>
-                <p className="text-sm text-gray-600">{profile?.full_name}</p>
-              </div>
-              <div className="flex items-center space-x-3">
-                {/* Hamburger Menu */}
-                <button
-                  onClick={() => setShowMenu(!showMenu)}
-                  className="p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100"
-                >
-                  {showMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-                </button>
-
-                <button
-                  onClick={signOut}
-                  className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:text-red-600"
-                >
-                  <LogOut className="h-5 w-5" />
-                  <span>Sign Out</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Hamburger Menu Dropdown */}
-          {showMenu && (
-            <div className="absolute right-4 top-16 bg-white shadow-lg rounded-md py-2 w-48 z-50 border border-gray-200">
-              <button
-                onClick={() => {
-                  openProfileModal();
-                  setShowMenu(false);
-                }}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              >
-                <div className="flex items-center space-x-2">
-                  <User className="h-4 w-4" />
-                  <span>Store Profile</span>
-                </div>
-              </button>
-              <button
-                onClick={() => {
-                  setShowForm(true);
-                  setShowMenu(false);
-                }}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              >
-                <div className="flex items-center space-x-2">
-                  <Plus className="h-4 w-4" />
-                  <span>Add Menu Item</span>
-                </div>
-              </button>
-            </div>
-          )}
-        </nav>
-
-        {/* Category Management Section - Removed: Categories are now managed inside MenuItemForm */}
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" id="menu-management">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">Menu Management</h2>
-            <button
-              onClick={() => {
-                setEditingItem(null);
-                setShowForm(true);
-              }}
-              className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
-            >
-              <Plus className="h-5 w-5" />
-              <span>Add Item</span>
-            </button>
-          </div>
-
-          {menuItems.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-xl">
-              <p className="text-gray-600 text-lg mb-4">No menu items yet</p>
-              <button
-                onClick={() => setShowForm(true)}
-                className="text-blue-600 hover:text-blue-700 font-semibold"
-              >
-                Add your first item
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {menuItems.map(item => (
-                <div key={item.id} className={`bg-white rounded-xl shadow-md p-6 ${!item.is_available ? 'opacity-60' : ''}`}>
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-gray-900">{item.name}</h3>
-                      <p className="text-xl font-bold text-blue-600 mt-1">₦{item.price.toFixed(2)}</p>
-                    </div>
-                    <button
-                      onClick={() => handleToggleAvailability(item)}
-                      className={`p-2 rounded-lg ${item.is_available ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`}
-                    >
-                      {item.is_available ? <ToggleRight className="h-6 w-6" /> : <ToggleLeft className="h-6 w-6" />}
-                    </button>
-                  </div>
-
-                  {item.description && (
-                    <p className="text-sm text-gray-600 mb-3">{item.description}</p>
-                  )}
-
-                  {item.category && (
-                    <span className="inline-block px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full mb-3">
-                      {item.category}
-                    </span>
-                  )}
-
-                  {/* Image display section */}
-                  {item.image_url ? (
-                    <div className="mb-3">
-                      <img
-                        src={decodeURIComponent(item.image_url)}
-                        alt={item.name}
-                        className="w-full h-32 object-cover rounded-md border"
-                        onError={(e) => {
-                          const target = e.currentTarget;
-                          target.style.display = 'none';
-                          target.nextElementSibling?.classList.remove('hidden');
-                        }}
-                      />
-                      <div className="hidden w-full h-32 bg-gray-100 rounded-md border-2 border-dashed border-gray-300 flex items-center justify-center">
-                        <span className="text-gray-400 text-sm">No image available</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mb-3 w-full h-32 bg-gray-100 rounded-md border-2 border-dashed border-gray-300 flex items-center justify-center">
-                      <span className="text-gray-400 text-sm">No image</span>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-                    <span className={`text-sm font-medium ${item.is_available ? 'text-green-600' : 'text-red-600'}`}>
-                      {item.is_available ? 'In Stock' : 'Out of Stock'}
-                    </span>
-                    <button
-                      onClick={() => {
-                        setEditingItem(item);
-                        setShowForm(true);
-                      }}
-                      className="flex items-center space-x-1 text-blue-600 hover:text-blue-700"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                      <span>Edit</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
         </div>
-
-        {/* Performance Metrics Section */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Total Orders</h3>
-            <p className="text-3xl font-bold text-blue-600">{metrics.totalOrders}</p>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Total Revenue</h3>
-            <p className="text-3xl font-bold text-green-600">₦{metrics.totalRevenue.toFixed(2)}</p>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Avg Order Value</h3>
-            <p className="text-3xl font-bold text-purple-600">₦{metrics.avgOrderValue.toFixed(2)}</p>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Pending Orders</h3>
-            <p className="text-3xl font-bold text-yellow-600">{metrics.pendingOrders}</p>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Completed</h3>
-            <p className="text-3xl font-bold text-green-600">{metrics.completedOrders}</p>
-          </div>
-        </div>
-
-        {/* Vendor Orders Section */}
-        <div className="mt-12" id="orders-section">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Recent Orders</h2>
-
-          {myOrders.length === 0 ? (
-            <div className="text-center py-8 bg-white rounded-xl">
-              <p className="text-gray-600">No orders received yet</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full bg-white rounded-xl overflow-hidden">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Order #</th>
-                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Customer</th>
-                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Date</th>
-                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Status</th>
-                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Total</th>
-                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {myOrders.map(order => (
-                    <tr key={order.id} className="hover:bg-gray-50">
-                      <td className="py-3 px-4 text-sm text-gray-900">{order.order_number}</td>
-                      <td className="py-3 px-4 text-sm text-gray-900">
-                        {/* Need to fetch customer name, showing ID for now */}
-                        Customer
-                      </td>
-                      <td className="py-3 px-4 text-sm text-gray-600">
-                        {order.created_at ? new Date(order.created_at).toLocaleDateString() : ''}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                          {order.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-gray-900">₦{order.total.toFixed(2)}</td>
-                      <td className="py-3 px-4">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => setSelectedOrderForChat({ order, chatWith: 'customer' })}
-                            className="flex items-center space-x-1 px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
-                          >
-                            <MessageCircle className="h-4 w-4" />
-                            <span>Chat</span>
-                          </button>
-                          {order.delivery_agent_id && (
-                            <button
-                              onClick={() => setSelectedOrderForChat({ order, chatWith: 'delivery' })}
-                              className="flex items-center space-x-1 px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-                            >
-                              <MessageCircle className="h-4 w-4" />
-                              <span>Chat with DA</span>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {showForm && (
-          <MenuItemForm
-            item={editingItem as any}
-            onSave={handleSaveItem}
-            onClose={() => {
-              setShowForm(false);
-              setEditingItem(null);
-            }}
-          />
-        )}
-
-        {/* Store Profile Modal */}
-        {showProfileModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto my-auto">
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">Store Profile</h2>
-                  <button
-                    onClick={closeProfileModal}
-                    className="p-2 rounded-full hover:bg-gray-100"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-
-                <div className="space-y-6">
-                  {/* Store Image Upload */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Store Logo/Image
-                    </label>
-                    <div className="flex items-center space-x-6">
-                      <div className="relative">
-                        {profileImagePreview ? (
-                          <div className="relative">
-                            <img
-                              src={profileImagePreview}
-                              alt="Store preview"
-                              className="w-32 h-32 rounded-xl object-cover border-2 border-gray-200"
-                            />
-                            <button
-                              type="button"
-                              onClick={removeProfileImage}
-                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="w-32 h-32 rounded-xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center">
-                            <Camera className="h-8 w-8 text-gray-400" />
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex flex-col space-y-2">
-                        <label className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 cursor-pointer">
-                          <input
-                            type="file"
-                            className="hidden"
-                            accept="image/*"
-                            onChange={handleProfileImageChange}
-                          />
-                          Upload Image
-                        </label>
-                        <p className="text-xs text-gray-500">PNG, JPG up to 2MB</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Store Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Store Name
-                    </label>
-                    <input
-                      type="text"
-                      value={profileFormData.store_name}
-                      onChange={(e) => setProfileFormData({ ...profileFormData, store_name: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Your store name"
-                    />
-                  </div>
-
-                  {/* Description */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Description
-                    </label>
-                    <textarea
-                      value={profileFormData.description}
-                      onChange={(e) => setProfileFormData({ ...profileFormData, description: e.target.value })}
-                      rows={4}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Tell customers about your store"
-                    />
-                  </div>
-
-                  {/* Delivery Option */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Delivery Option
-                    </label>
-                    <div className="space-y-2">
-                      <label className="flex items-center space-x-2">
-                        <input
-                          type="radio"
-                          name="delivery_option"
-                          value="offers_hostel_delivery"
-                          checked={profileFormData.delivery_option === 'offers_hostel_delivery'}
-                          onChange={(e) => setProfileFormData({ ...profileFormData, delivery_option: e.target.value as 'offers_hostel_delivery' | 'does_not_offer_hostel_delivery' })}
-                          className="h-4 w-4 text-blue-600"
-                        />
-                        <span>Offers hostel delivery</span>
-                      </label>
-                      <label className="flex items-center space-x-2">
-                        <input
-                          type="radio"
-                          name="delivery_option"
-                          value="does_not_offer_hostel_delivery"
-                          checked={profileFormData.delivery_option === 'does_not_offer_hostel_delivery'}
-                          onChange={(e) => setProfileFormData({ ...profileFormData, delivery_option: e.target.value as 'offers_hostel_delivery' | 'does_not_offer_hostel_delivery' })}
-                          className="h-4 w-4 text-blue-600"
-                        />
-                        <span>Does NOT offer hostel delivery</span>
-                      </label>
-                    </div>
-                  </div>
-
-
-
-                  <div className="flex justify-end space-x-3 pt-4">
-                    <button
-                      onClick={closeProfileModal}
-                      className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleUpdateStoreProfile}
-                      className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center space-x-2"
-                    >
-                      <Save className="h-5 w-5" />
-                      <span>Save Changes</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Earnings Summary Section */}
-        <div className="mt-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-6 text-white">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">Your Earnings</h2>
-              <p className="text-lg opacity-90">Track your sales and revenue</p>
-            </div>
-            <div className="mt-4 md:mt-0 text-right">
-              <p className="text-sm opacity-80">Total Earnings (Net)</p>
-              <p className="text-3xl font-bold">₦{walletBalance.toFixed(2)}</p>
-            </div>
-          </div>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button className="px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100" disabled>
-              View Sales Reports
-            </button>
-            <button className="px-6 py-3 bg-blue-700 text-white rounded-lg font-semibold hover:bg-blue-800" disabled>
-              Request Payout
-            </button>
-            <button className="px-6 py-3 bg-transparent border-2 border-white text-white rounded-lg font-semibold hover:bg-white hover:text-blue-600" disabled>
-              Earnings History
-            </button>
-          </div>
-        </div>
-
-        {/* Reviews Section */}
-        <div className="mt-12">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Customer Reviews</h2>
-            <span className="text-lg font-semibold text-yellow-600">⭐ {averageRating.toFixed(1)} ({totalReviews} reviews)</span>
-          </div>
-
-          {reviews.length === 0 ? (
-            <div className="text-center py-8 bg-white rounded-xl">
-              <p className="text-gray-600">No reviews yet</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {reviews.map(review => (
-                <div key={review.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                  <div className="flex justify-between items-start mb-3">
-                    <h3 className="font-semibold text-gray-900">{review.customer?.full_name || 'Customer'}</h3>
-                    <div className="flex items-center">
-                      {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
-                    </div>
-                  </div>
-                  <p className="text-gray-600 mb-3">{review.review_text || 'No comment provided'}</p>
-                  <p className="text-sm text-gray-500">{new Date(review.created_at).toLocaleDateString()}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Chat Modal */}
-        {selectedOrderForChat && (
-          <ChatModal
-            orderId={selectedOrderForChat.order.id}
-            orderNumber={selectedOrderForChat.order.order_number}
-            recipientName={selectedOrderForChat.chatWith === 'customer' ? "Customer" : "Delivery Agent"}
-            onClose={() => setSelectedOrderForChat(null)}
-          />
-        )}
       </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold text-gray-900">{vendor?.store_name || 'Vendor Dashboard'}</h1>
+            </div>
+
+            <div className="flex items-center gap-4">
+              {/* Store Status Toggle */}
+              <button
+                onClick={toggleStoreOpen}
+                className={`px-3 py-1 rounded-full text-sm font-medium ${isStoreOpen
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-red-100 text-red-700'
+                  }`}
+              >
+                {isStoreOpen ? '🟢 Open' : '🔴 Closed'}
+              </button>
+
+              {/* Hamburger Menu */}
+              <button
+                ref={hamburgerButtonRef}
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+              >
+                {showMobileMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile Menu Dropdown */}
+          {showMobileMenu && (
+            <div ref={menuRef} className="absolute right-4 top-16 bg-white shadow-lg rounded-md py-2 w-48 z-50 border border-gray-200">
+              <button
+                onClick={() => {
+                  onShowProfile?.();
+                  setShowMobileMenu(false);
+                }}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <div className="flex items-center space-x-2">
+                  <Settings className="h-4 w-4" />
+                  <span>Settings</span>
+                </div>
+              </button>
+              <button
+                onClick={signOut}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <div className="flex items-center space-x-2">
+                  <LogOut className="h-4 w-4" />
+                  <span>Sign Out</span>
+                </div>
+              </button>
+            </div>
+          )}
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-xl p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Orders</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
+              </div>
+              <Package className="h-10 w-10 text-purple-600" />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Revenue</p>
+                <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalRevenue)}</p>
+              </div>
+              <DollarSign className="h-10 w-10 text-green-600" />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Rating</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.avgRating > 0 ? stats.avgRating.toFixed(1) : 'N/A'}
+                </p>
+              </div>
+              <Star className="h-10 w-10 text-yellow-500" />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Reviews</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.reviewCount}</p>
+              </div>
+              <BarChart3 className="h-10 w-10 text-blue-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="border-b border-gray-200 mb-6">
+          <nav className="flex space-x-8">
+            <button
+              onClick={() => setActiveTab('pending')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'pending'
+                  ? 'border-purple-600 text-purple-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
+            >
+              🕐 Pending ({pendingOrders.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('active')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'active'
+                  ? 'border-purple-600 text-purple-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
+            >
+              🔥 Active ({activeOrders.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('completed')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'completed'
+                  ? 'border-purple-600 text-purple-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
+            >
+              ✅ Completed ({completedOrders.length})
+            </button>
+          </nav>
+        </div>
+
+        {/* Orders List */}
+        <div className="space-y-4">
+          {activeTab === 'pending' && (
+            pendingOrders.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-xl">
+                <Clock className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-600">No pending orders</p>
+              </div>
+            ) : (
+              pendingOrders.map(order => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  onAccept={() => handleAcceptOrder(order)}
+                  onReject={() => handleRejectOrder(order)}
+                  onChat={() => setSelectedOrderForChat(order)}
+                />
+              ))
+            )
+          )}
+
+          {activeTab === 'active' && (
+            activeOrders.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-xl">
+                <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-600">No active orders</p>
+              </div>
+            ) : (
+              activeOrders.map(order => (
+                <ActiveOrderCard
+                  key={order.id}
+                  order={order}
+                  onStartPreparing={() => handleStartPreparing(order)}
+                  onMarkReady={() => handleMarkReady(order)}
+                  onChat={() => setSelectedOrderForChat(order)}
+                />
+              ))
+            )
+          )}
+
+          {activeTab === 'completed' && (
+            completedOrders.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-xl">
+                <CheckCircle className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-600">No completed orders</p>
+              </div>
+            ) : (
+              completedOrders.slice(0, 10).map(order => (
+                <CompletedOrderCard key={order.id} order={order} />
+              ))
+            )
+          )}
+        </div>
+      </div>
+
+      {/* Chat Modal */}
+      {selectedOrderForChat && (
+        <ChatModal
+          orderId={selectedOrderForChat.id}
+          orderNumber={selectedOrderForChat.order_number}
+          recipientName={selectedOrderForChat.customer?.full_name || 'Customer'}
+          recipientId={selectedOrderForChat.user_id}
+          onClose={() => setSelectedOrderForChat(null)}
+        />
+      )}
     </div>
   );
 };
+
+// Order Card Components
+const OrderCard: React.FC<{
+  order: FullOrder;
+  onAccept: () => void;
+  onReject: () => void;
+  onChat: () => void;
+}> = ({ order, onAccept, onReject, onChat }) => (
+  <div className="bg-white rounded-xl p-6 shadow-sm">
+    <div className="flex justify-between items-start mb-4">
+      <div>
+        <h3 className="font-bold text-gray-900">{order.order_number}</h3>
+        <p className="text-sm text-gray-600">
+          {order.customer?.full_name} • {new Date(order.created_at || '').toLocaleString()}
+        </p>
+      </div>
+      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(order.status)}`}>
+        {order.status}
+      </span>
+    </div>
+
+    <div className="mb-4">
+      <p className="text-sm font-medium text-gray-700">Items:</p>
+      {order.order_items?.map((item, idx) => (
+        <p key={idx} className="text-sm text-gray-600">
+          {item.quantity}x {item.menu_item?.name || 'Item'} - ₦{(item.price * item.quantity).toFixed(2)}
+        </p>
+      ))}
+    </div>
+
+    <div className="flex justify-between items-center pt-4 border-t">
+      <p className="font-bold text-lg">Total: ₦{order.total.toFixed(2)}</p>
+      <div className="flex gap-2">
+        <button
+          onClick={onChat}
+          className="p-2 text-purple-600 hover:bg-purple-100 rounded-lg"
+        >
+          <MessageCircle className="h-5 w-5" />
+        </button>
+        <button
+          onClick={onReject}
+          className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 font-medium"
+        >
+          Reject
+        </button>
+        <button
+          onClick={onAccept}
+          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+        >
+          Accept
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+const ActiveOrderCard: React.FC<{
+  order: FullOrder;
+  onStartPreparing: () => void;
+  onMarkReady: () => void;
+  onChat: () => void;
+}> = ({ order, onStartPreparing, onMarkReady, onChat }) => (
+  <div className="bg-white rounded-xl p-6 shadow-sm">
+    <div className="flex justify-between items-start mb-4">
+      <div>
+        <h3 className="font-bold text-gray-900">{order.order_number}</h3>
+        <p className="text-sm text-gray-600">
+          {order.customer?.full_name} • {new Date(order.created_at || '').toLocaleString()}
+        </p>
+      </div>
+      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(order.status)}`}>
+        {order.status}
+      </span>
+    </div>
+
+    <div className="mb-4">
+      <p className="text-sm font-medium text-gray-700">Items:</p>
+      {order.order_items?.map((item, idx) => (
+        <p key={idx} className="text-sm text-gray-600">
+          {item.quantity}x {item.menu_item?.name || 'Item'}
+        </p>
+      ))}
+    </div>
+
+    <div className="flex justify-between items-center pt-4 border-t">
+      <p className="font-bold text-lg">Total: ₦{order.total.toFixed(2)}</p>
+      <div className="flex gap-2">
+        <button
+          onClick={onChat}
+          className="p-2 text-purple-600 hover:bg-purple-100 rounded-lg"
+        >
+          <MessageCircle className="h-5 w-5" />
+        </button>
+        {order.status === 'accepted' && (
+          <button
+            onClick={onStartPreparing}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+          >
+            Start Preparing
+          </button>
+        )}
+        {order.status === 'preparing' && (
+          <button
+            onClick={onMarkReady}
+            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium"
+          >
+            Mark Ready
+          </button>
+        )}
+      </div>
+    </div>
+  </div>
+);
+
+const CompletedOrderCard: React.FC<{ order: FullOrder }> = ({ order }) => (
+  <div className="bg-white rounded-xl p-6 shadow-sm">
+    <div className="flex justify-between items-start">
+      <div>
+        <h3 className="font-bold text-gray-900">{order.order_number}</h3>
+        <p className="text-sm text-gray-600">
+          {order.customer?.full_name} • {new Date(order.created_at || '').toLocaleString()}
+        </p>
+      </div>
+      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(order.status)}`}>
+        {order.status}
+      </span>
+    </div>
+    <p className="font-bold text-lg mt-2">Total: ₦{order.total.toFixed(2)}</p>
+  </div>
+);
+
+function getStatusBadge(status: string): string {
+  const colors: Record<string, string> = {
+    pending: 'bg-yellow-100 text-yellow-700',
+    accepted: 'bg-blue-100 text-blue-700',
+    preparing: 'bg-blue-100 text-blue-700',
+    ready: 'bg-orange-100 text-orange-700',
+    delivered: 'bg-green-100 text-green-700',
+    cancelled: 'bg-red-100 text-red-700',
+  };
+  return colors[status] || 'bg-gray-100 text-gray-700';
+}
+
+export default VendorDashboard;
