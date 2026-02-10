@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { Store } from 'lucide-react';
-import LazyImage from '../common/LazyImage';
+import { LazyImage } from '../common/LazyImage';
 
 interface VendorCardProps {
   name: string;

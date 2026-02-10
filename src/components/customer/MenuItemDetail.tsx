@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MenuItem } from '../../lib/supabase';
 import { supabase } from '../../lib/supabase';
-import LazyImage from '../common/LazyImage';
+import { LazyImage } from '../common/LazyImage';
 
 interface MenuItemDetailProps {
   item: MenuItem;

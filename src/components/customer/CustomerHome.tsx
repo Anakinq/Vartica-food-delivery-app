@@ -9,7 +9,7 @@ import { MenuItemCard } from './MenuItemCard';
 import { Checkout } from './Checkout';
 import { OrderTracking } from './OrderTracking';
 import { VendorUpgradeModal } from './VendorUpgradeModal';
-import LazyImage from '../common/LazyImage';
+import { LazyImage } from '../common/LazyImage';
 import { CardSkeleton, ListSkeleton } from '../shared/LoadingSkeleton';
 import { Skeleton } from '../shared/LoadingSkeleton';
 import { useToast } from '../../contexts/ToastContext';
