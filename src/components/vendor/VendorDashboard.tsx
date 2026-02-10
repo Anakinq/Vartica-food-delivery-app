@@ -24,7 +24,7 @@ interface FullOrder extends Order {
     menu_item_id: string;
     menu_item?: { name: string };
   }>;
-  customer?: { full_name: string; phone?: string };
+  customer?: { full_name: string; phone?: string; hostel_location?: string };
 }
 
 interface VendorStats {
@@ -162,7 +162,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         // Even without vendor record, try to fetch orders and stats
         await Promise.all([
           fetchOrders(undefined),
-          fetchStats(undefined)
+          profile ? fetchStats(profile.id) : Promise.resolve()
         ]);
       }
     } catch (error) {
@@ -326,7 +326,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         .from('orders')
         .select(`
           *,
-          customer:user_id (full_name, phone)
+          customer:user_id (full_name, phone, hostel_location)
         `)
         .eq('seller_id', vendorId)
         .order('created_at', { ascending: false })
@@ -337,14 +337,14 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         return;
       }
 
-      // Fetch order items
+      // Fetch order items with menu item details
       const orderIds = ordersData?.map(o => o.id) || [];
       let orderItemsByOrderId: Record<string, any[]> = {};
 
       if (orderIds.length > 0) {
         const { data: orderItems } = await supabase
           .from('order_items')
-          .select('id, order_id, quantity, price, menu_item_id')
+          .select('id, order_id, quantity, price, menu_item_id, menu_item:menu_items(name)')
           .in('order_id', orderIds);
 
         orderItemsByOrderId = (orderItems || []).reduce((acc, item) => {
@@ -702,9 +702,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
                   key={order.id}
                   order={order}
                   onAccept={() => handleAcceptOrder(order)}
-                  onReject={() => handleRejectOrder(order)}
                   onChat={() => setSelectedOrderForChat(order)}
-                  isBusinessVendor={vendor?.vendor_type === 'late_night'}
                 />
               ))
             )
@@ -904,10 +902,8 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
 const OrderCard: React.FC<{
   order: FullOrder;
   onAccept: () => void;
-  onReject: () => void;
   onChat: () => void;
-  isBusinessVendor: boolean;
-}> = ({ order, onAccept, onReject, onChat, isBusinessVendor }) => (
+}> = ({ order, onAccept, onChat }) => (
   <div className="bg-white rounded-xl p-6 shadow-sm">
     <div className="flex justify-between items-start mb-4">
       <div>
@@ -915,6 +911,11 @@ const OrderCard: React.FC<{
         <p className="text-sm text-gray-600">
           {order.customer?.full_name} • {new Date(order.created_at || '').toLocaleString()}
         </p>
+        {order.customer?.hostel_location && (
+          <p className="text-sm text-purple-600 font-medium">
+            📍 {order.customer.hostel_location}
+          </p>
+        )}
       </div>
       <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(order.status)}`}>
         {order.status}
@@ -939,15 +940,6 @@ const OrderCard: React.FC<{
         >
           <MessageCircle className="h-5 w-5" />
         </button>
-        {/* Only show Reject button for student vendors, not business vendors */}
-        {!isBusinessVendor && (
-          <button
-            onClick={onReject}
-            className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 font-medium"
-          >
-            Reject
-          </button>
-        )}
         <button
           onClick={onAccept}
           className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
@@ -972,6 +964,11 @@ const ActiveOrderCard: React.FC<{
         <p className="text-sm text-gray-600">
           {order.customer?.full_name} • {new Date(order.created_at || '').toLocaleString()}
         </p>
+        {order.customer?.hostel_location && (
+          <p className="text-sm text-purple-600 font-medium">
+            📍 {order.customer.hostel_location}
+          </p>
+        )}
       </div>
       <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(order.status)}`}>
         {order.status}
@@ -1019,18 +1016,32 @@ const ActiveOrderCard: React.FC<{
 
 const CompletedOrderCard: React.FC<{ order: FullOrder }> = ({ order }) => (
   <div className="bg-white rounded-xl p-6 shadow-sm">
-    <div className="flex justify-between items-start">
+    <div className="flex justify-between items-start mb-3">
       <div>
         <h3 className="font-bold text-gray-900">{order.order_number}</h3>
         <p className="text-sm text-gray-600">
           {order.customer?.full_name} • {new Date(order.created_at || '').toLocaleString()}
         </p>
+        {order.customer?.hostel_location && (
+          <p className="text-sm text-purple-600 font-medium">
+            📍 {order.customer.hostel_location}
+          </p>
+        )}
       </div>
       <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(order.status)}`}>
         {order.status}
       </span>
     </div>
-    <p className="font-bold text-lg mt-2">Total: ₦{order.total.toFixed(2)}</p>
+
+    <div className="mb-3">
+      {order.order_items?.map((item, idx) => (
+        <p key={idx} className="text-sm text-gray-600">
+          {item.quantity}x {item.menu_item?.name || 'Item'} - ₦{(item.price * item.quantity).toFixed(2)}
+        </p>
+      ))}
+    </div>
+
+    <p className="font-bold text-lg">Total: ₦{order.total.toFixed(2)}</p>
   </div>
 );
 
