@@ -1,6 +1,6 @@
 import React, { useState, memo, useCallback } from 'react';
 import { MenuItem } from '../../lib/supabase';
-import LazyImage from '../common/LazyImage';
+import { LazyImage } from '../common/LazyImage';
 import { Plus, Minus, Heart } from 'lucide-react';
 
 interface MenuItemCardProps {
