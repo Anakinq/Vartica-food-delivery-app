@@ -222,7 +222,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
   }
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="bg-black min-h-screen overflow-x-hidden">
       {/* Full-screen food background with dark overlay */}
       <div
         className="fixed inset-0 bg-cover bg-center bg-no-repeat"
@@ -233,7 +233,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
       <div className="fixed inset-0 bg-black bg-opacity-70" />
 
       {/* Main content with proper z-index */}
-      <div className="relative z-10 min-h-screen">
+      <div className="relative z-10 min-h-screen overflow-x-hidden">
         <nav className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
@@ -341,7 +341,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
           </div>
         </nav>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 overflow-x-hidden">
           {/* Search and Filter Controls */}
           <div className="mb-6 flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
