@@ -60,7 +60,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const [success, setSuccess] = useState(false);
   const [paystackScriptLoaded, setPaystackScriptLoaded] = useState(true); // Always true with npm package
   const [scriptLoading, setScriptLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online');
+  // Payment method is always online (Paystack)
+  const paymentMethod: 'online' = 'online';
   const [isDevMode, setIsDevMode] = useState(false);
 
   // Marketplace delivery method state (for BOTH vendors)
@@ -298,8 +299,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
       delivery_fee_discount: deliveryFeeDiscount,
       discount,
       total: effectiveTotal,
-      payment_method: paymentMethod === 'cash' ? 'cash' : 'online',
-      payment_status: paymentMethod === 'cash' ? 'pending' : 'paid',
+      payment_method: 'online',
+      payment_status: 'paid',
       payment_reference: paymentReference || null,
       promo_code: formData.promoCode || null,
       delivery_address: formData.deliveryAddress.trim() || 'Hostel not selected',
@@ -405,35 +406,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
   const handlePaystackClose = () => {
     showToast({ type: 'info', message: 'Payment cancelled - your items are still in cart' });
-  };
-
-  // Cash on Delivery - Simplified: Just create order and show success
-  const handleCashOnDelivery = async () => {
-    try {
-      setLoading(true);
-      const orderResult = await createOrder('CASH_ON_DELIVERY');
-
-      if (formData.promoCode && deliveryFeeDiscount > 0) {
-        const { error: incrementError } = await supabase.rpc('increment_promo_code_usage', {
-          p_code: formData.promoCode.toUpperCase()
-        });
-        if (incrementError) {
-          console.error('Error incrementing promo code usage:', incrementError);
-        }
-      }
-
-      // Show simplified success
-      setSuccess(true);
-      showToast({ type: 'success', message: `Order Complete! Order #${orderResult.orderNumber}` });
-      setTimeout(() => onSuccess(), 2000);
-    } catch (error) {
-      showToast({
-        type: 'error',
-        message: 'Failed to place order. Please try again.'
-      });
-    } finally {
-      setLoading(false);
-    }
   };
 
   // Dev mode - Simulate payment success and credit wallets
@@ -576,10 +548,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
             <Check className="h-10 w-10 text-green-600" />
           </div>
           <h2 className="text-2xl font-bold text-black mb-2">Order Complete!</h2>
-          <p className="text-gray-600">Your order has been placed successfully.</p>
-          {paymentMethod === 'cash' && (
-            <p className="text-gray-600 mt-2">Pay ₦{effectiveTotal.toFixed(2)} when your order arrives.</p>
-          )}
+          <p className="text-gray-600">Your payment was successful and order has been placed.</p>
+          <p className="text-gray-600 mt-2">Order # will be delivered to your hostel.</p>
         </div>
       </div>
     );
@@ -733,34 +703,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
               {deliveryFeeDiscount > 0 && <p className="text-sm text-green-600 mt-1">Delivery fee discount applied: -₦{deliveryFeeDiscount.toFixed(2)}</p>}
             </div>
 
-            {/* Payment Method Selection */}
-            <div>
-              <label className="block text-sm font-semibold text-black mb-2">Payment Method</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('online')}
-                  className={`px-4 py-3 rounded-xl border-2 transition-all ${paymentMethod === 'online'
-                    ? 'border-green-500 bg-green-50 text-green-700'
-                    : 'border-gray-200 text-gray-700 hover:border-gray-300'
-                    }`}
-                >
-                  <div className="font-medium">Pay Online</div>
-                  <div className="text-xs opacity-75">Paystack</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('cash')}
-                  className={`px-4 py-3 rounded-xl border-2 transition-all ${paymentMethod === 'cash'
-                    ? 'border-green-500 bg-green-50 text-green-700'
-                    : 'border-gray-200 text-gray-700 hover:border-gray-300'
-                    }`}
-                >
-                  <div className="font-medium">Cash on Delivery</div>
-                  <div className="text-xs opacity-75">Pay when received</div>
-                </button>
-              </div>
-            </div>
+
 
             {/* Summary */}
             <div className="bg-gray-50 rounded-xl p-5 space-y-3 border border-gray-100">
@@ -796,52 +739,28 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 </div>
               )}
 
-              {paymentMethod === 'cash' ? (
-                // Cash on Delivery Button - Simplified
-                <button
-                  type="button"
-                  onClick={handleCashOnDelivery}
-                  disabled={loading || !formData.deliveryAddress}
-                  className="w-full bg-blue-600 text-white py-4 rounded-full font-bold text-lg hover:bg-blue-700 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                >
-                  {loading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      Placing Order...
-                    </>
-                  ) : (
-                    <>
-                      Cash on Delivery • ₦{effectiveTotal.toFixed(2)}
-                    </>
-                  )}
-                </button>
-              ) : (
-                // Pay Online Button
-                <button
-                  type="button"
-                  onClick={initializePaystackPayment}
-                  disabled={scriptLoading}
-                  className="w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-colors shadow-lg disabled:opacity-70 flex items-center justify-center"
-                >
-                  {scriptLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      Loading payment gateway...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="h-5 w-5 mr-2" />
-                      Pay Now • ₦{effectiveTotal.toFixed(2)}
-                    </>
-                  )}
-                </button>
-              )}
+              {/* Pay Online Button */}
+              <button
+                type="button"
+                onClick={initializePaystackPayment}
+                disabled={scriptLoading}
+                className="w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-colors shadow-lg disabled:opacity-70 flex items-center justify-center"
+              >
+                {scriptLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    Loading payment gateway...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-5 w-5 mr-2" />
+                    Pay Now • ₦{effectiveTotal.toFixed(2)}
+                  </>
+                )}
+              </button>
 
               <p className="text-center text-sm text-gray-500">
-                {paymentMethod === 'cash'
-                  ? `Order complete! Pay ₦${effectiveTotal.toFixed(2)} when your order arrives`
-                  : `Secure payment powered by Paystack • ₦${effectiveTotal.toFixed(2)}`
-                }
+                Secure payment powered by Paystack
               </p>
               {/* Dev Mode Button */}
               {import.meta.env.DEV && (

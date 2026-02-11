@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MenuItem } from '../../lib/supabase';
 import { supabase } from '../../lib/supabase';
 import { LazyImage } from '../common/LazyImage';
+import { X } from 'lucide-react';
 
 interface MenuItemDetailProps {
   item: MenuItem;
@@ -88,6 +89,14 @@ export const MenuItemDetail: React.FC<MenuItemDetailProps> = ({
           ₦{item.price.toLocaleString()}
         </div>
 
+        {/* Out of Stock Badge */}
+        {!item.is_available && (
+          <div className="mt-3 inline-flex items-center px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">
+            <X className="h-4 w-4 mr-1" />
+            Out of Stock
+          </div>
+        )}
+
         {/* Quantity Selector */}
         <div className="flex items-center mt-4">
           <button
@@ -147,9 +156,13 @@ export const MenuItemDetail: React.FC<MenuItemDetailProps> = ({
         </div>
         <button
           onClick={handleAddToCart}
-          className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold flex items-center"
+          disabled={!item.is_available}
+          className={`${item.is_available
+            ? 'bg-blue-600 hover:bg-blue-700'
+            : 'bg-gray-400 cursor-not-allowed'
+            } text-white px-6 py-3 rounded-lg font-semibold flex items-center`}
         >
-          🛒 Add to Cart
+          {item.is_available ? '🛒 Add to Cart' : '❌ Out of Stock'}
         </button>
       </div>
     </div>

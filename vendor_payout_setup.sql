@@ -2,8 +2,10 @@
 CREATE TABLE IF NOT EXISTS vendor_payout_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   vendor_id UUID NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   account_number VARCHAR(10) NOT NULL,
   bank_code VARCHAR(20) NOT NULL,
+  bank_name VARCHAR(255) NOT NULL DEFAULT '',
   account_name VARCHAR(255) NOT NULL,
   paystack_recipient_code VARCHAR(255),
   verified BOOLEAN DEFAULT FALSE,
@@ -14,6 +16,7 @@ CREATE TABLE IF NOT EXISTS vendor_payout_profiles (
 
 -- Create index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_vendor_payout_profiles_vendor_id ON vendor_payout_profiles(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_vendor_payout_profiles_user_id ON vendor_payout_profiles(user_id);
 
 -- Create vendor_withdrawals table for tracking withdrawal requests
 CREATE TABLE IF NOT EXISTS vendor_withdrawals (
@@ -53,23 +56,35 @@ CREATE INDEX IF NOT EXISTS idx_vendor_wallet_transactions_created_at ON vendor_w
 -- Enable Row Level Security for vendor_payout_profiles
 ALTER TABLE vendor_payout_profiles ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist (PostgreSQL doesn't support CREATE POLICY IF NOT EXISTS)
+DROP POLICY IF EXISTS "Vendors can view own payout profile" ON vendor_payout_profiles;
+DROP POLICY IF EXISTS "Vendors can insert own payout profile" ON vendor_payout_profiles;
+DROP POLICY IF EXISTS "Vendors can update own payout profile" ON vendor_payout_profiles;
+
 -- Policy: Vendors can only view their own payout profile
 CREATE POLICY "Vendors can view own payout profile" ON vendor_payout_profiles
   FOR SELECT
-  USING (vendor_id IN (SELECT id FROM vendors WHERE user_id = auth.uid()));
+  USING (vendor_id IN (SELECT id FROM vendors WHERE user_id = auth.uid()) 
+         OR user_id = auth.uid());
 
 -- Policy: Vendors can insert their own payout profile
 CREATE POLICY "Vendors can insert own payout profile" ON vendor_payout_profiles
   FOR INSERT
-  WITH CHECK (vendor_id IN (SELECT id FROM vendors WHERE user_id = auth.uid()));
+  WITH CHECK (vendor_id IN (SELECT id FROM vendors WHERE user_id = auth.uid())
+         OR user_id = auth.uid());
 
 -- Policy: Vendors can update their own payout profile
 CREATE POLICY "Vendors can update own payout profile" ON vendor_payout_profiles
   FOR UPDATE
-  USING (vendor_id IN (SELECT id FROM vendors WHERE user_id = auth.uid()));
+  USING (vendor_id IN (SELECT id FROM vendors WHERE user_id = auth.uid())
+         OR user_id = auth.uid());
 
 -- Enable Row Level Security for vendor_withdrawals
 ALTER TABLE vendor_withdrawals ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Vendors can view own withdrawals" ON vendor_withdrawals;
+DROP POLICY IF EXISTS "Admin can view all withdrawals" ON vendor_withdrawals;
 
 -- Policy: Vendors can only view their own withdrawals
 CREATE POLICY "Vendors can view own withdrawals" ON vendor_withdrawals
@@ -83,6 +98,9 @@ CREATE POLICY "Admin can view all withdrawals" ON vendor_withdrawals
 
 -- Enable Row Level Security for vendor_wallet_transactions
 ALTER TABLE vendor_wallet_transactions ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Vendors can view own transactions" ON vendor_wallet_transactions;
 
 -- Policy: Vendors can only view their own transactions
 CREATE POLICY "Vendors can view own transactions" ON vendor_wallet_transactions

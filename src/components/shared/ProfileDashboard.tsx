@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, HelpCircle, CreditCard, MapPin, MessageCircle, Camera, Store, ArrowLeftRight, Download } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, HelpCircle, CreditCard, MapPin, MessageCircle, Camera, Store, ArrowLeftRight, Download, Building2, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { supabase } from '../../lib/supabase/client';
@@ -16,6 +16,26 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
   const [showVendorUpgrade, setShowVendorUpgrade] = useState(false);
   const [showDeliveryAgentUpgrade, setShowDeliveryAgentUpgrade] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
+
+  // Determine current view based on hash
+  const [currentView, setCurrentView] = useState<'customer' | 'vendor'>('customer');
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash === '#/vendor' || hash === '#/vendor-orders' || hash === '#/vendor-earnings') {
+      setCurrentView('vendor');
+    } else {
+      setCurrentView('customer');
+    }
+  }, []);
+
+  // Bank account state
+  const [showBankModal, setShowBankModal] = useState(false);
+  const [bankAccount, setBankAccount] = useState('');
+  const [bankCode, setBankCode] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [isBankVerified, setIsBankVerified] = useState(false);
+  const [savingBank, setSavingBank] = useState(false);
+  const [loadingBank, setLoadingBank] = useState(false);
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || '',
     phone: profile?.phone || '',
@@ -51,6 +71,150 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
       setAvatarUrl((profile as ExtendedProfile).avatar_url || '');
     }
   }, [profile]);
+
+  // Fetch bank details on mount
+  useEffect(() => {
+    if (profile?.id && (profile.role === 'vendor' || (profile as any).role === 'late_night_vendor')) {
+      fetchBankDetails();
+    }
+  }, [profile]);
+
+  // Nigerian banks list
+  const BANK_OPTIONS = [
+    { code: '044', name: 'Access Bank' },
+    { code: '063', name: 'Access Bank (Diamond)' },
+    { code: '035A', name: 'ALAT by WEMA' },
+    { code: '401', name: 'ASO Savings and Loans' },
+    { code: '023', name: 'Citibank Nigeria' },
+    { code: '050', name: 'Ecobank Nigeria' },
+    { code: '562', name: 'Ekondo Microfinance Bank' },
+    { code: '070', name: 'Fidelity Bank' },
+    { code: '011', name: 'First Bank of Nigeria' },
+    { code: '214', name: 'First City Monument Bank' },
+    { code: '058', name: 'Guaranty Trust Bank' },
+    { code: '030', name: 'Heritage Bank' },
+    { code: '301', name: 'Jaiz Bank' },
+    { code: '082', name: 'Keystone Bank' },
+    { code: '559', name: 'Kuda Bank' },
+    { code: '50211', name: 'Kuda Microfinance Bank' },
+    { code: '999992', name: 'OPay' },
+    { code: '526', name: 'Parallex Bank' },
+    { code: '999991', name: 'PalmPay' },
+    { code: '076', name: 'Polaris Bank' },
+    { code: '101', name: 'Providus Bank' },
+    { code: '125', name: 'Rubies MFB' },
+    { code: '232', name: 'Sterling Bank' },
+    { code: '068', name: 'Standard Chartered Bank' },
+    { code: '033', name: 'Union Bank of Nigeria' },
+    { code: '032', name: 'United Bank For Africa' },
+    { code: '215', name: 'Unity Bank' },
+    { code: '035', name: 'Wema Bank' },
+    { code: '057', name: 'Zenith Bank' },
+  ];
+
+  // Fetch bank details from database
+  const fetchBankDetails = async () => {
+    if (!profile?.id) return;
+    try {
+      setLoadingBank(true);
+      const { data: payoutData, error } = await supabase
+        .from('vendor_payout_profiles')
+        .select('*')
+        .eq('vendor_id', profile.id)
+        .single();
+
+      if (payoutData && !error) {
+        setBankAccount(payoutData.account_number || '');
+        setBankCode(payoutData.bank_code || '');
+        setBankName(payoutData.account_name || 'Unknown Bank');
+        setIsBankVerified(payoutData.verified || true);
+      }
+    } catch (error) {
+      console.error('Error fetching bank details:', error);
+    } finally {
+      setLoadingBank(false);
+    }
+  };
+
+  // Save bank details
+  const saveBankDetails = async () => {
+    if (!profile) return;
+
+    if (bankAccount.length !== 10 || !bankCode) {
+      showToast({ type: 'error', message: 'Please enter a valid 10-digit account number and select a bank.' });
+      return;
+    }
+
+    if (!/^\d{10}$/.test(bankAccount)) {
+      showToast({ type: 'error', message: 'Account number must be exactly 10 digits.' });
+      return;
+    }
+
+    setSavingBank(true);
+    try {
+      // First check if vendor record exists
+      const { data: vendorData } = await supabase
+        .from('vendors')
+        .select('id')
+        .eq('user_id', profile.id)
+        .single();
+
+      if (!vendorData) {
+        showToast({ type: 'error', message: 'Vendor record not found. Please contact support.' });
+        setSavingBank(false);
+        return;
+      }
+
+      // Check for existing payout profile
+      const { data: existingProfile } = await supabase
+        .from('vendor_payout_profiles')
+        .select('id')
+        .eq('vendor_id', vendorData.id)
+        .single();
+
+      let result;
+      if (existingProfile) {
+        // Update existing profile
+        result = await supabase
+          .from('vendor_payout_profiles')
+          .update({
+            account_number: bankAccount.trim(),
+            account_name: profile.full_name || 'Unknown',
+            bank_code: bankCode,
+            verified: false
+          })
+          .eq('vendor_id', vendorData.id)
+          .select();
+      } else {
+        // Create new profile
+        result = await supabase
+          .from('vendor_payout_profiles')
+          .insert([{
+            vendor_id: vendorData.id,
+            user_id: profile.id,
+            account_number: bankAccount.trim(),
+            account_name: profile.full_name || 'Unknown',
+            bank_name: bankName || '',
+            bank_code: bankCode,
+            verified: false
+          }])
+          .select();
+      }
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      showToast({ type: 'success', message: 'Bank details saved successfully!' });
+      setIsBankVerified(false);
+      setShowBankModal(false);
+    } catch (error: any) {
+      console.error('Save bank error:', error);
+      showToast({ type: 'error', message: `Failed to save bank details: ${error.message}` });
+    } finally {
+      setSavingBank(false);
+    }
+  };
 
   useEffect(() => {
     try {
@@ -366,15 +530,27 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
                   </button>
 
                   {/* Role-related buttons */}
+                  {/* For pure customers: show switch to vendor + become delivery agent */}
                   {profile?.role === 'customer' && (
                     <>
                       <button
                         type="button"
-                        onClick={() => setShowVendorUpgrade(true)}
-                        className="flex items-center px-6 py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors w-full justify-center"
+                        onClick={() => {
+                          // Close the profile dashboard first
+                          if (onClose) {
+                            onClose();
+                          } else if (onBack) {
+                            onBack();
+                          }
+                          // Then switch to vendor view by changing the hash
+                          setTimeout(() => {
+                            window.location.hash = '#/vendor';
+                          }, 10);
+                        }}
+                        className="flex items-center px-6 py-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-xl font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors w-full justify-center"
                       >
-                        <Store className="h-5 w-5 mr-2" />
-                        Become a Vendor
+                        <ArrowLeftRight className="h-5 w-5 mr-2" />
+                        Switch to Vendor View
                       </button>
                       <button
                         type="button"
@@ -386,26 +562,51 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
                     </>
                   )}
 
+                  {/* For vendors: show switch view button based on current view */}
                   {(profile?.role === 'vendor' || (profile as any)?.role === 'late_night_vendor') && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // Close the profile dashboard first
-                        if (onClose) {
-                          onClose();
-                        } else if (onBack) {
-                          onBack();
-                        }
-                        // Then switch to vendor view by changing the hash
-                        setTimeout(() => {
-                          window.location.hash = '#/vendor';
-                        }, 10);
-                      }}
-                      className="flex items-center px-6 py-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-xl font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors w-full justify-center"
-                    >
-                      <ArrowLeftRight className="h-5 w-5 mr-2" />
-                      Switch to Vendor View
-                    </button>
+                    <>
+                      {currentView === 'vendor' ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // Close the profile dashboard first
+                            if (onClose) {
+                              onClose();
+                            } else if (onBack) {
+                              onBack();
+                            }
+                            // Then switch to customer view by changing the hash
+                            setTimeout(() => {
+                              window.location.hash = '#/customer';
+                            }, 10);
+                          }}
+                          className="flex items-center px-6 py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors w-full justify-center"
+                        >
+                          <ArrowLeftRight className="h-5 w-5 mr-2" />
+                          Switch to Customer View
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // Close the profile dashboard first
+                            if (onClose) {
+                              onClose();
+                            } else if (onBack) {
+                              onBack();
+                            }
+                            // Then switch to vendor view by changing the hash
+                            setTimeout(() => {
+                              window.location.hash = '#/vendor';
+                            }, 10);
+                          }}
+                          className="flex items-center px-6 py-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-xl font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors w-full justify-center"
+                        >
+                          <ArrowLeftRight className="h-5 w-5 mr-2" />
+                          Switch to Vendor View
+                        </button>
+                      )}
+                    </>
                   )}
 
                   <div className="flex justify-end">
@@ -479,6 +680,45 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
                   </div>
                 ))}
               </div>
+
+              {/* Bank Details for Vendors */}
+              {(profile.role === 'vendor' || (profile as any).role === 'late_night_vendor') && (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden mb-6">
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <Building2 className="h-6 w-6 text-purple-600" />
+                        <div>
+                          <h3 className="font-bold text-black dark:text-white">Bank Details</h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">For withdrawals</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowBankModal(true)}
+                        className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
+                      >
+                        {isBankVerified ? 'Update' : 'Set Up'}
+                      </button>
+                    </div>
+                    {loadingBank ? (
+                      <p className="text-gray-500">Loading...</p>
+                    ) : bankAccount ? (
+                      <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {bankName} •••• {bankAccount.slice(-4)}
+                        </p>
+                        {isBankVerified ? (
+                          <p className="text-xs text-green-600 mt-1">✓ Verified</p>
+                        ) : (
+                          <p className="text-xs text-yellow-600 mt-1">Pending verification</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">No bank account set up</p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Other Settings */}
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
@@ -621,6 +861,86 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
             >
               Got it
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bank Details Modal */}
+      {showBankModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-black dark:text-white">Bank Details</h2>
+              <button
+                onClick={() => setShowBankModal(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+              >
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Bank Name</label>
+                <select
+                  value={bankCode}
+                  onChange={(e) => {
+                    setBankCode(e.target.value);
+                    const bank = BANK_OPTIONS.find(b => b.code === e.target.value);
+                    setBankName(bank?.name || '');
+                  }}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-black dark:text-white"
+                >
+                  <option value="">Select Bank</option>
+                  {BANK_OPTIONS.map(bank => (
+                    <option key={bank.code} value={bank.code}>{bank.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Account Number</label>
+                <input
+                  type="text"
+                  value={bankAccount}
+                  onChange={(e) => setBankAccount(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  placeholder="10-digit account number"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-black dark:text-white placeholder-gray-400"
+                  maxLength={10}
+                />
+              </div>
+
+              {bankCode && bankAccount.length === 10 && (
+                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Account Name:</p>
+                  <p className="font-medium text-black dark:text-white">{profile?.full_name || 'Loading...'}</p>
+                </div>
+              )}
+
+              {!isBankVerified && bankAccount && (
+                <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                  <p className="text-sm text-yellow-700 dark:text-yellow-400">
+                    Your bank details will be verified when you make your first withdrawal.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowBankModal(false)}
+                  className="flex-1 py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveBankDetails}
+                  disabled={savingBank || bankAccount.length !== 10 || !bankCode}
+                  className="flex-1 py-3 px-4 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50"
+                >
+                  {savingBank ? 'Saving...' : 'Save Bank Details'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

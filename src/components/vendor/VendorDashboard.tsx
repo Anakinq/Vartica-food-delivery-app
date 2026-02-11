@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import {
   LogOut, Package, MessageCircle, Wallet, Settings, Menu, X,
   CheckCircle, Clock, DollarSign, Star, Phone, ChevronRight, BarChart3,
-  Building2, CreditCard
+  Building2, CreditCard, Plus, ShoppingBag, ArrowLeftRight, Store, Edit2
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Order, Vendor, Profile } from '../../lib/supabase';
@@ -11,6 +11,9 @@ import { ChatModal } from '../shared/ChatModal';
 import { VendorWalletService, VendorReviewService } from '../../services/supabase/vendor.service';
 import { databaseService } from '../../services';
 import { useToast } from '../../contexts/ToastContext';
+import { AddProductModal } from './AddProductModal';
+import { VendorProfileModal } from './VendorProfileModal';
+import { EditProductModal } from './EditProductModal';
 
 interface VendorDashboardProps {
   onShowProfile?: () => void;
@@ -90,7 +93,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   });
   const [selectedOrderForChat, setSelectedOrderForChat] = useState<FullOrder | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'completed'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'completed' | 'products'>('pending');
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isStoreOpen, setIsStoreOpen] = useState(true);
 
@@ -108,21 +111,14 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   const [withdrawAmount, setWithdrawAmount] = useState<number | null>(null);
   const [processingWithdrawal, setProcessingWithdrawal] = useState(false);
 
+  // Product management state
+  const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [showVendorProfileModal, setShowVendorProfileModal] = useState(false);
+  const [vendorProducts, setVendorProducts] = useState<any[]>([]);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
+
   const menuRef = useRef<HTMLDivElement>(null);
   const hamburgerButtonRef = useRef<HTMLButtonElement>(null);
-
-  // Close mobile menu on outside click
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (showMobileMenu && menuRef.current && !menuRef.current.contains(target) &&
-        hamburgerButtonRef.current && !hamburgerButtonRef.current.contains(target)) {
-        setShowMobileMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showMobileMenu]);
 
   // Initial data fetch
   useEffect(() => {
@@ -156,7 +152,8 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
           fetchPayoutProfile(vendorData.id),
           fetchWalletBalance(vendorData.id),
           fetchOrders(vendorData.id),
-          fetchStats(vendorData.id)
+          fetchStats(vendorData.id),
+          fetchProducts(vendorData.id)
         ]);
       } else {
         // Even without vendor record, try to fetch orders and stats
@@ -342,16 +339,47 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       let orderItemsByOrderId: Record<string, any[]> = {};
 
       if (orderIds.length > 0) {
-        const { data: orderItems } = await supabase
+        const { data: orderItems, error: itemsError } = await supabase
           .from('order_items')
-          .select('id, order_id, quantity, price, menu_item_id, menu_item:menu_items(name)')
+          .select('id, order_id, quantity, price, menu_item_id')
           .in('order_id', orderIds);
 
-        orderItemsByOrderId = (orderItems || []).reduce((acc, item) => {
-          if (!acc[item.order_id]) acc[item.order_id] = [];
-          acc[item.order_id].push(item);
-          return acc;
-        }, {} as Record<string, any[]>);
+        if (!itemsError && orderItems) {
+          // Get menu item names separately
+          const menuItemIds = [...new Set(orderItems.map(item => item.menu_item_id).filter(Boolean))];
+          if (menuItemIds.length > 0) {
+            const { data: menuItems } = await supabase
+              .from('menu_items')
+              .select('id, name')
+              .in('id', menuItemIds);
+
+            const menuItemMap = (menuItems || []).reduce((acc: Record<string, any>, item: any) => {
+              acc[item.id] = item;
+              return acc;
+            }, {});
+
+            // Map menu item names to order items
+            orderItems.forEach((item: any) => {
+              if (!orderItemsByOrderId[item.order_id]) {
+                orderItemsByOrderId[item.order_id] = [];
+              }
+              orderItemsByOrderId[item.order_id].push({
+                ...item,
+                menu_item: menuItemMap[item.menu_item_id] || { name: 'Unknown Item' }
+              });
+            });
+          } else {
+            orderItems.forEach((item: any) => {
+              if (!orderItemsByOrderId[item.order_id]) {
+                orderItemsByOrderId[item.order_id] = [];
+              }
+              orderItemsByOrderId[item.order_id].push({
+                ...item,
+                menu_item: { name: 'Unknown Item' }
+              });
+            });
+          }
+        }
       }
 
       // Attach items to orders
@@ -360,6 +388,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         order_items: orderItemsByOrderId[order.id] || []
       }));
 
+      console.log('Fetched orders:', fullOrders);
       setOrders(fullOrders);
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -382,6 +411,48 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
+    }
+  };
+
+  // Fetch vendor products
+  const fetchProducts = async (vendorId: string) => {
+    try {
+      const { data: products, error } = await supabase
+        .from('menu_items')
+        .select('*')
+        .eq('seller_id', vendorId)
+        .order('created_at', { ascending: false });
+
+      if (!error) {
+        setVendorProducts(products || []);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    }
+  };
+
+  // Toggle product availability
+  const toggleProductAvailability = async (product: any) => {
+    try {
+      const { error } = await supabase
+        .from('menu_items')
+        .update({ is_available: !product.is_available })
+        .eq('id', product.id);
+
+      if (error) {
+        throw error;
+      }
+
+      showToast({ 
+        type: 'success', 
+        message: !product.is_available ? 'Product is now available!' : 'Product marked as out of stock' 
+      });
+      
+      // Refresh products list
+      fetchProducts(vendor?.id || '');
+    } catch (error: any) {
+      console.error('Error toggling product availability:', error);
+      showToast({ type: 'error', message: `Failed to update: ${error.message}` });
     }
   };
 
@@ -516,7 +587,16 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
               <h1 className="text-xl font-bold text-gray-900">{vendor?.store_name || 'Vendor Dashboard'}</h1>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              {/* Switch to Customer View Button */}
+              <button
+                onClick={() => { window.location.hash = '#/customer'; }}
+                className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 flex items-center gap-1"
+              >
+                <ShoppingBag className="h-4 w-4" />
+                Shop
+              </button>
+
               {/* Store Status Toggle */}
               <button
                 onClick={toggleStoreOpen}
@@ -526,6 +606,15 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
                   }`}
               >
                 {isStoreOpen ? '🟢 Open' : '🔴 Closed'}
+              </button>
+
+              {/* Add Product Button */}
+              <button
+                onClick={() => setShowAddProductModal(true)}
+                className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 flex items-center gap-1"
+              >
+                <Plus className="h-4 w-4" />
+                Add Product
               </button>
 
               {/* Hamburger Menu */}
@@ -541,7 +630,28 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
 
           {/* Mobile Menu Dropdown */}
           {showMobileMenu && (
-            <div ref={menuRef} className="absolute right-4 top-16 bg-white shadow-lg rounded-md py-2 w-48 z-50 border border-gray-200">
+            <div ref={menuRef} className="absolute right-4 top-16 bg-white shadow-lg rounded-md py-2 w-48 z-[100] border border-gray-200">
+              <div className="flex items-center justify-between px-4 py-2 border-b">
+                <span className="text-sm font-medium text-gray-700">Menu</span>
+                <button 
+                  onClick={() => setShowMobileMenu(false)}
+                  className="p-1 hover:bg-gray-100 rounded"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <button
+                onClick={() => {
+                  setShowVendorProfileModal(true);
+                  setShowMobileMenu(false);
+                }}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <div className="flex items-center space-x-2">
+                  <Store className="h-4 w-4" />
+                  <span>Edit Store</span>
+                </div>
+              </button>
               <button
                 onClick={() => {
                   setShowBankModal(true);
@@ -657,10 +767,10 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
 
         {/* Tab Navigation */}
         <div className="border-b border-gray-200 mb-6">
-          <nav className="flex space-x-8">
+          <nav className="flex space-x-8 overflow-x-auto">
             <button
               onClick={() => setActiveTab('pending')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'pending'
+              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'pending'
                 ? 'border-purple-600 text-purple-600'
                 : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
@@ -669,7 +779,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
             </button>
             <button
               onClick={() => setActiveTab('active')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'active'
+              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'active'
                 ? 'border-purple-600 text-purple-600'
                 : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
@@ -678,12 +788,21 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
             </button>
             <button
               onClick={() => setActiveTab('completed')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'completed'
+              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'completed'
                 ? 'border-purple-600 text-purple-600'
                 : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
             >
               ✅ Completed ({completedOrders.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('products')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'products'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
+            >
+              📦 Products ({vendorProducts.length})
             </button>
           </nav>
         </div>
@@ -738,6 +857,73 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
                 <CompletedOrderCard key={order.id} order={order} />
               ))
             )
+          )}
+
+          {/* Products Grid */}
+          {activeTab === 'products' && (
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-gray-900">Your Products</h3>
+                <button
+                  onClick={() => setShowAddProductModal(true)}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Product
+                </button>
+              </div>
+
+              {vendorProducts.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-xl">
+                  <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-600 mb-4">No products yet</p>
+                  <button
+                    onClick={() => setShowAddProductModal(true)}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700"
+                  >
+                    Add Your First Product
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {vendorProducts.map((product) => (
+                    <div key={product.id} className="bg-white rounded-xl p-4 shadow-sm">
+                      <div className="h-32 rounded-lg bg-gray-100 overflow-hidden mb-3">
+                        <img
+                          src={product.image_url || '/images/1.jpg'}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = '/images/1.jpg';
+                          }}
+                        />
+                      </div>
+                      <h4 className="font-medium text-gray-900 line-clamp-1">{product.name}</h4>
+                      <p className="text-sm text-gray-500">{product.category}</p>
+                      <p className="font-bold text-purple-600 mt-2">₦{product.price.toLocaleString()}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <button
+                          onClick={() => toggleProductAvailability(product)}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${product.is_available 
+                            ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                            : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
+                        >
+                          {product.is_available ? '✓ Available' : '✗ Out of Stock'}
+                        </button>
+                        <button
+                          onClick={() => setEditingProduct(product)}
+                          className="p-1 text-gray-500 hover:text-purple-600"
+                          title="Edit Product"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -893,6 +1079,41 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
             </div>
           </div>
         </div>
+      )}
+
+      {/* Add Product Modal */}
+      {showAddProductModal && (
+        <AddProductModal
+          vendorId={vendor?.id || ''}
+          onClose={() => setShowAddProductModal(false)}
+          onProductAdded={() => {
+            setShowAddProductModal(false);
+            showToast({ type: 'success', message: 'Product added successfully!' });
+          }}
+        />
+      )}
+
+      {/* Vendor Profile Modal */}
+      {showVendorProfileModal && vendor && (
+        <VendorProfileModal
+          vendorId={vendor.id}
+          onClose={() => setShowVendorProfileModal(false)}
+          onProfileUpdated={() => {
+            showToast({ type: 'success', message: 'Store profile updated!' });
+          }}
+        />
+      )}
+
+      {/* Edit Product Modal */}
+      {editingProduct && (
+        <EditProductModal
+          product={editingProduct}
+          onClose={() => setEditingProduct(null)}
+          onProductUpdated={() => {
+            showToast({ type: 'success', message: 'Product updated!' });
+            fetchProducts(vendor?.id || '');
+          }}
+        />
       )}
     </div>
   );

@@ -137,6 +137,7 @@ function AppContent() {
 
     // Handle profile
     if (locationHash === '#/profile') {
+      const isVendor = profile.role === 'vendor' || (profile as any).role === 'late_night_vendor';
       return (
         <div className="authenticated-view">
           <div className="main-content">
@@ -146,6 +147,56 @@ function AppContent() {
               onClose={() => { window.location.hash = ''; }}
             />
           </div>
+          {isVendor ? (
+            <VendorBottomNavigation />
+          ) : (
+            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
+          )}
+        </div>
+      );
+    }
+
+    // Handle vendor orders route
+    if (locationHash === '#/vendor-orders') {
+      if ((profile as Profile).is_vendor || ['vendor', 'late_night_vendor'].includes(profile.role)) {
+        return (
+          <div className="authenticated-view">
+            <div className="main-content">
+              {withSuspense(VendorDashboard)({ onShowProfile: () => setShowProfile(true) })}
+            </div>
+            <VendorBottomNavigation />
+          </div>
+        );
+      }
+      // Fallback to customer view if not a vendor
+      window.location.hash = '#/customer';
+      return null;
+    }
+
+    // Handle vendor earnings route
+    if (locationHash === '#/vendor-earnings') {
+      if ((profile as Profile).is_vendor || ['vendor', 'late_night_vendor'].includes(profile.role)) {
+        return (
+          <div className="authenticated-view">
+            <div className="main-content">
+              {withSuspense(VendorDashboard)({ onShowProfile: () => setShowProfile(true) })}
+            </div>
+            <VendorBottomNavigation />
+          </div>
+        );
+      }
+      // Fallback to customer view if not a vendor
+      window.location.hash = '#/customer';
+      return null;
+    }
+
+    // Handle customer route (for vendors who want to browse as customer)
+    if (locationHash === '#/customer') {
+      return (
+        <div className="authenticated-view">
+          <div className="main-content">
+            {withSuspense(CustomerHome)({ onShowProfile: () => setShowProfile(true) })}
+          </div>
           <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
         </div>
       );
@@ -153,6 +204,22 @@ function AppContent() {
 
     // Handle role-based routing
     const userRole = profile.role as UserRole;
+
+    // Handle explicit customer route
+    if (locationHash === '#/customer') {
+      return (
+        <div className="authenticated-view">
+          <div className="main-content">
+            {withSuspense(CustomerHome)({
+              onShowProfile: () => {
+                window.location.hash = '#/profile';
+              }
+            })}
+          </div>
+          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
+        </div>
+      );
+    }
 
     // Check hash for explicit role routing
     if (locationHash === '#/vendor') {
@@ -231,9 +298,9 @@ function AppContent() {
         return (
           <div className="authenticated-view">
             <div className="main-content">
-              {withSuspense(CustomerHome)({ onShowProfile: () => setShowProfile(true) })}
+              {withSuspense(VendorDashboard)({ onShowProfile: () => setShowProfile(true) })}
             </div>
-            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
+            <VendorBottomNavigation />
           </div>
         );
       case 'customer':
