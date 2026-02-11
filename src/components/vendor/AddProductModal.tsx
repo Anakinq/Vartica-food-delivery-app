@@ -63,15 +63,41 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
         const file = e.target.files?.[0];
         if (!file) return;
 
+        // Compress image before upload
+        const compressImage = (imageFile: File, maxWidth: number, quality: number): Promise<Blob> => {
+            return new Promise((resolve, reject) => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+
+                img.onload = () => {
+                    const ratio = Math.min(maxWidth / img.width, maxWidth / img.height);
+                    canvas.width = img.width * ratio;
+                    canvas.height = img.height * ratio;
+                    ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    canvas.toBlob((blob) => {
+                        if (blob) resolve(blob);
+                        else reject(new Error('Failed to compress image'));
+                    }, 'image/jpeg', quality);
+                };
+
+                img.onerror = reject;
+                img.src = URL.createObjectURL(imageFile);
+            });
+        };
+
         setImageUploading(true);
         try {
+            // Compress image to max 800px width and 80% quality
+            const compressedFile = await compressImage(file, 800, 0.8);
+
             const fileExt = file.name.split('.').pop();
             const fileName = `${vendorId}-${Date.now()}.${fileExt}`;
             const filePath = `products/${fileName}`;
 
             const { error: uploadError } = await supabase.storage
                 .from('menu-images')
-                .upload(filePath, file);
+                .upload(filePath, compressedFile);
 
             if (uploadError) {
                 throw uploadError;
@@ -345,7 +371,12 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
                                 </label>
                             )}
                             {imageUploading && (
-                                <p className="text-sm text-gray-500 mt-2">Uploading...</p>
+                                <div className="mt-2">
+                                    <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1">
+                                        <div className="bg-purple-600 h-2.5 rounded-full animate-pulse" style={{ width: '100%' }}></div>
+                                    </div>
+                                    <p className="text-sm text-purple-600">Compressing and uploading...</p>
+                                </div>
                             )}
                         </div>
                     </div>

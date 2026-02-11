@@ -318,7 +318,12 @@ function AppContent() {
 
   // Show sign in form if role is selected
   if (selectedRole) {
-    if (authView === 'signup') {
+    // For late_night_vendor, treat as 'vendor' in SignIn (same role handling)
+    const signInRole = selectedRole === 'late_night_vendor' ? 'vendor' : selectedRole;
+    // Only allow signup for supported roles
+    const canSignUp = selectedRole === 'vendor' || selectedRole === 'delivery_agent';
+
+    if (authView === 'signup' && canSignUp) {
       return (
         <SignUp
           role={selectedRole === 'late_night_vendor' ? 'late_night_vendor' : selectedRole as 'customer' | 'vendor' | 'delivery_agent'}
@@ -330,12 +335,10 @@ function AppContent() {
 
     return (
       <SignIn
-        role={selectedRole === 'late_night_vendor' ? 'vendor' : selectedRole as 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin'}
+        role={signInRole as 'customer' | 'cafeteria' | 'vendor' | 'delivery_agent' | 'admin'}
         onBack={() => setSelectedRole(null)}
         onSwitchToSignUp={
-          selectedRole === 'vendor' || selectedRole === 'late_night_vendor' || selectedRole === 'delivery_agent'
-            ? () => setAuthView('signup')
-            : undefined
+          canSignUp ? () => setAuthView('signup') : undefined
         }
       />
     );
