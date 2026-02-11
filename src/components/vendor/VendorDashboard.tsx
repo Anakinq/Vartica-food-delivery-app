@@ -256,6 +256,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
           .from('vendor_payout_profiles')
           .insert([{
             vendor_id: vendor.id,
+            user_id: profile.id,
             account_number: bankAccount.trim(),
             account_name: profile.full_name || 'Unknown',
             bank_code: bankCode,

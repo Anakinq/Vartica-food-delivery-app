@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Upload, Package } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Upload, Package, Plus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -19,6 +19,11 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
     const [imageUploading, setImageUploading] = useState(false);
     const [sellerType, setSellerType] = useState('vendor');
 
+    // Categories state
+    const [savedCategories, setSavedCategories] = useState<string[]>([]);
+    const [newCategory, setNewCategory] = useState('');
+    const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
+
     const [formData, setFormData] = useState({
         name: '',
         description: '',
@@ -27,9 +32,10 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
         image_url: ''
     });
 
-    // Fetch vendor's seller_type on mount
-    useState(() => {
-        const fetchSellerType = async () => {
+    // Fetch vendor's seller_type and saved categories on mount
+    useEffect(() => {
+        const fetchData = async () => {
+            // Fetch seller type
             const { data: vendor } = await supabase
                 .from('vendors')
                 .select('seller_type')
@@ -38,9 +44,20 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
             if (vendor?.seller_type) {
                 setSellerType(vendor.seller_type);
             }
+
+            // Fetch saved categories
+            const { data: categories } = await supabase
+                .from('vendor_categories')
+                .select('name')
+                .eq('vendor_id', vendorId)
+                .order('name');
+
+            if (categories) {
+                setSavedCategories(categories.map(c => c.name));
+            }
         };
-        fetchSellerType();
-    });
+        fetchData();
+    }, [vendorId]);
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -72,6 +89,48 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
         } finally {
             setImageUploading(false);
         }
+    };
+
+    // Add new category to saved categories
+    const handleAddNewCategory = async () => {
+        if (!newCategory.trim()) {
+            showToast({ type: 'error', message: 'Please enter a category name' });
+            return;
+        }
+
+        const categoryName = newCategory.trim();
+
+        // Check if category already exists
+        if (savedCategories.includes(categoryName)) {
+            showToast({ type: 'error', message: 'Category already exists' });
+            return;
+        }
+
+        try {
+            const { error } = await supabase
+                .from('vendor_categories')
+                .insert([{
+                    vendor_id: vendorId,
+                    name: categoryName
+                }]);
+
+            if (error) throw error;
+
+            setSavedCategories([...savedCategories, categoryName].sort());
+            setFormData({ ...formData, category: categoryName });
+            setNewCategory('');
+            setShowNewCategoryInput(false);
+            showToast({ type: 'success', message: 'Category added successfully!' });
+        } catch (error: any) {
+            console.error('Error adding category:', error);
+            showToast({ type: 'error', message: `Failed to add category: ${error.message}` });
+        }
+    };
+
+    // Select an existing category
+    const handleSelectCategory = (category: string) => {
+        setFormData({ ...formData, category });
+        setShowNewCategoryInput(false);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -136,19 +195,88 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
                         />
                     </div>
 
-                    {/* Category */}
+                    {/* Category - Now with dropdown and save functionality */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Category *
                         </label>
-                        <input
-                            type="text"
-                            value={formData.category}
-                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                            placeholder="e.g., Makeup, Perfume, Clothing..."
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                            required
-                        />
+
+                        {showNewCategoryInput ? (
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={newCategory}
+                                    onChange={(e) => setNewCategory(e.target.value)}
+                                    placeholder="Enter new category"
+                                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                                    autoFocus
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleAddNewCategory}
+                                    className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                                >
+                                    <Plus className="h-5 w-5" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowNewCategoryInput(false);
+                                        setNewCategory('');
+                                    }}
+                                    className="px-3 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <select
+                                    value={formData.category}
+                                    onChange={(e) => handleSelectCategory(e.target.value)}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                                    required
+                                >
+                                    <option value="">Select a category</option>
+                                    {savedCategories.map(cat => (
+                                        <option key={cat} value={cat}>{cat}</option>
+                                    ))}
+                                </select>
+
+                                {formData.category && !savedCategories.includes(formData.category) && (
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            try {
+                                                const { error } = await supabase
+                                                    .from('vendor_categories')
+                                                    .insert([{
+                                                        vendor_id: vendorId,
+                                                        name: formData.category
+                                                    }]);
+                                                if (error) throw error;
+                                                setSavedCategories([...savedCategories, formData.category].sort());
+                                                showToast({ type: 'success', message: 'Category saved for future use!' });
+                                            } catch (err: any) {
+                                                console.error('Error saving category:', err);
+                                            }
+                                        }}
+                                        className="text-sm text-purple-600 hover:text-purple-800"
+                                    >
+                                        + Save "{formData.category}" for future use
+                                    </button>
+                                )}
+
+                                <button
+                                    type="button"
+                                    onClick={() => setShowNewCategoryInput(true)}
+                                    className="flex items-center gap-1 text-sm text-green-600 hover:text-green-800"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    Add new category
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Price */}
