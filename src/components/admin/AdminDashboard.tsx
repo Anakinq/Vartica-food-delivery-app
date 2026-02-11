@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LogOut, Users, Store, Bike, Package, Wallet, Menu, X, Search, Filter, Download, BarChart3, Settings, User, CreditCard, AlertTriangle, UserCheck, MessageCircle } from 'lucide-react';
+import { LogOut, Users, Store, Bike, Package, Wallet, Menu, X, Search, Filter, Download, BarChart3, Settings, User, CreditCard, AlertTriangle, UserCheck, MessageCircle, Send, Reply } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Profile, Order } from '../../lib/supabase';
 import { AdminApprovalDashboard } from './AdminApprovalDashboard';
@@ -43,6 +43,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
   const [showMenu, setShowMenu] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+
+  // Reply functionality for support messages
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyMessage, setReplyMessage] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
 
   // Pagination states
   const [usersPage, setUsersPage] = useState(1);
@@ -215,6 +220,46 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Function to send admin reply to support message
+  const sendAdminReply = async (messageId: string, userEmail: string, userName: string) => {
+    if (!replyMessage.trim() || !user) return;
+
+    setSendingReply(true);
+    try {
+      const { error } = await supabase
+        .from('support_messages')
+        .update({
+          admin_response: replyMessage.trim(),
+          responded_at: new Date().toISOString(),
+          is_resolved: true
+        })
+        .eq('id', messageId);
+
+      if (error) throw error;
+
+      // Refresh support messages
+      const { data: supportRes } = await supabase
+        .from('support_messages')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (supportRes) {
+        setSupportMessages(supportRes);
+      }
+
+      // Reset reply state
+      setReplyMessage('');
+      setReplyingTo(null);
+
+      alert(`Reply sent to ${userName} (${userEmail})`);
+    } catch (error) {
+      console.error('Error sending reply:', error);
+      alert('Failed to send reply. Please try again.');
+    } finally {
+      setSendingReply(false);
+    }
   };
 
   if (loading) {
@@ -704,23 +749,84 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                           <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Message</th>
                           <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
                           <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {filterData().paginatedSupportMessages.map(message => (
-                          <tr key={message.id} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="py-3 px-4 text-sm text-gray-900">{message.user_name}</td>
-                            <td className="py-3 px-4 text-sm text-gray-600">{message.user_email}</td>
-                            <td className="py-3 px-4 text-sm text-gray-700 max-w-xs truncate" title={message.message}>{message.message}</td>
-                            <td className="py-3 px-4 text-sm text-gray-600">
-                              {new Date(message.created_at).toLocaleDateString()}
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${message.is_resolved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                {message.is_resolved ? 'Resolved' : 'Pending'}
-                              </span>
-                            </td>
-                          </tr>
+                          <React.Fragment key={message.id}>
+                            <tr className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="py-3 px-4 text-sm text-gray-900">{message.user_name}</td>
+                              <td className="py-3 px-4 text-sm text-gray-600">{message.user_email}</td>
+                              <td className="py-3 px-4 text-sm text-gray-700 max-w-xs truncate" title={message.message}>{message.message}</td>
+                              <td className="py-3 px-4 text-sm text-gray-600">
+                                {new Date(message.created_at).toLocaleDateString()}
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${message.is_resolved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                  {message.is_resolved ? 'Resolved' : 'Pending'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <button
+                                  onClick={() => setReplyingTo(replyingTo === message.id ? null : message.id)}
+                                  className={`flex items-center gap-1 px-3 py-1 text-sm rounded-lg ${replyingTo === message.id ? 'bg-gray-200 text-gray-700' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+                                >
+                                  <Reply className="h-4 w-4" />
+                                  {replyingTo === message.id ? 'Cancel' : 'Reply'}
+                                </button>
+                              </td>
+                            </tr>
+                            {replyingTo === message.id && (
+                              <tr className="bg-gray-50">
+                                <td colSpan={6} className="py-4 px-4">
+                                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                                    <div className="mb-3">
+                                      <p className="text-sm text-gray-600">
+                                        <span className="font-semibold">Original message from {message.user_name} ({message.user_email}):</span>
+                                      </p>
+                                      <p className="text-sm text-gray-800 mt-1 bg-gray-100 p-2 rounded">{message.message}</p>
+                                    </div>
+                                    {message.admin_response && (
+                                      <div className="mb-3">
+                                        <p className="text-sm text-gray-600">
+                                          <span className="font-semibold">Your previous response:</span>
+                                        </p>
+                                        <p className="text-sm text-gray-800 mt-1 bg-blue-50 p-2 rounded">{message.admin_response}</p>
+                                      </div>
+                                    )}
+                                    <div className="flex gap-2">
+                                      <input
+                                        type="text"
+                                        value={replyMessage}
+                                        onChange={(e) => setReplyMessage(e.target.value)}
+                                        placeholder="Type your reply..."
+                                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        disabled={sendingReply}
+                                      />
+                                      <button
+                                        onClick={() => sendAdminReply(message.id, message.user_email, message.user_name)}
+                                        disabled={sendingReply || !replyMessage.trim()}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                      >
+                                        <Send className="h-4 w-4" />
+                                        {sendingReply ? 'Sending...' : 'Send Reply'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                            {message.admin_response && replyingTo !== message.id && (
+                              <tr className="bg-blue-50">
+                                <td colSpan={6} className="py-2 px-4">
+                                  <p className="text-sm text-gray-600">
+                                    <span className="font-semibold">Your response:</span> {message.admin_response}
+                                  </p>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         ))}
                       </tbody>
                     </table>
