@@ -120,6 +120,18 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   const menuRef = useRef<HTMLDivElement>(null);
   const hamburgerButtonRef = useRef<HTMLButtonElement>(null);
 
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node) &&
+          hamburgerButtonRef.current && !hamburgerButtonRef.current.contains(event.target as Node)) {
+        setShowMobileMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Initial data fetch
   useEffect(() => {
     if (profile) {
@@ -581,56 +593,60 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold text-gray-900">{vendor?.store_name || 'Vendor Dashboard'}</h1>
+        <div className="max-w-full mx-4 sm:max-w-7xl sm:mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-14 sm:h-16">
+            <div className="flex items-center min-w-0 flex-1">
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">{vendor?.store_name || 'Vendor Dashboard'}</h1>
             </div>
 
-            <div className="flex items-center gap-3">
-              {/* Switch to Customer View Button */}
-              <button
-                onClick={() => { window.location.hash = '#/customer'; }}
-                className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 flex items-center gap-1"
-              >
-                <ShoppingBag className="h-4 w-4" />
-                Shop
-              </button>
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Desktop-only buttons */}
+              <div className="hidden md:flex items-center gap-2">
+                {/* Switch to Customer View Button */}
+                <button
+                  onClick={() => { window.location.hash = '#/customer'; }}
+                  className="px-2 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100 flex items-center gap-1"
+                >
+                  <ShoppingBag className="h-3.5 w-3.5" />
+                  <span className="hidden lg:inline">Shop</span>
+                </button>
 
-              {/* Store Status Toggle */}
-              <button
-                onClick={toggleStoreOpen}
-                className={`px-3 py-1 rounded-full text-sm font-medium ${isStoreOpen
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-red-100 text-red-700'
-                  }`}
-              >
-                {isStoreOpen ? '🟢 Open' : '🔴 Closed'}
-              </button>
+                {/* Store Status Toggle */}
+                <button
+                  onClick={toggleStoreOpen}
+                  className={`px-2 py-1 rounded-full text-xs font-medium ${isStoreOpen
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-red-100 text-red-700'
+                    }`}
+                >
+                  {isStoreOpen ? '🟢' : '🔴'}
+                  <span className="hidden lg:inline ml-1">{isStoreOpen ? 'Open' : 'Closed'}</span>
+                </button>
 
-              {/* Add Product Button */}
-              <button
-                onClick={() => setShowAddProductModal(true)}
-                className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 flex items-center gap-1"
-              >
-                <Plus className="h-4 w-4" />
-                Add Product
-              </button>
+                {/* Add Product Button */}
+                <button
+                  onClick={() => setShowAddProductModal(true)}
+                  className="px-2 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 flex items-center gap-1"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span className="hidden lg:inline">Add</span>
+                </button>
+              </div>
 
-              {/* Hamburger Menu */}
+              {/* Hamburger Menu - always visible */}
               <button
                 ref={hamburgerButtonRef}
                 onClick={() => setShowMobileMenu(!showMobileMenu)}
-                className="p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+                className="p-1.5 sm:p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100"
               >
-                {showMobileMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                {showMobileMenu ? <X className="h-5 w-5 sm:h-6 sm:w-6" /> : <Menu className="h-5 w-5 sm:h-6 sm:w-6" />}
               </button>
             </div>
           </div>
 
-          {/* Mobile Menu Dropdown */}
+          {/* Mobile Menu Dropdown - fixed positioning for proper mobile display */}
           {showMobileMenu && (
-            <div ref={menuRef} className="absolute right-4 top-16 bg-white shadow-lg rounded-md py-2 w-48 z-[100] border border-gray-200">
+            <div ref={menuRef} className="fixed right-4 top-14 sm:top-16 bg-white shadow-lg rounded-md py-2 w-48 z-[100] border border-gray-200">
               <div className="flex items-center justify-between px-4 py-2 border-b">
                 <span className="text-sm font-medium text-gray-700">Menu</span>
                 <button 
@@ -702,107 +718,107 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-full mx-4 sm:max-w-7xl sm:mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-          <div className="bg-white rounded-xl p-6 shadow-sm">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 mb-6 sm:mb-8 overflow-hidden">
+          <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Orders</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-gray-600 truncate">Orders</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
               </div>
-              <Package className="h-10 w-10 text-purple-600" />
+              <Package className="h-8 w-8 sm:h-10 sm:w-10 text-purple-600 flex-shrink-0" />
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-sm">
+          <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Wallet</p>
-                <p className="text-xl font-bold text-green-600">{formatCurrency(walletBalance)}</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-gray-600 truncate">Wallet</p>
+                <p className="text-sm sm:text-xl font-bold text-green-600 truncate">{formatCurrency(walletBalance)}</p>
               </div>
-              <Wallet className="h-10 w-10 text-green-600" />
+              <Wallet className="h-8 w-8 sm:h-10 sm:w-10 text-green-600 flex-shrink-0" />
             </div>
             <button
               onClick={() => setShowWithdrawModal(true)}
               disabled={walletBalance < 100}
-              className="mt-3 w-full py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              className="mt-2 w-full py-1.5 sm:py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
             >
               Withdraw
             </button>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-sm">
+          <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Revenue</p>
-                <p className="text-xl font-bold text-gray-900">{formatCurrency(stats.totalRevenue)}</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-gray-600 truncate">Revenue</p>
+                <p className="text-sm sm:text-xl font-bold text-gray-900 truncate">{formatCurrency(stats.totalRevenue)}</p>
               </div>
-              <DollarSign className="h-10 w-10 text-green-600" />
+              <DollarSign className="h-8 w-8 sm:h-10 sm:w-10 text-green-600 flex-shrink-0" />
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-sm">
+          <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Rating</p>
-                <p className="text-xl font-bold text-gray-900">
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-gray-600 truncate">Rating</p>
+                <p className="text-sm sm:text-xl font-bold text-gray-900">
                   {stats.avgRating > 0 ? stats.avgRating.toFixed(1) : 'N/A'}
                 </p>
               </div>
-              <Star className="h-10 w-10 text-yellow-500" />
+              <Star className="h-8 w-8 sm:h-10 sm:w-10 text-yellow-500 flex-shrink-0" />
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-sm">
+          <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Reviews</p>
-                <p className="text-xl font-bold text-gray-900">{stats.reviewCount}</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-gray-600 truncate">Reviews</p>
+                <p className="text-lg sm:text-xl font-bold text-gray-900">{stats.reviewCount}</p>
               </div>
-              <BarChart3 className="h-10 w-10 text-blue-600" />
+              <BarChart3 className="h-8 w-8 sm:h-10 sm:w-10 text-blue-600 flex-shrink-0" />
             </div>
           </div>
         </div>
 
         {/* Tab Navigation */}
-        <div className="border-b border-gray-200 mb-6">
-          <nav className="flex space-x-8 overflow-x-auto">
+        <div className="border-b border-gray-200 mb-4 sm:mb-6">
+          <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto -mb-px">
             <button
               onClick={() => setActiveTab('pending')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'pending'
+              className={`py-2 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'pending'
                 ? 'border-purple-600 text-purple-600'
                 : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
             >
-              🕐 Pending ({pendingOrders.length})
+              🕐 <span className="hidden sm:inline">Pending</span> ({pendingOrders.length})
             </button>
             <button
               onClick={() => setActiveTab('active')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'active'
+              className={`py-2 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'active'
                 ? 'border-purple-600 text-purple-600'
                 : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
             >
-              🔥 Active ({activeOrders.length})
+              🔥 <span className="hidden sm:inline">Active</span> ({activeOrders.length})
             </button>
             <button
               onClick={() => setActiveTab('completed')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'completed'
+              className={`py-2 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'completed'
                 ? 'border-purple-600 text-purple-600'
                 : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
             >
-              ✅ Completed ({completedOrders.length})
+              ✅ <span className="hidden sm:inline">Completed</span> ({completedOrders.length})
             </button>
             <button
               onClick={() => setActiveTab('products')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'products'
+              className={`py-2 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'products'
                 ? 'border-purple-600 text-purple-600'
                 : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
             >
-              📦 Products ({vendorProducts.length})
+              📦 <span className="hidden sm:inline">Products</span> ({vendorProducts.length})
             </button>
           </nav>
         </div>
@@ -862,11 +878,11 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
           {/* Products Grid */}
           {activeTab === 'products' && (
             <div>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-gray-900">Your Products</h3>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                <h3 className="text-base sm:text-lg font-bold text-gray-900">Your Products</h3>
                 <button
                   onClick={() => setShowAddProductModal(true)}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 flex items-center gap-2"
+                  className="w-full sm:w-auto px-3 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 flex items-center justify-center gap-2 text-sm"
                 >
                   <Plus className="h-4 w-4" />
                   Add Product
@@ -874,21 +890,21 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
               </div>
 
               {vendorProducts.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-xl">
-                  <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-4">No products yet</p>
+                <div className="text-center py-8 sm:py-12 bg-white rounded-xl">
+                  <Package className="h-12 w-12 sm:h-16 sm:w-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
+                  <p className="text-gray-600 mb-3 sm:mb-4 text-sm sm:text-base">No products yet</p>
                   <button
                     onClick={() => setShowAddProductModal(true)}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700"
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 text-sm"
                   >
                     Add Your First Product
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
                   {vendorProducts.map((product) => (
-                    <div key={product.id} className="bg-white rounded-xl p-4 shadow-sm">
-                      <div className="h-32 rounded-lg bg-gray-100 overflow-hidden mb-3">
+                    <div key={product.id} className="bg-white rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm">
+                      <div className="h-20 sm:h-32 rounded-lg bg-gray-100 overflow-hidden mb-2 sm:mb-3">
                         <img
                           src={product.image_url || '/images/1.jpg'}
                           alt={product.name}
@@ -899,24 +915,24 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
                           }}
                         />
                       </div>
-                      <h4 className="font-medium text-gray-900 line-clamp-1">{product.name}</h4>
-                      <p className="text-sm text-gray-500">{product.category}</p>
-                      <p className="font-bold text-purple-600 mt-2">₦{product.price.toLocaleString()}</p>
-                      <div className="flex items-center gap-2 mt-2">
+                      <h4 className="text-xs sm:text-sm font-medium text-gray-900 line-clamp-1">{product.name}</h4>
+                      <p className="text-xs text-gray-500 line-clamp-1">{product.category}</p>
+                      <p className="text-sm sm:text-base font-bold text-purple-600 mt-1">₦{product.price.toLocaleString()}</p>
+                      <div className="flex items-center gap-1 sm:gap-2 mt-2">
                         <button
                           onClick={() => toggleProductAvailability(product)}
-                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${product.is_available 
+                          className={`flex-1 px-2 py-1 rounded-full text-xs font-medium transition-colors ${product.is_available 
                             ? 'bg-green-100 text-green-700 hover:bg-green-200' 
                             : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
                         >
-                          {product.is_available ? '✓ Available' : '✗ Out of Stock'}
+                          {product.is_available ? '✓' : '✗'}
                         </button>
                         <button
                           onClick={() => setEditingProduct(product)}
-                          className="p-1 text-gray-500 hover:text-purple-600"
+                          className="p-1 sm:p-1.5 text-gray-500 hover:text-purple-600"
                           title="Edit Product"
                         >
-                          <Edit2 className="h-4 w-4" />
+                          <Edit2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         </button>
                       </div>
                     </div>

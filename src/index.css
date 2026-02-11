@@ -84,6 +84,8 @@ body {
   /* Important for flex scrolling */
   width: 100%;
   max-width: 100%;
+  /* Account for fixed headers */
+  padding-top: 64px;
 }
 
 /* Fixed bottom navigation - NEVER scrolls */
@@ -120,6 +122,17 @@ body {
   z-index: 1000;
   background: #fff;
   border-bottom: 1px solid #eee;
+}
+
+/* Dashbar container - provides padding for fixed top nav */
+.dashbar-container {
+  padding-top: 64px;
+  min-height: 100vh;
+}
+
+/* Main content area with proper spacing for fixed headers */
+.content-with-nav {
+  padding-top: 64px;
 }
 
 /* Prevent horizontal overflow globally */
