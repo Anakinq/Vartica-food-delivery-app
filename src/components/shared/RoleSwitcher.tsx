@@ -21,6 +21,17 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
     const [isSwitching, setIsSwitching] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
 
+    // Get the effective current role - use sessionStorage preferred role if set
+    const getEffectiveCurrentRole = () => {
+        const preferredRole = sessionStorage.getItem('preferredRole');
+        if (preferredRole && ['customer', 'vendor', 'delivery_agent', 'cafeteria', 'late_night_vendor', 'admin'].includes(preferredRole)) {
+            return preferredRole;
+        }
+        return currentRole;
+    };
+
+    const effectiveCurrentRole = getEffectiveCurrentRole();
+
     // Get available roles for this user
     const availableRoles = getUserRoles();
 
@@ -29,8 +40,8 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
     const canSwitchToDelivery = hasRole('delivery_agent');
     const canSwitchToCustomer = true; // Everyone can be a customer
 
-    // Determine available target roles
-    const targetRoles = availableRoles.filter(role => role !== currentRole);
+    // Determine available target roles (exclude current effective role)
+    const targetRoles = availableRoles.filter(role => role !== effectiveCurrentRole);
 
     const handleRoleSwitch = async (targetRole: 'customer' | 'vendor' | 'delivery_agent') => {
         if (!profile) {
@@ -69,6 +80,51 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
             setShowConfirmation(false);
         } catch (error) {
             console.error('[RoleSwitch] Error during switch:', error);
+            showError('Failed to switch roles. Please try again.');
+        } finally {
+            setIsSwitching(false);
+        }
+    };
+
+    // Handle switching back to primary role (clears preferred role)
+    const handleSwitchToPrimaryRole = async () => {
+        if (!profile) {
+            showError('Please sign in.');
+            return;
+        }
+
+        setIsSwitching(true);
+        try {
+            // Clear the preferred role from sessionStorage
+            sessionStorage.removeItem('preferredRole');
+
+            // Update URL hash based on primary role
+            const primaryRole = profile.role as string;
+            switch (primaryRole) {
+                case 'vendor':
+                case 'late_night_vendor':
+                    window.location.hash = '#/vendor';
+                    break;
+                case 'delivery_agent':
+                    window.location.hash = '#/delivery';
+                    break;
+                default:
+                    window.location.hash = '';
+                    break;
+            }
+
+            // Trigger the role switch callback if provided
+            if (onRoleSwitch) {
+                onRoleSwitch(primaryRole as 'customer' | 'vendor' | 'delivery_agent');
+            }
+
+            // Refresh profile to ensure we have latest data
+            await refreshProfile();
+
+            // Close confirmation dialog
+            setShowConfirmation(false);
+        } catch (error) {
+            console.error('[RoleSwitch] Error switching to primary role:', error);
             showError('Failed to switch roles. Please try again.');
         } finally {
             setIsSwitching(false);
@@ -157,6 +213,34 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
                                     </div>
                                     <p className="text-sm text-gray-600">{currentRoleInfo.description}</p>
                                 </div>
+
+                                {/* Show primary role option if different from current */}
+                                {effectiveCurrentRole !== currentRole && profile && (
+                                    <>
+                                        <div className="flex items-center justify-center py-2">
+                                            <div className="border-t border-gray-300 w-full"></div>
+                                            <span className="px-3 text-xs text-gray-500 uppercase tracking-wide bg-white">or</span>
+                                            <div className="border-t border-gray-300 w-full"></div>
+                                        </div>
+                                        <button
+                                            onClick={handleSwitchToPrimaryRole}
+                                            disabled={isSwitching}
+                                            className="w-full text-left p-3 rounded-lg border border-green-200 bg-green-50 hover:bg-green-100 transition-all"
+                                        >
+                                            <div className="flex items-center space-x-3">
+                                                <User className="h-5 w-5 text-green-600" />
+                                                <div>
+                                                    <div className="font-medium text-gray-900">
+                                                        Switch to Primary Role
+                                                    </div>
+                                                    <div className="text-sm text-green-700">
+                                                        {getRoleDisplayInfo(profile.role).label}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    </>
+                                )}
 
                                 {/* Available roles to switch to */}
                                 <div className="space-y-2">

@@ -2,10 +2,9 @@
 -- Run this in Supabase SQL Editor
 
 -- === STEP 1: Create UPDATE policy for delivery agents to accept orders ===
--- This allows agents to update orders where:
--- - They are accepting an unassigned order (delivery_agent_id is null)
--- - They are updating status from pending/ready_for_pickup to accepted
--- - They're not exceeding 2 active orders (enforced by app logic)
+-- This allows agents to:
+-- - Accept unassigned orders (delivery_agent_id is null and status is pending)
+-- - Update status for already assigned orders
 
 DROP POLICY IF EXISTS "Delivery agents can accept orders" ON orders;
 DROP POLICY IF EXISTS "Delivery agents can update assigned orders" ON orders;
@@ -13,19 +12,23 @@ DROP POLICY IF EXISTS "Delivery agents can update assigned orders" ON orders;
 CREATE POLICY "Delivery agents can accept orders" ON orders
   FOR UPDATE
   USING (
-    auth.uid() IN (
-      SELECT id FROM delivery_agents
+    -- Allow update if agent is a delivery agent (has profile with delivery_agent role)
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.role = 'delivery_agent'
     )
   )
   WITH CHECK (
     -- Allow update if:
-    -- 1. Setting delivery_agent_id to self (accepting an order)
-    (delivery_agent_id IS NULL AND exists (
+    -- 1. Setting delivery_agent_id to self when accepting (delivery_agent_id is null)
+    --    AND order is pending AND user is a delivery agent
+    (delivery_agent_id IS NULL AND status = 'pending' AND EXISTS (
       SELECT 1 FROM delivery_agents
-      WHERE delivery_agents.id = auth.uid()
+      WHERE delivery_agents.user_id = auth.uid()
     ))
     OR
-    -- 2. Updating status for already assigned orders
+    -- 2. Updating status for already assigned orders (delivery_agent_id matches agent's id)
     (delivery_agent_id IN (
       SELECT id FROM delivery_agents
       WHERE user_id = auth.uid()
@@ -54,6 +57,6 @@ CREATE POLICY "Customers can update own orders" ON orders
 
 -- === STEP 4: Verify the policies ===
 SELECT 'Orders table RLS policies:' as info;
-SELECT policyname, cmd, permissions
+SELECT policyname, cmd
 FROM pg_policies
 WHERE tablename = 'orders';

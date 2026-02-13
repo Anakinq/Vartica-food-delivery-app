@@ -57,10 +57,37 @@ function AppContent() {
   const [authView, setAuthView] = useState<'signin' | 'signup'>('signin');
   const [locationHash, setLocationHash] = useState(window.location.hash);
 
+  // Get effective role - use preferred role from sessionStorage if set, otherwise use profile role
+  const getEffectiveRole = () => {
+    if (!profile) return null;
+    const preferredRole = sessionStorage.getItem('preferredRole');
+    if (preferredRole && ['customer', 'vendor', 'delivery_agent', 'admin', 'cafeteria', 'late_night_vendor'].includes(preferredRole)) {
+      return preferredRole as UserRole;
+    }
+    return profile.role as UserRole;
+  };
+
   // Force re-evaluation of routing when auth state changes
   useEffect(() => {
     if (user && profile) {
       setLocationHash(window.location.hash || '');
+      // Check for preferred role on mount
+      const preferredRole = sessionStorage.getItem('preferredRole');
+      if (preferredRole) {
+        setSelectedRole(preferredRole as UserRole);
+        // Update hash to match preferred role
+        switch (preferredRole) {
+          case 'vendor':
+            window.location.hash = '#/vendor';
+            break;
+          case 'delivery_agent':
+            window.location.hash = '#/delivery';
+            break;
+          default:
+            window.location.hash = '';
+            break;
+        }
+      }
     }
   }, [user, profile]);
 
@@ -203,7 +230,8 @@ function AppContent() {
     }
 
     // Handle role-based routing
-    const userRole = profile.role as UserRole;
+    const effectiveRole = getEffectiveRole();
+    const userRole = effectiveRole || (profile.role as UserRole);
 
     // Handle explicit customer route
     if (locationHash === '#/customer') {
@@ -324,9 +352,11 @@ function AppContent() {
     const canSignUp = selectedRole === 'vendor' || selectedRole === 'delivery_agent';
 
     if (authView === 'signup' && canSignUp) {
+      // Safely cast the role - late_night_vendor is already in the union type
+      const signupRole = selectedRole as 'customer' | 'vendor' | 'delivery_agent' | 'late_night_vendor';
       return (
         <SignUp
-          role={selectedRole === 'late_night_vendor' ? 'late_night_vendor' : selectedRole as 'customer' | 'vendor' | 'delivery_agent'}
+          role={signupRole}
           onBack={() => { setSelectedRole(null); setAuthView('signin'); }}
           onSwitchToSignIn={() => setAuthView('signin')}
         />
