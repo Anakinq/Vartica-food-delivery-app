@@ -588,39 +588,47 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   };
 
   const handleUpdateStatus = async (orderId: string, newStatus: Order['status']) => {
+    console.log('[handleUpdateStatus] Attempting to update order:', { orderId, newStatus });
+
     const { error } = await supabase
       .from('orders')
       .update({ status: newStatus, updated_at: new Date().toISOString() })
       .eq('id', orderId);
 
-    if (!error) {
-      // Send notification about status update
-      try {
-        // Fetch order details to get customer and seller IDs
-        const { data: orderData, error: orderError } = await supabase
-          .from('orders')
-          .select('user_id, seller_id, seller_type, order_number')
-          .eq('id', orderId)
-          .single();
+    if (error) {
+      console.error('[handleUpdateStatus] Error updating order:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      setMessage({ type: 'error', text: `Failed to update status: ${error.message}` });
+      return;
+    }
 
-        if (orderData) {
-          // Send notification to customer
-          await notificationService.sendOrderStatusUpdate(orderData.order_number, orderData.user_id, newStatus);
+    console.log('[handleUpdateStatus] Order updated successfully:', orderId);
 
-          // Send notification to seller (vendor or cafeteria)
-          if (orderData.seller_id) {
-            await notificationService.sendOrderStatusUpdate(orderData.order_number, orderData.seller_id, newStatus);
-          }
+    // Send notification about status update
+    try {
+      // Fetch order details to get customer and seller IDs
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select('user_id, seller_id, seller_type, order_number')
+        .eq('id', orderId)
+        .single();
+
+      if (orderData) {
+        // Send notification to customer
+        await notificationService.sendOrderStatusUpdate(orderData.order_number, orderData.user_id, newStatus);
+
+        // Send notification to seller (vendor or cafeteria)
+        if (orderData.seller_id) {
+          await notificationService.sendOrderStatusUpdate(orderData.order_number, orderData.seller_id, newStatus);
         }
-      } catch (notificationError) {
-        console.error('Error sending notification:', notificationError);
-        // Don't fail the status update if notification fails
       }
-
-      // Don't call fetchData here since it will be called by the periodic effect
-      // Dashboard will update automatically via useEffect interval
-    } else {
-      setMessage({ type: 'error', text: 'Failed to update status' });
+    } catch (notificationError) {
+      console.error('Error sending notification:', notificationError);
+      // Don't fail the status update if notification fails
     }
   };
 
