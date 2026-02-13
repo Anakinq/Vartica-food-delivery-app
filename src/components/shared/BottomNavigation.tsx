@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Home, ShoppingCart, User, Bell, Package, MapPin } from 'lucide-react';
+import { RoleSwitcher } from './RoleSwitcher';
 
 interface BottomNavigationProps {
     cartCount?: number;
@@ -100,37 +101,43 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
     ];
 
     return (
-        <nav className="bottom-nav safe-area-bottom">
-            {navItems.map((item) => {
-                const IconComponent = item.icon;
-                const active = isActive(item.path);
+        <div className="relative">
+            <nav className="bottom-nav safe-area-bottom">
+                {navItems.map((item) => {
+                    const IconComponent = item.icon;
+                    const active = isActive(item.path);
 
-                return (
-                    <button
-                        key={item.id}
-                        onClick={item.onClick}
-                        className={`nav-item ${active ? 'active' : ''}`}
-                        aria-label={item.label}
-                        aria-current={active ? 'page' : undefined}
-                    >
-                        <div className="nav-icon">
-                            <IconComponent size={24} />
-                            {item.id === 'cart' && cartCount > 0 && (
-                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                                    {cartCount > 99 ? '99+' : cartCount}
-                                </span>
-                            )}
-                            {item.id === 'notifications' && notificationCount > 0 && (
-                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                                    {notificationCount > 99 ? '99+' : notificationCount}
-                                </span>
-                            )}
-                        </div>
-                        <span className="nav-label">{item.label}</span>
-                    </button>
-                );
-            })}
-        </nav>
+                    return (
+                        <button
+                            key={item.id}
+                            onClick={item.onClick}
+                            className={`nav-item ${active ? 'active' : ''}`}
+                            aria-label={item.label}
+                            aria-current={active ? 'page' : undefined}
+                        >
+                            <div className="nav-icon">
+                                <IconComponent size={24} />
+                                {item.id === 'cart' && cartCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                        {cartCount > 99 ? '99+' : cartCount}
+                                    </span>
+                                )}
+                                {item.id === 'notifications' && notificationCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                        {notificationCount > 99 ? '99+' : notificationCount}
+                                    </span>
+                                )}
+                            </div>
+                            <span className="nav-label">{item.label}</span>
+                        </button>
+                    );
+                })}
+            </nav>
+            {/* Role Switcher - show for users who have multiple roles */}
+            <div className="absolute -top-10 right-2">
+                <RoleSwitcher currentRole={userRole as any} variant="compact" />
+            </div>
+        </div>
     );
 };
 

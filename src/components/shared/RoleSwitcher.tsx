@@ -9,12 +9,14 @@ interface RoleSwitcherProps {
     currentRole: 'customer' | 'vendor' | 'late_night_vendor' | 'cafeteria' | 'delivery_agent' | 'admin';
     onRoleSwitch?: (newRole: 'customer' | 'vendor' | 'delivery_agent') => void;
     id?: string;
+    variant?: 'floating' | 'compact';
 }
 
 export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
     currentRole,
     onRoleSwitch,
-    id
+    id,
+    variant = 'floating'
 }) => {
     const { profile, refreshProfile, hasRole, getUserRoles } = useAuth();
     const { error: showError } = useToast();
@@ -173,18 +175,21 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
     }
 
     return (
-        <div className="fixed top-20 right-4 z-50">
+        <div className={variant === 'compact' ? '' : 'fixed top-20 right-4 z-50'}>
             {/* Main switcher button */}
             <button
                 onClick={() => setShowConfirmation(true)}
                 disabled={isSwitching}
-                className="flex items-center space-x-2 bg-white border border-gray-200 rounded-lg px-4 py-2 shadow-lg hover:shadow-xl transition-all duration-200 hover:border-blue-300 disabled:opacity-50"
+                className={variant === 'compact'
+                    ? `flex items-center space-x-1 bg-white border border-gray-200 rounded-lg px-2 py-1 shadow hover:shadow-md transition-all duration-200 hover:border-blue-300 disabled:opacity-50`
+                    : 'flex items-center space-x-2 bg-white border border-gray-200 rounded-lg px-4 py-2 shadow-lg hover:shadow-xl transition-all duration-200 hover:border-blue-300 disabled:opacity-50'
+                }
                 aria-label="Switch between roles"
                 id={id}
             >
-                <ArrowLeftRight className="h-4 w-4 text-gray-600" />
-                <span className="text-sm font-medium text-gray-700">
-                    Switch Role
+                <ArrowLeftRight className={variant === 'compact' ? 'h-3 w-3 text-gray-600' : 'h-4 w-4 text-gray-600'} />
+                <span className={variant === 'compact' ? 'text-xs font-medium text-gray-700' : 'text-sm font-medium text-gray-700'}>
+                    {variant === 'compact' ? 'Switch' : 'Switch Role'}
                 </span>
             </button>
 
