@@ -1,10 +1,10 @@
 -- Add UPDATE policies for delivery agents to accept orders
 -- Run this in Supabase SQL Editor
 
--- === STEP 1: Create UPDATE policy for delivery agents to accept orders ===
+-- === STEP 1: Create UPDATE policy for delivery agents to accept/update orders ===
 -- This allows agents to:
 -- - Accept unassigned orders (delivery_agent_id is null and status is pending)
--- - Update status for already assigned orders
+-- - Update status and any fields for already assigned orders
 
 DROP POLICY IF EXISTS "Delivery agents can accept orders" ON orders;
 DROP POLICY IF EXISTS "Delivery agents can update assigned orders" ON orders;
@@ -12,27 +12,34 @@ DROP POLICY IF EXISTS "Delivery agents can update assigned orders" ON orders;
 CREATE POLICY "Delivery agents can accept orders" ON orders
   FOR UPDATE
   USING (
-    -- Allow update if agent is a delivery agent (has profile with delivery_agent role)
+    -- Allow update if:
+    -- 1. Agent is a delivery agent (has profile with delivery_agent role)
+    -- AND
+    -- 2. Either order is not assigned OR order is assigned to this agent
     EXISTS (
       SELECT 1 FROM profiles
       WHERE profiles.id = auth.uid()
       AND profiles.role = 'delivery_agent'
     )
+    AND (
+      delivery_agent_id IN (
+        SELECT id FROM delivery_agents
+        WHERE user_id = auth.uid()
+      )
+      OR (delivery_agent_id IS NULL AND status = 'pending')
+    )
   )
   WITH CHECK (
-    -- Allow update if:
-    -- 1. Setting delivery_agent_id to self when accepting (delivery_agent_id is null)
-    --    AND order is pending AND user is a delivery agent
-    (delivery_agent_id IS NULL AND status = 'pending' AND EXISTS (
+    -- Allow any update for assigned orders
+    -- Allow accepting unassigned orders (setting delivery_agent_id)
+    EXISTS (
       SELECT 1 FROM delivery_agents
-      WHERE delivery_agents.user_id = auth.uid()
-    ))
-    OR
-    -- 2. Updating status for already assigned orders (delivery_agent_id matches agent's id)
-    (delivery_agent_id IN (
-      SELECT id FROM delivery_agents
       WHERE user_id = auth.uid()
-    ))
+      AND (
+        orders.delivery_agent_id = delivery_agents.id
+        OR (orders.delivery_agent_id IS NULL AND orders.status = 'pending')
+      )
+    )
   );
 
 -- === STEP 2: Create UPDATE policy for vendors to update their orders ===

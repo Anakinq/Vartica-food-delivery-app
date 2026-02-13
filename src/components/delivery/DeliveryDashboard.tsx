@@ -26,8 +26,6 @@ interface FullOrder extends Order {
 interface AgentWallet {
   food_wallet_balance: number;
   earnings_wallet_balance: number;
-  pending_withdrawal: number;
-  total_withdrawals: number;
 }
 
 interface WithdrawalRequest {
@@ -170,7 +168,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       // 2. Wallet
       const { data: walletData, error: walletError } = await supabase
         .from('agent_wallets')
-        .select('food_wallet_balance, earnings_wallet_balance, pending_withdrawal, total_withdrawals')
+        .select('food_wallet_balance, earnings_wallet_balance')
         .eq('agent_id', agentData.id)
         .maybeSingle();
 
@@ -181,8 +179,6 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       setWallet({
         food_wallet_balance: Number(walletData?.food_wallet_balance) || 0,
         earnings_wallet_balance: Number(walletData?.earnings_wallet_balance) || 0,
-        pending_withdrawal: Number(walletData?.pending_withdrawal) || 0,
-        total_withdrawals: Number(walletData?.total_withdrawals) || 0,
       });
 
       // 3. Withdrawal Requests History
