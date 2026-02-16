@@ -1,56 +1,90 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.23.0';
 
-// Initialize Supabase client
 const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 );
 
-// Paystack API details
 const PAYSTACK_SECRET = Deno.env.get('PAYSTACK_SECRET_KEY')!;
 const PAYSTACK_BASE_URL = 'https://api.paystack.co';
 
-// Helper function to make Paystack API calls
-async function callPaystackAPI(endpoint: string, data: any, method = 'POST') {
-    const response = await fetch(`${PAYSTACK_BASE_URL}${endpoint}`, {
-        method,
-        headers: {
-            'Authorization': `Bearer ${PAYSTACK_SECRET}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-    });
+async function callPaystackAPI(endpoint: string, data: any = null, method = 'GET') {
+    const headers: Record<string, string> = {
+        'Authorization': `Bearer ${PAYSTACK_SECRET}`,
+        'Content-Type': 'application/json',
+    };
 
-    return response.json();
-}
+    let url = `${PAYSTACK_BASE_URL}${endpoint}`;
+    let body = undefined;
 
-// Function to initiate a Paystack transfer
-async function initiateTransfer(agentId: string, amount: number, reference: string) {
+    if (method === 'GET' && data) {
+        const searchParams = new URLSearchParams(data);
+        url += `?${searchParams}`;
+    } else if (data) {
+        body = JSON.stringify(data);
+    }
+
     try {
-        // Get agent's payout profile
-        const { data: payoutProfile, error: profileError } = await supabase
-            .from('agent_payout_profiles')
-            .select('account_number_encrypted, account_name, bank_name')
-            .eq('agent_id', agentId)
-            .single();
+        const response = await fetch(url, {
+            method,
+            headers,
+            body
+        });
 
-        if (profileError || !payoutProfile) {
-            throw new Error('Payout profile not found or invalid');
+        // Check if response is ok before trying to parse JSON
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Paystack API Error (${response.status}):`, errorText);
+            throw new Error(`Paystack API Error: ${response.status} - ${errorText}`);
         }
 
-        // Prepare transfer data
+        const responseText = await response.text();
+        if (!responseText) {
+            throw new Error('Empty response from Paystack API');
+        }
+
+        try {
+            return JSON.parse(responseText);
+        } catch (jsonError) {
+            console.error('Failed to parse JSON response:', responseText);
+            throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}`);
+        }
+    } catch (error) {
+        console.error('Error calling Paystack API:', error);
+        throw error;
+    }
+}
+
+async function createTransferRecipient(accountNumber: string, accountName: string, bankCode: string) {
+    try {
+        const recipientData = {
+            type: 'nuban',
+            name: accountName,
+            account_number: accountNumber,
+            bank_code: bankCode,
+            currency: 'NGN'
+        };
+
+        const result = await callPaystackAPI('/transferrecipient', recipientData, 'POST');
+        return result;
+    } catch (error) {
+        console.error('Error creating transfer recipient:', error);
+        throw error;
+    }
+}
+
+async function initiateTransfer(recipientCode: string, amount: number, reference: string) {
+    try {
         const transferData = {
             source: 'balance',
-            amount: Math.round(amount * 100), // Paystack expects amount in kobo
-            recipient: payoutProfile.account_number_encrypted, // This should be a recipient code in real implementation
-            reason: `Earnings withdrawal for agent ${agentId}`,
+            amount: Math.round(amount * 100), // Convert to kobo
+            recipient: recipientCode,
+            reason: 'Earnings withdrawal',
             reference
         };
 
-        // In a real implementation, you would need to create a recipient first
-        // For now, we'll assume the recipient code is stored in the payout profile
-        const transferResult = await callPaystackAPI('/transfer', transferData);
+        const transferResult = await callPaystackAPI('/transfer', transferData, 'POST');
         return transferResult;
     } catch (error) {
         console.error('Error initiating transfer:', error);
@@ -58,7 +92,6 @@ async function initiateTransfer(agentId: string, amount: number, reference: stri
     }
 }
 
-// Main handler for withdrawal requests
 async function handleWithdrawal(request: Request) {
     if (request.method !== 'POST') {
         return new Response(JSON.stringify({ error: 'Method not allowed' }), {
@@ -78,6 +111,22 @@ async function handleWithdrawal(request: Request) {
             });
         }
 
+        // Get agent's user_id from delivery_agents table
+        const { data: agentData, error: agentError } = await supabase
+            .from('delivery_agents')
+            .select('user_id')
+            .eq('id', agent_id)
+            .single();
+
+        if (agentError || !agentData) {
+            return new Response(JSON.stringify({ error: 'Delivery agent not found' }), {
+                status: 404,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        const user_id = agentData.user_id;
+
         // Get agent's wallet information
         const { data: agentWallet, error: walletError } = await supabase
             .from('agent_wallets')
@@ -92,7 +141,6 @@ async function handleWithdrawal(request: Request) {
             });
         }
 
-        // Check if agent has sufficient balance
         const currentBalance = parseFloat(agentWallet.earnings_wallet_balance);
         if (amount > currentBalance) {
             return new Response(JSON.stringify({ error: 'Insufficient balance for withdrawal' }), {
@@ -101,21 +149,64 @@ async function handleWithdrawal(request: Request) {
             });
         }
 
-        // Check if agent has a verified payout profile
+        // Check payout profile using user_id
         const { data: payoutProfile, error: profileError } = await supabase
             .from('agent_payout_profiles')
-            .select('id, is_verified')
-            .eq('agent_id', agent_id)
+            .select('id, verified, account_number, bank_code, account_name, recipient_code')
+            .eq('user_id', user_id)
             .single();
 
-        if (profileError || !payoutProfile || !payoutProfile.is_verified) {
-            return new Response(JSON.stringify({ error: 'Agent payout profile not found or not verified' }), {
+        if (profileError || !payoutProfile) {
+            return new Response(JSON.stringify({ error: 'Agent payout profile not found. Please add your bank details first.' }), {
                 status: 400,
                 headers: { 'Content-Type': 'application/json' }
             });
         }
 
-        // Create a withdrawal record
+        if (!payoutProfile.verified) {
+            return new Response(JSON.stringify({ error: 'Bank details not verified. Please verify your bank details first.' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        // Create transfer recipient if it doesn't exist
+        let recipientCode = payoutProfile.recipient_code;
+        if (!recipientCode) {
+            try {
+                const recipientResult = await createTransferRecipient(
+                    payoutProfile.account_number,
+                    payoutProfile.account_name,
+                    payoutProfile.bank_code
+                );
+
+                if (!recipientResult.status) {
+                    throw new Error(recipientResult.message || 'Failed to create transfer recipient');
+                }
+
+                recipientCode = recipientResult.data.recipient_code;
+
+                // Update the profile with the recipient code
+                const { error: updateError } = await supabase
+                    .from('agent_payout_profiles')
+                    .update({ recipient_code: recipientCode })
+                    .eq('user_id', user_id);
+
+                if (updateError) {
+                    console.error('Error updating recipient code:', updateError);
+                }
+            } catch (recipientError) {
+                console.error('Error creating transfer recipient:', recipientError);
+                return new Response(JSON.stringify({
+                    error: 'Failed to create transfer recipient',
+                    details: recipientError.message
+                }), {
+                    status: 500,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            }
+        }
+
         const withdrawalReference = `withdraw_${Date.now()}_${agent_id}`;
         const { data: withdrawal, error: withdrawalError } = await supabase
             .from('withdrawals')
@@ -123,7 +214,7 @@ async function handleWithdrawal(request: Request) {
                 agent_id,
                 amount,
                 status: 'pending',
-                paystack_transfer_code: withdrawalReference
+                paystack_transfer_reference: withdrawalReference
             })
             .select()
             .single();
@@ -137,24 +228,22 @@ async function handleWithdrawal(request: Request) {
         }
 
         try {
-            // Attempt to initiate the transfer
-            const transferResult = await initiateTransfer(agent_id, amount, withdrawalReference);
+            const transferResult = await initiateTransfer(recipientCode, amount, withdrawalReference);
 
             if (transferResult.status) {
-                // Update withdrawal record with transfer details
                 await supabase
                     .from('withdrawals')
                     .update({
                         status: 'processing',
-                        paystack_transfer_reference: transferResult.data.reference
+                        paystack_transfer_code: transferResult.data.transfer_code,
+                        paystack_reference: transferResult.data.reference
                     })
                     .eq('id', withdrawal.id);
 
-                // Debit the agent's earnings wallet
                 await supabase.rpc('update_agent_wallet', {
                     p_agent_id: agent_id,
                     p_wallet_type: 'earnings_wallet',
-                    p_amount: -amount, // Negative for debit
+                    p_amount: -amount,
                     p_transaction_type: 'withdrawal',
                     p_reference_type: 'withdrawal',
                     p_reference_id: withdrawal.id,
@@ -165,13 +254,13 @@ async function handleWithdrawal(request: Request) {
                     success: true,
                     message: 'Withdrawal request processed successfully',
                     withdrawal_id: withdrawal.id,
-                    transfer_code: transferResult.data.transfer_code
+                    transfer_code: transferResult.data.transfer_code,
+                    reference: transferResult.data.reference
                 }), {
                     status: 200,
                     headers: { 'Content-Type': 'application/json' }
                 });
             } else {
-                // Transfer failed, update withdrawal status
                 await supabase
                     .from('withdrawals')
                     .update({
@@ -192,7 +281,6 @@ async function handleWithdrawal(request: Request) {
         } catch (transferError) {
             console.error('Error initiating transfer:', transferError);
 
-            // Update withdrawal record to failed
             await supabase
                 .from('withdrawals')
                 .update({
@@ -219,5 +307,4 @@ async function handleWithdrawal(request: Request) {
     }
 }
 
-// Start the server
 serve(handleWithdrawal, { port: 8001 });

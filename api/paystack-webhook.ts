@@ -11,18 +11,12 @@ const supabase = createClient(
 // Paystack secret key for webhook verification
 const PAYSTACK_SECRET = Deno.env.get('PAYSTACK_SECRET_KEY')!;
 
-// Payment split percentages (configurable)
-const PLATFORM_FEE_PERCENTAGE = 0.04; // 4% platform fee
-const AGENT_EARNINGS_PERCENTAGE = 0.06; // 6% agent earnings from total amount
-
 // Helper function to verify Paystack webhook signature using Deno's native crypto
 async function verifyPaystackSignature(payload: string, signature: string): Promise<boolean> {
   try {
-    // Use Deno's native crypto.subtle for HMAC verification
     const encoder = new TextEncoder();
     const keyData = encoder.encode(PAYSTACK_SECRET);
 
-    // Import the secret key for HMAC-SHA512
     const key = await crypto.subtle.importKey(
       'raw',
       keyData,
@@ -31,17 +25,14 @@ async function verifyPaystackSignature(payload: string, signature: string): Prom
       ['sign']
     );
 
-    // Sign the payload
     const signatureData = encoder.encode(payload);
     const hmacSignature = await crypto.subtle.sign('HMAC', key, signatureData);
 
-    // Convert to hex string
     const signatureArray = new Uint8Array(hmacSignature);
     const hexSignature = Array.from(signatureArray)
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
 
-    // Compare signatures in constant time to prevent timing attacks
     if (hexSignature.length !== signature.length) {
       return false;
     }
@@ -58,38 +49,36 @@ async function verifyPaystackSignature(payload: string, signature: string): Prom
   }
 }
 
-// Function to process payment splits and update wallets
-async function processPaymentSplit(eventData: any) {
+// Function to verify payment and mark order as paid (escrow model)
+async function processPaymentVerification(eventData: any) {
   try {
-    const { data: orderData } = await supabase
+    const { data: orderData, error: orderError } = await supabase
       .from('orders')
-      .select('id, user_id, seller_id, seller_type, total, delivery_agent_id, delivery_handler, subtotal, delivery_fee')
+      .select('id, order_number, payment_status, total, subtotal, delivery_fee, platform_commission')
       .eq('order_number', eventData.reference)
       .single();
 
-    if (!orderData) {
+    if (orderError || !orderData) {
       console.error(`Order not found for reference: ${eventData.reference}`);
       return { success: false, message: 'Order not found' };
     }
 
-    // Calculate payment splits
-    const totalAmount = parseFloat(eventData.amount) / 100; // Paystack sends amount in kobo
-    const platformFee = totalAmount * PLATFORM_FEE_PERCENTAGE;
-    const agentEarnings = totalAmount * AGENT_EARNINGS_PERCENTAGE;
-    const foodAmount = totalAmount - platformFee - agentEarnings;
+    const paidAmount = parseFloat(eventData.amount) / 100;
+    const orderTotal = parseFloat(orderData.total);
 
-    // Update order status to paid
+    if (Math.abs(paidAmount - orderTotal) > 0.01) {
+      console.error(`Payment amount mismatch: Expected ₦${orderTotal}, Got ₦${paidAmount}`);
+      return { success: false, message: 'Payment amount mismatch' };
+    }
+
+    // Mark order as paid ONLY - NO wallet credit (escrow model)
+    // Wallet will be credited when agent accepts the order
     const { error: orderUpdateError } = await supabase
       .from('orders')
       .update({
         payment_status: 'paid',
-        split_details: {
-          total: totalAmount,
-          food: foodAmount,
-          platform_fee: platformFee,
-          agent_earnings: agentEarnings,
-          delivery_fee: platformFee + agentEarnings
-        }
+        payment_reference: eventData.reference,
+        updated_at: new Date().toISOString()
       })
       .eq('id', orderData.id);
 
@@ -98,53 +87,19 @@ async function processPaymentSplit(eventData: any) {
       return { success: false, message: 'Failed to update order' };
     }
 
-    // Credit agent's food wallet (if agent is assigned)
-    if (orderData.delivery_agent_id) {
-      await supabase.rpc('update_agent_wallet', {
-        p_agent_id: orderData.delivery_agent_id,
-        p_wallet_type: 'food_wallet',
-        p_amount: foodAmount,
-        p_transaction_type: 'credit',
-        p_reference_type: 'order',
-        p_reference_id: orderData.id,
-        p_description: `Payment for order ${eventData.reference} - food amount`
-      });
+    console.log(`✅ Payment verified for order ${orderData.order_number}`);
+    console.log(`   Amount: ₦${paidAmount}`);
+    console.log(`   Status: paid (wallet will be credited when agent accepts)`);
 
-      // Credit agent's earnings wallet
-      await supabase.rpc('update_agent_wallet', {
-        p_agent_id: orderData.delivery_agent_id,
-        p_wallet_type: 'earnings_wallet',
-        p_amount: agentEarnings,
-        p_transaction_type: 'credit',
-        p_reference_type: 'order',
-        p_reference_id: orderData.id,
-        p_description: `Payment for order ${eventData.reference} - agent earnings`
-      });
-    } else if (orderData.delivery_handler === 'vendor' || orderData.seller_type === 'vendor') {
-      // For vendor self-delivery, credit the vendor wallet instead
-      // Calculate vendor earnings (total minus platform fee)
-      const vendorEarnings = totalAmount - platformFee;
-
-      // Credit vendor wallet
-      const { error: vendorWalletError } = await supabase.rpc('update_vendor_wallet', {
-        p_vendor_id: orderData.seller_id,
-        p_amount: vendorEarnings,
-        p_transaction_type: 'credit',
-        p_reference_type: 'order',
-        p_reference_id: orderData.id,
-        p_description: `Payment for order ${eventData.reference}`
-      });
-
-      if (vendorWalletError) {
-        console.error('Error updating vendor wallet:', vendorWalletError);
-      }
-    }
-
-    console.log(`Successfully processed payment split for order ${eventData.reference}`);
-    return { success: true, message: 'Payment split processed successfully' };
+    return {
+      success: true,
+      message: 'Payment verified successfully',
+      order_number: orderData.order_number,
+      amount: paidAmount
+    };
   } catch (error) {
-    console.error('Error processing payment split:', error);
-    return { success: false, message: 'Error processing payment split', error: error.message };
+    console.error('Error processing payment verification:', error);
+    return { success: false, message: 'Error processing payment', error: error.message };
   }
 }
 
@@ -153,7 +108,6 @@ async function handleTransferStatus(eventData: any) {
   try {
     const transferReference = eventData.transfer.transfer_code;
 
-    // Update withdrawal status based on transfer status
     const { error } = await supabase
       .from('withdrawals')
       .update({
@@ -181,10 +135,8 @@ async function handleWebhook(request: Request) {
   const signature = request.headers.get('X-Paystack-Signature');
   const payload = await request.text();
 
-  // Dev mode bypass - for testing without valid signature
   const isDevMode = Deno.env.get('DEV_MODE') === 'true' || Deno.env.get('DENO_DEPLOYMENT_ID') === undefined;
 
-  // Verify webhook signature (skip in dev mode for testing)
   if (!isDevMode && signature && !await verifyPaystackSignature(payload, signature)) {
     return new Response(JSON.stringify({ error: 'Invalid signature' }), {
       status: 401,
@@ -195,15 +147,14 @@ async function handleWebhook(request: Request) {
   try {
     const event = JSON.parse(payload);
 
-    // Dev mode logging
     if (isDevMode) {
       console.log('DEV MODE: Processing webhook event:', event.event);
     }
 
     switch (event.event) {
       case 'charge.success':
-        // Process successful payment and split funds
-        const result = await processPaymentSplit(event.data);
+        // Payment verification only (escrow model)
+        const result = await processPaymentVerification(event.data);
         return new Response(JSON.stringify(result), {
           status: result.success ? 200 : 400,
           headers: { 'Content-Type': 'application/json' }
@@ -211,7 +162,6 @@ async function handleWebhook(request: Request) {
 
       case 'transfer.success':
       case 'transfer.failed':
-        // Handle transfer status updates
         const transferResult = await handleTransferStatus(event);
         return new Response(JSON.stringify(transferResult), {
           status: transferResult.success ? 200 : 400,
@@ -219,7 +169,6 @@ async function handleWebhook(request: Request) {
         });
 
       default:
-        // Unhandled event type
         console.log(`Unhandled event type: ${event.event}`);
         return new Response(JSON.stringify({ message: 'Event type not handled' }), {
           status: 200,
@@ -235,5 +184,4 @@ async function handleWebhook(request: Request) {
   }
 }
 
-// Start the server
 serve(handleWebhook, { port: 8000 });

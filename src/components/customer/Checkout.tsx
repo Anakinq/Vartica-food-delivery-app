@@ -339,43 +339,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
     return { success: true, orderNumber };
   };
 
-  const sendToWebhook = async (reference: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
-
-    const paystackWebhookData = {
-      event: 'charge.success',
-      data: {
-        reference,
-        amount: Math.round(effectiveTotal * 100),
-        status: 'success',
-        gateway_response: 'Successful',
-        paid_at: new Date().toISOString(),
-        channel: 'card',
-        currency: 'NGN',
-        customer: {
-          email: profile?.email || 'unknown@example.com',
-        },
-        authorization: {
-          authorization_code: 'AUTH_' + reference,
-          bin: '412345',
-          last4: '1234',
-          exp_month: '12',
-          exp_year: '2025',
-          channel: 'card',
-        }
-      }
-    };
-
-    const webhookRes = await fetch('/api/paystack-webhook', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(paystackWebhookData),
-    });
-
-    if (!webhookRes.ok) throw new Error('Webhook verification failed');
-  };
-
   const handlePaystackSuccess = async (response: any) => {
     try {
       setLoading(true);
@@ -425,38 +388,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
         if (incrementError) {
           console.error('Error incrementing promo code usage:', incrementError);
         }
-      }
-
-      // Simulate webhook call to credit agent wallet (for testing)
-      try {
-        await fetch('/api/paystack-webhook', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            event: 'charge.success',
-            data: {
-              reference: 'DEV_SIMULATED_PAYMENT',
-              amount: Math.round(effectiveTotal * 100),
-              status: 'success',
-              gateway_response: 'Successful',
-              paid_at: new Date().toISOString(),
-              channel: 'card',
-              currency: 'NGN',
-              customer: { email: profile?.email || 'test@example.com' },
-              authorization: {
-                authorization_code: 'AUTH_DEV',
-                bin: '412345',
-                last4: '1234',
-                exp_month: '12',
-                exp_year: '2025',
-                channel: 'card',
-              }
-            }
-          }),
-        });
-      } catch (webhookError) {
-        console.error('Dev mode webhook simulation error:', webhookError);
-        // Continue anyway - order was still created
       }
 
       setSuccess(true);

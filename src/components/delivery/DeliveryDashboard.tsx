@@ -556,6 +556,13 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       setMessage({ type: 'error', text: 'Please go online to accept orders.' });
       return;
     }
+
+    // Safety check: Only accept orders that have been paid
+    if (order.payment_status !== 'paid') {
+      setMessage({ type: 'error', text: 'This order has not been paid yet. Please wait for payment confirmation.' });
+      return;
+    }
+
     const activeOrders = myOrders.filter(o => !['delivered', 'cancelled'].includes(o.status));
     if (activeOrders.length >= 2) {
       setMessage({ type: 'info', text: 'You can only have 2 active orders at a time.' });
