@@ -8,7 +8,7 @@ const supabase = createClient(
 async function fixDuplicateProfiles() {
     try {
         console.log('🔍 Checking for duplicate agent payout profiles...');
-        
+
         // Find duplicate user_ids
         const { data: duplicates, error: duplicateError } = await supabase
             .from('agent_payout_profiles')
@@ -24,7 +24,7 @@ async function fixDuplicateProfiles() {
         if (duplicates && duplicates.length > 0) {
             console.log('❌ Found duplicate profiles:');
             console.log(duplicates);
-            
+
             // For each duplicate user_id, keep the first record and delete the rest
             for (const dup of duplicates) {
                 const { data: allRecords, error: fetchError } = await supabase
@@ -42,13 +42,13 @@ async function fixDuplicateProfiles() {
                     // Keep the first (oldest) record, delete the rest
                     const recordsToDelete = allRecords.slice(1);
                     console.log(`Found ${recordsToDelete.length} duplicate records for user ${dup.user_id}`);
-                    
+
                     for (const record of recordsToDelete) {
                         const { error: deleteError } = await supabase
                             .from('agent_payout_profiles')
                             .delete()
                             .eq('id', record.id);
-                        
+
                         if (deleteError) {
                             console.error('Error deleting duplicate record:', record.id, deleteError);
                         } else {
