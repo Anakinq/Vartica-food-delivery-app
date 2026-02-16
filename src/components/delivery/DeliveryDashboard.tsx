@@ -393,40 +393,23 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     setMessage(null);
 
     try {
-      // Direct Supabase call since schema doesn't match WalletService
-      const { data: existingProfile, error: selectError } = await supabase
+      // Use upsert with conflict resolution to handle both insert and update cases
+      const { error: upsertError } = await supabase
         .from('agent_payout_profiles')
-        .select('id')
-        .eq('user_id', profile.id)
-        .single();
+        .upsert({
+          user_id: profile.id,
+          account_number: bankAccount.trim(),
+          account_name: profile.full_name || 'Unknown',
+          bank_code: bankCode,
+          verified: false
+        }, {
+          onConflict: 'user_id',
+          ignoreDuplicates: false
+        });
 
-      let result;
-      if (existingProfile) {
-        // Update existing profile
-        result = await supabase
-          .from('agent_payout_profiles')
-          .update({
-            account_number: bankAccount.trim(),
-            account_name: profile.full_name || 'Unknown',
-            bank_code: bankCode,
-            verified: false // Reset verification status
-          })
-          .eq('user_id', profile.id);
-      } else {
-        // Create new profile
-        result = await supabase
-          .from('agent_payout_profiles')
-          .insert([{
-            user_id: profile.id,
-            account_number: bankAccount.trim(),
-            account_name: profile.full_name || 'Unknown',
-            bank_code: bankCode,
-            verified: false
-          }]);
-      }
-
-      if (result.error) {
-        throw result.error;
+      if (upsertError) {
+        console.error('Upsert error:', upsertError);
+        throw upsertError;
       }
 
       // Then verify with Paystack
@@ -447,11 +430,20 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         console.warn('Bank verification failed:', errorData);
         // Don't throw error for verification - just update the verified status
       } else {
-        // Update the verified status
-        await supabase
+        // Update the verified status using upsert for safety
+        const { error: verifyError } = await supabase
           .from('agent_payout_profiles')
-          .update({ verified: true })
-          .eq('user_id', profile.id);
+          .upsert({
+            user_id: profile.id,
+            verified: true
+          }, {
+            onConflict: 'user_id',
+            ignoreDuplicates: false
+          });
+
+        if (verifyError) {
+          console.warn('Verification update warning:', verifyError);
+        }
       }
 
       setMessage({ type: 'success', text: '✅ Bank details saved and verified successfully!' });
