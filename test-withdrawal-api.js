@@ -2,7 +2,7 @@
 async function testWithdrawalAPI() {
     try {
         console.log('Testing withdrawal API...');
-        
+
         const response = await fetch('https://vartica-food-delivery-app.vercel.app/api/withdraw', {
             method: 'POST',
             headers: {
