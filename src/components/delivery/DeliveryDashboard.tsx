@@ -112,6 +112,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   const [savingBank, setSavingBank] = useState(false);
   const [registeringRecipient, setRegisteringRecipient] = useState(false);
   const [isBankVerified, setIsBankVerified] = useState(false);
+  const [showBankForm, setShowBankForm] = useState(false);
 
   // Withdrawal state
   const [withdrawType, setWithdrawType] = useState<'customer_funds' | 'delivery_earnings'>('delivery_earnings');
@@ -455,6 +456,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
       setMessage({ type: 'success', text: '✅ Bank details saved and verified successfully!' });
       setIsBankVerified(true);
+      setShowBankForm(false); // Close the form after successful save
       // Don't call fetchData here since it will be called by the periodic effect
     } catch (err: any) {
       console.error('Save bank error:', err);
@@ -989,7 +991,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
           </div>
 
           {/* Bank Setup */}
-          <div className="bg-white rounded-xl shadow-sm p-5 mb-6 border border-gray-200">
+          <div id="bank-section" className="bg-white rounded-xl shadow-sm p-5 mb-6 border border-gray-200">
             <div className="flex justify-between items-center mb-3">
               <div className="flex items-center space-x-3">
                 {isBankVerified ? (
@@ -1056,11 +1058,66 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                   </button>
                 </div>
               </>
+            ) : showBankForm ? (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h4 className="font-medium text-gray-700">Update Bank Details</h4>
+                  <button
+                    onClick={() => setShowBankForm(false)}
+                    className="text-sm text-gray-500 hover:text-gray-700"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                    <input
+                      type="text"
+                      value={bankAccount}
+                      onChange={(e) => setBankAccount(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      placeholder="10-digit number"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      maxLength={10}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bank</label>
+                    <select
+                      value={bankCode}
+                      onChange={(e) => setBankCode(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select Bank</option>
+                      {BANK_OPTIONS.map((bank) => (
+                        <option key={bank.code} value={bank.code}>
+                          {bank.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    onClick={saveBankDetails}
+                    disabled={savingBank || !bankAccount || !bankCode || bankAccount.length !== 10}
+                    className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium"
+                  >
+                    {savingBank ? 'Saving...' : '✅ Update Bank Details'}
+                  </button>
+                </div>
+              </div>
             ) : (
               <div>
-                <p className="text-gray-600 mb-4">
-                  Your bank details are saved and ready for withdrawals.
-                </p>
+                <div className="flex justify-between items-center mb-4">
+                  <p className="text-gray-600">
+                    Your bank details are saved and ready for withdrawals.
+                  </p>
+                  <button
+                    onClick={() => setShowBankForm(true)}
+                    className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    Update
+                  </button>
+                </div>
                 <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                   <p className="text-green-800">
                     <span className="font-medium">{bankName}</span> •••• {bankAccount.slice(-4)}
@@ -1453,11 +1510,19 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                         <button
                           onClick={(e) => {
                             e.preventDefault();
-                            // This button just shows the current state
-                            // The actual update happens in the main bank section
+                            e.stopPropagation();
+                            setShowProfileModal(false);
+                            // Show the update form
+                            setShowBankForm(true);
+                            // Scroll to bank section
+                            setTimeout(() => {
+                              const bankSection = document.getElementById('bank-section');
+                              if (bankSection) {
+                                bankSection.scrollIntoView({ behavior: 'smooth' });
+                              }
+                            }, 300);
                           }}
                           className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                          disabled
                         >
                           {isBankVerified ? 'Update' : 'Add'}
                         </button>
