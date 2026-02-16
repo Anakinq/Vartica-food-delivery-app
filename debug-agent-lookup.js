@@ -8,7 +8,7 @@ const supabase = createClient(
 async function debugAgentLookup() {
     try {
         console.log('🔍 Debugging agent lookup issues...');
-        
+
         // Test 1: Check if the agent exists
         console.log('\n1. Checking delivery agent:');
         const { data: agent, error: agentError } = await supabase
@@ -66,7 +66,7 @@ async function debugAgentLookup() {
 
         // Test 4: Test the actual API calls that are failing
         console.log('\n4. Testing API calls:');
-        
+
         // Test verify-bank-account API
         console.log('Testing verify-bank-account API...');
         const verifyResponse = await fetch('https://vartica-food-delivery-app.vercel.app/api/verify-bank-account', {

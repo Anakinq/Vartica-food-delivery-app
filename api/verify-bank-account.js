@@ -90,7 +90,7 @@ export default async function handler(req, res) {
                 agent_id: agent_id,
                 error: agentError
             });
-            return res.status(404).json({ 
+            return res.status(404).json({
                 error: 'Agent not found',
                 debug: {
                     agent_id: agent_id,
@@ -101,7 +101,7 @@ export default async function handler(req, res) {
 
         if (!agentData) {
             console.error('Agent not found:', agent_id);
-            return res.status(404).json({ 
+            return res.status(404).json({
                 error: 'Agent not found',
                 debug: {
                     agent_id: agent_id,

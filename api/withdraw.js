@@ -62,26 +62,26 @@ export default async function handler(req, res) {
                     food_wallet_balance: 0,
                     earnings_wallet_balance: 0
                 });
-            
+
             if (createError) {
                 console.error('Failed to create wallet:', createError);
                 return res.status(500).json({ error: 'Failed to initialize agent wallet' });
             }
-            
+
             // Try again
             const { data: newWallet, error: newWalletError } = await supabase
                 .from('agent_wallets')
                 .select('earnings_wallet_balance')
                 .eq('agent_id', agent_id)
                 .single();
-                
+
             if (newWalletError || !newWallet) {
                 return res.status(404).json({ error: 'Agent wallet not found' });
             }
-            
+
             agentWallet = newWallet;
         }
-        
+
         if (!agentWallet) {
             return res.status(404).json({ error: 'Agent wallet not found' });
         }
@@ -188,8 +188,7 @@ export default async function handler(req, res) {
             .insert({
                 agent_id,
                 amount,
-                status: 'pending',
-                paystack_transfer_reference: withdrawalReference
+                status: 'pending'
             })
             .select()
             .single();
@@ -230,8 +229,7 @@ export default async function handler(req, res) {
                     .from('withdrawals')
                     .update({
                         status: 'processing',
-                        paystack_transfer_code: transferResult.data.transfer_code,
-                        paystack_reference: transferResult.data.reference
+                        paystack_transfer_code: transferResult.data.transfer_code
                     })
                     .eq('id', withdrawal.id);
 
@@ -250,8 +248,7 @@ export default async function handler(req, res) {
                     success: true,
                     message: 'Withdrawal request processed successfully',
                     withdrawal_id: withdrawal.id,
-                    transfer_code: transferResult.data.transfer_code,
-                    reference: transferResult.data.reference
+                    transfer_code: transferResult.data.transfer_code
                 });
             } else {
                 // Update withdrawal as failed
