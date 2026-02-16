@@ -52,7 +52,37 @@ export default async function handler(req, res) {
             .eq('agent_id', agent_id)
             .single();
 
-        if (walletError || !agentWallet) {
+        if (walletError) {
+            console.error('Wallet lookup error:', walletError);
+            // Wallet might not exist yet, create it
+            const { error: createError } = await supabase
+                .from('agent_wallets')
+                .insert({
+                    agent_id: agent_id,
+                    food_wallet_balance: 0,
+                    earnings_wallet_balance: 0
+                });
+            
+            if (createError) {
+                console.error('Failed to create wallet:', createError);
+                return res.status(500).json({ error: 'Failed to initialize agent wallet' });
+            }
+            
+            // Try again
+            const { data: newWallet, error: newWalletError } = await supabase
+                .from('agent_wallets')
+                .select('earnings_wallet_balance')
+                .eq('agent_id', agent_id)
+                .single();
+                
+            if (newWalletError || !newWallet) {
+                return res.status(404).json({ error: 'Agent wallet not found' });
+            }
+            
+            agentWallet = newWallet;
+        }
+        
+        if (!agentWallet) {
             return res.status(404).json({ error: 'Agent wallet not found' });
         }
 
@@ -68,9 +98,28 @@ export default async function handler(req, res) {
             .eq('user_id', user_id)
             .single();
 
-        if (profileError || !payoutProfile) {
+        if (profileError) {
+            console.error('Profile lookup error:', {
+                user_id: user_id,
+                error: profileError
+            });
             return res.status(400).json({
-                error: 'Agent payout profile not found. Please add your bank details first.'
+                error: 'Agent payout profile not found. Please add your bank details first.',
+                debug: {
+                    user_id: user_id,
+                    profile_error: profileError.message
+                }
+            });
+        }
+
+        if (!payoutProfile) {
+            console.error('Profile not found for user_id:', user_id);
+            return res.status(400).json({
+                error: 'Agent payout profile not found. Please add your bank details first.',
+                debug: {
+                    user_id: user_id,
+                    profile_exists: false
+                }
             });
         }
 
