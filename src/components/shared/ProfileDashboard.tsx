@@ -307,6 +307,9 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
 
       if (error) throw error;
 
+      // Clear profile cache to ensure fresh data
+      sessionStorage.removeItem(`profile_with_vendor_${profile.id}`);
+      
       await refreshProfile();
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2000);
@@ -513,7 +516,6 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
                       <option value="Female Medical Hostel 4">Female Medical Hostel 4</option>
                       <option value="Female Medical Hostel 5">Female Medical Hostel 5</option>
                       <option value="Female Medical Hostel 6">Female Medical Hostel 6</option>
-                      <option value="Med caf">Med caf (for Med Side)</option>
                     </select>
                   </div>
                 </div>
@@ -947,3 +949,4 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
     </>
   );
 };
+

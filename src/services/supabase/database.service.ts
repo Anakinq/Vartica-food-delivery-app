@@ -313,6 +313,7 @@ class SupabaseDatabaseService implements IDatabaseService {
               role: 'customer',
               phone: user.user_metadata?.phone || null,
               avatar_url: user.user_metadata?.avatar_url || null,
+              hostel_location: user.user_metadata?.hostel_location || null,
               hostel: null,
               matric_number: null,
               department: null,

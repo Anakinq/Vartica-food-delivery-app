@@ -1,6 +1,7 @@
 // src/components/customer/CustomerHome.tsx
+// Abuad Delivery Homepage - Following UI Specification
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { Search, LogOut, User, Moon, Package, Heart, ArrowLeft, Star } from 'lucide-react';
+import { Search, ArrowLeft, Star, MapPin, Clock, ChevronDown, Bell, Home, Package, User, X, Utensils, ShoppingBag, Moon, Bike, Filter, SlidersHorizontal } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Cafeteria, MenuItem } from '../../lib/supabase';
 import { Vendor } from '../../lib/supabase/types';
@@ -10,37 +11,58 @@ import { Checkout } from './Checkout';
 import { OrderTracking } from './OrderTracking';
 import { VendorUpgradeModal } from './VendorUpgradeModal';
 import { LazyImage } from '../common/LazyImage';
-import { CardSkeleton, ListSkeleton } from '../shared/LoadingSkeleton';
-import { Skeleton } from '../shared/LoadingSkeleton';
+import { Skeleton, CardSkeleton } from '../shared/LoadingSkeleton';
 import { useToast } from '../../contexts/ToastContext';
 import { useCart } from '../../contexts/CartContext';
 import { VendorReviewService } from '../../services/supabase/vendor.service';
+import { NotificationsPanel } from '../shared/NotificationsPanel';
 
 interface CustomerHomeProps {
   onShowProfile?: () => void;
 }
 
-interface Toast {
-  id: number;
-  message: string;
-  isVisible: boolean;
+// Banner interface - maps to database table
+interface Banner {
+  id: string;
+  title: string;
+  subtitle?: string;
+  image_url: string;
+  link?: string;
+  is_active: boolean;
+  display_order?: number;
 }
 
-const SkeletonCard = () => (
-  <div className="bg-white rounded-2xl border border-stone-200 p-6 animate-pulse">
-    <div className="w-16 h-16 bg-stone-200 rounded-xl mb-4"></div>
-    <div className="h-5 bg-stone-200 rounded mb-2"></div>
-    <div className="h-4 bg-stone-200 rounded w-3/4"></div>
-  </div>
-);
+// Category interface
+interface Category {
+  id: string;
+  name: string;
+  icon: string;
+  key: 'cafeterias' | 'vendors' | 'late_night' | 'agents';
+}
+
+const COLORS = {
+  primary: '#F59E0B',     // Orange (original theme)
+  accent: '#D97706',      // Darker orange
+  background: '#121212',   // Dark background
+  cards: '#1E1E1E',       // Dark cards
+  textPrimary: '#FFFFFF',  // White text
+  textSecondary: '#9CA3AF', // Gray text
+};
+
+// Helper function to get time-based greeting
+const getGreeting = (): string => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good Morning';
+  if (hour < 17) return 'Good Afternoon';
+  return 'Good Evening';
+};
 
 export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => {
-  const { profile, signOut, refreshProfile } = useAuth();
-  const { showToast } = useToast();
+  const { profile, refreshProfile } = useAuth();
+  const toast = useToast();
   const {
     items: cartItems,
     addItem,
-    removeItem,
     updateQuantity,
     clearCart,
     cartCount,
@@ -52,21 +74,21 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     setCartPackCount
   } = useCart();
 
-  // Listen for cart modal open event from BottomNavigation
-  useEffect(() => {
-    const handleOpenCart = () => {
-      openCart();
-    };
-    window.addEventListener('open-cart-modal', handleOpenCart);
-    return () => window.removeEventListener('open-cart-modal', handleOpenCart);
-  }, [openCart]);
-
+  // State
   const [cafeterias, setCafeterias] = useState<Cafeteria[]>([]);
   const [studentVendors, setStudentVendors] = useState<Vendor[]>([]);
   const [lateNightVendors, setLateNightVendors] = useState<Vendor[]>([]);
   const [vendorRatings, setVendorRatings] = useState<Record<string, { avgRating: number; reviewCount: number }>>({});
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const [notificationCount, setNotificationCount] = useState(3); // Default mock count
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState(() => {
+    // Use profile's hostel_location if available, otherwise default
+    const profileWithHostel = profile as any;
+    return profileWithHostel?.hostel_location || 'ABUAD Campus – Hostel B';
+  });
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
 
-  // State to track cafeteria open status
   const [cafeteriaStatus, setCafeteriaStatus] = useState<Record<string, boolean>>({});
   const [selectedSeller, setSelectedSeller] = useState<{ id: string; type: 'cafeteria' | 'vendor' | 'late_night_vendor'; name: string } | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -75,69 +97,88 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [pulseCategory, setPulseCategory] = useState<string | null>(null);
-  const [toasts, setToasts] = useState<Toast[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showVendorUpgrade, setShowVendorUpgrade] = useState(false);
-  const [preferredRole, setPreferredRole] = useState<'customer' | 'vendor'>('customer');
   const [favorites, setFavorites] = useState<string[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
+  // Carousel state
+  const [currentBanner, setCurrentBanner] = useState(0);
+  const carouselRef = useRef<HTMLDivElement>(null);
+
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const toastId = useRef(0);
 
-  // Define groupMenuItemsByCategory function before it's used
+  // Categories definition
+  const categories: Category[] = [
+    { id: '1', name: 'Cafeterias', icon: 'Utensils', key: 'cafeterias' },
+    { id: '2', name: 'Vendors', icon: 'ShoppingBag', key: 'vendors' },
+    { id: '3', name: 'Late Night', icon: 'Moon', key: 'late_night' },
+    { id: '4', name: 'Agents', icon: 'Bike', key: 'agents' },
+  ];
+
+  const [activeTab, setActiveTab] = useState<string>('cafeterias');
+  const [showFilters, setShowFilters] = useState(false);
+  const [priceFilter, setPriceFilter] = useState<string>('all');
+  const [ratingFilter, setRatingFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('popular');
+
+  // Location options
+  const locations = [
+    'ABUAD Campus – Hostel B',
+    'ABUAD Campus – Hostel A',
+    'ABUAD Campus – Hostel C',
+    'ABUAD Campus – Staff Quarters',
+    'ABUAD Main Gate',
+  ];
+
+  // Update selected location when profile loads
+  useEffect(() => {
+    const profileWithHostel = profile as any;
+    if (profileWithHostel?.hostel_location) {
+      setSelectedLocation(profileWithHostel.hostel_location);
+    }
+  }, [profile]);
+
+  // Auto-slide carousel
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (banners.length > 1) {
+        setCurrentBanner((prev) => (prev + 1) % banners.length);
+      }
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [banners.length]);
+
+  // Group menu items by category
   const groupMenuItemsByCategory = (itemsToGroup: MenuItem[] = menuItems) => {
-    // Get all unique categories from menu items
     const uniqueCategories = Array.from(new Set(itemsToGroup.map(item => item.category).filter(Boolean) as string[]));
-
-    // Define priority order for categories
     const priorityCategories = [
       'Main Food', 'Protein', 'Swallow', 'Soup', 'Other',
       'Rice & Pasta', 'Proteins & Sides', 'Drinks', 'Meals', 'Main Course', 'Sides', 'Snacks', 'Salad'
     ];
-
-    // Sort categories by priority
     const sortedCategories = [
       ...priorityCategories.filter(cat => uniqueCategories.includes(cat)),
       ...uniqueCategories.filter(cat => !priorityCategories.includes(cat))
     ];
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Grouping menu items by categories:', sortedCategories);
-      console.log('Current menu items:', itemsToGroup);
-    }
-
-    const result = sortedCategories.map(category => {
+    return sortedCategories.map(category => {
       const items = itemsToGroup.filter(item => item.category === category);
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`Items in category ${category}:`, items);
-      }
       return { category, items };
     }).filter(group => group.items.length > 0);
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Grouped categories result:', result);
-    }
-    return result;
   };
 
-  // Filter menu items based on search and favorites (for selected seller view)
+  // Filter menu items based on search and favorites
   const sellerFilteredMenuItems = useMemo(() => {
     let items = menuItems;
-
-    // Filter by search query
     if (globalSearchQuery.trim()) {
       items = items.filter(item =>
         item.name.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
         (item.description && item.description.toLowerCase().includes(globalSearchQuery.toLowerCase()))
       );
     }
-
-    // Filter by favorites only
     if (showFavoritesOnly) {
       items = items.filter(item => favorites.includes(item.id));
     }
-
     return items;
   }, [menuItems, globalSearchQuery, favorites, showFavoritesOnly]);
 
@@ -151,7 +192,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     );
   };
 
-  // Memoize expensive computations
   const groupedMenuItems = useMemo(() => {
     return groupMenuItemsByCategory(menuItems);
   }, [menuItems]);
@@ -165,76 +205,15 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     return () => clearTimeout(timer);
   }, [globalSearchQuery]);
 
-
-
   useEffect(() => {
     fetchData();
   }, []);
 
-  // Listen for profile changes to detect role updates
-  useEffect(() => {
-    if (!profile?.id) return;
-
-    const channel = supabase
-      .channel('profile-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'profiles',
-          filter: `id=eq.${profile.id}`
-        },
-        (payload) => {
-          // If role changes from customer to vendor, just refresh the profile
-          if (payload.old.role === 'customer' && payload.new.role === 'vendor') {
-            // The profile will be updated automatically by the auth context
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [profile?.id]);
-
-  // Check for preferred role in sessionStorage on mount
-  useEffect(() => {
-    const savedRole = sessionStorage.getItem('preferredRole');
-    if (savedRole === 'customer' || savedRole === 'vendor') {
-      setPreferredRole(savedRole);
-    }
-  }, []);
-
-  // Handle role switching
-  const handleRoleSwitch = (newRole: 'customer' | 'vendor') => {
-    setPreferredRole(newRole);
-    // Store in sessionStorage for persistence
-    sessionStorage.setItem('preferredRole', newRole);
-
-    // If switching to vendor view and user is actually a vendor, redirect to vendor dashboard
-    if (newRole === 'vendor' && profile?.role && ['vendor', 'late_night_vendor'].includes(profile.role)) {
-      // This will cause the App component to render VendorDashboard
-      window.location.hash = '#/vendor';
-    }
-
-    // If switching to customer view, ensure we're on the customer view
-    if (newRole === 'customer') {
-      window.location.hash = '';
-    }
-
-    // Show toast using the ToastContext
-    const toastMessage = `Switched to ${newRole === 'customer' ? 'Customer' : 'Vendor'} view`;
-    showToast({ type: 'info', message: toastMessage });
-  };
-
+  // Handle scroll for category highlighting
   const handleScroll = useCallback(() => {
     if (!selectedSeller) return;
-
     const scrollPosition = window.scrollY + 200;
     const categories = groupMenuItemsByCategory();
-
     for (let i = categories.length - 1; i >= 0; i--) {
       const cat = categories[i];
       const el = categoryRefs.current[cat.category];
@@ -250,7 +229,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
   useEffect(() => {
     if (!selectedSeller) return;
-
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
@@ -259,6 +237,45 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Fetch banners from database
+      const { data: bannersData, error: bannersError } = await supabase
+        .from('banners')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+
+      if (bannersError) {
+        console.error('Error fetching banners:', bannersError);
+      } else if (bannersData && bannersData.length > 0) {
+        setBanners(bannersData);
+      } else {
+        // Fallback to mock data if no banners in database
+        const mockBanners: Banner[] = [
+          {
+            id: '1',
+            title: '20% Off Today!',
+            subtitle: 'Main Cafeteria Promo',
+            image_url: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800',
+            is_active: true,
+          },
+          {
+            id: '2',
+            title: 'Free Delivery',
+            subtitle: 'On orders above ₦2000',
+            image_url: 'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=800',
+            is_active: true,
+          },
+          {
+            id: '3',
+            title: 'Late Night Specials',
+            subtitle: 'Order now for midnight snacks',
+            image_url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800',
+            is_active: true,
+          },
+        ];
+        setBanners(mockBanners);
+      }
+
       const [cafeteriasRes, vendorsRes] = await Promise.all([
         supabase.from('cafeterias').select('*').eq('is_active', true).order('name'),
         supabase.from('vendors').select('*').eq('is_active', true).order('store_name'),
@@ -266,28 +283,23 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
       if (cafeteriasRes.error) {
         console.error('Error fetching cafeterias:', cafeteriasRes.error);
-        showToast({ type: 'error', message: 'Failed to load cafeterias. Please try again.' });
       } else if (cafeteriasRes.data) {
-        console.log('Fetched cafeterias:', cafeteriasRes.data);
         setCafeterias(cafeteriasRes.data);
-        // Initialize cafeteria status (default to open for all)
         const initialStatus: Record<string, boolean> = {};
         cafeteriasRes.data.forEach(cafeteria => {
-          initialStatus[cafeteria.id] = true; // Default to open
+          initialStatus[cafeteria.id] = true;
         });
         setCafeteriaStatus(initialStatus);
       }
 
       if (vendorsRes.error) {
         console.error('Error fetching vendors:', vendorsRes.error);
-        showToast({ type: 'error', message: 'Failed to load vendors. Please try again.' });
       } else if (vendorsRes.data) {
         const students = vendorsRes.data.filter(v => v.vendor_type === 'student');
         const lateNight = vendorsRes.data.filter(v => v.vendor_type === 'late_night');
         setStudentVendors(students);
         setLateNightVendors(lateNight);
 
-        // Fetch ratings for all vendors
         const allVendors = [...students, ...lateNight];
         const ratings: Record<string, { avgRating: number; reviewCount: number }> = {};
 
@@ -299,7 +311,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
             ]);
             ratings[vendor.id] = { avgRating, reviewCount };
           } catch (error) {
-            console.error('Error fetching ratings for vendor:', vendor.id, error);
             ratings[vendor.id] = { avgRating: 0, reviewCount: 0 };
           }
         }
@@ -307,14 +318,12 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       }
     } catch (error) {
       console.error('Unexpected error in fetchData:', error);
-      showToast({ type: 'error', message: 'Failed to load data. Please check your connection and try again.' });
     } finally {
       setLoading(false);
     }
   };
 
   const fetchMenuItems = async (sellerId: string, sellerType: 'cafeteria' | 'vendor' | 'late_night_vendor') => {
-    console.log('Fetching menu items for:', { sellerId, sellerType });
     const { data, error } = await supabase
       .from('menu_items')
       .select('*')
@@ -326,7 +335,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     if (error) {
       console.error('Error fetching menu items:', error);
     } else {
-      console.log('Fetched menu items:', data);
       setMenuItems(data || []);
     }
   };
@@ -336,92 +344,63 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     await fetchMenuItems(id, type);
   };
 
-  const handleClearCart = () => {
-    clearCart();
-  };
+  // Filter and sort vendors
+  const getFilteredAndSortedCafeterias = useMemo(() => {
+    let result = [...cafeterias];
+
+    // Apply search filter
+    if (globalSearchQuery.trim()) {
+      result = result.filter(c => c.name.toLowerCase().includes(globalSearchQuery.toLowerCase()));
+    }
+
+    // Apply sorting
+    switch (sortBy) {
+      case 'newest':
+        result.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+        break;
+      case 'name':
+        result.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      default:
+        // popular - keep default order
+        break;
+    }
+
+    return result;
+  }, [cafeterias, globalSearchQuery, sortBy]);
 
   const filteredCafeterias = useMemo(() => {
-    return cafeterias.filter(c =>
-      c.name.toLowerCase().includes(globalSearchQuery.toLowerCase())
-    );
-  }, [cafeterias, globalSearchQuery]);
+    return getFilteredAndSortedCafeterias;
+  }, [getFilteredAndSortedCafeterias]);
 
   const filteredVendors = useMemo(() => {
-    return studentVendors.filter(v =>
-      v.store_name.toLowerCase().includes(globalSearchQuery.toLowerCase())
-    );
-  }, [studentVendors, globalSearchQuery]);
+    let result = [...studentVendors];
+
+    if (globalSearchQuery.trim()) {
+      result = result.filter(v => v.store_name.toLowerCase().includes(globalSearchQuery.toLowerCase()));
+    }
+
+    // Filter by rating
+    if (ratingFilter !== 'all') {
+      const minRating = parseFloat(ratingFilter);
+      result = result.filter(v => {
+        const rating = vendorRatings[v.id];
+        return rating && rating.avgRating >= minRating;
+      });
+    }
+
+    return result;
+  }, [studentVendors, globalSearchQuery, ratingFilter, vendorRatings]);
 
   const deliveryFee = 500;
 
-  const allSellersInOrder = useMemo(() => {
-    const list: Array<{ id: string; type: 'cafeteria' | 'vendor'; name: string }> = [];
-    filteredCafeterias.forEach(c => list.push({ id: c.id, type: 'cafeteria', name: c.name }));
-    filteredVendors.forEach(v => list.push({ id: v.id, type: 'vendor', name: v.store_name }));
-    lateNightVendors.forEach(v => list.push({ id: v.id, type: 'vendor', name: v.store_name }));
-    return list;
-  }, [filteredCafeterias, filteredVendors, lateNightVendors]);
-
-  // Function to determine if cafeteria is open
-  const isCafeteriaOpen = (cafeteriaId: string): boolean => {
-    // First check the state, then fallback to localStorage, then default to true
-    if (cafeteriaStatus[cafeteriaId] !== undefined) {
-      return cafeteriaStatus[cafeteriaId];
-    }
-
-    try {
-      if (typeof window !== 'undefined') {
-        // Use the same SafeStorage instance that Supabase uses
-        const safeStorage = (supabase.auth as any)._client.storage;
-        // Check localStorage for the status
-        const savedStatus = safeStorage.getItem(`cafeteria-open-${cafeteriaId}`);
-        if (savedStatus !== null) {
-          return JSON.parse(savedStatus);
-        }
-      }
-    } catch (e) {
-      console.warn('Could not read cafeteria status from localStorage:', e);
-    }
-
-    // Default to true (open) if no status is found
-    return true;
-  };
-
-  // Helper function to generate Supabase public URLs
-  const getSupabaseImageUrl = (imageUrl: string | null, bucket: string, folder: string) => {
-    if (!imageUrl) return null;
-
-    // If it's already a full URL, return as is
-    if (imageUrl.startsWith('http')) {
-      // Check if it's already a Supabase public URL
-      if (imageUrl.includes('supabase.co')) {
-        // Decode any URL-encoded characters that might cause 400 errors
-        return decodeURIComponent(imageUrl);
-      }
-      return imageUrl;
-    }
-
-    // If it's a relative path starting with /images/, return as is
-    if (imageUrl.startsWith('/images/')) {
-      return imageUrl;
-    }
-
-    // It's likely a file name that needs to be converted to a public URL
-    const filePath = `${folder}/${imageUrl}`;
-    const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
-    return data.publicUrl;
-  };
-
   const getImagePath = (sellerId: string, sellerType: 'cafeteria' | 'vendor', sellerName?: string) => {
-    // Check if this is a late night vendor
     const isLateNightVendor = lateNightVendors.some(v => v.id === sellerId);
     if (isLateNightVendor && sellerType === 'vendor') {
       return '/images/latenightvendor.jpg';
     }
 
-    // For cafeterias, use name-based mapping
     if (sellerType === 'cafeteria' && sellerName) {
-      console.log('Getting image for cafeteria:', sellerName);
       const nameMap: Record<string, string> = {
         'Cafeteria 1': 'caf 1',
         'Cafeteria 2': 'caf 2',
@@ -429,13 +408,9 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         'Smoothie Shack': 'smoothie shack',
         'Staff Cafeteria': 'staff caf',
         'Captain Cook': 'captain cook'
-        // Seasons Deli will use default numbering
       };
-
       const mappedName = nameMap[sellerName];
       if (mappedName) {
-        console.log('Mapped name:', mappedName);
-        // Map to correct file extensions based on your actual files
         const extensionMap: Record<string, string> = {
           'caf 1': '.png',
           'caf 2': '.png',
@@ -445,13 +420,10 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
           'smoothie shack': '.png'
         };
         const ext = extensionMap[mappedName] || '.jpg';
-        const imagePath = `/images/${mappedName}${ext}`;
-        console.log('Returning image path:', imagePath);
-        return imagePath;
+        return `/images/${mappedName}${ext}`;
       }
     }
 
-    // For cafeterias without custom mapping, use their position in the cafeteria array
     if (sellerType === 'cafeteria') {
       const index = cafeterias.findIndex(c => c.id === sellerId);
       if (index !== -1) {
@@ -459,19 +431,15 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       }
     }
 
-    // For student vendors, use their position in the student vendor array
     if (sellerType === 'vendor') {
       const index = studentVendors.findIndex(v => v.id === sellerId);
       if (index !== -1) {
-        // Start from the next available number after cafeterias
         const cafeteriaCount = cafeterias.length;
         return `/images/${cafeteriaCount + index + 1}.jpg`;
       }
     }
 
-    // Fallback to original logic
-    const index = allSellersInOrder.findIndex(s => s.id === sellerId && s.type === sellerType);
-    return `/images/${index + 1}.jpg`;
+    return '/images/1.jpg';
   };
 
   const handleCategoryClick = (category: string) => {
@@ -486,12 +454,11 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     }
   };
 
-  // Filter menu items based on search query when a seller is selected
+  // Filter menu items based on search
   const searchedMenuItems = useMemo(() => {
     if (!selectedSeller || !globalSearchQuery.trim()) {
       return menuItems;
     }
-
     return menuItems.filter(item =>
       item.name.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
       (item.description && item.description.toLowerCase().includes(globalSearchQuery.toLowerCase()))
@@ -507,7 +474,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       setItemQuantities({});
       return;
     }
-
     const newQuantities: Record<string, number> = {};
     cartItems.forEach(item => {
       if (item.seller_id === selectedSeller.id && item.seller_type === selectedSeller.type) {
@@ -520,322 +486,404 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const handleQuantityChange = (itemId: string, newQuantity: number) => {
     const oldQuantity = itemQuantities[itemId] || 0;
     setItemQuantities(prev => ({ ...prev, [itemId]: newQuantity }));
-
     const item = menuItems.find(m => m.id === itemId);
     if (!item) return;
-
-    // If quantity is decreasing, just update the cart
     if (newQuantity < oldQuantity) {
       updateQuantity(itemId, newQuantity);
       return;
     }
-
-    // If quantity is increasing by 1 from cart, update the cart
     if (newQuantity === oldQuantity + 1) {
       addItem(item);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 w-full max-w-full">
-      {/* Fixed Top Navigation */}
-      <nav className="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Vartica Logo */}
-            <div className="flex items-center space-x-3">
-              {selectedSeller ? (
-                <button
-                  onClick={() => {
-                    setSelectedSeller(null);
-                    setMenuItems([]);
-                    setGlobalSearchQuery('');
-                  }}
-                  className="flex items-center space-x-2 text-gray-800 hover:text-amber-500 transition-colors duration-200 font-semibold"
-                  aria-label="Back to home"
-                >
-                  <ArrowLeft className="h-5 w-5" />
-                  <span className="text-sm font-semibold">Back</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => window.location.reload()}
-                  className="text-3xl font-extrabold text-black hover:text-gray-700 transition-colors duration-200 tracking-tight"
-                  aria-label="Back to home"
-                >
-                  Vartica
-                </button>
-              )}
-              {selectedSeller && (
-                <span className="text-gray-700 text-sm font-semibold truncate max-w-[100px] sm:max-w-[200px]">/ {selectedSeller.name}</span>
-              )}
+  // Render carousel dots
+  const renderCarouselDots = () => {
+    if (banners.length <= 1) return null;
+    return (
+      <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-2">
+        {banners.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => setCurrentBanner(index)}
+            className={`w-2 h-2 rounded-full transition-all ${index === currentBanner ? 'bg-white w-6' : 'bg-white/50'
+              }`}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  // Render category tab with Lucide icons
+  const renderCategoryTab = (category: Category) => {
+    const isActive = activeTab === category.key;
+
+    // Map icon names to Lucide components
+    const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+      Utensils,
+      ShoppingBag,
+      Moon,
+      Bike,
+    };
+
+    const IconComponent = iconMap[category.icon] || Utensils;
+
+    return (
+      <button
+        key={category.id}
+        onClick={() => {
+          setActiveTab(category.key);
+          setPulseCategory(category.key);
+          setTimeout(() => setPulseCategory(null), 300);
+        }}
+        className={`flex flex-col items-center justify-center min-w-[80px] p-4 rounded-2xl transition-all duration-200 ${isActive
+          ? 'bg-green-500 shadow-lg shadow-green-500/30'
+          : 'bg-gray-800 hover:bg-gray-700'
+          }`}
+      >
+        <div className={`p-3 rounded-xl mb-2 ${isActive ? 'bg-green-400/20' : 'bg-gray-700'}`}>
+          <IconComponent className={`w-6 h-6 ${isActive ? 'text-green-400' : 'text-gray-400'}`} />
+        </div>
+        <span className={`text-sm font-medium ${isActive ? 'text-green-400' : 'text-gray-400'}`}>
+          {category.name}
+        </span>
+      </button>
+    );
+  };
+
+  // Render cafeteria card
+  const renderCafeteriaCard = (cafeteria: Cafeteria) => {
+    const isOpen = cafeteriaStatus[cafeteria.id] !== false;
+    return (
+      <div
+        key={cafeteria.id}
+        onClick={() => handleSellerClick(cafeteria.id, 'cafeteria', cafeteria.name)}
+        className="bg-gray-800 rounded-2xl overflow-hidden shadow-lg shadow-black/20 border border-gray-700 cursor-pointer transition-all duration-200 hover:shadow-xl hover:shadow-green-500/10 hover:border-green-500/50"
+      >
+        <div className="relative h-40 sm:h-48">
+          <LazyImage
+            src={cafeteria.image_url || getImagePath(cafeteria.id, 'cafeteria', cafeteria.name)}
+            alt={cafeteria.name}
+            className="w-full h-full object-cover"
+            placeholder="https://placehold.co/600x400/1e293b/64748b?text=No+Image"
+          />
+          <div className="absolute top-3 right-3">
+            <span className={`px-3 py-1.5 rounded-full text-xs font-semibold ${isOpen ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
+              {isOpen ? 'Open' : 'Closed'}
+            </span>
+          </div>
+        </div>
+        <div className="p-4">
+          <h3 className="font-bold text-white text-lg truncate">{cafeteria.name}</h3>
+          <div className="flex items-center text-sm text-gray-400 mt-2">
+            <MapPin className="w-4 h-4 mr-1.5" />
+            <span className="truncate">Central Campus</span>
+          </div>
+          <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-700">
+            <div className="flex items-center">
+              <Star className="w-5 h-5 text-yellow-400 fill-current" />
+              <span className="ml-1.5 text-sm font-semibold text-white">4.5</span>
+              <span className="ml-1.5 text-xs text-gray-500">(187)</span>
             </div>
-
-            {/* Right side icons: My Orders, Profile */}
-            <div className="flex items-center space-x-4">
-              {/* My Orders */}
-              <button
-                onClick={() => setShowOrders(true)}
-                className="p-2 text-gray-800 hover:text-green-600 transition-colors duration-200 font-medium"
-                title="My Orders"
-                aria-label="View orders"
-              >
-                <Package className="h-5 w-5 sm:h-6 sm:w-6" />
-              </button>
-
-              {/* Profile */}
-              <button
-                onClick={() => {
-                  console.log('CustomerHome: Profile button clicked');
-                  onShowProfile?.();
-                }}
-                className="flex items-center space-x-1 sm:space-x-2 text-gray-800 hover:text-green-600 transition-colors duration-200 font-medium"
-                aria-label="View profile"
-              >
-                {(profile as any)?.avatar_url ? (
-                  <img
-                    src={(profile as any).avatar_url}
-                    alt="Profile"
-                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-gray-200"
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      target.onerror = null;
-                      target.src = 'https://placehold.co/40x40/4ade80/ffffff?text=' + (profile?.full_name?.charAt(0).toUpperCase() || 'U');
-                    }}
-                  />
-                ) : (
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white text-xs sm:text-sm font-bold">
-                    {profile?.full_name?.charAt(0).toUpperCase() || 'U'}
-                  </div>
-                )}
-                <span className="hidden sm:inline text-sm font-semibold">{profile?.full_name}</span>
-              </button>
+            <div className="flex items-center text-sm text-gray-400">
+              <Clock className="w-4 h-4 mr-1.5" />
+              <span>20-25 min</span>
             </div>
           </div>
         </div>
-      </nav>
+      </div>
+    );
+  };
 
-      {/* Main Content - scrolls independently */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 bg-[#121212] min-h-screen pt-20 pb-20">
-        <div className="mb-4 sm:mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <div className="relative flex-1 mr-4">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-amber-500 h-5 w-5" />
-              <input
-                type="text"
-                value={globalSearchQuery}
-                onChange={(e) => setGlobalSearchQuery(e.target.value)}
-                placeholder={selectedSeller ? "Search menu items..." : "Search for food, vendors, or cafeterias..."}
-                className="w-full pl-10 pr-4 py-3 sm:py-4 bg-[#2a2a2a] border-2 border-amber-400/30 rounded-full focus:ring-2 focus:ring-amber-400 focus:bg-[#2a2a2a] transition-all text-sm sm:text-base text-white placeholder-gray-400 shadow-lg"
-                aria-label={selectedSeller ? "Search menu items" : "Search food or vendors"}
-              />
+  // Render vendor card
+  const renderVendorCard = (vendor: Vendor, isLateNight: boolean = false) => {
+    const rating = vendorRatings[vendor.id];
+    return (
+      <div
+        key={vendor.id}
+        onClick={() => handleSellerClick(vendor.id, 'vendor', vendor.store_name)}
+        className="bg-gray-800 rounded-2xl overflow-hidden shadow-lg shadow-black/20 border border-gray-700 cursor-pointer transition-all duration-200 hover:shadow-xl hover:shadow-green-500/10 hover:border-green-500/50"
+      >
+        <div className="relative h-40 sm:h-48">
+          <LazyImage
+            src={vendor.image_url || getImagePath(vendor.id, 'vendor')}
+            alt={vendor.store_name}
+            className="w-full h-full object-cover"
+            placeholder="https://placehold.co/600x400/1e293b/64748b?text=No+Image"
+          />
+          {isLateNight && (
+            <div className="absolute top-3 left-3">
+              <span className="bg-purple-500/20 text-purple-400 text-xs px-3 py-1.5 rounded-full flex items-center border border-purple-500/30">
+                <Moon className="w-3.5 h-3.5 mr-1.5" /> Late Night
+              </span>
             </div>
+          )}
+          {/* Verified badge - vendors are always considered verified */}
+          {(vendor.vendor_type === 'student' || vendor.vendor_type === 'late_night') && (
+            <div className="absolute top-3 right-3">
+              <span className="bg-blue-500/20 text-blue-400 text-xs px-3 py-1.5 rounded-full font-semibold border border-blue-500/30">
+                ✓ Verified
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="p-4">
+          <h3 className="font-bold text-white text-lg truncate">{vendor.store_name}</h3>
+          <p className="text-sm text-gray-400 mt-1.5 line-clamp-1">{vendor.description || 'Student Vendor'}</p>
+          <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-700">
+            {rating && rating.reviewCount > 0 ? (
+              <div className="flex items-center">
+                <Star className="w-5 h-5 text-yellow-400 fill-current" />
+                <span className="ml-1.5 text-sm font-semibold text-white">{rating.avgRating.toFixed(1)}</span>
+                <span className="ml-1.5 text-xs text-gray-500">({rating.reviewCount})</span>
+              </div>
+            ) : (
+              <div className="text-sm text-gray-400">Be the first to review!</div>
+            )}
+            {isLateNight && (
+              <div className="text-xs text-purple-400 font-semibold">
+                9pm - 2am
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Bottom navigation handler
+  const handleNavClick = (tab: string) => {
+    switch (tab) {
+      case 'home':
+        // Already on home
+        break;
+      case 'orders':
+        setShowOrders(true);
+        break;
+      case 'notifications':
+        setShowNotifications(true);
+        break;
+      case 'profile':
+        onShowProfile?.();
+        break;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#121212] w-full max-w-full">
+      {/* Header Section */}
+      <header className="bg-[#121212] border-b border-gray-800 sticky top-0 z-40">
+        <div className="px-4 pt-4 pb-2">
+          {/* Greeting and Location Row */}
+          <div className="flex justify-between items-start mb-3">
+            <div>
+              <p className="text-sm text-gray-400">{getGreeting()},</p>
+              <h1 className="text-2xl font-bold text-white">
+                {profile?.full_name || 'Student'}
+              </h1>
+            </div>
+            {/* Notification Bell */}
             <button
-              onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-              className={`p-3 rounded-full ${showFavoritesOnly ? 'bg-amber-400 text-black' : 'bg-[#2a2a2a] text-amber-500 hover:text-white border border-amber-500/30'}`}
+              onClick={() => setShowNotifications(true)}
+              className="relative p-2 hover:bg-gray-800 rounded-full transition-colors"
             >
-              <Heart className={`h-5 w-5 ${showFavoritesOnly ? 'fill-current' : ''}`} />
+              <Bell className="w-6 h-6 text-gray-300" />
+              {notificationCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                  {notificationCount > 99 ? '99+' : notificationCount}
+                </span>
+              )}
             </button>
           </div>
+
+
         </div>
 
-        {selectedSeller && sellerFilteredMenuItems.length > 0 && (
-          <div className="sticky top-16 sm:top-20 z-30 bg-[#121212] py-3 mb-4 -mx-4 px-4 border-b border-[#333]">
-            <div className="flex flex-col space-y-3">
-              <div className="flex overflow-x-auto pb-1 space-x-3 hide-scrollbar">
-                {groupedSellerCategories.map(({ category }) => (
-                  <button
-                    key={category}
-                    onClick={() => handleCategoryClick(category)}
-                    className={`
-                      whitespace-nowrap px-3 sm:px-5 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200
-                      ${pulseCategory === category
-                        ? 'bg-amber-500 text-black scale-105'
-                        : activeCategory === category
-                          ? 'bg-amber-400 text-black'
-                          : 'bg-[#1e1e1e] text-amber-500 hover:bg-[#2a2a2a] hover:text-white active:scale-95'}
-                    `}
-                  >
-                    {category}
-                  </button>
-                ))}
+        {/* Search Bar with Filter Toggle */}
+        <div className="px-4 pb-4">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+            <input
+              type="text"
+              value={globalSearchQuery}
+              onChange={(e) => setGlobalSearchQuery(e.target.value)}
+              placeholder={selectedSeller ? "Search menu items..." : "Search for food, vendors..."}
+              className="w-full pl-12 pr-14 py-3.5 bg-gray-800 border border-gray-700 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm text-white placeholder-gray-500 shadow-inner"
+            />
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-xl transition-colors ${showFilters ? 'bg-green-500 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Filter Chips */}
+          {showFilters && (
+            <div className="mt-3 space-y-3">
+              {/* Sort Options */}
+              <div>
+                <p className="text-xs text-gray-400 mb-2">Sort by</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: 'popular', label: 'Popular' },
+                    { value: 'newest', label: 'Newest' },
+                    { value: 'name', label: 'Name' },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => setSortBy(option.value)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${sortBy === option.value
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                        }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Rating Filter */}
+              <div>
+                <p className="text-xs text-gray-400 mb-2">Minimum Rating</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: 'all', label: 'All' },
+                    { value: '4', label: '4★+' },
+                    { value: '3', label: '3★+' },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => setRatingFilter(option.value)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${ratingFilter === option.value
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                        }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+      </header>
 
+      {/* Main Content */}
+      <main className="pb-24">
         {!selectedSeller ? (
           <>
-            <section className="mb-12">
-              <h2 className="text-xl sm:text-2xl font-bold text-amber-500 mb-4 sm:mb-6">Cafeterias</h2>
-              {loading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                  {filteredCafeterias.map((cafeteria: Cafeteria) => {
-                    const isSelected = selectedSeller !== null &&
-                      (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === cafeteria.id &&
-                      (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).type === 'cafeteria';
-                    return (
-                      <div
-                        key={cafeteria.id}
-                        onClick={() => handleSellerClick(cafeteria.id, 'cafeteria', cafeteria.name)}
-                        role="button"
-                        tabIndex={0}
-                        aria-pressed={isSelected}
-                        aria-label={`Select ${cafeteria.name}`}
-                        className={`bg-white rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${isSelected ? 'ring-2 ring-green-600' : 'hover:shadow-md'}`}
-                      >
-                        <LazyImage
-                          src={(() => {
-                            const supabaseUrl = getSupabaseImageUrl(cafeteria.image_url || null, 'vendor-logos', 'vendor-logos');
-                            return supabaseUrl || cafeteria.image_url || (() => {
-                              const path = getImagePath(cafeteria.id, 'cafeteria', cafeteria.name);
-                              console.log(`Using image path for ${cafeteria.name}:`, path);
-                              return path;
-                            })();
-                          })()}
-                          alt={cafeteria.name}
-                          className="w-full h-32 sm:h-40 object-cover"
-                          fallback="https://placehold.co/600x400/e2e8f0/64748b?text=No+Image"
-                          onError={() => {
-                            console.log('Image error for cafeteria:', cafeteria.name);
-                          }}
-                        />
-                        <div className="p-4">
-                          <h3 className="font-bold text-black text-base sm:text-lg truncate">{cafeteria.name}</h3>
-                          {/* Description removed - showing only cafeteria name/logo */}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-
-            <section className="mb-12">
-              <h2 className="text-xl sm:text-2xl font-bold text-amber-500 mb-4 sm:mb-6">Student Vendors</h2>
-              {loading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
-                </div>
-              ) : filteredVendors.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                  {filteredVendors.map((vendor: Vendor) => {
-                    const isSelected = selectedSeller !== null &&
-                      (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === vendor.id &&
-                      (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).type === 'vendor';
-                    return (
-                      <div
-                        key={vendor.id}
-                        onClick={() => handleSellerClick(vendor.id, 'vendor', vendor.store_name)}
-                        role="button"
-                        tabIndex={0}
-                        aria-pressed={isSelected}
-                        aria-label={`Select ${vendor.store_name}`}
-                        className={`bg-white rounded-xl overflow-hidden cursor-pointer relative transition-all duration-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${isSelected ? 'ring-2 ring-green-600' : 'hover:shadow-md'}`}
-                      >
-                        <div className="absolute top-2 right-2 sm:top-3 sm:right-3 flex flex-col items-end space-y-1">
-                          <span className="bg-blue-600 text-white text-xs px-3 py-1 rounded-full z-10 font-medium">
-                            Student
-                          </span>
-                          {vendor.delivery_option === 'offers_hostel_delivery' ? (
-                            <span className="bg-green-600 text-white text-xs px-2 py-1 rounded-full z-10 font-medium">
-                              Hostel Delivery
-                            </span>
-                          ) : (
-                            <span className="bg-gray-500 text-white text-xs px-2 py-1 rounded-full z-10 font-medium">
-                              Pickup Only
-                            </span>
-                          )}
-                        </div>
-                        <LazyImage
-                          src={(() => {
-                            const supabaseUrl = getSupabaseImageUrl(vendor.image_url || null, 'vendor-logos', 'vendor-logos');
-                            console.log('Vendor image processing:', { original: vendor.image_url, processed: supabaseUrl });
-                            return supabaseUrl || vendor.image_url || getImagePath(vendor.id, 'vendor');
-                          })()}
-                          alt={vendor.store_name}
-                          className="w-full h-32 sm:h-40 object-cover"
-                          fallback="https://placehold.co/600x400/e2e8f0/64748b?text=No+Image"
-                          onError={() => {
-                            console.log('Image error for vendor:', vendor.store_name);
-                          }}
-                        />
-                        <div className="p-4">
-                          <h3 className="font-bold text-black text-base sm:text-lg truncate">{vendor.store_name}</h3>
-                          <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-1">{vendor.description}</p>
-                          {/* Vendor Rating Display */}
-                          {vendorRatings[vendor.id] && vendorRatings[vendor.id].reviewCount > 0 && (
-                            <div className="flex items-center mt-2">
-                              <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                              <span className="ml-1 text-sm font-medium text-gray-700">
-                                {vendorRatings[vendor.id].avgRating.toFixed(1)}
-                              </span>
-                              <span className="ml-1 text-xs text-gray-500">
-                                ({vendorRatings[vendor.id].reviewCount} reviews)
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  No student vendors available yet
-                </div>
-              )}
-            </section>
-
-            {lateNightVendors.length > 0 && (
-              <section className="mb-12">
-                <div className="flex items-center space-x-2 mb-4 sm:mb-6">
-                  <Moon className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500" />
-                  <h2 className="text-xl sm:text-2xl font-bold text-amber-500">Late-Night Vendors</h2>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                  {lateNightVendors.map(vendor => (
+            {/* Announcement Carousel (Hero) */}
+            {banners.length > 0 && (
+              <section className="mb-8">
+                <div
+                  ref={carouselRef}
+                  className="relative h-52 sm:h-60 mx-4 rounded-3xl overflow-hidden shadow-xl shadow-black/30"
+                >
+                  {banners.map((banner, index) => (
                     <div
-                      key={vendor.id}
-                      onClick={() => handleSellerClick(vendor.id, 'vendor', vendor.store_name)}
-                      role="button"
-                      tabIndex={0}
-                      aria-pressed={selectedSeller !== null && (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === vendor.id}
-                      aria-label={`Select ${vendor.store_name}`}
-                      className={
-                        `bg-white rounded-2xl border border-stone-200 p-6 cursor-pointer relative transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 ${selectedSeller !== null && (selectedSeller as { id: string; type: 'cafeteria' | 'vendor'; name: string }).id === vendor.id ? 'border-orange-500 bg-orange-50' : 'border-stone-200 hover:border-orange-300'}`
-                      }
+                      key={banner.id}
+                      className={`absolute inset-0 transition-opacity duration-500 ${index === currentBanner ? 'opacity-100' : 'opacity-0'
+                        }`}
                     >
-                      <span className="absolute top-2 right-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full flex items-center">
-                        <Moon className="h-3 w-3 mr-1" /> Late Night
-                      </span>
-                      <LazyImage
-                        src={(() => {
-                          const supabaseUrl = getSupabaseImageUrl(vendor.image_url || null, 'vendor-logos', 'vendor-logos');
-                          return supabaseUrl || vendor.image_url || getImagePath(vendor.id, 'vendor');
-                        })()}
-                        alt={vendor.store_name}
-                        className="w-full h-32 sm:h-40 object-cover rounded-xl mb-4"
-                        fallback="https://placehold.co/600x400/e2e8f0/64748b?text=No+Image"
+                      <img
+                        src={banner.image_url}
+                        alt={banner.title}
+                        className="w-full h-full object-cover"
                       />
-                      <h3 className="font-bold text-stone-800 text-lg sm:text-xl truncate">{vendor.store_name}</h3>
-                      <p className="text-xs sm:text-sm text-stone-600 mt-1 line-clamp-1">{vendor.description}</p>
-                      {/* Vendor Rating Display */}
-                      {vendorRatings[vendor.id] && vendorRatings[vendor.id].reviewCount > 0 && (
-                        <div className="flex items-center mt-2">
-                          <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                          <span className="ml-1 text-sm font-medium text-stone-700">
-                            {vendorRatings[vendor.id].avgRating.toFixed(1)}
-                          </span>
-                          <span className="ml-1 text-xs text-stone-500">
-                            ({vendorRatings[vendor.id].reviewCount} reviews)
-                          </span>
+                      <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/30 flex flex-col justify-center px-8">
+                        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">{banner.title}</h2>
+                        {banner.subtitle && (
+                          <p className="text-white/80 text-base">{banner.subtitle}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {renderCarouselDots()}
+                </div>
+              </section>
+            )}
+
+            {/* Category Section */}
+            <section className="mb-8 px-4">
+              <div className="flex space-x-3 overflow-x-auto hide-scrollbar pb-2">
+                {categories.map(renderCategoryTab)}
+              </div>
+            </section>
+
+            {/* Cafeterias Section - Show only when Cafeterias tab is active */}
+            {activeTab === 'cafeterias' && (
+              <>
+                <section className="mb-10">
+                  <div className="flex items-center justify-between px-4 mb-5">
+                    <h2 className="text-xl font-bold text-white">Available Cafeterias</h2>
+                    <button className="text-green-400 text-sm font-semibold hover:text-green-300">See All</button>
+                  </div>
+                  {loading ? (
+                    <div className="flex overflow-hidden px-4">
+                      <div className="w-full">
+                        <CardSkeleton />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex overflow-x-auto space-x-4 px-4 hide-scrollbar snap-x snap-mandatory">
+                      {filteredCafeterias.map(cafeteria => (
+                        <div key={cafeteria.id} className="flex-shrink-0 w-[85vw] max-w-sm snap-start">
+                          {renderCafeteriaCard(cafeteria)}
                         </div>
-                      )}
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {/* Late Night Vendors Section - Show only when Cafeterias tab is active */}
+                {lateNightVendors.length > 0 && (
+                  <section className="mb-10">
+                    <div className="flex items-center space-x-2 px-4 mb-5">
+                      <Moon className="w-5 h-5 text-purple-400" />
+                      <h2 className="text-xl font-bold text-white">Late Night Vendors</h2>
+                    </div>
+                    <div className="flex overflow-x-auto space-x-4 px-4 hide-scrollbar snap-x snap-mandatory">
+                      {lateNightVendors.map(vendor => (
+                        <div key={vendor.id} className="flex-shrink-0 w-[85vw] max-w-sm snap-start">
+                          {renderVendorCard(vendor, true)}
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </>
+            )}
+
+            {/* Trusted Vendors Section - Show only when Vendors tab is active */}
+            {activeTab === 'vendors' && studentVendors.length > 0 && (
+              <section className="mb-10">
+                <div className="flex items-center space-x-2 px-4 mb-5">
+                  <h2 className="text-xl font-bold text-white">Trusted Campus Vendors</h2>
+                </div>
+                <div className="flex overflow-x-auto space-x-4 px-4 hide-scrollbar snap-x snap-mandatory">
+                  {studentVendors.map(vendor => (
+                    <div key={vendor.id} className="flex-shrink-0 w-[85vw] max-w-sm snap-start">
+                      {renderVendorCard(vendor, false)}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Late Night Tab - Show late night vendors only */}
+            {activeTab === 'late_night' && lateNightVendors.length > 0 && (
+              <section className="mb-10">
+                <div className="flex items-center space-x-2 px-4 mb-5">
+                  <Moon className="w-5 h-5 text-purple-400" />
+                  <h2 className="text-xl font-bold text-white">Late Night Vendors</h2>
+                </div>
+                <div className="flex overflow-x-auto space-x-4 px-4 hide-scrollbar snap-x snap-mandatory">
+                  {lateNightVendors.map(vendor => (
+                    <div key={vendor.id} className="flex-shrink-0 w-[85vw] max-w-sm snap-start">
+                      {renderVendorCard(vendor, true)}
                     </div>
                   ))}
                 </div>
@@ -843,67 +891,97 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
             )}
           </>
         ) : (
-          <section className="mb-20">
-            <div ref={(el) => { categoryRefs.current['all'] = el; }}>
-              {groupedCategories.map(({ category, items }) => (
-                <div
-                  key={category}
-                  ref={(el) => { categoryRefs.current[category] = el; }}
-                  className="mb-8"
-                >
-                  <div className="flex items-center space-x-2 mb-4">
-                    <h2 className="text-xl sm:text-2xl font-bold text-amber-500">{category}</h2>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                    {items.map(item => (
-                      <MenuItemCard
-                        key={item.id}
-                        item={item}
-                        quantity={itemQuantities[item.id] || 0}
-                        onQuantityChange={(_, newQuantity) => handleQuantityChange(item.id, newQuantity)}
-                        isFavorite={favorites.includes(item.id)}
-                        onToggleFavorite={() => toggleFavorite(item.id)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
+          /* Seller Detail View */
+          <section className="px-4 pt-2">
+            {/* Back button and seller info */}
+            <div className="flex items-center mb-4">
+              <button
+                onClick={() => {
+                  setSelectedSeller(null);
+                  setMenuItems([]);
+                  setGlobalSearchQuery('');
+                }}
+                className="flex items-center space-x-2 text-gray-300 hover:text-green-400 transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                <span className="font-medium">Back</span>
+              </button>
             </div>
+
+            {/* Category filter tabs */}
+            {sellerFilteredMenuItems.length > 0 && (
+              <div className="sticky top-0 bg-[#121212] py-3 -mx-4 px-4 border-b border-gray-800 mb-4 z-30">
+                <div className="flex overflow-x-auto space-x-2 hide-scrollbar">
+                  {groupedSellerCategories.map(({ category }) => (
+                    <button
+                      key={category}
+                      onClick={() => handleCategoryClick(category)}
+                      className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-all ${pulseCategory === category
+                        ? 'bg-green-500 text-white'
+                        : activeCategory === category
+                          ? 'bg-green-500/20 text-green-400'
+                          : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                        }`}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Menu items by category */}
+            {groupedCategories.map(({ category, items }) => (
+              <div
+                key={category}
+                ref={(el) => { categoryRefs.current[category] = el; }}
+                className="mb-8"
+              >
+                <h2 className="text-lg font-bold text-white mb-4">{category}</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  {items.map(item => (
+                    <MenuItemCard
+                      key={item.id}
+                      item={item}
+                      quantity={itemQuantities[item.id] || 0}
+                      onQuantityChange={(_, newQuantity) => handleQuantityChange(item.id, newQuantity)}
+                      isFavorite={favorites.includes(item.id)}
+                      onToggleFavorite={() => toggleFavorite(item.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
 
             {sellerFilteredMenuItems.length === 0 && (
               <div className="text-center py-12">
-                <div className="text-6xl mb-4">🍽️</div>
-                <h3 className="text-xl font-bold text-gray-700 mb-2">
-                  {globalSearchQuery
-                    ? 'No items found'
-                    : showFavoritesOnly
-                      ? 'No favorite items yet'
-                      : 'No items available'}
+                <div className="w-20 h-20 mx-auto mb-4 bg-gray-800 rounded-full flex items-center justify-center">
+                  <Search className="w-10 h-10 text-gray-600" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">
+                  {globalSearchQuery ? 'No items found' : 'No items available'}
                 </h3>
-                <p className="text-gray-500">
-                  {globalSearchQuery
-                    ? 'Try adjusting your search'
-                    : showFavoritesOnly
-                      ? 'Tap the heart icon on items to save them!'
-                      : 'Check back later for new items'}
+                <p className="text-gray-400">
+                  {globalSearchQuery ? 'Try adjusting your search or filters' : 'Check back later for new items'}
                 </p>
+                {globalSearchQuery && (
+                  <button
+                    onClick={() => setGlobalSearchQuery('')}
+                    className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg font-medium"
+                  >
+                    Clear Search
+                  </button>
+                )}
               </div>
             )}
           </section>
         )}
-      </div>
+      </main>
 
-      {/* Toast notifications */}
-      <div className="fixed bottom-4 right-4 z-50 space-y-2">
-        {toasts.map(toast => (
-          <div
-            key={toast.id}
-            className={`bg-emerald-600 text-white px-4 py-2.5 rounded-xl shadow-lg transform transition-all duration-300 ${toast.isVisible ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}
-          >
-            {toast.message}
-          </div>
-        ))}
-      </div>
+      {/* Notifications Panel */}
+      {showNotifications && (
+        <NotificationsPanel onClose={() => setShowNotifications(false)} />
+      )}
 
       {/* Checkout Modal */}
       {showCheckout && (
@@ -917,7 +995,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
           onSuccess={() => {
             setCartPackCount(0);
             setShowCheckout(false);
-            showToast({ type: 'success', message: 'Order placed successfully!' });
+            toast.showToast({ type: 'success', message: 'Order placed successfully!' });
           }}
         />
       )}
@@ -930,22 +1008,17 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
           onClose={() => setShowVendorUpgrade(false)}
           onSuccess={async () => {
             setShowVendorUpgrade(false);
-            showToast({ type: 'success', message: 'Application submitted successfully! Awaiting approval.' });
-
-            // Refresh the profile data instead of reloading the page
+            toast.showToast({ type: 'success', message: 'Application submitted successfully!' });
             try {
               await refreshProfile();
-              // Optionally show another toast to inform user
-              showToast({ type: 'info', message: 'Profile updated. Please refresh if changes are not visible.' });
             } catch (error) {
               console.error('Error refreshing profile:', error);
-              // Fallback to showing a message to user
-              showToast({ type: 'warning', message: 'Please refresh the page to see profile changes.' });
             }
           }}
         />
       )}
-
     </div>
   );
 };
+
+export default CustomerHome;

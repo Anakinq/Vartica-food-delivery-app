@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Profile, Order } from '../../lib/supabase';
 import { AdminApprovalDashboard } from './AdminApprovalDashboard';
 import { DeliveryFeePromoCodesManager } from './DeliveryFeePromoCodesManager';
+import { BannerManagement } from './BannerManagement';
 import AdminSkeleton from './AdminSkeleton';
 import Pagination from '../common/Pagination';
 
@@ -37,10 +38,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
   const [orders, setOrders] = useState<Order[]>([]);
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRecord[]>([]);
   const [supportMessages, setSupportMessages] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'users' | 'orders' | 'withdrawals' | 'approvals' | 'support' | 'promo-codes'>('withdrawals');
+  const [activeTab, setActiveTab] = useState<'users' | 'orders' | 'withdrawals' | 'approvals' | 'support' | 'promo-codes' | 'banners'>('withdrawals');
   const [loading, setLoading] = useState(true);
   const [processingWithdrawal, setProcessingWithdrawal] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [showBannerManagement, setShowBannerManagement] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
 
@@ -553,6 +555,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                 >
                   Delivery Fee Promo Codes
                 </button>
+                <button
+                  onClick={() => setActiveTab('banners')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'banners'
+                    ? 'border-green-600 text-green-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                    }`}
+                >
+                  Banner Carousel
+                </button>
               </nav>
             </div>
 
@@ -843,6 +854,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
 
               {activeTab === 'promo-codes' && (
                 <DeliveryFeePromoCodesManager />
+              )}
+
+              {activeTab === 'banners' && (
+                <BannerManagement isOpen={true} onClose={() => setActiveTab('withdrawals')} />
               )}
             </div>
           </div>

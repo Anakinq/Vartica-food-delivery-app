@@ -57,6 +57,21 @@ function AppContent() {
   const [authView, setAuthView] = useState<'signin' | 'signup'>('signin');
   const [locationHash, setLocationHash] = useState(window.location.hash);
 
+  // Track previous hash for profile navigation
+  useEffect(() => {
+    const handleHashChange = () => {
+      const currentHash = window.location.hash;
+      if (currentHash === '#/profile' && locationHash && locationHash !== '#/profile') {
+        // Store the previous page before going to profile
+        sessionStorage.setItem('previous_page', locationHash);
+      }
+      setLocationHash(currentHash);
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [locationHash]);
+
   // Get effective role - use preferred role from sessionStorage if set, otherwise use profile role
   const getEffectiveRole = () => {
     if (!profile) return null;
@@ -71,23 +86,8 @@ function AppContent() {
   useEffect(() => {
     if (user && profile) {
       setLocationHash(window.location.hash || '');
-      // Check for preferred role on mount
-      const preferredRole = sessionStorage.getItem('preferredRole');
-      if (preferredRole) {
-        setSelectedRole(preferredRole as UserRole);
-        // Update hash to match preferred role
-        switch (preferredRole) {
-          case 'vendor':
-            window.location.hash = '#/vendor';
-            break;
-          case 'delivery_agent':
-            window.location.hash = '#/delivery';
-            break;
-          default:
-            window.location.hash = '';
-            break;
-        }
-      }
+      // Don't auto-redirect based on preferredRole - let user choose their view
+      // The RoleSwitcher component handles role switching
     }
   }, [user, profile]);
 
@@ -165,13 +165,32 @@ function AppContent() {
     // Handle profile
     if (locationHash === '#/profile') {
       const isVendor = profile.role === 'vendor' || (profile as any).role === 'late_night_vendor';
+      // Determine back navigation based on previous hash or role
+      const getBackHash = () => {
+        // If user is vendor, check if they came from vendor dashboard
+        if (isVendor) {
+          // Try to get previous page from sessionStorage
+          const previousPage = sessionStorage.getItem('previous_page');
+          if (previousPage?.startsWith('#/vendor')) {
+            return previousPage;
+          }
+          return '#/vendor';
+        }
+        return '';
+      };
       return (
         <div className="authenticated-view">
           <div className="main-content">
             <ProfileDashboard
-              onBack={() => { window.location.hash = ''; }}
+              onBack={() => {
+                sessionStorage.removeItem('previous_page');
+                window.location.hash = getBackHash();
+              }}
               onSignOut={() => signOut()}
-              onClose={() => { window.location.hash = ''; }}
+              onClose={() => {
+                sessionStorage.removeItem('previous_page');
+                window.location.hash = getBackHash();
+              }}
             />
           </div>
           {isVendor ? (
@@ -217,12 +236,37 @@ function AppContent() {
       return null;
     }
 
+    // Handle vendor dashboard routes
+    if (locationHash.startsWith('#/vendor')) {
+      // Store previous page before navigating to profile
+      const handleProfileClick = () => {
+        sessionStorage.setItem('previous_page', locationHash);
+        setShowProfile(true);
+      };
+
+      if (locationHash === '#/vendor' || locationHash === '#/vendor-orders' || locationHash === '#/vendor-earnings') {
+        return (
+          <div className="authenticated-view">
+            <div className="main-content">
+              {withSuspense(VendorDashboard)({ onShowProfile: handleProfileClick })}
+            </div>
+            <VendorBottomNavigation />
+          </div>
+        );
+      }
+    }
+
     // Handle customer route (for vendors who want to browse as customer)
     if (locationHash === '#/customer') {
+      // Store previous page before navigating to profile
+      const handleProfileClick = () => {
+        sessionStorage.setItem('previous_page', locationHash);
+        setShowProfile(true);
+      };
       return (
         <div className="authenticated-view">
           <div className="main-content">
-            {withSuspense(CustomerHome)({ onShowProfile: () => setShowProfile(true) })}
+            {withSuspense(CustomerHome)({ onShowProfile: handleProfileClick })}
           </div>
           <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
         </div>
