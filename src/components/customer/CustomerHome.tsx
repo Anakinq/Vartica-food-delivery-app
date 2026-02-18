@@ -560,7 +560,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         onClick={() => handleSellerClick(cafeteria.id, 'cafeteria', cafeteria.name)}
         className="bg-gray-800 rounded-2xl overflow-hidden shadow-lg shadow-black/20 border border-gray-700 cursor-pointer transition-all duration-200 hover:shadow-xl hover:shadow-green-500/10 hover:border-green-500/50"
       >
-        <div className="relative h-40 sm:h-48">
+        <div className="relative h-24">
           <LazyImage
             src={cafeteria.image_url || getImagePath(cafeteria.id, 'cafeteria', cafeteria.name)}
             alt={cafeteria.name}
@@ -573,8 +573,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
             </span>
           </div>
         </div>
-        <div className="p-4">
-          <h3 className="font-bold text-white text-lg truncate">{cafeteria.name}</h3>
+        <div className="p-3">
+          <h3 className="font-bold text-white text-base truncate">{cafeteria.name}</h3>
           <div className="flex items-center text-sm text-gray-400 mt-2">
             <MapPin className="w-4 h-4 mr-1.5" />
             <span className="truncate">Central Campus</span>
@@ -604,7 +604,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         onClick={() => handleSellerClick(vendor.id, 'vendor', vendor.store_name)}
         className="bg-gray-800 rounded-2xl overflow-hidden shadow-lg shadow-black/20 border border-gray-700 cursor-pointer transition-all duration-200 hover:shadow-xl hover:shadow-green-500/10 hover:border-green-500/50"
       >
-        <div className="relative h-40 sm:h-48">
+        <div className="relative h-24">
           <LazyImage
             src={vendor.image_url || getImagePath(vendor.id, 'vendor')}
             alt={vendor.store_name}
@@ -627,8 +627,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
             </div>
           )}
         </div>
-        <div className="p-4">
-          <h3 className="font-bold text-white text-lg truncate">{vendor.store_name}</h3>
+        <div className="p-3">
+          <h3 className="font-bold text-white text-base truncate">{vendor.store_name}</h3>
           <p className="text-sm text-gray-400 mt-1.5 line-clamp-1">{vendor.description || 'Student Vendor'}</p>
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-700">
             {rating && rating.reviewCount > 0 ? (
@@ -670,313 +670,316 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   };
 
   return (
-    <div className="min-h-screen bg-[#121212] w-full max-w-full">
-      {/* Header Section */}
-      <header className="bg-[#121212] border-b border-gray-800 sticky top-0 z-40">
-        <div className="px-4 pt-4 pb-2">
-          {/* Greeting and Location Row */}
-          <div className="flex justify-between items-start mb-3">
-            <div>
-              <p className="text-sm text-gray-400">{getGreeting()},</p>
-              <h1 className="text-2xl font-bold text-white">
-                {profile?.full_name || 'Student'}
-              </h1>
-            </div>
-            {/* Notification Bell */}
-            <button
-              onClick={() => setShowNotifications(true)}
-              className="relative p-2 hover:bg-gray-800 rounded-full transition-colors"
-            >
-              <Bell className="w-6 h-6 text-gray-300" />
-              {notificationCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
-                  {notificationCount > 99 ? '99+' : notificationCount}
-                </span>
-              )}
-            </button>
-          </div>
-
-
-        </div>
-
-        {/* Search Bar with Filter Toggle */}
-        <div className="px-4 pb-4">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-            <input
-              type="text"
-              value={globalSearchQuery}
-              onChange={(e) => setGlobalSearchQuery(e.target.value)}
-              placeholder={selectedSeller ? "Search menu items..." : "Search for food, vendors..."}
-              className="w-full pl-12 pr-14 py-3.5 bg-gray-800 border border-gray-700 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm text-white placeholder-gray-500 shadow-inner"
-            />
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-xl transition-colors ${showFilters ? 'bg-green-500 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-            >
-              <SlidersHorizontal className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Filter Chips */}
-          {showFilters && (
-            <div className="mt-3 space-y-3">
-              {/* Sort Options */}
+    <div className="flex flex-col h-screen bg-[#121212]">
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto pb-16">
+        {/* Header Section */}
+        <header className="bg-[#121212] border-b border-gray-800 sticky top-0 z-40">
+          <div className="px-4 pt-4">
+            {/* Greeting and Location Row */}
+            <div className="flex justify-between items-start mb-3">
               <div>
-                <p className="text-xs text-gray-400 mb-2">Sort by</p>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { value: 'popular', label: 'Popular' },
-                    { value: 'newest', label: 'Newest' },
-                    { value: 'name', label: 'Name' },
-                  ].map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => setSortBy(option.value)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${sortBy === option.value
-                        ? 'bg-green-500 text-white'
-                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                        }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
+                <p className="text-sm text-gray-400">{getGreeting()},</p>
+                <h1 className="text-2xl font-bold text-white">
+                  {profile?.full_name || 'Student'}
+                </h1>
               </div>
-
-              {/* Rating Filter */}
-              <div>
-                <p className="text-xs text-gray-400 mb-2">Minimum Rating</p>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { value: 'all', label: 'All' },
-                    { value: '4', label: '4★+' },
-                    { value: '3', label: '3★+' },
-                  ].map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => setRatingFilter(option.value)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${ratingFilter === option.value
-                        ? 'bg-green-500 text-white'
-                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                        }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="pb-24">
-        {!selectedSeller ? (
-          <>
-            {/* Announcement Carousel (Hero) */}
-            {banners.length > 0 && (
-              <section className="mb-8">
-                <div
-                  ref={carouselRef}
-                  className="relative h-52 sm:h-60 mx-4 rounded-3xl overflow-hidden shadow-xl shadow-black/30"
-                >
-                  {banners.map((banner, index) => (
-                    <div
-                      key={banner.id}
-                      className={`absolute inset-0 transition-opacity duration-500 ${index === currentBanner ? 'opacity-100' : 'opacity-0'
-                        }`}
-                    >
-                      <img
-                        src={banner.image_url}
-                        alt={banner.title}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/30 flex flex-col justify-center px-8">
-                        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">{banner.title}</h2>
-                        {banner.subtitle && (
-                          <p className="text-white/80 text-base">{banner.subtitle}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {renderCarouselDots()}
-                </div>
-              </section>
-            )}
-
-            {/* Category Section */}
-            <section className="mb-8 px-4">
-              <div className="flex space-x-3 overflow-x-auto hide-scrollbar pb-2">
-                {categories.map(renderCategoryTab)}
-              </div>
-            </section>
-
-            {/* Cafeterias Section - Show only when Cafeterias tab is active */}
-            {activeTab === 'cafeterias' && (
-              <>
-                <section className="mb-10">
-                  <div className="flex items-center justify-between px-4 mb-5">
-                    <h2 className="text-xl font-bold text-white">Available Cafeterias</h2>
-                    <button className="text-green-400 text-sm font-semibold hover:text-green-300">See All</button>
-                  </div>
-                  {loading ? (
-                    <div className="flex overflow-hidden px-4">
-                      <div className="w-full">
-                        <CardSkeleton />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex overflow-x-auto space-x-4 px-4 hide-scrollbar snap-x snap-mandatory">
-                      {filteredCafeterias.map(cafeteria => (
-                        <div key={cafeteria.id} className="flex-shrink-0 w-[85vw] max-w-sm snap-start">
-                          {renderCafeteriaCard(cafeteria)}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </section>
-
-                {/* Late Night Vendors Section - Show only when Cafeterias tab is active */}
-                {lateNightVendors.length > 0 && (
-                  <section className="mb-10">
-                    <div className="flex items-center space-x-2 px-4 mb-5">
-                      <Moon className="w-5 h-5 text-purple-400" />
-                      <h2 className="text-xl font-bold text-white">Late Night Vendors</h2>
-                    </div>
-                    <div className="flex overflow-x-auto space-x-4 px-4 hide-scrollbar snap-x snap-mandatory">
-                      {lateNightVendors.map(vendor => (
-                        <div key={vendor.id} className="flex-shrink-0 w-[85vw] max-w-sm snap-start">
-                          {renderVendorCard(vendor, true)}
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                )}
-              </>
-            )}
-
-            {/* Trusted Vendors Section - Show only when Vendors tab is active */}
-            {activeTab === 'vendors' && studentVendors.length > 0 && (
-              <section className="mb-10">
-                <div className="flex items-center space-x-2 px-4 mb-5">
-                  <h2 className="text-xl font-bold text-white">Trusted Campus Vendors</h2>
-                </div>
-                <div className="flex overflow-x-auto space-x-4 px-4 hide-scrollbar snap-x snap-mandatory">
-                  {studentVendors.map(vendor => (
-                    <div key={vendor.id} className="flex-shrink-0 w-[85vw] max-w-sm snap-start">
-                      {renderVendorCard(vendor, false)}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Late Night Tab - Show late night vendors only */}
-            {activeTab === 'late_night' && lateNightVendors.length > 0 && (
-              <section className="mb-10">
-                <div className="flex items-center space-x-2 px-4 mb-5">
-                  <Moon className="w-5 h-5 text-purple-400" />
-                  <h2 className="text-xl font-bold text-white">Late Night Vendors</h2>
-                </div>
-                <div className="flex overflow-x-auto space-x-4 px-4 hide-scrollbar snap-x snap-mandatory">
-                  {lateNightVendors.map(vendor => (
-                    <div key={vendor.id} className="flex-shrink-0 w-[85vw] max-w-sm snap-start">
-                      {renderVendorCard(vendor, true)}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-          </>
-        ) : (
-          /* Seller Detail View */
-          <section className="px-4 pt-2">
-            {/* Back button and seller info */}
-            <div className="flex items-center mb-4">
+              {/* Notification Bell */}
               <button
-                onClick={() => {
-                  setSelectedSeller(null);
-                  setMenuItems([]);
-                  setGlobalSearchQuery('');
-                }}
-                className="flex items-center space-x-2 text-gray-300 hover:text-green-400 transition-colors"
+                onClick={() => setShowNotifications(true)}
+                className="relative p-2 hover:bg-gray-800 rounded-full transition-colors"
               >
-                <ArrowLeft className="w-5 h-5" />
-                <span className="font-medium">Back</span>
+                <Bell className="w-6 h-6 text-gray-300" />
+                {notificationCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                    {notificationCount > 99 ? '99+' : notificationCount}
+                  </span>
+                )}
               </button>
             </div>
 
-            {/* Category filter tabs */}
-            {sellerFilteredMenuItems.length > 0 && (
-              <div className="sticky top-0 bg-[#121212] py-3 -mx-4 px-4 border-b border-gray-800 mb-4 z-30">
-                <div className="flex overflow-x-auto space-x-2 hide-scrollbar">
-                  {groupedSellerCategories.map(({ category }) => (
-                    <button
-                      key={category}
-                      onClick={() => handleCategoryClick(category)}
-                      className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-all ${pulseCategory === category
-                        ? 'bg-green-500 text-white'
-                        : activeCategory === category
-                          ? 'bg-green-500/20 text-green-400'
-                          : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                        }`}
-                    >
-                      {category}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
 
-            {/* Menu items by category */}
-            {groupedCategories.map(({ category, items }) => (
-              <div
-                key={category}
-                ref={(el) => { categoryRefs.current[category] = el; }}
-                className="mb-8"
+          </div>
+
+          {/* Search Bar with Filter Toggle */}
+          <div className="px-4 pb-4">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <input
+                type="text"
+                value={globalSearchQuery}
+                onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                placeholder={selectedSeller ? "Search menu items..." : "Search for food, vendors..."}
+                className="w-full pl-12 pr-14 py-3.5 bg-gray-800 border border-gray-700 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm text-white placeholder-gray-500 shadow-inner"
+              />
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-xl transition-colors ${showFilters ? 'bg-green-500 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
               >
-                <h2 className="text-lg font-bold text-white mb-4">{category}</h2>
-                <div className="grid grid-cols-2 gap-4">
-                  {items.map(item => (
-                    <MenuItemCard
-                      key={item.id}
-                      item={item}
-                      quantity={itemQuantities[item.id] || 0}
-                      onQuantityChange={(_, newQuantity) => handleQuantityChange(item.id, newQuantity)}
-                      isFavorite={favorites.includes(item.id)}
-                      onToggleFavorite={() => toggleFavorite(item.id)}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
+                <SlidersHorizontal className="w-4 h-4" />
+              </button>
+            </div>
 
-            {sellerFilteredMenuItems.length === 0 && (
-              <div className="text-center py-12">
-                <div className="w-20 h-20 mx-auto mb-4 bg-gray-800 rounded-full flex items-center justify-center">
-                  <Search className="w-10 h-10 text-gray-600" />
+            {/* Filter Chips */}
+            {showFilters && (
+              <div className="mt-3 space-y-3">
+                {/* Sort Options */}
+                <div>
+                  <p className="text-xs text-gray-400 mb-2">Sort by</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: 'popular', label: 'Popular' },
+                      { value: 'newest', label: 'Newest' },
+                      { value: 'name', label: 'Name' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => setSortBy(option.value)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${sortBy === option.value
+                          ? 'bg-green-500 text-white'
+                          : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                          }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">
-                  {globalSearchQuery ? 'No items found' : 'No items available'}
-                </h3>
-                <p className="text-gray-400">
-                  {globalSearchQuery ? 'Try adjusting your search or filters' : 'Check back later for new items'}
-                </p>
-                {globalSearchQuery && (
-                  <button
-                    onClick={() => setGlobalSearchQuery('')}
-                    className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg font-medium"
-                  >
-                    Clear Search
-                  </button>
-                )}
+
+                {/* Rating Filter */}
+                <div>
+                  <p className="text-xs text-gray-400 mb-2">Minimum Rating</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: 'all', label: 'All' },
+                      { value: '4', label: '4★+' },
+                      { value: '3', label: '3★+' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => setRatingFilter(option.value)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${ratingFilter === option.value
+                          ? 'bg-green-500 text-white'
+                          : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                          }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
-          </section>
-        )}
-      </main>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="pb-24">
+          {!selectedSeller ? (
+            <>
+              {/* Announcement Carousel (Hero) */}
+              {banners.length > 0 && (
+                <section className="mb-8">
+                  <div
+                    ref={carouselRef}
+                    className="relative h-52 sm:h-60 mx-4 rounded-3xl overflow-hidden shadow-xl shadow-black/30"
+                  >
+                    {banners.map((banner, index) => (
+                      <div
+                        key={banner.id}
+                        className={`absolute inset-0 transition-opacity duration-500 ${index === currentBanner ? 'opacity-100' : 'opacity-0'
+                          }`}
+                      >
+                        <img
+                          src={banner.image_url}
+                          alt={banner.title}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/30 flex flex-col justify-center px-8">
+                          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">{banner.title}</h2>
+                          {banner.subtitle && (
+                            <p className="text-white/80 text-base">{banner.subtitle}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {renderCarouselDots()}
+                  </div>
+                </section>
+              )}
+
+              {/* Category Section */}
+              <section className="mb-8 px-4">
+                <div className="flex space-x-3 overflow-x-auto hide-scrollbar pb-2">
+                  {categories.map(renderCategoryTab)}
+                </div>
+              </section>
+
+              {/* Cafeterias Section - Show only when Cafeterias tab is active */}
+              {activeTab === 'cafeterias' && (
+                <>
+                  <section className="mb-10">
+                    <div className="flex items-center justify-between px-4 mb-5">
+                      <h2 className="text-xl font-bold text-white">Available Cafeterias</h2>
+                      <button className="text-green-400 text-sm font-semibold hover:text-green-300">See All</button>
+                    </div>
+                    {loading ? (
+                      <div className="flex overflow-hidden px-4">
+                        <div className="w-full">
+                          <CardSkeleton />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex overflow-x-auto space-x-4 px-4 hide-scrollbar snap-x snap-mandatory">
+                        {filteredCafeterias.map(cafeteria => (
+                          <div key={cafeteria.id} className="flex-shrink-0 w-[85vw] max-w-sm snap-start">
+                            {renderCafeteriaCard(cafeteria)}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+
+                  {/* Late Night Vendors Section - Show only when Cafeterias tab is active */}
+                  {lateNightVendors.length > 0 && (
+                    <section className="mb-10">
+                      <div className="flex items-center space-x-2 px-4 mb-5">
+                        <Moon className="w-5 h-5 text-purple-400" />
+                        <h2 className="text-xl font-bold text-white">Late Night Vendors</h2>
+                      </div>
+                      <div className="flex overflow-x-auto space-x-4 px-4 hide-scrollbar snap-x snap-mandatory">
+                        {lateNightVendors.map(vendor => (
+                          <div key={vendor.id} className="flex-shrink-0 w-[85vw] max-w-sm snap-start">
+                            {renderVendorCard(vendor, true)}
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </>
+              )}
+
+              {/* Trusted Vendors Section - Show only when Vendors tab is active */}
+              {activeTab === 'vendors' && studentVendors.length > 0 && (
+                <section className="mb-10">
+                  <div className="flex items-center space-x-2 px-4 mb-5">
+                    <h2 className="text-xl font-bold text-white">Trusted Campus Vendors</h2>
+                  </div>
+                  <div className="flex overflow-x-auto space-x-4 px-4 hide-scrollbar snap-x snap-mandatory">
+                    {studentVendors.map(vendor => (
+                      <div key={vendor.id} className="flex-shrink-0 w-[85vw] max-w-sm snap-start">
+                        {renderVendorCard(vendor, false)}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Late Night Tab - Show late night vendors only */}
+              {activeTab === 'late_night' && lateNightVendors.length > 0 && (
+                <section className="mb-10">
+                  <div className="flex items-center space-x-2 px-4 mb-5">
+                    <Moon className="w-5 h-5 text-purple-400" />
+                    <h2 className="text-xl font-bold text-white">Late Night Vendors</h2>
+                  </div>
+                  <div className="flex overflow-x-auto space-x-4 px-4 hide-scrollbar snap-x snap-mandatory">
+                    {lateNightVendors.map(vendor => (
+                      <div key={vendor.id} className="flex-shrink-0 w-[85vw] max-w-sm snap-start">
+                        {renderVendorCard(vendor, true)}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </>
+          ) : (
+            /* Seller Detail View */
+            <section className="px-4 pt-2">
+              {/* Back button and seller info */}
+              <div className="flex items-center mb-4">
+                <button
+                  onClick={() => {
+                    setSelectedSeller(null);
+                    setMenuItems([]);
+                    setGlobalSearchQuery('');
+                  }}
+                  className="flex items-center space-x-2 text-gray-300 hover:text-green-400 transition-colors"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                  <span className="font-medium">Back</span>
+                </button>
+              </div>
+
+              {/* Category filter tabs */}
+              {sellerFilteredMenuItems.length > 0 && (
+                <div className="sticky top-0 bg-[#121212] py-3 -mx-4 px-4 border-b border-gray-800 mb-4 z-30">
+                  <div className="flex overflow-x-auto space-x-2 hide-scrollbar">
+                    {groupedSellerCategories.map(({ category }) => (
+                      <button
+                        key={category}
+                        onClick={() => handleCategoryClick(category)}
+                        className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-all ${pulseCategory === category
+                          ? 'bg-green-500 text-white'
+                          : activeCategory === category
+                            ? 'bg-green-500/20 text-green-400'
+                            : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                          }`}
+                      >
+                        {category}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Menu items by category */}
+              {groupedCategories.map(({ category, items }) => (
+                <div
+                  key={category}
+                  ref={(el) => { categoryRefs.current[category] = el; }}
+                  className="mb-8"
+                >
+                  <h2 className="text-lg font-bold text-white mb-4">{category}</h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    {items.map(item => (
+                      <MenuItemCard
+                        key={item.id}
+                        item={item}
+                        quantity={itemQuantities[item.id] || 0}
+                        onQuantityChange={(_, newQuantity) => handleQuantityChange(item.id, newQuantity)}
+                        isFavorite={favorites.includes(item.id)}
+                        onToggleFavorite={() => toggleFavorite(item.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {sellerFilteredMenuItems.length === 0 && (
+                <div className="text-center py-12">
+                  <div className="w-20 h-20 mx-auto mb-4 bg-gray-800 rounded-full flex items-center justify-center">
+                    <Search className="w-10 h-10 text-gray-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">
+                    {globalSearchQuery ? 'No items found' : 'No items available'}
+                  </h3>
+                  <p className="text-gray-400">
+                    {globalSearchQuery ? 'Try adjusting your search or filters' : 'Check back later for new items'}
+                  </p>
+                  {globalSearchQuery && (
+                    <button
+                      onClick={() => setGlobalSearchQuery('')}
+                      className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg font-medium"
+                    >
+                      Clear Search
+                    </button>
+                  )}
+                </div>
+              )}
+            </section>
+          )}
+        </main>
+      </div>
 
       {/* Notifications Panel */}
       {showNotifications && (
@@ -1017,6 +1020,45 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
           }}
         />
       )}
+
+      {/* Bottom Navigation - Fixed at bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-[#121212] border-t border-gray-800 z-50">
+        <div className="flex justify-around items-center h-20 safe-area-bottom">
+          <button
+            onClick={() => handleNavClick('home')}
+            className="flex flex-col items-center justify-center flex-1 py-2"
+          >
+            <Home className="w-6 h-6 text-green-400" />
+            <span className="text-xs text-green-400 mt-1">Home</span>
+          </button>
+          <button
+            onClick={() => handleNavClick('orders')}
+            className="flex flex-col items-center justify-center flex-1 py-2"
+          >
+            <Package className="w-6 h-6 text-gray-400" />
+            <span className="text-xs text-gray-400 mt-1">Orders</span>
+          </button>
+          <button
+            onClick={() => handleNavClick('notifications')}
+            className="flex flex-col items-center justify-center flex-1 py-2 relative"
+          >
+            <Bell className="w-6 h-6 text-gray-400" />
+            {notificationCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                {notificationCount > 99 ? '99+' : notificationCount}
+              </span>
+            )}
+            <span className="text-xs text-gray-400 mt-1">Alerts</span>
+          </button>
+          <button
+            onClick={() => handleNavClick('profile')}
+            className="flex flex-col items-center justify-center flex-1 py-2"
+          >
+            <User className="w-6 h-6 text-gray-400" />
+            <span className="text-xs text-gray-400 mt-1">Profile</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

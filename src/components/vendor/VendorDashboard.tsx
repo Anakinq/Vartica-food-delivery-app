@@ -3,7 +3,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import {
   LogOut, Package, MessageCircle, Wallet, Settings, Menu, X,
   CheckCircle, Clock, DollarSign, Star, Phone, ChevronRight, BarChart3,
-  Building2, CreditCard, Plus, ShoppingBag, ArrowLeftRight, Store, Edit2
+  Building2, CreditCard, Plus, ShoppingBag, ArrowLeftRight, Store, Edit2,
+  Home, User
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Order, Vendor, Profile } from '../../lib/supabase';
@@ -124,7 +125,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node) &&
-          hamburgerButtonRef.current && !hamburgerButtonRef.current.contains(event.target as Node)) {
+        hamburgerButtonRef.current && !hamburgerButtonRef.current.contains(event.target as Node)) {
         setShowMobileMenu(false);
       }
     };
@@ -456,11 +457,11 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         throw error;
       }
 
-      showToast({ 
-        type: 'success', 
-        message: !product.is_available ? 'Product is now available!' : 'Product marked as out of stock' 
+      showToast({
+        type: 'success',
+        message: !product.is_available ? 'Product is now available!' : 'Product marked as out of stock'
       });
-      
+
       // Refresh products list
       fetchProducts(vendor?.id || '');
     } catch (error: any) {
@@ -591,13 +592,15 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-[#121212]">
       {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-40">
-        <div className="max-w-full mx-4 sm:max-w-7xl sm:mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-14 sm:h-16">
-            <div className="flex items-center min-w-0 flex-1">
-              <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">{vendor?.store_name || 'Vendor Dashboard'}</h1>
+      <header className="bg-[#121212] border-b border-gray-800 sticky top-0 z-40">
+        <div className="px-4 pt-4 pb-2">
+          <div className="flex justify-between items-start mb-3">
+            <div>
+              <p className="text-sm text-gray-400">Good Morning,</p>
+              <h1 className="text-2xl font-bold text-white">
+                {vendor?.store_name || 'Vendor Dashboard'}</h1>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
@@ -650,7 +653,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
             <div ref={menuRef} className="fixed right-4 top-14 sm:top-16 bg-white shadow-lg rounded-md py-2 w-48 z-[100] border border-gray-200">
               <div className="flex items-center justify-between px-4 py-2 border-b">
                 <span className="text-sm font-medium text-gray-700">Menu</span>
-                <button 
+                <button
                   onClick={() => setShowMobileMenu(false)}
                   className="p-1 hover:bg-gray-100 rounded"
                 >
@@ -719,229 +722,232 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         </div>
       </header>
 
-      <div className="max-w-full mx-4 sm:max-w-7xl sm:mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 mb-6 sm:mb-8 overflow-hidden">
-          <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between">
-              <div className="min-w-0">
-                <p className="text-xs sm:text-sm text-gray-600 truncate">Orders</p>
-                <p className="text-lg sm:text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto pb-20">
+        <div className="px-4 py-4">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 mb-6 sm:mb-8 overflow-hidden">
+            <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm text-gray-600 truncate">Orders</p>
+                  <p className="text-lg sm:text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
+                </div>
+                <Package className="h-8 w-8 sm:h-10 sm:w-10 text-purple-600 flex-shrink-0" />
               </div>
-              <Package className="h-8 w-8 sm:h-10 sm:w-10 text-purple-600 flex-shrink-0" />
+            </div>
+
+            <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm text-gray-600 truncate">Wallet</p>
+                  <p className="text-sm sm:text-xl font-bold text-green-600 truncate">{formatCurrency(walletBalance)}</p>
+                </div>
+                <Wallet className="h-8 w-8 sm:h-10 sm:w-10 text-green-600 flex-shrink-0" />
+              </div>
+              <button
+                onClick={() => setShowWithdrawModal(true)}
+                disabled={walletBalance < 100}
+                className="mt-2 w-full py-1.5 sm:py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
+              >
+                Withdraw
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm text-gray-600 truncate">Revenue</p>
+                  <p className="text-sm sm:text-xl font-bold text-gray-900 truncate">{formatCurrency(stats.totalRevenue)}</p>
+                </div>
+                <DollarSign className="h-8 w-8 sm:h-10 sm:w-10 text-green-600 flex-shrink-0" />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm text-gray-600 truncate">Rating</p>
+                  <p className="text-sm sm:text-xl font-bold text-gray-900">
+                    {stats.avgRating > 0 ? stats.avgRating.toFixed(1) : 'N/A'}
+                  </p>
+                </div>
+                <Star className="h-8 w-8 sm:h-10 sm:w-10 text-yellow-500 flex-shrink-0" />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm text-gray-600 truncate">Reviews</p>
+                  <p className="text-lg sm:text-xl font-bold text-gray-900">{stats.reviewCount}</p>
+                </div>
+                <BarChart3 className="h-8 w-8 sm:h-10 sm:w-10 text-blue-600 flex-shrink-0" />
+              </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between">
-              <div className="min-w-0">
-                <p className="text-xs sm:text-sm text-gray-600 truncate">Wallet</p>
-                <p className="text-sm sm:text-xl font-bold text-green-600 truncate">{formatCurrency(walletBalance)}</p>
-              </div>
-              <Wallet className="h-8 w-8 sm:h-10 sm:w-10 text-green-600 flex-shrink-0" />
-            </div>
-            <button
-              onClick={() => setShowWithdrawModal(true)}
-              disabled={walletBalance < 100}
-              className="mt-2 w-full py-1.5 sm:py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
-            >
-              Withdraw
-            </button>
+          {/* Tab Navigation */}
+          <div className="border-b border-gray-200 mb-4 sm:mb-6">
+            <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto -mb-px">
+              <button
+                onClick={() => setActiveTab('pending')}
+                className={`py-2 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'pending'
+                  ? 'border-purple-600 text-purple-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                  }`}
+              >
+                🕐 <span className="hidden sm:inline">Pending</span> ({pendingOrders.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('active')}
+                className={`py-2 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'active'
+                  ? 'border-purple-600 text-purple-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                  }`}
+              >
+                🔥 <span className="hidden sm:inline">Active</span> ({activeOrders.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('completed')}
+                className={`py-2 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'completed'
+                  ? 'border-purple-600 text-purple-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                  }`}
+              >
+                ✅ <span className="hidden sm:inline">Completed</span> ({completedOrders.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('products')}
+                className={`py-2 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'products'
+                  ? 'border-purple-600 text-purple-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                  }`}
+              >
+                📦 <span className="hidden sm:inline">Products</span> ({vendorProducts.length})
+              </button>
+            </nav>
           </div>
 
-          <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between">
-              <div className="min-w-0">
-                <p className="text-xs sm:text-sm text-gray-600 truncate">Revenue</p>
-                <p className="text-sm sm:text-xl font-bold text-gray-900 truncate">{formatCurrency(stats.totalRevenue)}</p>
-              </div>
-              <DollarSign className="h-8 w-8 sm:h-10 sm:w-10 text-green-600 flex-shrink-0" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between">
-              <div className="min-w-0">
-                <p className="text-xs sm:text-sm text-gray-600 truncate">Rating</p>
-                <p className="text-sm sm:text-xl font-bold text-gray-900">
-                  {stats.avgRating > 0 ? stats.avgRating.toFixed(1) : 'N/A'}
-                </p>
-              </div>
-              <Star className="h-8 w-8 sm:h-10 sm:w-10 text-yellow-500 flex-shrink-0" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between">
-              <div className="min-w-0">
-                <p className="text-xs sm:text-sm text-gray-600 truncate">Reviews</p>
-                <p className="text-lg sm:text-xl font-bold text-gray-900">{stats.reviewCount}</p>
-              </div>
-              <BarChart3 className="h-8 w-8 sm:h-10 sm:w-10 text-blue-600 flex-shrink-0" />
-            </div>
-          </div>
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="border-b border-gray-200 mb-4 sm:mb-6">
-          <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto -mb-px">
-            <button
-              onClick={() => setActiveTab('pending')}
-              className={`py-2 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'pending'
-                ? 'border-purple-600 text-purple-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
-            >
-              🕐 <span className="hidden sm:inline">Pending</span> ({pendingOrders.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('active')}
-              className={`py-2 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'active'
-                ? 'border-purple-600 text-purple-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
-            >
-              🔥 <span className="hidden sm:inline">Active</span> ({activeOrders.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('completed')}
-              className={`py-2 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'completed'
-                ? 'border-purple-600 text-purple-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
-            >
-              ✅ <span className="hidden sm:inline">Completed</span> ({completedOrders.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('products')}
-              className={`py-2 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'products'
-                ? 'border-purple-600 text-purple-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
-            >
-              📦 <span className="hidden sm:inline">Products</span> ({vendorProducts.length})
-            </button>
-          </nav>
-        </div>
-
-        {/* Orders List */}
-        <div className="space-y-4">
-          {activeTab === 'pending' && (
-            pendingOrders.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-xl">
-                <Clock className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600">No pending orders</p>
-              </div>
-            ) : (
-              pendingOrders.map(order => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  onAccept={() => handleAcceptOrder(order)}
-                  onChat={() => setSelectedOrderForChat(order)}
-                />
-              ))
-            )
-          )}
-
-          {activeTab === 'active' && (
-            activeOrders.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-xl">
-                <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600">No active orders</p>
-              </div>
-            ) : (
-              activeOrders.map(order => (
-                <ActiveOrderCard
-                  key={order.id}
-                  order={order}
-                  onStartPreparing={() => handleStartPreparing(order)}
-                  onMarkReady={() => handleMarkReady(order)}
-                  onChat={() => setSelectedOrderForChat(order)}
-                />
-              ))
-            )
-          )}
-
-          {activeTab === 'completed' && (
-            completedOrders.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-xl">
-                <CheckCircle className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600">No completed orders</p>
-              </div>
-            ) : (
-              completedOrders.slice(0, 10).map(order => (
-                <CompletedOrderCard key={order.id} order={order} />
-              ))
-            )
-          )}
-
-          {/* Products Grid */}
-          {activeTab === 'products' && (
-            <div>
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
-                <h3 className="text-base sm:text-lg font-bold text-gray-900">Your Products</h3>
-                <button
-                  onClick={() => setShowAddProductModal(true)}
-                  className="w-full sm:w-auto px-3 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 flex items-center justify-center gap-2 text-sm"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Product
-                </button>
-              </div>
-
-              {vendorProducts.length === 0 ? (
-                <div className="text-center py-8 sm:py-12 bg-white rounded-xl">
-                  <Package className="h-12 w-12 sm:h-16 sm:w-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
-                  <p className="text-gray-600 mb-3 sm:mb-4 text-sm sm:text-base">No products yet</p>
-                  <button
-                    onClick={() => setShowAddProductModal(true)}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 text-sm"
-                  >
-                    Add Your First Product
-                  </button>
+          {/* Orders List */}
+          <div className="space-y-4">
+            {activeTab === 'pending' && (
+              pendingOrders.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-xl">
+                  <Clock className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-600">No pending orders</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
-                  {vendorProducts.map((product) => (
-                    <div key={product.id} className="bg-white rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm">
-                      <div className="h-20 sm:h-32 rounded-lg bg-gray-100 overflow-hidden mb-2 sm:mb-3">
-                        <img
-                          src={product.image_url || '/images/1.jpg'}
-                          alt={product.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = '/images/1.jpg';
-                          }}
-                        />
-                      </div>
-                      <h4 className="text-xs sm:text-sm font-medium text-gray-900 line-clamp-1">{product.name}</h4>
-                      <p className="text-xs text-gray-500 line-clamp-1">{product.category}</p>
-                      <p className="text-sm sm:text-base font-bold text-purple-600 mt-1">₦{product.price.toLocaleString()}</p>
-                      <div className="flex items-center gap-1 sm:gap-2 mt-2">
-                        <button
-                          onClick={() => toggleProductAvailability(product)}
-                          className={`flex-1 px-2 py-1 rounded-full text-xs font-medium transition-colors ${product.is_available 
-                            ? 'bg-green-100 text-green-700 hover:bg-green-200' 
-                            : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
-                        >
-                          {product.is_available ? '✓' : '✗'}
-                        </button>
-                        <button
-                          onClick={() => setEditingProduct(product)}
-                          className="p-1 sm:p-1.5 text-gray-500 hover:text-purple-600"
-                          title="Edit Product"
-                        >
-                          <Edit2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                pendingOrders.map(order => (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    onAccept={() => handleAcceptOrder(order)}
+                    onChat={() => setSelectedOrderForChat(order)}
+                  />
+                ))
+              )
+            )}
+
+            {activeTab === 'active' && (
+              activeOrders.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-xl">
+                  <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-600">No active orders</p>
                 </div>
-              )}
-            </div>
-          )}
+              ) : (
+                activeOrders.map(order => (
+                  <ActiveOrderCard
+                    key={order.id}
+                    order={order}
+                    onStartPreparing={() => handleStartPreparing(order)}
+                    onMarkReady={() => handleMarkReady(order)}
+                    onChat={() => setSelectedOrderForChat(order)}
+                  />
+                ))
+              )
+            )}
+
+            {activeTab === 'completed' && (
+              completedOrders.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-xl">
+                  <CheckCircle className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-600">No completed orders</p>
+                </div>
+              ) : (
+                completedOrders.slice(0, 10).map(order => (
+                  <CompletedOrderCard key={order.id} order={order} />
+                ))
+              )
+            )}
+
+            {/* Products Grid */}
+            {activeTab === 'products' && (
+              <div>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900">Your Products</h3>
+                  <button
+                    onClick={() => setShowAddProductModal(true)}
+                    className="w-full sm:w-auto px-3 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Product
+                  </button>
+                </div>
+
+                {vendorProducts.length === 0 ? (
+                  <div className="text-center py-8 sm:py-12 bg-white rounded-xl">
+                    <Package className="h-12 w-12 sm:h-16 sm:w-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
+                    <p className="text-gray-600 mb-3 sm:mb-4 text-sm sm:text-base">No products yet</p>
+                    <button
+                      onClick={() => setShowAddProductModal(true)}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 text-sm"
+                    >
+                      Add Your First Product
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
+                    {vendorProducts.map((product) => (
+                      <div key={product.id} className="bg-white rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm">
+                        <div className="h-20 sm:h-32 rounded-lg bg-gray-100 overflow-hidden mb-2 sm:mb-3">
+                          <img
+                            src={product.image_url || '/images/1.jpg'}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = '/images/1.jpg';
+                            }}
+                          />
+                        </div>
+                        <h4 className="text-xs sm:text-sm font-medium text-gray-900 line-clamp-1">{product.name}</h4>
+                        <p className="text-xs text-gray-500 line-clamp-1">{product.category}</p>
+                        <p className="text-sm sm:text-base font-bold text-purple-600 mt-1">₦{product.price.toLocaleString()}</p>
+                        <div className="flex items-center gap-1 sm:gap-2 mt-2">
+                          <button
+                            onClick={() => toggleProductAvailability(product)}
+                            className={`flex-1 px-2 py-1 rounded-full text-xs font-medium transition-colors ${product.is_available
+                              ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                              : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
+                          >
+                            {product.is_available ? '✓' : '✗'}
+                          </button>
+                          <button
+                            onClick={() => setEditingProduct(product)}
+                            className="p-1 sm:p-1.5 text-gray-500 hover:text-purple-600"
+                            title="Edit Product"
+                          >
+                            <Edit2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

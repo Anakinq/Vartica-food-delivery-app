@@ -46,7 +46,7 @@ export default async function handler(req, res) {
         const user_id = agentData.user_id;
 
         // Get agent's wallet information
-        const { data: agentWallet, error: walletError } = await supabase
+        let { data: agentWallet, error: walletError } = await supabase
             .from('agent_wallets')
             .select('earnings_wallet_balance')
             .eq('agent_id', agent_id)

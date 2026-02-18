@@ -14,7 +14,9 @@ html {
   width: 100%;
   /* Prevent overscroll bounce on html only when not in modal */
   overscroll-behavior-y: none;
-  background-color: #ffffff;
+  background-color: #121212;
+  margin: 0;
+  padding: 0;
 }
 
 /* App-like mobile behavior */
@@ -30,9 +32,9 @@ body {
   height: auto;
   margin: 0;
   padding: 0;
-  /* Mobile app styling - white background for app feel */
-  background-color: #ffffff;
-  color: #000000;
+  /* Mobile app styling - dark background for app feel */
+  background-color: #121212;
+  color: #ffffff;
 }
 
 /* Root container for app-like scrolling */
