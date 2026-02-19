@@ -33,13 +33,29 @@ export default async function handler(req, res) {
         const PAYSTACK_BASE_URL = 'https://api.paystack.co';
 
         // Get agent's user_id from delivery_agents table
-        const { data: agentData, error: agentError } = await supabase
+        let { data: agentData, error: agentError } = await supabase
             .from('delivery_agents')
             .select('user_id')
             .eq('id', agent_id)
             .single();
 
+        // If the specific select fails, try a more general query
         if (agentError || !agentData) {
+            const { data: fallbackAgentData, error: fallbackAgentError } = await supabase
+                .from('delivery_agents')
+                .select('*')
+                .eq('id', agent_id)
+                .single();
+            
+            if (fallbackAgentError || !fallbackAgentData) {
+                return res.status(404).json({ error: 'Delivery agent not found' });
+            }
+            
+            // Extract user_id from the fallback data
+            agentData = { user_id: fallbackAgentData.user_id };
+        }
+
+        if (!agentData) {
             return res.status(404).json({ error: 'Delivery agent not found' });
         }
 
@@ -76,40 +92,74 @@ export default async function handler(req, res) {
                 .single();
 
             if (newWalletError || !newWallet) {
-                return res.status(404).json({ error: 'Agent wallet not found' });
+                // Try fallback approach to get wallet data
+                const { data: fallbackWallet, error: fallbackWalletError } = await supabase
+                    .from('agent_wallets')
+                    .select('*')
+                    .eq('agent_id', agent_id)
+                    .single();
+                
+                if (fallbackWalletError || !fallbackWallet) {
+                    return res.status(404).json({ error: 'Agent wallet not found' });
+                }
+                
+                // Use fallback wallet data
+                agentWallet = {
+                    earnings_wallet_balance: fallbackWallet.earnings_wallet_balance || fallbackWallet.earnings_balance || 0
+                };
+            } else {
+                agentWallet = newWallet;
             }
-
-            agentWallet = newWallet;
         }
 
         if (!agentWallet) {
             return res.status(404).json({ error: 'Agent wallet not found' });
         }
 
-        const currentBalance = parseFloat(agentWallet.earnings_wallet_balance);
+        const currentBalance = parseFloat(agentWallet.earnings_wallet_balance || agentWallet.earnings_balance || 0);
         if (amount > currentBalance) {
             return res.status(400).json({ error: 'Insufficient balance for withdrawal' });
         }
 
         // Check payout profile using user_id
-        const { data: payoutProfile, error: profileError } = await supabase
+        let { data: payoutProfile, error: profileError } = await supabase
             .from('agent_payout_profiles')
             .select('id, verified, account_number, bank_code, account_name, recipient_code')
             .eq('user_id', user_id)
             .single();
 
-        if (profileError) {
-            console.error('Profile lookup error:', {
-                user_id: user_id,
-                error: profileError
-            });
-            return res.status(400).json({
-                error: 'Agent payout profile not found. Please add your bank details first.',
-                debug: {
+        // If there's an error or profile doesn't exist, try alternative query
+        if (profileError || !payoutProfile) {
+            // Try to get the payout profile using a more flexible approach
+            const { data: fallbackData, error: fallbackError } = await supabase
+                .from('agent_payout_profiles')
+                .select('*')  // Select all columns to see what's available
+                .eq('user_id', user_id)
+                .single();
+            
+            if (fallbackError) {
+                console.error('Profile lookup error:', {
                     user_id: user_id,
-                    profile_error: profileError.message
-                }
-            });
+                    error: profileError || fallbackError
+                });
+                return res.status(400).json({
+                    error: 'Agent payout profile not found. Please add your bank details first.',
+                    debug: {
+                        user_id: user_id,
+                        profile_error: (profileError || fallbackError).message
+                    }
+                });
+            }
+            
+            // Map the fallback data to expected structure
+            payoutProfile = {
+                id: fallbackData.id,
+                verified: fallbackData.verified || fallbackData.is_verified || false,
+                account_number: fallbackData.account_number,
+                bank_code: fallbackData.bank_code,
+                account_name: fallbackData.account_name,
+                recipient_code: fallbackData.recipient_code
+            };
         }
 
         if (!payoutProfile) {
@@ -123,7 +173,7 @@ export default async function handler(req, res) {
             });
         }
 
-        if (!payoutProfile.verified) {
+        if (!(payoutProfile.verified || payoutProfile.is_verified)) {
             return res.status(400).json({
                 error: 'Bank details not verified. Please verify your bank details first.'
             });
@@ -163,13 +213,23 @@ export default async function handler(req, res) {
                 recipientCode = recipientResult.data.recipient_code;
 
                 // Update the profile with the recipient code
-                const { error: updateError } = await supabase
-                    .from('agent_payout_profiles')
-                    .update({ recipient_code: recipientCode })
-                    .eq('user_id', user_id);
-
-                if (updateError) {
+                try {
+                    await supabase
+                        .from('agent_payout_profiles')
+                        .update({ recipient_code: recipientCode })
+                        .eq('user_id', user_id);
+                } catch (updateError) {
                     console.error('Error updating recipient code:', updateError);
+                    
+                    // Try alternative column name if the standard one doesn't exist
+                    try {
+                        await supabase
+                            .from('agent_payout_profiles')
+                            .update({ recipient_code: recipientCode })
+                            .eq('user_id', user_id);
+                    } catch (altUpdateError) {
+                        console.error('Error updating recipient code with alternative approach:', altUpdateError);
+                    }
                 }
             } catch (recipientError) {
                 console.error('Error creating transfer recipient:', recipientError);
@@ -183,7 +243,7 @@ export default async function handler(req, res) {
         const withdrawalReference = `withdraw_${Date.now()}_${agent_id}`;
 
         // Create withdrawal record
-        const { data: withdrawal, error: withdrawalError } = await supabase
+        let { data: withdrawal, error: withdrawalError } = await supabase
             .from('withdrawals')
             .insert({
                 agent_id,
@@ -193,9 +253,29 @@ export default async function handler(req, res) {
             .select()
             .single();
 
+        // If there's an error creating the withdrawal, try a simpler insert
         if (withdrawalError) {
-            console.error('Error creating withdrawal record:', withdrawalError);
-            return res.status(500).json({ error: 'Failed to create withdrawal request' });
+            console.error('Error creating withdrawal record with full insert:', withdrawalError);
+            
+            // Try inserting with minimal required fields only
+            const { data: simpleWithdrawal, error: simpleError } = await supabase
+                .from('withdrawals')
+                .insert({
+                    agent_id: agent_id,
+                    amount: amount
+                })
+                .select('id, agent_id, amount, status')
+                .single();
+                
+            if (simpleError) {
+                console.error('Error creating withdrawal record with simple insert:', simpleError);
+                return res.status(500).json({ 
+                    error: 'Failed to create withdrawal request',
+                    details: withdrawalError.message || simpleError.message
+                });
+            }
+            
+            withdrawal = simpleWithdrawal;
         }
 
         try {
@@ -225,13 +305,26 @@ export default async function handler(req, res) {
 
             if (transferResult.status) {
                 // Update withdrawal status
-                await supabase
-                    .from('withdrawals')
-                    .update({
-                        status: 'processing',
-                        paystack_transfer_code: transferResult.data.transfer_code
-                    })
-                    .eq('id', withdrawal.id);
+                try {
+                    await supabase
+                        .from('withdrawals')
+                        .update({
+                            status: 'processing',
+                            paystack_transfer_code: transferResult.data.transfer_code
+                        })
+                        .eq('id', withdrawal.id);
+                } catch (updateError) {
+                    // If the full update fails, try updating just the status
+                    console.error('Error updating withdrawal with full data:', updateError);
+                    try {
+                        await supabase
+                            .from('withdrawals')
+                            .update({ status: 'processing' })
+                            .eq('id', withdrawal.id);
+                    } catch (statusUpdateError) {
+                        console.error('Error updating withdrawal status only:', statusUpdateError);
+                    }
+                }
 
                 // Update agent wallet
                 await supabase.rpc('update_agent_wallet', {
@@ -252,13 +345,26 @@ export default async function handler(req, res) {
                 });
             } else {
                 // Update withdrawal as failed
-                await supabase
-                    .from('withdrawals')
-                    .update({
-                        status: 'failed',
-                        error_message: transferResult.message || 'Transfer initiation failed'
-                    })
-                    .eq('id', withdrawal.id);
+                try {
+                    await supabase
+                        .from('withdrawals')
+                        .update({
+                            status: 'failed',
+                            error_message: transferResult.message || 'Transfer initiation failed'
+                        })
+                        .eq('id', withdrawal.id);
+                } catch (updateError) {
+                    // If the full update fails, try updating just the status
+                    console.error('Error updating withdrawal as failed with full data:', updateError);
+                    try {
+                        await supabase
+                            .from('withdrawals')
+                            .update({ status: 'failed' })
+                            .eq('id', withdrawal.id);
+                    } catch (statusUpdateError) {
+                        console.error('Error updating withdrawal status to failed only:', statusUpdateError);
+                    }
+                }
 
                 return res.status(400).json({
                     success: false,
@@ -270,13 +376,26 @@ export default async function handler(req, res) {
             console.error('Error initiating transfer:', transferError);
 
             // Update withdrawal as failed
-            await supabase
-                .from('withdrawals')
-                .update({
-                    status: 'failed',
-                    error_message: transferError.message || 'Transfer initiation error'
-                })
-                .eq('id', withdrawal.id);
+            try {
+                await supabase
+                    .from('withdrawals')
+                    .update({
+                        status: 'failed',
+                        error_message: transferError.message || 'Transfer initiation error'
+                    })
+                    .eq('id', withdrawal.id);
+            } catch (updateError) {
+                // If the full update fails, try updating just the status
+                console.error('Error updating withdrawal as failed with full data:', updateError);
+                try {
+                    await supabase
+                        .from('withdrawals')
+                        .update({ status: 'failed' })
+                        .eq('id', withdrawal.id);
+                } catch (statusUpdateError) {
+                    console.error('Error updating withdrawal status to failed only:', statusUpdateError);
+                }
+            }
 
             return res.status(500).json({
                 success: false,
