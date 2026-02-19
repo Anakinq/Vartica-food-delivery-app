@@ -248,6 +248,7 @@ export default async function handler(req, res) {
             .insert({
                 agent_id,
                 amount,
+                type: 'withdrawal',  // Add the required type field
                 status: 'pending'
             })
             .select()
@@ -262,20 +263,39 @@ export default async function handler(req, res) {
                 .from('withdrawals')
                 .insert({
                     agent_id: agent_id,
-                    amount: amount
+                    amount: amount,
+                    type: 'withdrawal'  // Add the required type field
                 })
-                .select('id, agent_id, amount, status')
+                .select('id, agent_id, amount, status, type')
                 .single();
                 
             if (simpleError) {
                 console.error('Error creating withdrawal record with simple insert:', simpleError);
-                return res.status(500).json({ 
-                    error: 'Failed to create withdrawal request',
-                    details: withdrawalError.message || simpleError.message
-                });
+                
+                // If the simple insert still fails, try with all required fields
+                const { data: fallbackWithdrawal, error: fallbackError } = await supabase
+                    .from('withdrawals')
+                    .insert({
+                        agent_id: agent_id,
+                        amount: amount,
+                        type: 'withdrawal',
+                        status: 'pending'
+                    })
+                    .select('id, agent_id, amount, status, type')
+                    .single();
+                
+                if (fallbackError) {
+                    console.error('Error creating withdrawal record with fallback insert:', fallbackError);
+                    return res.status(500).json({ 
+                        error: 'Failed to create withdrawal request',
+                        details: withdrawalError.message || simpleError.message || fallbackError.message
+                    });
+                }
+                
+                withdrawal = fallbackWithdrawal;
+            } else {
+                withdrawal = simpleWithdrawal;
             }
-            
-            withdrawal = simpleWithdrawal;
         }
 
         try {
