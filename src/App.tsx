@@ -1,6 +1,7 @@
 ﻿// src/App.tsx - Hash-based Routing Implementation with Code Splitting
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from './contexts/AuthContext';
+import { RoleProvider, useRole } from './contexts/RoleContext';
 
 // Lazy load route components for better performance (code splitting)
 const CustomerHome = lazy(() => import('./components/customer/CustomerHome').then(module => ({ default: module.CustomerHome })));
@@ -21,19 +22,21 @@ import { Analytics } from '@vercel/analytics/react';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
+import { ToastContainer } from './components/ToastComponent';
 import { DarkModeProvider } from './contexts/DarkModeContext';
 import { UserRole } from './types';
 import { Profile } from './lib/supabase/types';
 import { BottomNavigation } from './components/shared/BottomNavigation';
 import NotificationsPanel from './components/shared/NotificationsPanel';
 import { CartProvider, useCart } from './contexts/CartContext';
+import { RoleSwitcher } from './components/shared/RoleSwitcher';
 
 // Loading fallback for Suspense
 const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+  <div className="flex items-center justify-center min-h-screen bg-slate-900" role="status" aria-label="Loading application">
     <div className="text-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-      <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
+      <p className="text-slate-400">Loading...</p>
     </div>
   </div>
 );
@@ -49,8 +52,10 @@ const withSuspense = <P extends object>(Component: React.ComponentType<P>) => {
   };
 };
 
+// Enhanced AppContent with RoleContext integration
 function AppContent() {
   const { user, profile, loading, signOut } = useAuth();
+  const { currentRole } = useRole();
   const [showProfile, setShowProfile] = useState(false);
   const { items, cartCount, clearCart } = useCart();
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
@@ -71,16 +76,6 @@ function AppContent() {
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [locationHash]);
-
-  // Get effective role - use preferred role from sessionStorage if set, otherwise use profile role
-  const getEffectiveRole = () => {
-    if (!profile) return null;
-    const preferredRole = sessionStorage.getItem('preferredRole');
-    if (preferredRole && ['customer', 'vendor', 'delivery_agent', 'admin', 'cafeteria', 'late_night_vendor'].includes(preferredRole)) {
-      return preferredRole as UserRole;
-    }
-    return profile.role as UserRole;
-  };
 
   // Force re-evaluation of routing when auth state changes
   useEffect(() => {
@@ -273,9 +268,8 @@ function AppContent() {
       );
     }
 
-    // Handle role-based routing
-    const effectiveRole = getEffectiveRole();
-    const userRole = effectiveRole || (profile.role as UserRole);
+    // Handle role-based routing using the new RoleContext
+    const userRole = currentRole || (profile.role as UserRole);
 
     // Handle explicit customer route
     if (locationHash === '#/customer') {
@@ -336,7 +330,7 @@ function AppContent() {
       );
     }
 
-    // Default routing based on primary role
+    // Default routing based on current role from RoleContext
     switch (userRole) {
       case 'admin':
         return (
@@ -429,6 +423,7 @@ function AppContent() {
   );
 }
 
+// Main App component with RoleProvider integration
 function App() {
   useEffect(() => {
     // Filter out browser extension errors
@@ -449,17 +444,20 @@ function App() {
       <DarkModeProvider>
         <AuthProvider>
           <ToastProvider>
-            <CartProvider>
-              <div className="app-container">
-                <div role="status" aria-live="polite" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
-                  Loading application
+            <RoleProvider>
+              <CartProvider>
+                <div className="app-container">
+                  <div role="status" aria-live="polite" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
+                    Loading application
+                  </div>
+                  <div role="alert" aria-live="assertive" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
+                  </div>
+                  <AppContent />
+                  <ToastContainer />
+                  <Analytics />
                 </div>
-                <div role="alert" aria-live="assertive" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
-                </div>
-                <AppContent />
-                <Analytics />
-              </div>
-            </CartProvider>
+              </CartProvider>
+            </RoleProvider>
           </ToastProvider>
         </AuthProvider>
       </DarkModeProvider>

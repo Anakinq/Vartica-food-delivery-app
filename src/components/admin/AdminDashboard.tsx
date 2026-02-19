@@ -1,31 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { LogOut, Users, Store, Bike, Package, Wallet, Menu, X, Search, Filter, Download, BarChart3, Settings, User, CreditCard, AlertTriangle, UserCheck, MessageCircle, Send, Reply } from 'lucide-react';
+import { LogOut, Users, Store, Bike, Package, Wallet, Menu, X, Search, Filter, Download, BarChart3, Settings, User, CreditCard, AlertTriangle, UserCheck, MessageCircle, Send, Reply, Check, XCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { supabase, Profile, Order } from '../../lib/supabase';
 import { AdminApprovalDashboard } from './AdminApprovalDashboard';
 import { DeliveryFeePromoCodesManager } from './DeliveryFeePromoCodesManager';
 import { BannerManagement } from './BannerManagement';
 import AdminSkeleton from './AdminSkeleton';
 import Pagination from '../common/Pagination';
+import { WithdrawalRecord } from '../../types';
 
 interface AdminDashboardProps {
   onShowProfile?: () => void;
 }
 
-interface WithdrawalRecord {
-  id: string;
-  agent_id: string;
-  amount: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  created_at: string;
-  processed_at?: string;
-  error_message?: string;
-  paystack_transfer_code?: string;
-  paystack_transfer_reference?: string;
-}
-
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile }) => {
   const { profile, signOut, user } = useAuth();
+  const { showToast } = useToast();
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalVendors: 0,
@@ -50,6 +41,91 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyMessage, setReplyMessage] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
+
+  // Withdrawal action functions
+  const approveWithdrawal = async (withdrawalId: string) => {
+    if (!user) return;
+
+    setProcessingWithdrawal(withdrawalId);
+    try {
+      const { error } = await supabase
+        .from('agent_withdrawals')
+        .update({
+          status: 'pending_approval',
+          approved_by: user.id,
+          approved_at: new Date().toISOString(),
+          admin_notes: 'Approved for manual processing'
+        })
+        .eq('id', withdrawalId);
+
+      if (error) throw error;
+
+      showToast('Withdrawal approved successfully!', 'success');
+      fetchData(); // Refresh data
+    } catch (error: any) {
+      console.error('Error approving withdrawal:', error);
+      showToast(`Error: ${error.message}`, 'error');
+    } finally {
+      setProcessingWithdrawal(null);
+    }
+  };
+
+  const markAsSent = async (withdrawalId: string) => {
+    if (!user) return;
+
+    setProcessingWithdrawal(withdrawalId);
+    try {
+      const { error } = await supabase
+        .from('agent_withdrawals')
+        .update({
+          status: 'completed',
+          sent_at: new Date().toISOString(),
+          processed_at: new Date().toISOString(),
+          admin_notes: 'Manually marked as sent'
+        })
+        .eq('id', withdrawalId);
+
+      if (error) throw error;
+
+      showToast('Withdrawal marked as sent!', 'success');
+      fetchData(); // Refresh data
+    } catch (error: any) {
+      console.error('Error marking withdrawal as sent:', error);
+      showToast(`Error: ${error.message}`, 'error');
+    } finally {
+      setProcessingWithdrawal(null);
+    }
+  };
+
+  const rejectWithdrawal = async (withdrawalId: string) => {
+    if (!user) return;
+
+    const reason = prompt('Enter rejection reason:');
+    if (!reason) return;
+
+    setProcessingWithdrawal(withdrawalId);
+    try {
+      const { error } = await supabase
+        .from('agent_withdrawals')
+        .update({
+          status: 'failed',
+          error_message: reason,
+          processed_at: new Date().toISOString(),
+          admin_notes: `Rejected: ${reason}`
+        })
+        .eq('id', withdrawalId);
+
+      if (error) throw error;
+
+      showToast('Withdrawal rejected!', 'warning');
+      fetchData(); // Refresh data
+    } catch (error: any) {
+      console.error('Error rejecting withdrawal:', error);
+      showToast(`Error: ${error.message}`, 'error');
+    } finally {
+      setProcessingWithdrawal(null);
+    }
+  };
 
   // Pagination states
   const [usersPage, setUsersPage] = useState(1);
@@ -574,7 +650,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
               {activeTab === 'withdrawals' && (
                 <div>
                   {filterData().filteredWithdrawals.length === 0 ? (
-                    <p className="text-gray-600">No withdrawal records found.</p>
+                    <div className="text-center py-12">
+                      <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                        <Wallet className="h-12 w-12 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Withdrawal Requests</h3>
+                      <p className="text-gray-500 mb-6">There are currently no withdrawal requests to process.</p>
+                      <button
+                        onClick={fetchData}
+                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Refresh
+                      </button>
+                    </div>
                   ) : (
                     <>
                       <div className="overflow-x-auto">
@@ -585,7 +674,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                               <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Agent ID</th>
                               <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Amount</th>
                               <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
-                              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Paystack Reference</th>
+                              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Actions</th>
                               <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Processed At</th>
                             </tr>
                           </thead>
@@ -612,14 +701,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                                         ? 'bg-red-100 text-red-700'
                                         : req.status === 'processing'
                                           ? 'bg-yellow-100 text-yellow-700'
-                                          : 'bg-blue-100 text-blue-700'
+                                          : req.status === 'pending_approval'
+                                            ? 'bg-purple-100 text-purple-700'
+                                            : 'bg-blue-100 text-blue-700'
                                       }`}
                                   >
                                     {req.status === 'completed' && '✅ '}
                                     {req.status === 'failed' && '❌ '}
                                     {req.status === 'processing' && '⏳ '}
+                                    {req.status === 'pending_approval' && '📋 '}
                                     {req.status === 'pending' && '📅 '}
-                                    {req.status.toUpperCase()}
+                                    {req.status.toUpperCase().replace('_', ' ')}
                                   </span>
                                   {req.processed_at && (
                                     <div className="text-xs text-gray-500 mt-1">
@@ -629,9 +721,55 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                                   {req.error_message && (
                                     <div className="text-xs text-red-600 mt-1">{req.error_message}</div>
                                   )}
+                                  {req.admin_notes && (
+                                    <div className="text-xs text-gray-600 mt-1">Notes: {req.admin_notes}</div>
+                                  )}
                                 </td>
-                                <td className="py-3 px-4 text-sm text-gray-600">
-                                  {req.paystack_transfer_reference || req.paystack_transfer_code || 'N/A'}
+                                <td className="py-3 px-4">
+                                  <div className="flex space-x-2">
+                                    {req.status === 'pending' && (
+                                      <button
+                                        onClick={() => approveWithdrawal(req.id)}
+                                        disabled={processingWithdrawal === req.id}
+                                        className="flex items-center px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
+                                      >
+                                        {processingWithdrawal === req.id ? (
+                                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                                        ) : (
+                                          <Check className="h-3 w-3 mr-1" />
+                                        )}
+                                        Approve
+                                      </button>
+                                    )}
+                                    {req.status === 'pending_approval' && (
+                                      <button
+                                        onClick={() => markAsSent(req.id)}
+                                        disabled={processingWithdrawal === req.id}
+                                        className="flex items-center px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50"
+                                      >
+                                        {processingWithdrawal === req.id ? (
+                                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                                        ) : (
+                                          <Send className="h-3 w-3 mr-1" />
+                                        )}
+                                        Mark Sent
+                                      </button>
+                                    )}
+                                    {(req.status === 'pending' || req.status === 'pending_approval') && (
+                                      <button
+                                        onClick={() => rejectWithdrawal(req.id)}
+                                        disabled={processingWithdrawal === req.id}
+                                        className="flex items-center px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 disabled:opacity-50"
+                                      >
+                                        {processingWithdrawal === req.id ? (
+                                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                                        ) : (
+                                          <XCircle className="h-3 w-3 mr-1" />
+                                        )}
+                                        Reject
+                                      </button>
+                                    )}
+                                  </div>
                                 </td>
                                 <td className="py-3 px-4 text-sm text-gray-600">
                                   {req.processed_at ? new Date(req.processed_at).toLocaleString() : 'N/A'}

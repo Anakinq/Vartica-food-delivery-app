@@ -40,12 +40,17 @@ export interface WithdrawalRecord {
     id: string;
     agent_id: string;
     amount: number;
-    status: 'pending' | 'processing' | 'completed' | 'failed';
+    status: 'pending' | 'pending_approval' | 'processing' | 'completed' | 'failed';
     created_at: string;
+    updated_at: string;
     processed_at?: string;
     error_message?: string;
     paystack_transfer_code?: string;
     paystack_transfer_reference?: string;
+    approved_by?: string;
+    approved_at?: string;
+    admin_notes?: string;
+    sent_at?: string;
 }
 
 // Wallet balance interface

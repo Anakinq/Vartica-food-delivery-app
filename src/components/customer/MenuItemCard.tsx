@@ -46,79 +46,96 @@ export const MenuItemCard = memo<MenuItemCardProps>(({ item, quantity, onQuantit
     onToggleFavorite?.();
   }, [onToggleFavorite]);
 
+  const handleQuickAdd = useCallback(() => {
+    if (quantity === 0) {
+      onQuantityChange(item.id, 1);
+    }
+  }, [item.id, quantity, onQuantityChange]);
+
   return (
-    <div className="bg-[#1a1a1a] rounded-xl p-3 sm:p-4 mb-2 sm:mb-3 flex items-center">
-      {/* Product Image */}
-      <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden bg-[#2a2a2a] mr-3 sm:mr-4 flex-shrink-0">
-        <LazyImage
-          src={imageUrl}
-          alt={item.name}
-          className="w-full h-full object-cover"
-          fallback={FALLBACK_IMAGE}
-        />
+    <div className="bg-slate-800 rounded-xl p-4 mb-3 border border-slate-700 hover:border-green-500/30 transition-all duration-200">
+      <div className="flex items-start gap-4">
+        {/* Product Image */}
+        <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0">
+          <LazyImage
+            src={imageUrl}
+            alt={item.name}
+            className="w-full h-full object-cover"
+            placeholder={FALLBACK_IMAGE}
+          />
 
-        {/* Quantity Badge */}
-        {quantity > 0 && (
-          <div className="absolute top-2 right-2 bg-[#FF9500] text-black px-2 py-1 rounded-full text-xs font-bold">
-            {quantity}
-          </div>
-        )}
-      </div>
-
-      {/* Food Details */}
-      <div className="flex-1">
-        <div className="flex justify-between items-start mb-1">
-          <h3 className="font-bold text-white text-base sm:text-lg line-clamp-1">{item.name}</h3>
-          {onToggleFavorite && (
+          {/* Quick Add Button */}
+          {quantity === 0 && (
             <button
-              onClick={handleToggleFavorite}
-              className="text-gray-400 hover:text-red-500 p-1"
-              aria-label={isFavorite ? `Remove ${item.name} from favorites` : `Add ${item.name} to favorites`}
-              aria-pressed={isFavorite}
+              onClick={handleQuickAdd}
+              className="absolute inset-0 bg-black/50 hover:bg-black/70 flex items-center justify-center transition-all"
+              aria-label={`Add ${item.name} to cart`}
             >
-              <Heart className={`h-5 w-5 ${isFavorite ? 'text-red-500 fill-red-500' : ''}`} />
+              <Plus className="h-6 w-6 text-white" />
             </button>
+          )}
+
+          {/* Quantity Badge */}
+          {quantity > 0 && (
+            <div className="absolute -top-2 -right-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold min-w-[24px] text-center">
+              {quantity}
+            </div>
           )}
         </div>
 
-        {/* Description */}
-        {item.description && (
-          <p className="text-gray-300 text-sm line-clamp-2 mb-2">
-            {item.description}
-          </p>
-        )}
-
-        {/* Price & Quantity Controls */}
-        <div className="flex justify-between items-center mt-2">
-          <div className="flex items-center">
-            <button
-              onClick={handleDecrement}
-              disabled={quantity === 0}
-              className={`w-8 h-8 rounded-full bg-[#2d2d2d] flex items-center justify-center ${quantity === 0
-                ? 'text-gray-600 cursor-not-allowed'
-                : 'text-white hover:bg-[#3a3a3a]'
-                }`}
-              aria-label={`Decrease ${item.name} quantity`}
-            >
-              <Minus className="h-4 w-4" />
-            </button>
-
-            <span className="mx-2 text-white font-bold min-w-[24px] text-center">
-              {quantity}
-            </span>
-
-            <button
-              onClick={handleIncrement}
-              className="w-8 h-8 rounded-full bg-[#FF9500] text-black flex items-center justify-center hover:bg-[#FFA534] transition-colors"
-              aria-label={`Increase ${item.name} quantity`}
-            >
-              <Plus className="h-4 w-4" />
-            </button>
+        {/* Food Details */}
+        <div className="flex-1 min-w-0">
+          <div className="flex justify-between items-start mb-2">
+            <h3 className="font-semibold text-slate-100 text-base line-clamp-1">{item.name}</h3>
+            {onToggleFavorite && (
+              <button
+                onClick={handleToggleFavorite}
+                className="text-slate-400 hover:text-red-500 p-1 transition-colors"
+                aria-label={isFavorite ? `Remove ${item.name} from favorites` : `Add ${item.name} to favorites`}
+                aria-pressed={isFavorite}
+              >
+                <Heart className={`h-4 w-4 ${isFavorite ? 'text-red-500 fill-red-500' : ''}`} />
+              </button>
+            )}
           </div>
 
-          <span className="font-bold text-white text-lg">
-            ₦{item.price.toLocaleString()}
-          </span>
+          {/* Description */}
+          {item.description && (
+            <p className="text-slate-400 text-sm line-clamp-1 mb-3">
+              {item.description}
+            </p>
+          )}
+
+          {/* Price & Quantity Controls */}
+          <div className="flex justify-between items-center">
+            <span className="font-bold text-slate-100 text-lg">
+              ₦{item.price.toLocaleString()}
+            </span>
+
+            {quantity > 0 && (
+              <div className="flex items-center bg-slate-700 rounded-lg p-1">
+                <button
+                  onClick={handleDecrement}
+                  className="w-7 h-7 rounded-md bg-slate-600 flex items-center justify-center text-slate-300 hover:bg-slate-500 transition-colors"
+                  aria-label={`Decrease ${item.name} quantity`}
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </button>
+
+                <span className="mx-2 text-slate-100 font-medium min-w-[20px] text-center text-sm">
+                  {quantity}
+                </span>
+
+                <button
+                  onClick={handleIncrement}
+                  className="w-7 h-7 rounded-md bg-green-500 text-white flex items-center justify-center hover:bg-green-600 transition-colors"
+                  aria-label={`Increase ${item.name} quantity`}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

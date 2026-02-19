@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, HelpCircle, CreditCard, MapPin, MessageCircle, Camera, Store, ArrowLeftRight, Download, Building2, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRole } from '../../contexts/RoleContext';
 import { useToast } from '../../contexts/ToastContext';
 import { supabase } from '../../lib/supabase/client';
 import { CustomerSupportModal } from './CustomerSupportModal';
@@ -11,6 +12,7 @@ import InstallPrompt from '../InstallPrompt';
 
 export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => void; onClose?: () => void }> = ({ onBack, onSignOut, onClose }) => {
   const { profile, refreshProfile } = useAuth();
+  const { currentRole, switchRole, isSwitching } = useRole();
   const { showToast } = useToast();
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showVendorUpgrade, setShowVendorUpgrade] = useState(false);
@@ -54,6 +56,9 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
       return false; // Default to light mode if storage is blocked
     }
   });
+
+  // Profile completion state
+  const [profileCompletion, setProfileCompletion] = useState(0);
   const [activeTab, setActiveTab] = useState<'profile' | 'settings'>('profile');
   const [notifications, setNotifications] = useState({
     orderUpdates: true,
@@ -69,6 +74,16 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
       });
       setHostelLocation((profile as ExtendedProfile).hostel_location || '');
       setAvatarUrl((profile as ExtendedProfile).avatar_url || '');
+
+      // Calculate profile completion
+      const fields = [
+        profile.full_name,
+        profile.phone,
+        (profile as ExtendedProfile).hostel_location,
+        (profile as ExtendedProfile).avatar_url
+      ];
+      const completed = fields.filter(field => field).length;
+      setProfileCompletion((completed / fields.length) * 100);
     }
   }, [profile]);
 
@@ -309,7 +324,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
 
       // Clear profile cache to ensure fresh data
       sessionStorage.removeItem(`profile_with_vendor_${profile.id}`);
-      
+
       await refreshProfile();
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2000);
@@ -401,6 +416,27 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* Profile Completion Progress */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
+            <div className="mb-3">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Profile Completion</span>
+                <span className="text-sm font-medium text-green-600 dark:text-green-400">{Math.round(profileCompletion)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div
+                  className="bg-green-600 dark:bg-green-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${profileCompletion}%` }}
+                ></div>
+              </div>
+            </div>
+            {profileCompletion < 100 && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Complete your profile to unlock all features
+              </p>
+            )}
           </div>
 
           {/* Tabs */}
@@ -537,22 +573,26 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
                     <>
                       <button
                         type="button"
-                        onClick={() => {
-                          // Close the profile dashboard first
-                          if (onClose) {
-                            onClose();
-                          } else if (onBack) {
-                            onBack();
+                        onClick={async () => {
+                          try {
+                            // Close the profile dashboard first
+                            if (onClose) {
+                              onClose();
+                            } else if (onBack) {
+                              onBack();
+                            }
+                            // Switch to vendor role using RoleContext
+                            await switchRole('vendor');
+                          } catch (error) {
+                            console.error('Failed to switch to vendor:', error);
+                            showToast({ type: 'error', message: 'Failed to switch to vendor view' });
                           }
-                          // Then switch to vendor view by changing the hash
-                          setTimeout(() => {
-                            window.location.hash = '#/vendor';
-                          }, 10);
                         }}
-                        className="flex items-center px-6 py-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-xl font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors w-full justify-center"
+                        disabled={isSwitching}
+                        className="flex items-center px-6 py-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-xl font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors w-full justify-center disabled:opacity-50"
                       >
                         <ArrowLeftRight className="h-5 w-5 mr-2" />
-                        Switch to Vendor View
+                        {isSwitching ? 'Switching...' : 'Switch to Vendor View'}
                       </button>
                       <button
                         type="button"
@@ -567,45 +607,53 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
                   {/* For vendors: show switch view button based on current view */}
                   {(profile?.role === 'vendor' || (profile as any)?.role === 'late_night_vendor') && (
                     <>
-                      {currentView === 'vendor' ? (
+                      {currentRole === 'vendor' ? (
                         <button
                           type="button"
-                          onClick={() => {
-                            // Close the profile dashboard first
-                            if (onClose) {
-                              onClose();
-                            } else if (onBack) {
-                              onBack();
+                          onClick={async () => {
+                            try {
+                              // Close the profile dashboard first
+                              if (onClose) {
+                                onClose();
+                              } else if (onBack) {
+                                onBack();
+                              }
+                              // Switch to customer role using RoleContext
+                              await switchRole('customer');
+                            } catch (error) {
+                              console.error('Failed to switch to customer:', error);
+                              showToast({ type: 'error', message: 'Failed to switch to customer view' });
                             }
-                            // Then switch to customer view by changing the hash
-                            setTimeout(() => {
-                              window.location.hash = '#/customer';
-                            }, 10);
                           }}
-                          className="flex items-center px-6 py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors w-full justify-center"
+                          disabled={isSwitching}
+                          className="flex items-center px-6 py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors w-full justify-center disabled:opacity-50"
                         >
                           <ArrowLeftRight className="h-5 w-5 mr-2" />
-                          Switch to Customer View
+                          {isSwitching ? 'Switching...' : 'Switch to Customer View'}
                         </button>
                       ) : (
                         <button
                           type="button"
-                          onClick={() => {
-                            // Close the profile dashboard first
-                            if (onClose) {
-                              onClose();
-                            } else if (onBack) {
-                              onBack();
+                          onClick={async () => {
+                            try {
+                              // Close the profile dashboard first
+                              if (onClose) {
+                                onClose();
+                              } else if (onBack) {
+                                onBack();
+                              }
+                              // Switch to vendor role using RoleContext
+                              await switchRole('vendor');
+                            } catch (error) {
+                              console.error('Failed to switch to vendor:', error);
+                              showToast({ type: 'error', message: 'Failed to switch to vendor view' });
                             }
-                            // Then switch to vendor view by changing the hash
-                            setTimeout(() => {
-                              window.location.hash = '#/vendor';
-                            }, 10);
                           }}
-                          className="flex items-center px-6 py-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-xl font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors w-full justify-center"
+                          disabled={isSwitching}
+                          className="flex items-center px-6 py-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-xl font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors w-full justify-center disabled:opacity-50"
                         >
                           <ArrowLeftRight className="h-5 w-5 mr-2" />
-                          Switch to Vendor View
+                          {isSwitching ? 'Switching...' : 'Switch to Vendor View'}
                         </button>
                       )}
                     </>

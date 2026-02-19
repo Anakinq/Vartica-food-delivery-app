@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://vartica-food-delivery-app.vercel.app/sitemap.xml
+
+# Host
+Host: https://vartica-food-delivery-app.vercel.app
+
+# Crawl-delay for polite crawling
+Crawl-delay: 10
