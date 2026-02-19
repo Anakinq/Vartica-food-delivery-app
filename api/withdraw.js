@@ -46,11 +46,11 @@ export default async function handler(req, res) {
                 .select('*')
                 .eq('id', agent_id)
                 .single();
-            
+
             if (fallbackAgentError || !fallbackAgentData) {
                 return res.status(404).json({ error: 'Delivery agent not found' });
             }
-            
+
             // Extract user_id from the fallback data
             agentData = { user_id: fallbackAgentData.user_id };
         }
@@ -98,11 +98,11 @@ export default async function handler(req, res) {
                     .select('*')
                     .eq('agent_id', agent_id)
                     .single();
-                
+
                 if (fallbackWalletError || !fallbackWallet) {
                     return res.status(404).json({ error: 'Agent wallet not found' });
                 }
-                
+
                 // Use fallback wallet data
                 agentWallet = {
                     earnings_wallet_balance: fallbackWallet.earnings_wallet_balance || fallbackWallet.earnings_balance || 0
@@ -136,7 +136,7 @@ export default async function handler(req, res) {
                 .select('*')  // Select all columns to see what's available
                 .eq('user_id', user_id)
                 .single();
-            
+
             if (fallbackError) {
                 console.error('Profile lookup error:', {
                     user_id: user_id,
@@ -150,7 +150,7 @@ export default async function handler(req, res) {
                     }
                 });
             }
-            
+
             // Map the fallback data to expected structure
             payoutProfile = {
                 id: fallbackData.id,
@@ -220,7 +220,7 @@ export default async function handler(req, res) {
                         .eq('user_id', user_id);
                 } catch (updateError) {
                     console.error('Error updating recipient code:', updateError);
-                    
+
                     // Try alternative column name if the standard one doesn't exist
                     try {
                         await supabase
@@ -242,14 +242,14 @@ export default async function handler(req, res) {
 
         const withdrawalReference = `withdraw_${Date.now()}_${agent_id}`;
 
-        // Create withdrawal record - using agent_withdrawals table which has the type column
+        // Create withdrawal record - using withdrawals table which has the correct FK relationship
         let { data: withdrawal, error: withdrawalError } = await supabase
-            .from('agent_withdrawals')
+            .from('withdrawals')
             .insert({
                 agent_id,
                 amount,
-                type: 'withdrawal',  // Use 'withdrawal' as per the agent_withdrawals table constraint
                 status: 'pending'
+                // Note: Not including 'type' field as it doesn't exist in the 'withdrawals' table
             })
             .select()
             .single();
@@ -257,41 +257,41 @@ export default async function handler(req, res) {
         // If there's an error creating the withdrawal, try a simpler insert
         if (withdrawalError) {
             console.error('Error creating withdrawal record with full insert:', withdrawalError);
-            
+
             // Try inserting with minimal required fields only
             const { data: simpleWithdrawal, error: simpleError } = await supabase
-                .from('agent_withdrawals')
+                .from('withdrawals')
                 .insert({
                     agent_id: agent_id,
-                    amount: amount,
-                    type: 'withdrawal'  // Use 'withdrawal' as per the agent_withdrawals table constraint
+                    amount: amount
+                    // Note: Not including 'type' field as it doesn't exist in the 'withdrawals' table
                 })
-                .select('id, agent_id, amount, status, type')
+                .select('id, agent_id, amount, status')
                 .single();
-                
+
             if (simpleError) {
                 console.error('Error creating withdrawal record with simple insert:', simpleError);
-                
+
                 // If the simple insert still fails, try with all required fields
                 const { data: fallbackWithdrawal, error: fallbackError } = await supabase
-                    .from('agent_withdrawals')
+                    .from('withdrawals')
                     .insert({
                         agent_id: agent_id,
                         amount: amount,
-                        type: 'withdrawal',  // Use 'withdrawal' as per the agent_withdrawals table constraint
                         status: 'pending'
+                        // Note: Not including 'type' field as it doesn't exist in the 'withdrawals' table
                     })
-                    .select('id, agent_id, amount, status, type')
+                    .select('id, agent_id, amount, status')
                     .single();
-                
+
                 if (fallbackError) {
                     console.error('Error creating withdrawal record with fallback insert:', fallbackError);
-                    return res.status(500).json({ 
+                    return res.status(500).json({
                         error: 'Failed to create withdrawal request',
                         details: withdrawalError.message || simpleError.message || fallbackError.message
                     });
                 }
-                
+
                 withdrawal = fallbackWithdrawal;
             } else {
                 withdrawal = simpleWithdrawal;
@@ -327,10 +327,10 @@ export default async function handler(req, res) {
                 // Update withdrawal status
                 try {
                     await supabase
-                        .from('agent_withdrawals')  // Changed to use correct table
+                        .from('withdrawals')  // Changed to use correct table
                         .update({
                             status: 'processing',
-                            transfer_code: transferResult.data.transfer_code  // Changed from paystack_transfer_code to transfer_code to match agent_withdrawals schema
+                            paystack_transfer_code: transferResult.data.transfer_code  // Changed to match withdrawals table schema
                         })
                         .eq('id', withdrawal.id);
                 } catch (updateError) {
@@ -338,7 +338,7 @@ export default async function handler(req, res) {
                     console.error('Error updating withdrawal with full data:', updateError);
                     try {
                         await supabase
-                            .from('agent_withdrawals')  // Changed to use correct table
+                            .from('withdrawals')  // Changed to use correct table
                             .update({ status: 'processing' })
                             .eq('id', withdrawal.id);
                     } catch (statusUpdateError) {
@@ -367,10 +367,10 @@ export default async function handler(req, res) {
                 // Update withdrawal as failed
                 try {
                     await supabase
-                        .from('agent_withdrawals')  // Changed to use correct table
+                        .from('withdrawals')  // Changed to use correct table
                         .update({
                             status: 'failed',
-                            failure_reason: transferResult.message || 'Transfer initiation failed'  // Changed from error_message to failure_reason to match agent_withdrawals schema
+                            error_message: transferResult.message || 'Transfer initiation failed'  // Changed to match withdrawals table schema
                         })
                         .eq('id', withdrawal.id);
                 } catch (updateError) {
@@ -378,7 +378,7 @@ export default async function handler(req, res) {
                     console.error('Error updating withdrawal as failed with full data:', updateError);
                     try {
                         await supabase
-                            .from('agent_withdrawals')  // Changed to use correct table
+                            .from('withdrawals')  // Changed to use correct table
                             .update({ status: 'failed' })
                             .eq('id', withdrawal.id);
                     } catch (statusUpdateError) {
@@ -398,10 +398,10 @@ export default async function handler(req, res) {
             // Update withdrawal as failed
             try {
                 await supabase
-                    .from('agent_withdrawals')  // Changed to use correct table
+                    .from('withdrawals')  // Changed to use correct table
                     .update({
                         status: 'failed',
-                        failure_reason: transferError.message || 'Transfer initiation error'  // Changed from error_message to failure_reason to match agent_withdrawals schema
+                        error_message: transferError.message || 'Transfer initiation error'  // Changed to match withdrawals table schema
                     })
                     .eq('id', withdrawal.id);
             } catch (updateError) {
@@ -409,7 +409,7 @@ export default async function handler(req, res) {
                 console.error('Error updating withdrawal as failed with full data:', updateError);
                 try {
                     await supabase
-                        .from('agent_withdrawals')  // Changed to use correct table
+                        .from('withdrawals')  // Changed to use correct table
                         .update({ status: 'failed' })
                         .eq('id', withdrawal.id);
                 } catch (statusUpdateError) {
