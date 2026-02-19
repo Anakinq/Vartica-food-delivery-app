@@ -249,7 +249,7 @@ export default async function handler(req, res) {
                 agent_id,
                 amount,
                 type: 'delivery_earnings',  // Required field for withdrawals table
-                status: 'pending'
+                status: 'pending_approval'  // Changed to pending approval for manual flow
             })
             .select()
             .single();
@@ -264,7 +264,8 @@ export default async function handler(req, res) {
                 .insert({
                     agent_id: agent_id,
                     amount: amount,
-                    type: 'delivery_earnings'  // Required field for withdrawals table
+                    type: 'delivery_earnings',  // Required field for withdrawals table
+                    status: 'pending_approval'  // Changed to pending approval for manual flow
                 })
                 .select('id, agent_id, amount, status, type')
                 .single();
@@ -279,7 +280,7 @@ export default async function handler(req, res) {
                         agent_id: agent_id,
                         amount: amount,
                         type: 'delivery_earnings',  // Required field for withdrawals table
-                        status: 'pending'
+                        status: 'pending_approval'  // Changed to pending approval for manual flow
                     })
                     .select('id, agent_id, amount, status, type')
                     .single();
@@ -298,131 +299,24 @@ export default async function handler(req, res) {
             }
         }
 
-        try {
-            // Initiate the transfer
-            const transferResponse = await fetch(`${PAYSTACK_BASE_URL}/transfer`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${PAYSTACK_SECRET}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    source: 'balance',
-                    amount: Math.round(amount * 100), // Convert to kobo
-                    recipient: recipientCode,
-                    reason: 'Earnings withdrawal',
-                    reference: withdrawalReference
-                })
-            });
+        // Update agent wallet to deduct the requested amount
+        await supabase.rpc('update_agent_wallet', {
+            p_agent_id: agent_id,
+            p_wallet_type: 'earnings_wallet',
+            p_amount: -amount,
+            p_transaction_type: 'withdrawal',
+            p_reference_type: 'withdrawal',
+            p_reference_id: withdrawal.id,
+            p_description: `Withdrawal request ${withdrawalReference}`
+        });
 
-            if (!transferResponse.ok) {
-                const errorText = await transferResponse.text();
-                console.error('Paystack transfer error:', errorText);
-                throw new Error(`Paystack API Error: ${transferResponse.status} - ${errorText}`);
-            }
-
-            const transferResult = await transferResponse.json();
-
-            if (transferResult.status) {
-                // Update withdrawal status
-                try {
-                    await supabase
-                        .from('withdrawals')  // Changed to use correct table
-                        .update({
-                            status: 'processing',
-                            paystack_transfer_code: transferResult.data.transfer_code  // Changed to match withdrawals table schema
-                        })
-                        .eq('id', withdrawal.id);
-                } catch (updateError) {
-                    // If the full update fails, try updating just the status
-                    console.error('Error updating withdrawal with full data:', updateError);
-                    try {
-                        await supabase
-                            .from('withdrawals')  // Changed to use correct table
-                            .update({ status: 'processing' })
-                            .eq('id', withdrawal.id);
-                    } catch (statusUpdateError) {
-                        console.error('Error updating withdrawal status only:', statusUpdateError);
-                    }
-                }
-
-                // Update agent wallet
-                await supabase.rpc('update_agent_wallet', {
-                    p_agent_id: agent_id,
-                    p_wallet_type: 'earnings_wallet',
-                    p_amount: -amount,
-                    p_transaction_type: 'withdrawal',
-                    p_reference_type: 'withdrawal',
-                    p_reference_id: withdrawal.id,
-                    p_description: `Withdrawal request ${withdrawalReference}`
-                });
-
-                return res.status(200).json({
-                    success: true,
-                    message: 'Withdrawal request processed successfully',
-                    withdrawal_id: withdrawal.id,
-                    transfer_code: transferResult.data.transfer_code
-                });
-            } else {
-                // Update withdrawal as failed
-                try {
-                    await supabase
-                        .from('withdrawals')  // Changed to use correct table
-                        .update({
-                            status: 'failed',
-                            error_message: transferResult.message || 'Transfer initiation failed'  // Changed to match withdrawals table schema
-                        })
-                        .eq('id', withdrawal.id);
-                } catch (updateError) {
-                    // If the full update fails, try updating just the status
-                    console.error('Error updating withdrawal as failed with full data:', updateError);
-                    try {
-                        await supabase
-                            .from('withdrawals')  // Changed to use correct table
-                            .update({ status: 'failed' })
-                            .eq('id', withdrawal.id);
-                    } catch (statusUpdateError) {
-                        console.error('Error updating withdrawal status to failed only:', statusUpdateError);
-                    }
-                }
-
-                return res.status(400).json({
-                    success: false,
-                    error: 'Transfer initiation failed',
-                    details: transferResult.message
-                });
-            }
-        } catch (transferError) {
-            console.error('Error initiating transfer:', transferError);
-
-            // Update withdrawal as failed
-            try {
-                await supabase
-                    .from('withdrawals')  // Changed to use correct table
-                    .update({
-                        status: 'failed',
-                        error_message: transferError.message || 'Transfer initiation error'  // Changed to match withdrawals table schema
-                    })
-                    .eq('id', withdrawal.id);
-            } catch (updateError) {
-                // If the full update fails, try updating just the status
-                console.error('Error updating withdrawal as failed with full data:', updateError);
-                try {
-                    await supabase
-                        .from('withdrawals')  // Changed to use correct table
-                        .update({ status: 'failed' })
-                        .eq('id', withdrawal.id);
-                } catch (statusUpdateError) {
-                    console.error('Error updating withdrawal status to failed only:', statusUpdateError);
-                }
-            }
-
-            return res.status(500).json({
-                success: false,
-                error: 'Transfer initiation error',
-                details: transferError.message
-            });
-        }
+        return res.status(200).json({
+            success: true,
+            message: 'Withdrawal request submitted for admin approval',
+            withdrawal_id: withdrawal.id,
+            status: 'pending_approval',
+            estimated_processing: '24-48 hours'
+        });
     } catch (error) {
         console.error('Error processing withdrawal:', error);
         return res.status(500).json({
