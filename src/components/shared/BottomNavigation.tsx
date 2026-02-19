@@ -102,7 +102,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
 
     return (
         <div className="relative">
-            <nav className="bottom-nav safe-area-bottom bg-gray-900 border-t border-gray-800">
+            <nav className="bottom-nav bg-gray-900 border-t border-gray-800">
                 {navItems.map((item) => {
                     const IconComponent = item.icon;
                     const active = isActive(item.path);

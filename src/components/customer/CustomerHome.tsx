@@ -37,7 +37,7 @@ interface Category {
   id: string;
   name: string;
   icon: string;
-  key: 'cafeterias' | 'vendors' | 'late_night' | 'agents';
+  key: 'cafeterias' | 'vendors' | 'late_night' | 'toast';
 }
 
 const COLORS = {
@@ -113,10 +113,10 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     { id: '1', name: 'Cafeterias', icon: 'Utensils', key: 'cafeterias' },
     { id: '2', name: 'Vendors', icon: 'ShoppingBag', key: 'vendors' },
     { id: '3', name: 'Late Night', icon: 'Moon', key: 'late_night' },
-    { id: '4', name: 'Agents', icon: 'Bike', key: 'agents' },
+    { id: '4', name: 'Toast', icon: 'Bike', key: 'toast' },
   ];
 
-  const [activeTab, setActiveTab] = useState<string>('cafeterias');
+  const [activeTab, setActiveTab] = useState<'cafeterias' | 'vendors' | 'late_night' | 'toast'>('cafeterias');
   const [showFilters, setShowFilters] = useState(false);
   const [priceFilter, setPriceFilter] = useState<string>('all');
   const [ratingFilter, setRatingFilter] = useState<string>('all');
@@ -821,7 +821,12 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                   <section className="mb-10">
                     <div className="flex items-center justify-between px-4 mb-5">
                       <h2 className="text-xl font-bold text-white">Available Cafeterias</h2>
-                      <button className="text-green-400 text-sm font-semibold hover:text-green-300">See All</button>
+                      <button
+                        className="text-green-400 text-sm font-semibold hover:text-green-300"
+                        onClick={() => window.location.hash = '#/cafeterias'}
+                      >
+                        See All
+                      </button>
                     </div>
                     {loading ? (
                       <div className="flex overflow-hidden px-4">
@@ -862,8 +867,14 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
               {/* Trusted Vendors Section - Show only when Vendors tab is active */}
               {activeTab === 'vendors' && studentVendors.length > 0 && (
                 <section className="mb-10">
-                  <div className="flex items-center space-x-2 px-4 mb-5">
+                  <div className="flex items-center justify-between px-4 mb-5">
                     <h2 className="text-xl font-bold text-white">Trusted Campus Vendors</h2>
+                    <button
+                      className="text-green-400 text-sm font-semibold hover:text-green-300"
+                      onClick={() => window.location.hash = '#/vendors'}
+                    >
+                      See All
+                    </button>
                   </div>
                   <div className="flex overflow-x-auto space-x-4 px-4 hide-scrollbar snap-x snap-mandatory">
                     {studentVendors.map(vendor => (
@@ -888,6 +899,23 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                         {renderVendorCard(vendor, true)}
                       </div>
                     ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Toast Tab - Show toast content */}
+              {activeTab === 'toast' && (
+                <section className="mb-10 px-4">
+                  <div className="flex items-center space-x-2 mb-5">
+                    <Bike className="w-5 h-5 text-green-400" />
+                    <h2 className="text-xl font-bold text-white">Toast Services</h2>
+                  </div>
+                  <div className="text-center py-12">
+                    <div className="w-20 h-20 mx-auto mb-4 bg-gray-800 rounded-full flex items-center justify-center">
+                      <Bike className="w-10 h-10 text-gray-600" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Toast Feature Coming Soon</h3>
+                    <p className="text-gray-400">We're working on bringing you toast-related services</p>
                   </div>
                 </section>
               )}
@@ -1022,8 +1050,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       )}
 
       {/* Bottom Navigation - Fixed at bottom */}
-      <div className="fixed bottom-0 left-0 right-0 bg-[#121212] border-t border-gray-800 z-50">
-        <div className="flex justify-around items-center h-20 safe-area-bottom">
+      <div className="fixed bottom-0 left-0 right-0 bg-[#121212] border-t border-gray-800 z-50" style={{ height: '80px' }}>
+        <div className="flex justify-around items-center h-full">
           <button
             onClick={() => handleNavClick('home')}
             className="flex flex-col items-center justify-center flex-1 py-2"

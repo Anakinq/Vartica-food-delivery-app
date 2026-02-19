@@ -16,6 +16,8 @@ import { Cart } from './components/customer/Cart';
 import { Checkout } from './components/customer/Checkout';
 const CafeteriaDashboard = lazy(() => import('./components/cafeteria/CafeteriaDashboard').then(module => ({ default: module.default })));
 import AuthCallback from './components/auth/AuthCallback';
+const CafeteriaList = lazy(() => import('./components/customer/CafeteriaList').then(module => ({ default: module.CafeteriaList })));
+const VendorList = lazy(() => import('./components/customer/VendorList').then(module => ({ default: module.VendorList })));
 
 import { Analytics } from '@vercel/analytics/react';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -198,6 +200,30 @@ function AppContent() {
           ) : (
             <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
           )}
+        </div>
+      );
+    }
+
+    // Handle cafeteria list
+    if (locationHash === '#/cafeterias') {
+      return (
+        <div className="authenticated-view">
+          <div className="main-content">
+            {withSuspense(CafeteriaList)({ onBack: () => window.location.hash = '' })}
+          </div>
+          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
+        </div>
+      );
+    }
+
+    // Handle vendor list
+    if (locationHash === '#/vendors') {
+      return (
+        <div className="authenticated-view">
+          <div className="main-content">
+            {withSuspense(VendorList)({ onBack: () => window.location.hash = '' })}
+          </div>
+          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
         </div>
       );
     }
