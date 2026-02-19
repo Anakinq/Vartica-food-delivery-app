@@ -801,13 +801,13 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
               {/* Hamburger Menu Dropdown */}
               {showMobileMenu && (
-                <div ref={menuRef} className="absolute right-4 top-16 bg-white shadow-lg rounded-md py-2 w-48 z-50 border border-gray-200 md:hidden">
+                <div ref={menuRef} className="absolute right-4 top-16 bg-slate-800 shadow-lg rounded-md py-2 w-48 z-50 border border-slate-700 md:hidden">
                   <button
                     onClick={() => {
                       setShowProfileModal(true);
                       setShowMobileMenu(false);
                     }}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="block w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700"
                   >
                     <div className="flex items-center space-x-2">
                       <User className="h-4 w-4" />
@@ -819,7 +819,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                       setActiveTab('active');
                       setShowMobileMenu(false);
                     }}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="block w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700"
                   >
                     <div className="flex items-center space-x-2">
                       <Package className="h-4 w-4" />
@@ -831,7 +831,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                       setActiveTab('available');
                       setShowMobileMenu(false);
                     }}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="block w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700"
                   >
                     <div className="flex items-center space-x-2">
                       <Clock className="h-4 w-4" />
@@ -843,7 +843,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                       setShowNotifications(true);
                       setShowMobileMenu(false);
                     }}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="block w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700"
                   >
                     <div className="flex items-center space-x-2">
                       <Bell className="h-4 w-4" />
@@ -855,7 +855,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                       setActiveTab('history');
                       setShowMobileMenu(false);
                     }}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="block w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700"
                   >
                     <div className="flex items-center space-x-2">
                       <BarChart3 className="h-4 w-4" />
@@ -868,7 +868,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                       setShowProfileModal(true);
                       setShowMobileMenu(false);
                     }}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="block w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700"
                   >
                     <div className="flex items-center space-x-2">
                       <Wallet className="h-4 w-4" />
@@ -877,7 +877,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                   </button>
                   <button
                     onClick={signOut}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="block w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700"
                   >
                     <div className="flex items-center space-x-2">
                       <LogOut className="h-4 w-4" />
@@ -908,36 +908,36 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
           {/* Balance Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             {/* Food Wallet */}
-            <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-blue-500">
+            <div className="bg-slate-800 rounded-xl shadow-sm p-5 border-l-4 border-blue-500">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-xs text-gray-500 uppercase font-semibold">Food Wallet</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(wallet?.food_wallet_balance)}</p>
-                  <p className="text-xs text-gray-500 mt-1">For food purchases</p>
+                  <p className="text-xs text-slate-400 uppercase font-semibold">Food Wallet</p>
+                  <p className="text-2xl font-bold text-slate-100 mt-1">{formatCurrency(wallet?.food_wallet_balance)}</p>
+                  <p className="text-xs text-slate-400 mt-1">For food purchases</p>
                 </div>
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Wallet className="h-5 w-5 text-blue-600" />
+                <div className="p-2 bg-blue-900/30 rounded-lg">
+                  <Wallet className="h-5 w-5 text-blue-400" />
                 </div>
               </div>
             </div>
 
             {/* Earnings Wallet */}
-            <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-green-500">
+            <div className="bg-slate-800 rounded-xl shadow-sm p-5 border-l-4 border-green-500">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-xs text-gray-500 uppercase font-semibold">Earnings Wallet</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(wallet?.earnings_wallet_balance)}</p>
-                  <p className="text-xs text-gray-500 mt-1">Available for withdrawal</p>
+                  <p className="text-xs text-slate-400 uppercase font-semibold">Earnings Wallet</p>
+                  <p className="text-2xl font-bold text-slate-100 mt-1">{formatCurrency(wallet?.earnings_wallet_balance)}</p>
+                  <p className="text-xs text-slate-400 mt-1">Available for withdrawal</p>
                 </div>
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <Banknote className="h-5 w-5 text-green-600" />
+                <div className="p-2 bg-green-900/30 rounded-lg">
+                  <Banknote className="h-5 w-5 text-green-400" />
                 </div>
               </div>
               <div className="mt-3">
                 <button
                   onClick={openWithdrawModal}
                   disabled={!wallet || wallet.earnings_wallet_balance <= 0}
-                  className="w-full py-2.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                  className="w-full py-2.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
                 >
                   Request Withdrawal
                 </button>
@@ -945,31 +945,31 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
             </div>
 
             {/* Total Balance */}
-            <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-purple-500">
+            <div className="bg-slate-800 rounded-xl shadow-sm p-5 border-l-4 border-purple-500">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-xs text-gray-500 uppercase font-semibold">Total Balance</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(totalBalance)}</p>
-                  <p className="text-xs text-gray-500 mt-1">Food + Earnings</p>
+                  <p className="text-xs text-slate-400 uppercase font-semibold">Total Balance</p>
+                  <p className="text-2xl font-bold text-slate-100 mt-1">{formatCurrency(totalBalance)}</p>
+                  <p className="text-xs text-slate-400 mt-1">Food + Earnings</p>
                 </div>
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Banknote className="h-5 w-5 text-purple-600" />
+                <div className="p-2 bg-purple-900/30 rounded-lg">
+                  <Banknote className="h-5 w-5 text-purple-400" />
                 </div>
               </div>
             </div>
 
             {/* Status */}
-            <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-gray-500">
+            <div className="bg-slate-800 rounded-xl shadow-sm p-5 border-l-4 border-slate-500">
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-xs text-gray-500 uppercase font-semibold">Status</p>
-                  <p className={`text-xl font-bold ${isOnline ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className="text-xs text-slate-400 uppercase font-semibold">Status</p>
+                  <p className={`text-xl font-bold ${isOnline ? 'text-green-400' : 'text-red-400'}`}>
                     {isOnline ? 'Online' : 'Offline'}
                   </p>
                 </div>
                 <button
                   onClick={toggleOnlineStatus}
-                  className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${isOnline ? 'bg-green-500' : 'bg-gray-300'
+                  className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${isOnline ? 'bg-green-500' : 'bg-slate-600'
                     }`}
                   aria-label={isOnline ? 'Go offline' : 'Go online'}
                 >

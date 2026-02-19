@@ -270,165 +270,93 @@ class SupabaseDatabaseService implements IDatabaseService {
     }
   };
 
-  // Consolidated fetch for profile + vendor data with error handling
+  // Enhanced profile fetching with improved caching and cache invalidation
   async fetchProfileWithVendor(userId: string): Promise<QueryResult<ProfileWithVendor>> {
     try {
       console.log('Fetching profile with vendor data for user:', userId);
 
-      // Use a cache to avoid repeated API calls for the same user
+      // Check if this is a role switching operation that requires fresh data
+      const roleSwitching = sessionStorage.getItem('role_switching_operation');
       const cacheKey = `profile_with_vendor_${userId}`;
-      const cachedResult = sessionStorage.getItem(cacheKey);
 
-      if (cachedResult) {
-        try {
-          const parsedCache = JSON.parse(cachedResult);
-          // Cache for 5 minutes
-          if (Date.now() - parsedCache.timestamp < 5 * 60 * 1000) {
-            console.log('Returning cached profile with vendor data for user:', userId);
-            return { data: parsedCache.data, error: null };
+      // Clear cache if we're switching roles
+      if (roleSwitching) {
+        console.log('Role switching detected, bypassing cache for user:', userId);
+        sessionStorage.removeItem(cacheKey);
+      }
+
+      // Check cache (5-minute TTL) only if not switching roles
+      if (!roleSwitching) {
+        const cachedResult = sessionStorage.getItem(cacheKey);
+        if (cachedResult) {
+          try {
+            const parsedCache = JSON.parse(cachedResult);
+            // Cache for 5 minutes
+            if (Date.now() - parsedCache.timestamp < 5 * 60 * 1000) {
+              console.log('Returning cached profile with vendor data for user:', userId);
+              return { data: parsedCache.data, error: null };
+            } else {
+              // Cache expired, remove it
+              sessionStorage.removeItem(cacheKey);
+            }
+          } catch (cacheError) {
+            console.warn('Cache parsing error, clearing cache:', cacheError);
+            sessionStorage.removeItem(cacheKey);
           }
-        } catch (cacheError) {
-          console.warn('Cache parsing error:', cacheError);
         }
       }
 
-      // First fetch the profile separately to avoid join issues
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+      // Fetch profile data with proper error handling
+      const profileResult = await this.selectSingle<Profile>({
+        table: 'profiles',
+        match: { id: userId }
+      });
 
-      if (profileError) {
-        console.error('Profile fetch error for user', userId, ':', profileError);
-        // Try to get basic user info from auth if profile fails
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user && user.id === userId) {
-            // Create minimal profile from auth data
-            const basicProfile: any = {
-              id: user.id,
-              email: user.email || '',
-              full_name: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
-              role: 'customer',
-              phone: user.user_metadata?.phone || null,
-              avatar_url: user.user_metadata?.avatar_url || null,
-              hostel_location: user.user_metadata?.hostel_location || null,
-              hostel: null,
-              matric_number: null,
-              department: null,
-              vendor_approved: false,
-              delivery_approved: false,
-              created_at: user.created_at || new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            };
-
-            console.log('Created basic profile from auth data for user:', userId);
-            return { data: basicProfile, error: null };
-          }
-        } catch (authError) {
-          console.error('Auth fallback failed:', authError);
-        }
-
-        return {
-          data: null,
-          error: { message: profileError.message || 'Profile fetch error', code: profileError.code || 'PROFILE_ERROR' }
-        };
+      if (profileResult.error) {
+        console.error('Profile fetch error for user', userId, ':', profileResult.error);
+        // Try to get basic user info from auth as fallback
+        return await this.createProfileFallback(userId);
       }
 
-      if (!profileData) {
+      if (!profileResult.data) {
         console.log('No profile data found for user:', userId);
-        return {
-          data: null,
-          error: null
-        };
+        return { data: null, error: null };
       }
 
+      const profileData = profileResult.data;
       console.log('Raw profile data for user', userId, ':', profileData);
 
-      // Fetch vendor data separately to avoid join issues
-      let vendorData = null;
-      try {
-        const { data: vendorDataResult, error: vendorError } = await supabase
-          .from('vendors')
-          .select('*')
-          .eq('user_id', userId)
-          .maybeSingle();
+      // Fetch related data in parallel for better performance
+      const [vendorData, deliveryAgentData] = await Promise.all([
+        this.fetchVendorData(userId, profileData),
+        this.fetchDeliveryAgentData(userId, profileData)
+      ]);
 
-        if (vendorError) {
-          console.warn('Vendor fetch error for user', userId, ':', vendorError);
-          // Don't fail completely, continue with profile only
-        } else {
-          vendorData = vendorDataResult;
-        }
-      } catch (vendorQueryError) {
-        console.warn('Vendor query exception for user', userId, ':', vendorQueryError);
-        // Continue with profile only
-      }
-
-      console.log('Vendor data for user', userId, ':', vendorData);
-
-      // Fetch delivery agent data for delivery agents
-      let deliveryAgentData = null;
-      if (profileData.role === 'delivery_agent' || profileData.is_delivery_agent) {
-        try {
-          const { data: agentDataResult, error: agentError } = await supabase
-            .from('delivery_agents')
-            .select('*')
-            .eq('user_id', userId)
-            .maybeSingle();
-
-          if (agentError) {
-            console.warn('Delivery agent fetch error for user', userId, ':', agentError);
-            // Don't fail completely, continue with profile only
-          } else {
-            deliveryAgentData = agentDataResult;
-          }
-        } catch (agentQueryError) {
-          console.warn('Delivery agent query exception for user', userId, ':', agentQueryError);
-          // Continue with profile only
-        }
-      }
-
-      console.log('Delivery agent data for user', userId, ':', deliveryAgentData);
-
-      // Create profile with vendor and delivery agent data, ensuring type compatibility
+      // Create profile with all related data
       const profileWithVendor: ProfileWithVendor = {
         ...profileData,
-        vendor: vendorData ? {
-          id: vendorData.id,
-          user_id: profileData.id,
-          store_name: vendorData.store_name,
-          description: vendorData.description,
-          image_url: vendorData.image_url,
-          vendor_type: vendorData.vendor_type,
-          is_active: vendorData.is_active,
-          available_from: vendorData.available_from,
-          available_until: vendorData.available_until,
-          created_at: vendorData.created_at,
-          location: vendorData.location,
-          matric_number: vendorData.matric_number,
-          department: vendorData.department,
-          delivery_option: vendorData.delivery_option,
-          application_status: vendorData.application_status,
-          application_submitted_at: vendorData.application_submitted_at,
-          application_reviewed_at: vendorData.application_reviewed_at,
-          rejection_reason: vendorData.rejection_reason
+        vendor: vendorData,
+        vendor_status: vendorData ? {
+          is_active: vendorData.is_active ?? false,
+          application_status: vendorData.application_status || 'pending'
         } : null,
-        vendor_status: vendorData && typeof vendorData === 'object' ? {
-          is_active: (vendorData as any).is_active ?? false,
-          application_status: (vendorData as any).application_status || 'pending'
-        } : null,
-        delivery_agent: deliveryAgentData || null
+        delivery_agent: deliveryAgentData
       };
 
       console.log('Final profile+vendor data for user', userId, ':', profileWithVendor);
 
-      // Cache the result
-      sessionStorage.setItem(cacheKey, JSON.stringify({
-        data: profileWithVendor,
-        timestamp: Date.now()
-      }));
+      // Cache the result (only if not switching roles)
+      if (!roleSwitching) {
+        sessionStorage.setItem(cacheKey, JSON.stringify({
+          data: profileWithVendor,
+          timestamp: Date.now()
+        }));
+      }
+
+      // Clean up role switching markers
+      if (roleSwitching) {
+        sessionStorage.removeItem('role_switching_operation');
+      }
 
       return {
         data: profileWithVendor,
@@ -444,6 +372,112 @@ class SupabaseDatabaseService implements IDatabaseService {
         error: { message: (err as Error).message }
       };
     }
+  }
+
+  // Helper method to fetch vendor data
+  private async fetchVendorData(userId: string, profileData: any) {
+    try {
+      // Check if user has vendor capabilities
+      const isVendor = profileData.is_vendor || ['vendor', 'late_night_vendor'].includes(profileData.role);
+      if (!isVendor) {
+        return null;
+      }
+
+      const { data: vendorData, error: vendorError } = await supabase
+        .from('vendors')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (vendorError) {
+        console.warn('Vendor fetch error for user', userId, ':', vendorError);
+        return null;
+      }
+
+      return vendorData;
+    } catch (error) {
+      console.warn('Vendor query exception for user', userId, ':', error);
+      return null;
+    }
+  }
+
+  // Helper method to fetch delivery agent data
+  private async fetchDeliveryAgentData(userId: string, profileData: any) {
+    try {
+      // Check if user has delivery agent capabilities
+      const isDeliveryAgent = profileData.is_delivery_agent || profileData.role === 'delivery_agent';
+      if (!isDeliveryAgent) {
+        return null;
+      }
+
+      const { data: agentData, error: agentError } = await supabase
+        .from('delivery_agents')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (agentError) {
+        console.warn('Delivery agent fetch error for user', userId, ':', agentError);
+        return null;
+      }
+
+      return agentData;
+    } catch (error) {
+      console.warn('Delivery agent query exception for user', userId, ':', error);
+      return null;
+    }
+  }
+
+  // Helper method to create profile fallback from auth data
+  private async createProfileFallback(userId: string): Promise<QueryResult<ProfileWithVendor>> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && user.id === userId) {
+        const basicProfile: any = {
+          id: user.id,
+          email: user.email || '',
+          full_name: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
+          role: 'customer',
+          phone: user.user_metadata?.phone || null,
+          avatar_url: user.user_metadata?.avatar_url || null,
+          hostel_location: user.user_metadata?.hostel_location || null,
+          hostel: null,
+          matric_number: null,
+          department: null,
+          vendor_approved: false,
+          delivery_approved: false,
+          created_at: user.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        console.log('Created basic profile from auth data for user:', userId);
+        return { data: basicProfile, error: null };
+      }
+    } catch (authError) {
+      console.error('Auth fallback failed:', authError);
+    }
+
+    return {
+      data: null,
+      error: { message: 'Failed to fetch profile data', code: 'PROFILE_FETCH_FAILED' }
+    };
+  }
+
+  // Method to clear profile cache for a specific user
+  clearProfileCache(userId: string) {
+    const cacheKey = `profile_with_vendor_${userId}`;
+    sessionStorage.removeItem(cacheKey);
+    console.log('Cleared profile cache for user:', userId);
+  }
+
+  // Method to clear all profile caches
+  clearAllProfileCaches() {
+    Object.keys(sessionStorage).forEach(key => {
+      if (key.startsWith('profile_with_vendor_')) {
+        sessionStorage.removeItem(key);
+      }
+    });
+    console.log('Cleared all profile caches');
   }
 
   async getPendingApprovals() {

@@ -41,12 +41,14 @@ interface Category {
 }
 
 const COLORS = {
-  primary: '#F59E0B',     // Orange (original theme)
-  accent: '#D97706',      // Darker orange
-  background: '#121212',   // Dark background
-  cards: '#1E1E1E',       // Dark cards
-  textPrimary: '#FFFFFF',  // White text
-  textSecondary: '#9CA3AF', // Gray text
+  primary: '#22c55e',     // Green (primary actions)
+  accent: '#16a34a',      // Darker green
+  secondary: '#f59e0b',   // Orange (accents)
+  background: '#0f172a',   // Dark background
+  surface: '#1e293b',     // Card surfaces
+  textPrimary: '#ffffff',  // White text
+  textSecondary: '#cbd5e1', // Light gray text
+  textTertiary: '#94a3b8',  // Gray text
 };
 
 // Helper function to get time-based greeting
@@ -80,7 +82,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const [lateNightVendors, setLateNightVendors] = useState<Vendor[]>([]);
   const [vendorRatings, setVendorRatings] = useState<Record<string, { avgRating: number; reviewCount: number }>>({});
   const [banners, setBanners] = useState<Banner[]>([]);
-  const [notificationCount, setNotificationCount] = useState(3); // Default mock count
+  const [notificationCount, setNotificationCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(() => {
     // Use profile's hostel_location if available, otherwise default
@@ -536,15 +538,15 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
           setPulseCategory(category.key);
           setTimeout(() => setPulseCategory(null), 300);
         }}
-        className={`flex flex-col items-center justify-center min-w-[80px] p-4 rounded-2xl transition-all duration-200 ${isActive
+        className={`flex flex-col items-center justify-center min-w-[72px] px-3 py-2 rounded-xl transition-all duration-200 ${isActive
           ? 'bg-green-500 shadow-lg shadow-green-500/30'
-          : 'bg-gray-800 hover:bg-gray-700'
+          : 'bg-slate-800 hover:bg-slate-700'
           }`}
       >
-        <div className={`p-3 rounded-xl mb-2 ${isActive ? 'bg-green-400/20' : 'bg-gray-700'}`}>
-          <IconComponent className={`w-6 h-6 ${isActive ? 'text-green-400' : 'text-gray-400'}`} />
+        <div className={`p-1.5 rounded-lg mb-1 ${isActive ? 'bg-green-400/20' : 'bg-slate-700'}`}>
+          <IconComponent className={`w-5 h-5 ${isActive ? 'text-green-400' : 'text-slate-400'}`} />
         </div>
-        <span className={`text-sm font-medium ${isActive ? 'text-green-400' : 'text-gray-400'}`}>
+        <span className={`text-xs font-medium ${isActive ? 'text-green-400' : 'text-slate-400'}`}>
           {category.name}
         </span>
       </button>
@@ -558,35 +560,35 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       <div
         key={cafeteria.id}
         onClick={() => handleSellerClick(cafeteria.id, 'cafeteria', cafeteria.name)}
-        className="bg-gray-800 rounded-2xl overflow-hidden shadow-lg shadow-black/20 border border-gray-700 cursor-pointer transition-all duration-200 hover:shadow-xl hover:shadow-green-500/10 hover:border-green-500/50"
+        className="bg-slate-800 rounded-xl overflow-hidden shadow-md border border-slate-700 cursor-pointer transition-all duration-200 hover:shadow-lg hover:shadow-green-500/10 hover:border-green-500/30"
       >
-        <div className="relative h-24">
+        <div className="relative h-20">
           <LazyImage
             src={cafeteria.image_url || getImagePath(cafeteria.id, 'cafeteria', cafeteria.name)}
             alt={cafeteria.name}
             className="w-full h-full object-cover"
             placeholder="https://placehold.co/600x400/1e293b/64748b?text=No+Image"
           />
-          <div className="absolute top-3 right-3">
-            <span className={`px-3 py-1.5 rounded-full text-xs font-semibold ${isOpen ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
+          <div className="absolute top-2 right-2">
+            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${isOpen ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
               {isOpen ? 'Open' : 'Closed'}
             </span>
           </div>
         </div>
         <div className="p-3">
-          <h3 className="font-bold text-white text-base truncate">{cafeteria.name}</h3>
-          <div className="flex items-center text-sm text-gray-400 mt-2">
-            <MapPin className="w-4 h-4 mr-1.5" />
+          <h3 className="font-semibold text-slate-100 text-sm truncate mb-1">{cafeteria.name}</h3>
+          <div className="flex items-center text-xs text-slate-400 mb-2">
+            <MapPin className="w-3.5 h-3.5 mr-1" />
             <span className="truncate">Central Campus</span>
           </div>
-          <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-700">
+          <div className="flex items-center justify-between pt-2 border-t border-slate-700">
             <div className="flex items-center">
-              <Star className="w-5 h-5 text-yellow-400 fill-current" />
-              <span className="ml-1.5 text-sm font-semibold text-white">4.5</span>
-              <span className="ml-1.5 text-xs text-gray-500">(187)</span>
+              <Star className="w-4 h-4 text-yellow-400 fill-current" />
+              <span className="ml-1 text-xs font-medium text-slate-200">4.5</span>
+              <span className="ml-1 text-xs text-slate-500">(187)</span>
             </div>
-            <div className="flex items-center text-sm text-gray-400">
-              <Clock className="w-4 h-4 mr-1.5" />
+            <div className="flex items-center text-xs text-slate-400">
+              <Clock className="w-3.5 h-3.5 mr-1" />
               <span>20-25 min</span>
             </div>
           </div>
@@ -602,9 +604,9 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       <div
         key={vendor.id}
         onClick={() => handleSellerClick(vendor.id, 'vendor', vendor.store_name)}
-        className="bg-gray-800 rounded-2xl overflow-hidden shadow-lg shadow-black/20 border border-gray-700 cursor-pointer transition-all duration-200 hover:shadow-xl hover:shadow-green-500/10 hover:border-green-500/50"
+        className="bg-slate-800 rounded-xl overflow-hidden shadow-md border border-slate-700 cursor-pointer transition-all duration-200 hover:shadow-lg hover:shadow-green-500/10 hover:border-green-500/30"
       >
-        <div className="relative h-24">
+        <div className="relative h-20">
           <LazyImage
             src={vendor.image_url || getImagePath(vendor.id, 'vendor')}
             alt={vendor.store_name}
@@ -612,36 +614,36 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
             placeholder="https://placehold.co/600x400/1e293b/64748b?text=No+Image"
           />
           {isLateNight && (
-            <div className="absolute top-3 left-3">
-              <span className="bg-purple-500/20 text-purple-400 text-xs px-3 py-1.5 rounded-full flex items-center border border-purple-500/30">
-                <Moon className="w-3.5 h-3.5 mr-1.5" /> Late Night
+            <div className="absolute top-2 left-2">
+              <span className="bg-purple-500/20 text-purple-400 text-xs px-2 py-1 rounded-full flex items-center border border-purple-500/30">
+                <Moon className="w-3 h-3 mr-1" /> Late Night
               </span>
             </div>
           )}
           {/* Verified badge - vendors are always considered verified */}
           {(vendor.vendor_type === 'student' || vendor.vendor_type === 'late_night') && (
-            <div className="absolute top-3 right-3">
-              <span className="bg-blue-500/20 text-blue-400 text-xs px-3 py-1.5 rounded-full font-semibold border border-blue-500/30">
+            <div className="absolute top-2 right-2">
+              <span className="bg-blue-500/20 text-blue-400 text-xs px-2 py-1 rounded-full font-medium border border-blue-500/30">
                 ✓ Verified
               </span>
             </div>
           )}
         </div>
         <div className="p-3">
-          <h3 className="font-bold text-white text-base truncate">{vendor.store_name}</h3>
-          <p className="text-sm text-gray-400 mt-1.5 line-clamp-1">{vendor.description || 'Student Vendor'}</p>
-          <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-700">
+          <h3 className="font-semibold text-slate-100 text-sm truncate mb-1">{vendor.store_name}</h3>
+          <p className="text-xs text-slate-400 line-clamp-1 mb-2">{vendor.description || 'Student Vendor'}</p>
+          <div className="flex items-center justify-between pt-2 border-t border-slate-700">
             {rating && rating.reviewCount > 0 ? (
               <div className="flex items-center">
-                <Star className="w-5 h-5 text-yellow-400 fill-current" />
-                <span className="ml-1.5 text-sm font-semibold text-white">{rating.avgRating.toFixed(1)}</span>
-                <span className="ml-1.5 text-xs text-gray-500">({rating.reviewCount})</span>
+                <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                <span className="ml-1 text-xs font-medium text-slate-200">{rating.avgRating.toFixed(1)}</span>
+                <span className="ml-1 text-xs text-slate-500">({rating.reviewCount})</span>
               </div>
             ) : (
-              <div className="text-sm text-gray-400">Be the first to review!</div>
+              <div className="text-xs text-slate-400">Be the first to review!</div>
             )}
             {isLateNight && (
-              <div className="text-xs text-purple-400 font-semibold">
+              <div className="text-xs text-purple-400 font-medium">
                 9pm - 2am
               </div>
             )}
@@ -670,51 +672,64 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#121212]">
+    <div className="flex flex-col h-screen bg-slate-900">
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto pb-16">
+      <div className="flex-1 overflow-y-auto">
         {/* Header Section */}
-        <header className="bg-[#121212] border-b border-gray-800 sticky top-0 z-40">
+        <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
           <div className="px-4 pt-4">
-            {/* Greeting and Location Row */}
-            <div className="flex justify-between items-start mb-3">
+            {/* Greeting and Quick Actions Row */}
+            <div className="flex justify-between items-start mb-4">
               <div>
-                <p className="text-sm text-gray-400">{getGreeting()},</p>
-                <h1 className="text-2xl font-bold text-white">
+                <p className="text-sm text-slate-400">{getGreeting()},</p>
+                <h1 className="text-xl font-bold text-slate-100">
                   {profile?.full_name || 'Student'}
                 </h1>
               </div>
-              {/* Notification Bell */}
-              <button
-                onClick={() => setShowNotifications(true)}
-                className="relative p-2 hover:bg-gray-800 rounded-full transition-colors"
-              >
-                <Bell className="w-6 h-6 text-gray-300" />
-                {notificationCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
-                    {notificationCount > 99 ? '99+' : notificationCount}
-                  </span>
-                )}
-              </button>
+              <div className="flex items-center space-x-3">
+                {/* Quick Order Button */}
+                <button
+                  onClick={openCart}
+                  className="relative bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center"
+                >
+                  <Package className="w-4 h-4 mr-2" />
+                  Order
+                  {cartCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                      {cartCount}
+                    </span>
+                  )}
+                </button>
+                {/* Notification Bell */}
+                <button
+                  onClick={() => setShowNotifications(true)}
+                  className="relative p-2 hover:bg-slate-800 rounded-full transition-colors"
+                >
+                  <Bell className="w-5 h-5 text-slate-300" />
+                  {notificationCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                      {notificationCount > 99 ? '99+' : notificationCount}
+                    </span>
+                  )}
+                </button>
+              </div>
             </div>
-
-
           </div>
 
           {/* Search Bar with Filter Toggle */}
           <div className="px-4 pb-4">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 h-5 w-5" />
               <input
                 type="text"
                 value={globalSearchQuery}
                 onChange={(e) => setGlobalSearchQuery(e.target.value)}
                 placeholder={selectedSeller ? "Search menu items..." : "Search for food, vendors..."}
-                className="w-full pl-12 pr-14 py-3.5 bg-gray-800 border border-gray-700 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm text-white placeholder-gray-500 shadow-inner"
+                className="w-full pl-12 pr-14 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm text-slate-100 placeholder-slate-500"
               />
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-xl transition-colors ${showFilters ? 'bg-green-500 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-lg transition-colors ${showFilters ? 'bg-green-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
               >
                 <SlidersHorizontal className="w-4 h-4" />
               </button>
@@ -737,7 +752,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                         onClick={() => setSortBy(option.value)}
                         className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${sortBy === option.value
                           ? 'bg-green-500 text-white'
-                          : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                           }`}
                       >
                         {option.label}
@@ -760,7 +775,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                         onClick={() => setRatingFilter(option.value)}
                         className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${ratingFilter === option.value
                           ? 'bg-green-500 text-white'
-                          : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                           }`}
                       >
                         {option.label}
@@ -774,7 +789,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         </header>
 
         {/* Main Content */}
-        <main className="pb-24">
+        <main className="bg-slate-900">
           {!selectedSeller ? (
             <>
               {/* Announcement Carousel (Hero) */}
@@ -809,8 +824,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
               )}
 
               {/* Category Section */}
-              <section className="mb-8 px-4">
-                <div className="flex space-x-3 overflow-x-auto hide-scrollbar pb-2">
+              <section className="mb-6 px-4">
+                <div className="flex space-x-2 overflow-x-auto hide-scrollbar pb-2">
                   {categories.map(renderCategoryTab)}
                 </div>
               </section>
@@ -1026,7 +1041,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
           onSuccess={() => {
             setCartPackCount(0);
             setShowCheckout(false);
-            toast.showToast({ type: 'success', message: 'Order placed successfully!' });
+            toast.showToast('Order placed successfully!');
           }}
         />
       )}
@@ -1039,7 +1054,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
           onClose={() => setShowVendorUpgrade(false)}
           onSuccess={async () => {
             setShowVendorUpgrade(false);
-            toast.showToast({ type: 'success', message: 'Application submitted successfully!' });
+            toast.showToast('Application successfully submitted!');
             try {
               await refreshProfile();
             } catch (error) {
@@ -1050,8 +1065,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       )}
 
       {/* Bottom Navigation - Fixed at bottom */}
-      <div className="fixed bottom-0 left-0 right-0 bg-[#121212] border-t border-gray-800 z-50" style={{ height: '80px' }}>
-        <div className="flex justify-around items-center h-full">
+      <div className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 z-50">
+        <div className="flex justify-around items-center h-16 safe-area-bottom">
           <button
             onClick={() => handleNavClick('home')}
             className="flex flex-col items-center justify-center flex-1 py-2"
@@ -1063,32 +1078,32 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
             onClick={() => handleNavClick('orders')}
             className="flex flex-col items-center justify-center flex-1 py-2"
           >
-            <Package className="w-6 h-6 text-gray-400" />
-            <span className="text-xs text-gray-400 mt-1">Orders</span>
+            <Package className="w-6 h-6 text-slate-400" />
+            <span className="text-xs text-slate-400 mt-1">Orders</span>
           </button>
           <button
             onClick={() => handleNavClick('notifications')}
             className="flex flex-col items-center justify-center flex-1 py-2 relative"
           >
-            <Bell className="w-6 h-6 text-gray-400" />
+            <Bell className="w-6 h-6 text-slate-400" />
             {notificationCount > 0 && (
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                 {notificationCount > 99 ? '99+' : notificationCount}
               </span>
             )}
-            <span className="text-xs text-gray-400 mt-1">Alerts</span>
+            <span className="text-xs text-slate-400 mt-1">Alerts</span>
           </button>
           <button
             onClick={() => handleNavClick('profile')}
             className="flex flex-col items-center justify-center flex-1 py-2"
           >
-            <User className="w-6 h-6 text-gray-400" />
-            <span className="text-xs text-gray-400 mt-1">Profile</span>
+            <User className="w-6 h-6 text-slate-400" />
+            <span className="text-xs text-slate-400 mt-1">Profile</span>
           </button>
         </div>
       </div>
     </div>
-  );
+    );
 };
 
-export default CustomerHome;
+    export default CustomerHome;

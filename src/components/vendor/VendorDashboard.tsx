@@ -701,7 +701,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
                   onShowProfile?.();
                   setShowMobileMenu(false);
                 }}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                className="block w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700"
               >
                 <div className="flex items-center space-x-2">
                   <Settings className="h-4 w-4" />
@@ -710,7 +710,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
               </button>
               <button
                 onClick={signOut}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                className="block w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700"
               >
                 <div className="flex items-center space-x-2">
                   <LogOut className="h-4 w-4" />
@@ -727,62 +727,62 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         <div className="px-4 py-4">
           {/* Stats Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 mb-6 sm:mb-8 overflow-hidden">
-            <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden">
+            <div className="bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden border border-slate-700">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm text-gray-600 truncate">Orders</p>
-                  <p className="text-lg sm:text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
+                  <p className="text-xs sm:text-sm text-slate-400 truncate">Orders</p>
+                  <p className="text-lg sm:text-2xl font-bold text-slate-100">{stats.totalOrders}</p>
                 </div>
-                <Package className="h-8 w-8 sm:h-10 sm:w-10 text-purple-600 flex-shrink-0" />
+                <Package className="h-8 w-8 sm:h-10 sm:w-10 text-purple-400 flex-shrink-0" />
               </div>
             </div>
 
-            <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden">
+            <div className="bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden border border-slate-700">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm text-gray-600 truncate">Wallet</p>
-                  <p className="text-sm sm:text-xl font-bold text-green-600 truncate">{formatCurrency(walletBalance)}</p>
+                  <p className="text-xs sm:text-sm text-slate-400 truncate">Wallet</p>
+                  <p className="text-sm sm:text-xl font-bold text-green-400 truncate">{formatCurrency(walletBalance)}</p>
                 </div>
-                <Wallet className="h-8 w-8 sm:h-10 sm:w-10 text-green-600 flex-shrink-0" />
+                <Wallet className="h-8 w-8 sm:h-10 sm:w-10 text-green-400 flex-shrink-0" />
               </div>
               <button
                 onClick={() => setShowWithdrawModal(true)}
                 disabled={walletBalance < 100}
-                className="mt-2 w-full py-1.5 sm:py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
+                className="mt-2 w-full py-1.5 sm:py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm transition-colors"
               >
                 Withdraw
               </button>
             </div>
 
-            <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden">
+            <div className="bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden border border-slate-700">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm text-gray-600 truncate">Revenue</p>
-                  <p className="text-sm sm:text-xl font-bold text-gray-900 truncate">{formatCurrency(stats.totalRevenue)}</p>
+                  <p className="text-xs sm:text-sm text-slate-400 truncate">Revenue</p>
+                  <p className="text-sm sm:text-xl font-bold text-slate-100 truncate">{formatCurrency(stats.totalRevenue)}</p>
                 </div>
-                <DollarSign className="h-8 w-8 sm:h-10 sm:w-10 text-green-600 flex-shrink-0" />
+                <DollarSign className="h-8 w-8 sm:h-10 sm:w-10 text-green-400 flex-shrink-0" />
               </div>
             </div>
 
-            <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden">
+            <div className="bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden border border-slate-700">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm text-gray-600 truncate">Rating</p>
-                  <p className="text-sm sm:text-xl font-bold text-gray-900">
+                  <p className="text-xs sm:text-sm text-slate-400 truncate">Rating</p>
+                  <p className="text-sm sm:text-xl font-bold text-slate-100">
                     {stats.avgRating > 0 ? stats.avgRating.toFixed(1) : 'N/A'}
                   </p>
                 </div>
-                <Star className="h-8 w-8 sm:h-10 sm:w-10 text-yellow-500 flex-shrink-0" />
+                <Star className="h-8 w-8 sm:h-10 sm:w-10 text-yellow-400 flex-shrink-0" />
               </div>
             </div>
 
-            <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden">
+            <div className="bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden border border-slate-700">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm text-gray-600 truncate">Reviews</p>
-                  <p className="text-lg sm:text-xl font-bold text-gray-900">{stats.reviewCount}</p>
+                  <p className="text-xs sm:text-sm text-slate-400 truncate">Reviews</p>
+                  <p className="text-lg sm:text-xl font-bold text-slate-100">{stats.reviewCount}</p>
                 </div>
-                <BarChart3 className="h-8 w-8 sm:h-10 sm:w-10 text-blue-600 flex-shrink-0" />
+                <BarChart3 className="h-8 w-8 sm:h-10 sm:w-10 text-blue-400 flex-shrink-0" />
               </div>
             </div>
           </div>

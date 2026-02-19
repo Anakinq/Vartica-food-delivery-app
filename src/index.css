@@ -2,6 +2,106 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Role Switching Transitions */
+.role-switching {
+  transition: all 0.3s ease;
+}
+
+.role-switching-loading {
+  pointer-events: none;
+}
+
+.role-switching .dashboard-container {
+  opacity: 0.7;
+  transform: translateY(10px);
+  transition: all 0.3s ease;
+}
+
+/* Smooth transitions for role switcher dialog */
+.role-switch-dialog-enter {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.role-switch-dialog-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 200ms, transform 200ms;
+}
+
+.role-switch-dialog-exit {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.role-switch-dialog-exit-active {
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 200ms, transform 200ms;
+}
+
+/* Loading spinner for role switching */
+.role-switch-loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e5e7eb;
+  border-top: 2px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Enhanced button states */
+.role-switch-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.role-switch-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Dialog overlay animation */
+.dialog-overlay {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.dialog-content {
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* Performance optimizations */
 html {
   scroll-behavior: smooth;
@@ -80,14 +180,10 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: 72px;
-  /* MUST be >= bottom nav height */
   min-height: 0;
   /* Important for flex scrolling */
   width: 100%;
   max-width: 100%;
-  /* Account for fixed headers */
-  padding-top: 64px;
 }
 
 /* Fixed bottom navigation - NEVER scrolls */
@@ -352,8 +448,32 @@ select {
 
 /* Better focus styles for accessibility */
 .focus-ring:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid #22c55e;
   outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+
+/* Focus visible for all interactive elements */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 2px solid #22c55e;
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+/* Remove focus styles for mouse users but keep for keyboard users */
+@media (hover: hover) {
+
+  button:not(:focus-visible),
+  input:not(:focus-visible),
+  textarea:not(:focus-visible),
+  select:not(:focus-visible),
+  a:not(:focus-visible) {
+    outline: none;
+  }
 }
 
 /* Prevent zoom on input focus on mobile */
@@ -698,10 +818,13 @@ select:focus {
   background-color: #121212;
   border-top: 1px solid #333;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+  /* Add subtle transition for smoother appearance */
+  transition: all 0.2s ease;
 }
 
 .nav-item {
   color: #9ca3af;
+  transition: all 0.2s ease;
 }
 
 .nav-item.active {
@@ -718,6 +841,29 @@ select:focus {
 .app-content-wrapper>div:first-child {
   flex: 1;
   overflow-y: auto;
+}
+
+/* Better integration: Add padding to main content to account for fixed bottom nav */
+.main-content {
+  padding-bottom: 80px;
+  margin-bottom: 0;
+}
+
+/* Alternative: Make bottom nav appear more connected to content */
+.bottom-nav-connected {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background-color: #121212;
+  border-top: 1px solid #333;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+  /* Connect to content with seamless transition */
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  margin: 0;
+  padding: 8px 0 env(safe-area-inset-bottom, 0px);
 }
 
 /* App frame styling to eliminate web feel */
@@ -949,7 +1095,43 @@ select:focus {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Shimmer animation for loading states */
+/* Micro-interactions and animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
@@ -957,6 +1139,62 @@ select:focus {
 
   100% {
     background-position: 200% 0;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out forwards;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.2s ease-out forwards;
+}
+
+/* Button hover effects */
+.transition-smooth {
+  transition: all 0.2s ease-in-out;
+}
+
+.hover-lift {
+  transition: transform 0.2s ease-in-out;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+}
+
+/* Card hover effects */
+.card-hover {
+  transition: all 0.3s ease-in-out;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Focus states for accessibility */
+.focus-visible-ring:focus-visible {
+  outline: 2px solid #22c55e;
+  outline-offset: 2px;
+  border-radius: 0.375rem;
+}
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+
+  .animate-fadeIn,
+  .animate-slideIn,
+  .animate-scaleIn,
+  .card-hover,
+  .hover-lift,
+  .transition-smooth {
+    animation: none;
+    transition: none;
   }
 }
 
