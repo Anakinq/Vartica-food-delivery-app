@@ -248,8 +248,8 @@ export default async function handler(req, res) {
             .insert({
                 agent_id,
                 amount,
+                type: 'delivery_earnings',  // Required field for withdrawals table
                 status: 'pending'
-                // Note: Not including 'type' field as it doesn't exist in the 'withdrawals' table
             })
             .select()
             .single();
@@ -263,10 +263,10 @@ export default async function handler(req, res) {
                 .from('withdrawals')
                 .insert({
                     agent_id: agent_id,
-                    amount: amount
-                    // Note: Not including 'type' field as it doesn't exist in the 'withdrawals' table
+                    amount: amount,
+                    type: 'delivery_earnings'  // Required field for withdrawals table
                 })
-                .select('id, agent_id, amount, status')
+                .select('id, agent_id, amount, status, type')
                 .single();
 
             if (simpleError) {
@@ -278,10 +278,10 @@ export default async function handler(req, res) {
                     .insert({
                         agent_id: agent_id,
                         amount: amount,
+                        type: 'delivery_earnings',  // Required field for withdrawals table
                         status: 'pending'
-                        // Note: Not including 'type' field as it doesn't exist in the 'withdrawals' table
                     })
-                    .select('id, agent_id, amount, status')
+                    .select('id, agent_id, amount, status, type')
                     .single();
 
                 if (fallbackError) {
