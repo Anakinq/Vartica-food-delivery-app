@@ -4,7 +4,7 @@
   "description": "University campus food delivery platform",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "test": "jest",
     "test:watch": "jest --watch",

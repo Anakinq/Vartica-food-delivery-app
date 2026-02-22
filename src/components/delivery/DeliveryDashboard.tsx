@@ -758,7 +758,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
               </div>
 
               <div className="flex items-center space-x-3">
-                <RoleSwitcher currentRole="delivery_agent" />
+                <RoleSwitcher variant="compact" />
                 {/* Desktop Profile Button */}
                 {onShowProfile && (
                   <button

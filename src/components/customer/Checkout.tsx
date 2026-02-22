@@ -393,12 +393,12 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
   const initializePaystackPayment = () => {
     if (!profile?.email) {
-      showToast({ type: 'error', message: 'Email is required for payment. Please update your profile.' });
+      showToast('Email is required for payment. Please update your profile.', 'error');
       return;
     }
     const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
     if (!paystackKey) {
-      showToast({ type: 'error', message: 'Payment system not configured. Please contact support.' });
+      showToast('Payment system not configured. Please contact support.', 'error');
       return;
     }
     const email = profile.email;
@@ -447,13 +447,10 @@ export const Checkout: React.FC<CheckoutProps> = ({
       }
 
       setSuccess(true);
-      showToast({ type: 'success', message: `Order ${orderResult.orderNumber} created successfully!` });
+      showToast(`Order ${orderResult.orderNumber} created successfully!`, 'success');
       setTimeout(() => onSuccess(), 2000);
     } catch (error) {
-      showToast({
-        type: 'error',
-        message: 'Failed to create order. Please try again or contact support.'
-      });
+      showToast('Failed to create order. Please try again or contact support.', 'error');
     } finally {
       setLoading(false);
     }
