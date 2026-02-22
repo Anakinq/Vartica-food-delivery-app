@@ -101,7 +101,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
     ];
 
     return (
-        <div className="relative">
+        <div className="fixed bottom-0 left-0 right-0 z-50">
             <nav className="bottom-nav bg-gray-900 border-t border-gray-800">
                 {navItems.map((item) => {
                     const IconComponent = item.icon;
@@ -133,10 +133,6 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
                     );
                 })}
             </nav>
-            {/* Role Switcher - show for users who have multiple roles */}
-            <div className="absolute -top-10 right-2">
-                <RoleSwitcher currentRole={userRole as any} variant="compact" />
-            </div>
         </div>
     );
 };

@@ -1,10 +1,11 @@
 // src/components/customer/CustomerHome.tsx
 // Abuad Delivery Homepage - Following UI Specification
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { Search, ArrowLeft, Star, MapPin, Clock, ChevronDown, Bell, Home, Package, User, X, Utensils, ShoppingBag, Moon, Bike, Filter, SlidersHorizontal } from 'lucide-react';
+import { Search, ArrowLeft, Star, MapPin, Clock, ChevronDown, Bell, Home, Package, User, X, Utensils, ShoppingBag, Moon, Bike, Filter, SlidersHorizontal, ArrowLeftRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Cafeteria, MenuItem } from '../../lib/supabase';
 import { Vendor } from '../../lib/supabase/types';
+import { RoleSwitcher } from '../shared/RoleSwitcher';
 import { supabase } from '../../lib/supabase/client';
 import { MenuItemCard } from './MenuItemCard';
 import { Checkout } from './Checkout';
@@ -672,7 +673,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-900">
+    <div className="flex flex-col min-h-full bg-slate-900">
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto">
         {/* Header Section */}
@@ -687,31 +688,10 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                 </h1>
               </div>
               <div className="flex items-center space-x-3">
-                {/* Quick Order Button */}
-                <button
-                  onClick={openCart}
-                  className="relative bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center"
-                >
-                  <Package className="w-4 h-4 mr-2" />
-                  Order
-                  {cartCount > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
-                      {cartCount}
-                    </span>
-                  )}
-                </button>
-                {/* Notification Bell */}
-                <button
-                  onClick={() => setShowNotifications(true)}
-                  className="relative p-2 hover:bg-slate-800 rounded-full transition-colors"
-                >
-                  <Bell className="w-5 h-5 text-slate-300" />
-                  {notificationCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
-                      {notificationCount > 99 ? '99+' : notificationCount}
-                    </span>
-                  )}
-                </button>
+                {/* Role Switcher - Show only for users with multiple roles */}
+                <div className="relative">
+                  <RoleSwitcher variant="compact" />
+                </div>
               </div>
             </div>
           </div>
