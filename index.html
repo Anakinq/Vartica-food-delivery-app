@@ -42,6 +42,37 @@
     content="University campus food delivery connecting students with cafeterias, vendors, and late-night food options" />
   <meta property="twitter:image" content="https://vartica-food-delivery-app.vercel.app/images/logo.png" />
 
+  <!-- Structured Data - JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FoodEstablishment",
+    "name": "Vartica Campus Food Delivery",
+    "description": "University campus food delivery platform connecting students with cafeterias, student vendors, and late-night food options",
+    "url": "https://vartica-food-delivery-app.vercel.app/",
+    "logo": "https://vartica-food-delivery-app.vercel.app/images/logo.png",
+    "sameAs": [
+      "https://twitter.com/vartica",
+      "https://facebook.com/vartica"
+    ],
+    "servesCuisine": [
+      "African",
+      "Nigerian",
+      "Continental",
+      "Fast Food"
+    ],
+    "priceRange": "$$",
+    "areaServed": {
+      "@type": "Place",
+      "name": "University Campus"
+    },
+    "potentialAction": {
+      "@type": "OrderAction",
+      "target": "https://vartica-food-delivery-app.vercel.app/"
+    }
+  }
+  </script>
+
   <!-- ✅ Content Security Policy now managed by server (vercel.json) -->
 
   <!-- Service Worker for PWA -->

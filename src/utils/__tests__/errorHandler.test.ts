@@ -7,17 +7,17 @@ import {
 import { logger } from '../logger';
 
 // Mock logger
-vi.mock('../logger', () => ({
+jest.mock('../logger', () => ({
     logger: {
-        error: vi.fn(),
-        warn: vi.fn(),
-        info: vi.fn()
+        error: jest.fn(),
+        warn: jest.fn(),
+        info: jest.fn()
     }
 }));
 
 describe('Error Handler', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        jest.clearAllMocks();
     });
 
     describe('AppError', () => {

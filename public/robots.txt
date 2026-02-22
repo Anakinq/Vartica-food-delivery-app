@@ -1,6 +1,11 @@
 User-agent: *
 Allow: /
 
+# Disallow admin and sensitive paths
+Disallow: /admin/
+Disallow: /api/
+Disallow: /supabase/
+
 # Sitemap
 Sitemap: https://vartica-food-delivery-app.vercel.app/sitemap.xml
 
@@ -9,3 +14,13 @@ Host: https://vartica-food-delivery-app.vercel.app
 
 # Crawl-delay for polite crawling
 Crawl-delay: 10
+
+# Specific directives for major search engines
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /

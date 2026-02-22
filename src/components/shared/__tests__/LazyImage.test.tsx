@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { LazyImage } from '../LazyImage';
 
 // Mock IntersectionObserver
-const mockIntersectionObserver = vi.fn();
+const mockIntersectionObserver = jest.fn();
 mockIntersectionObserver.mockReturnValue({
     observe: () => null,
     unobserve: () => null,
@@ -15,7 +15,14 @@ describe('LazyImage', () => {
     const mockAlt = 'Test image';
 
     beforeEach(() => {
-        vi.clearAllMocks();
+        jest.clearAllMocks();
+        // Reset IntersectionObserver mock
+        mockIntersectionObserver.mockClear();
+        mockIntersectionObserver.mockReturnValue({
+            observe: () => null,
+            unobserve: () => null,
+            disconnect: () => null
+        });
     });
 
     it('renders with correct attributes', () => {
@@ -27,23 +34,24 @@ describe('LazyImage', () => {
             />
         );
 
-        const img = screen.getByAltText(mockAlt);
-        expect(img).toBeInTheDocument();
-        expect(img).toHaveAttribute('data-src', mockSrc);
-        expect(img).toHaveClass('lazy', 'test-class');
+        // Check that container exists
+        const container = document.querySelector('.lazy-image-container');
+        expect(container).toBeInTheDocument();
+        expect(container).toHaveClass('test-class');
     });
 
     it('loads image when in viewport', () => {
         render(<LazyImage src={mockSrc} alt={mockAlt} />);
 
-        const img = screen.getByAltText(mockAlt);
-
         // Simulate intersection
         const observerCallback = mockIntersectionObserver.mock.calls[0][0];
-        observerCallback([{ isIntersecting: true, target: img }]);
+        const container = document.querySelector('.lazy-image-container');
+        observerCallback([{ isIntersecting: true, target: container }]);
 
+        // Now the image should be rendered
+        const img = screen.getByAltText(mockAlt);
+        expect(img).toBeInTheDocument();
         expect(img).toHaveAttribute('src', mockSrc);
-        expect(img).not.toHaveClass('lazy');
     });
 
     it('shows placeholder when loading', () => {
@@ -55,20 +63,24 @@ describe('LazyImage', () => {
             />
         );
 
-        const img = screen.getByAltText(mockAlt);
-        expect(img).toHaveAttribute('src', 'https://example.com/placeholder.jpg');
+        // Initially shows loading spinner
+        expect(document.querySelector('.lazy-image-placeholder')).toBeInTheDocument();
     });
 
     it('handles image load error', () => {
         render(<LazyImage src={mockSrc} alt={mockAlt} />);
 
-        const img = screen.getByAltText(mockAlt);
+        // Simulate intersection first
+        const observerCallback = mockIntersectionObserver.mock.calls[0][0];
+        const container = document.querySelector('.lazy-image-container');
+        observerCallback([{ isIntersecting: true, target: container }]);
 
-        // Simulate image error
+        // Now get the image and simulate error
+        const img = screen.getByAltText(mockAlt);
         fireEvent.error(img);
 
-        // Should show error state or fallback
-        expect(img).toBeInTheDocument();
+        // Should show error state
+        expect(screen.getByText('Image unavailable')).toBeInTheDocument();
     });
 
     it('applies aspect ratio styling', () => {
@@ -80,7 +92,7 @@ describe('LazyImage', () => {
             />
         );
 
-        const container = screen.getByAltText(mockAlt).parentElement;
+        const container = document.querySelector('.lazy-image-container');
         expect(container).toHaveStyle({ aspectRatio: '1/1' });
     });
 
@@ -93,8 +105,9 @@ describe('LazyImage', () => {
             />
         );
 
+        // With priority, image should be rendered immediately
         const img = screen.getByAltText(mockAlt);
+        expect(img).toBeInTheDocument();
         expect(img).toHaveAttribute('src', mockSrc);
-        expect(img).not.toHaveClass('lazy');
     });
 });

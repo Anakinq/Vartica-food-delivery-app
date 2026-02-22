@@ -1,215 +1,218 @@
-# Vartica Food Delivery App - User Guide
+# 🍽️ Vartica Food Delivery - User Guide
 
-## 🎯 Getting Started
+Welcome to Vartica, your campus food delivery platform! This guide will help you navigate and use all the features of our application.
 
-### Creating an Account
-1. Open the app at [https://vartica-food-delivery-app.vercel.app](https://vartica-food-delivery-app.vercel.app)
-2. Select your user type:
-   - **Customer**: Order food from vendors
-   - **Vendor**: Sell food to customers
-   - **Delivery Agent**: Deliver orders
-   - **Admin**: Manage the platform
-3. Choose "Sign Up" and fill in your details
-4. Verify your email address
-5. Complete your profile setup
+## 🚀 Getting Started
 
-### For Customers
+### 1. Account Registration
+1. Open the app and select your role:
+   - **Customer** - Order food from cafeterias and vendors
+   - **Cafeteria** - Manage your cafeteria menu and orders
+   - **Vendor** - Sell food as a student vendor
+   - **Delivery Agent** - Deliver orders to customers
+   - **Admin** - Manage the entire platform
 
-#### Browsing Vendors
-- View all available vendors on the home screen
-- Use the search bar to find specific vendors
-- Filter by food categories (Fast Food, Nigerian, Continental, etc.)
-- Check vendor ratings and delivery times
+2. Sign up with your email and create a password
+3. Complete your profile with required information
 
-#### Placing Orders
-1. Select a vendor to view their menu
-2. Browse menu items and add to cart
-3. Review your cart and proceed to checkout
-4. Enter delivery address
-5. Select payment method (Paystack)
-6. Confirm and pay for your order
+### 2. Login
+- Use your registered email and password to log in
+- Your role will be remembered for future visits
 
-#### Tracking Orders
-- View order status in "My Orders" section
-- Real-time updates on order preparation and delivery
-- Chat with vendors/delivery agents for updates
-- Receive notifications for status changes
+## 🎯 Customer Guide
 
-#### Managing Account
-- Update profile information
-- View order history
-- Save favorite vendors
-- Manage payment methods
+### Browsing Food Options
+- **Cafeterias**: Browse pre-registered campus cafeterias
+- **Vendors**: Discover student vendors and late-night food options
+- **Search**: Use the search bar to find specific items
+- **Filters**: Filter by category, price, or availability
 
-### For Vendors
+### Placing Orders
+1. Browse menus and add items to your cart
+2. Review your cart and proceed to checkout
+3. Select delivery location (hostel, faculty, etc.)
+4. Choose payment method (Cash on Delivery or Online)
+5. Add special instructions if needed
+6. Confirm your order
 
-#### Setting Up Your Store
-1. Complete vendor profile setup
-2. Add business information and operating hours
-3. Upload menu items with descriptions and prices
-4. Set delivery zones and fees
-5. Add high-quality food photos
+### Order Tracking
+- View order status in real-time
+- Track delivery progress
+- Chat with your delivery agent
+- Rate your experience after delivery
 
-#### Managing Orders
+### Wallet System
+- Load money into your digital wallet
+- Use wallet balance for faster payments
+- Track transaction history
+- Request withdrawals when needed
+
+## 🏪 Vendor Guide
+
+### Setting Up Your Store
+1. Complete your vendor profile
+2. Upload your store logo and images
+3. Set your operating hours
+4. Add your menu items with prices and descriptions
+
+### Managing Orders
 - View incoming orders in real-time
 - Accept or reject orders
-- Update order status (Preparing, Ready, Out for Delivery)
+- Update order status (Preparing, Ready, etc.)
 - Communicate with customers via chat
-- Track order completion
 
-#### Performance Monitoring
-- View sales analytics and revenue reports
-- Monitor customer ratings and reviews
-- Track popular menu items
-- Analyze peak ordering times
+### Earnings & Payouts
+- Track your daily/weekly earnings
+- Request withdrawals to your bank account
+- View payment history
+- Manage your financial records
 
-### For Delivery Agents
+## 🛵 Delivery Agent Guide
 
-#### Getting Started
-1. Complete profile with vehicle information
-2. Set your availability hours
-3. Define your delivery zones
-4. Verify your identification documents
+### Getting Started
+1. Complete your delivery agent profile
+2. Add your vehicle information
+3. Set your availability hours
 
-#### Accepting Deliveries
-- View available delivery requests
-- Accept deliveries within your zones
-- Navigate to pickup location
-- Collect order and deliver to customer
-- Mark delivery as complete
+### Order Management
+- Browse available orders
+- Accept delivery requests
+- Track delivery locations
+- Update delivery status
+- Communicate with customers
 
-#### Earnings
+### Earnings
+- Earn per successful delivery
 - Track completed deliveries
-- View earnings and withdrawal history
-- Request withdrawals to bank account
-- Monitor ratings and performance
+- View your rating and performance
+- Request payouts to your wallet
 
-## 📱 Mobile Features
+## 🏫 Cafeteria Guide
 
-### Add to Home Screen
-- Open the app in your mobile browser
-- Tap the share button (iOS) or menu (Android)
-- Select "Add to Home Screen"
-- App will appear as a standalone app on your device
+### Menu Management
+- Add and update menu items
+- Set prices and availability
+- Upload food images
+- Manage daily specials
 
-### Offline Capabilities
-- View previously loaded vendor information
-- Access order history
-- View saved favorites
-- Basic app functionality without internet
+### Order Processing
+- View incoming orders
+- Accept and prepare orders
+- Update order status
+- Coordinate with delivery agents
 
-### Push Notifications
-- Order status updates
-- New message alerts
-- Special offers and promotions
-- Delivery time estimates
+## 🔧 Admin Guide
 
-## 🔒 Security Features
+### User Management
+- Approve/reject vendor applications
+- Manage user accounts and roles
+- Handle support tickets
+- Monitor platform activity
 
-### Payment Security
-- Secure Paystack integration
-- Encrypted payment processing
-- No card information stored on our servers
-- PCI DSS compliant payment handling
+### System Monitoring
+- View analytics and reports
+- Monitor order volumes
+- Track financial metrics
+- Manage promotional codes
 
-### Account Protection
-- Strong password requirements
-- Email verification for new accounts
-- Two-factor authentication (coming soon)
-- Secure session management
+## ⚙️ Settings & Preferences
 
-### Data Privacy
-- Personal information encrypted
-- GDPR compliance measures
-- Clear data retention policies
-- User control over personal data
+### Profile Management
+- Update personal information
+- Change password
+- Manage notification preferences
+- Switch between different roles
 
-## 🆘 Support & Help
+### App Settings
+- Enable/disable dark mode
+- Manage location services
+- Clear app cache
+- View app version
+
+## 💬 Support & Help
 
 ### Getting Help
-- **In-App Chat**: Contact support directly through the app
-- **Email**: support@vartica.com
-- **FAQ Section**: Common questions and answers
-- **Community Forum**: Connect with other users
-
-### Reporting Issues
-- Use the "Report Issue" feature in the app
-- Include screenshots and detailed descriptions
-- Issues are prioritized and resolved quickly
-- Status updates provided for reported problems
+- Contact support through the app
+- Check FAQ section
+- View tutorial videos
+- Report bugs or issues
 
 ### Feedback
-- Rate vendors and delivery agents
-- Submit app reviews and suggestions
-- Participate in user experience surveys
-- Help us improve the platform
+- Rate your experience
+- Suggest new features
+- Report problems
+- Share your ideas
 
-## ⚡ Tips for Best Experience
+## 📱 Mobile App Features
+
+### PWA Capabilities
+- Install on your home screen
+- Work offline for basic features
+- Fast loading times
+- Push notifications
+
+### Accessibility
+- Screen reader support
+- High contrast mode
+- Voice commands
+- Keyboard navigation
+
+## 🔒 Security & Privacy
+
+### Data Protection
+- Your personal information is encrypted
+- Secure payment processing
+- Privacy-focused design
+- Regular security updates
+
+### Account Security
+- Two-factor authentication available
+- Secure session management
+- Automatic logout after inactivity
+- Device recognition
+
+## 🆘 Troubleshooting
+
+### Common Issues
+- **Login problems**: Check email/password, reset if needed
+- **Payment issues**: Verify wallet balance, check network connection
+- **Order delays**: Contact delivery agent via chat
+- **App crashes**: Restart app, clear cache, update to latest version
+
+### Contact Support
+- Email: support@vartica.com
+- In-app support chat
+- Phone: +234 XXX XXX XXXX
+- Social media: @VarticaFood
+
+## 📈 Tips for Best Experience
 
 ### For Customers
-- Enable notifications for order updates
-- Save your frequently used addresses
-- Rate vendors to help others
-- Try new vendors and menu items
-- Use the search feature to find specific foods
+- Keep your wallet funded for faster checkout
+- Add delivery instructions for easier location finding
+- Rate your deliveries to help improve service
+- Use promo codes for discounts
 
 ### For Vendors
-- Keep menu items and prices updated
-- Respond quickly to order requests
-- Maintain high food quality standards
-- Encourage customers to leave reviews
-- Use analytics to optimize your menu
+- Keep your menu updated with fresh items
+- Respond to orders quickly
+- Maintain high food quality
+- Communicate clearly with customers
 
 ### For Delivery Agents
-- Keep your availability status accurate
-- Accept deliveries within your capacity
-- Maintain good communication with customers
-- Drive safely and follow traffic rules
-- Keep vehicle and delivery bags clean
+- Keep your vehicle in good condition
+- Maintain punctuality
+- Be courteous to customers
+- Keep your app updated
 
-## 🔄 Updates & Maintenance
+## 🔄 Updates & New Features
 
-### Automatic Updates
-- App updates delivered automatically
-- New features and improvements
-- Security patches and bug fixes
-- Performance enhancements
-
-### Scheduled Maintenance
-- Advance notice provided for planned maintenance
-- Usually occurs during low-traffic hours
-- Minimal disruption to service
-- Status updates during maintenance periods
-
-## 🌐 Browser Compatibility
-
-### Supported Browsers
-- **Chrome**: Latest version (recommended)
-- **Firefox**: Latest version
-- **Safari**: Latest version
-- **Edge**: Latest version
-- **Mobile Browsers**: Chrome Mobile, Safari Mobile
-
-### Minimum Requirements
-- JavaScript enabled
-- Modern browser features supported
-- Stable internet connection
-- 50MB available storage
-
-## 📊 Performance Tips
-
-### Faster Loading
-- Clear browser cache regularly
-- Use a stable internet connection
-- Close other tabs and applications
-- Enable "Save Data" mode if needed
-
-### Battery Optimization
-- Enable dark mode to save battery
-- Use Wi-Fi when possible
-- Close background apps
-- Keep device software updated
+We regularly update Vartica with new features and improvements. Make sure to:
+- Keep your app updated
+- Check release notes
+- Try new features
+- Provide feedback
 
 ---
 
-Need additional help? Contact our support team at support@vartica.com or visit our help center within the app.
+**Enjoy your food delivery experience with Vartica!** 🍕🍜🍔

@@ -2,24 +2,40 @@ import * as Sentry from '@sentry/react';
 import { BrowserTracing } from '@sentry/tracing';
 import { logger } from './logger';
 
-// Initialize Sentry only in production
-if (process.env.NODE_ENV === 'production') {
+// Initialize Sentry for both development and production (but with different settings)
+const isProduction = process.env.NODE_ENV === 'production';
+const sentryDsn = process.env.VITE_SENTRY_DSN;
+
+// Only initialize if we have a DSN
+if (sentryDsn && sentryDsn !== 'YOUR_SENTRY_DSN_HERE') {
     Sentry.init({
-        dsn: process.env.VITE_SENTRY_DSN || 'YOUR_SENTRY_DSN_HERE',
+        dsn: sentryDsn,
         integrations: [
             new BrowserTracing({
                 // Set 'tracePropagationTargets' to control for which URLs distributed tracing should be enabled
-                tracePropagationTargets: ['localhost', /^https:\/\/your-server-name\.vercel\.app/],
+                tracePropagationTargets: [
+                    'localhost',
+                    /^https:\/\/.*vercel\.app/,
+                    /^https:\/\/.*vartica\.com/
+                ],
             }),
         ],
         // Performance Monitoring
-        tracesSampleRate: 1.0, // Capture 100% of the transactions
+        tracesSampleRate: isProduction ? 1.0 : 0.1, // 100% in prod, 10% in dev
         // Session Replay
-        replaysSessionSampleRate: 0.1, // This sets the sample rate at 10%. You may want to change it to 100% while in development and then sample at a lower rate in production.
-        replaysOnErrorSampleRate: 1.0, // If you're not already sampling the entire session, change the sample rate to 100% when sampling sessions where errors occur.
+        replaysSessionSampleRate: isProduction ? 0.1 : 0, // 10% in prod, disabled in dev
+        replaysOnErrorSampleRate: 1.0, // 100% when errors occur
+        // Environment
+        environment: process.env.NODE_ENV || 'development',
+        // Release version
+        release: 'vartica@' + (process.env.VITE_APP_VERSION || '1.0.0'),
+        // Debug mode in development
+        debug: !isProduction,
     });
 
-    logger.info('Sentry initialized for error tracking');
+    logger.info(`Sentry initialized for ${isProduction ? 'production' : 'development'} error tracking`);
+} else {
+    logger.warn('Sentry DSN not configured - error tracking disabled');
 }
 
 // Error boundary component for React
@@ -27,11 +43,11 @@ export const SentryErrorBoundary = Sentry.ErrorBoundary;
 
 // Function to capture exceptions
 export const captureException = (error: Error, context?: Record<string, any>) => {
-    if (process.env.NODE_ENV === 'production') {
+    if (sentryDsn && sentryDsn !== 'YOUR_SENTRY_DSN_HERE') {
         Sentry.captureException(error, {
             contexts: {
                 app: {
-                    version: '1.0.0',
+                    version: process.env.VITE_APP_VERSION || '1.0.0',
                     environment: process.env.NODE_ENV,
                     ...context
                 }
@@ -43,7 +59,7 @@ export const captureException = (error: Error, context?: Record<string, any>) =>
 
 // Function to capture messages
 export const captureMessage = (message: string, level: Sentry.SeverityLevel = 'info') => {
-    if (process.env.NODE_ENV === 'production') {
+    if (sentryDsn && sentryDsn !== 'YOUR_SENTRY_DSN_HERE') {
         Sentry.captureMessage(message, level);
     }
     logger.info(`Message captured: ${message}`);
@@ -51,12 +67,19 @@ export const captureMessage = (message: string, level: Sentry.SeverityLevel = 'i
 
 // Function to add user context
 export const setUserContext = (user: { id: string; email?: string; username?: string }) => {
-    if (process.env.NODE_ENV === 'production') {
+    if (sentryDsn && sentryDsn !== 'YOUR_SENTRY_DSN_HERE') {
         Sentry.setUser({
             id: user.id,
             email: user.email,
             username: user.username
         });
+    }
+};
+
+// Function to clear user context
+export const clearUserContext = () => {
+    if (sentryDsn && sentryDsn !== 'YOUR_SENTRY_DSN_HERE') {
+        Sentry.setUser(null);
     }
 };
 

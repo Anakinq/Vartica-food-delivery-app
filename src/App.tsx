@@ -3,6 +3,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { RoleProvider, useRole } from './contexts/RoleContext';
 import { initPerformanceMonitoring, monitorMemoryUsage } from './utils/performanceMonitoring';
+import { SentryErrorBoundary } from './utils/sentry';
 
 // Initialize performance monitoring
 if (typeof window !== 'undefined') {
@@ -474,7 +475,7 @@ function App() {
   }, []);
 
   return (
-    <ErrorBoundary>
+    <SentryErrorBoundary fallback={<div className="error-page">Something went wrong. Please try refreshing the page.</div>}>
       <DarkModeProvider>
         <AuthProvider>
           <ToastProvider>
@@ -494,7 +495,7 @@ function App() {
           </ToastProvider>
         </AuthProvider>
       </DarkModeProvider>
-    </ErrorBoundary>
+    </SentryErrorBoundary>
   );
 }
 
