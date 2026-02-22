@@ -14,6 +14,10 @@ interface LazyImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'
     quality?: 'low' | 'medium' | 'high';
     priority?: boolean;
     sizes?: string;
+    // Responsive image support
+    srcSet?: string;
+    webPSrc?: string;
+    webPSrcSet?: string;
 }
 
 // Brand colors for Vartica
@@ -36,12 +40,20 @@ export const LazyImage: React.FC<LazyImageProps> = ({
     className = '',
     style,
     priority = false,
+    sizes = '(max-width: 768px) 100vw, 50vw',
+    srcSet,
+    webPSrc,
+    webPSrcSet,
     ...props
 }) => {
     const [isLoaded, setIsLoaded] = useState(false);
     const [isInView, setIsInView] = useState(priority);
     const [error, setError] = useState(false);
     const imgRef = useRef<HTMLDivElement>(null);
+
+    // Generate responsive srcSet if not provided
+    const generatedSrcSet = srcSet || `${src.replace(/\.(jpg|jpeg|png)$/i, '@0.5x.jpg')} 400w, ${src} 800w`;
+    const generatedWebPSrcSet = webPSrcSet || `${webPSrc || src.replace(/\.(jpg|jpeg|png)$/i, '.webp')} 800w`;
 
     // Intersection Observer for lazy loading
     useEffect(() => {
@@ -146,25 +158,40 @@ export const LazyImage: React.FC<LazyImageProps> = ({
                 </div>
             )}
 
-            {/* Actual image */}
+            {/* Actual image with responsive support */}
             {isInView && !error && (
-                <img
-                    src={src}
-                    alt={alt}
-                    onLoad={handleLoad}
-                    onError={handleError}
-                    loading={priority ? 'eager' : 'lazy'}
-                    decoding="async"
-                    className={`lazy-image ${isLoaded ? 'loaded' : 'loading'}`}
-                    style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit,
-                        opacity: isLoaded ? 1 : 0,
-                        transition: 'opacity 0.3s ease-in-out',
-                    }}
-                    {...props}
-                />
+                <picture>
+                    {webPSrc && (
+                        <source
+                            srcSet={generatedWebPSrcSet}
+                            type="image/webp"
+                            sizes={sizes}
+                        />
+                    )}
+                    <source
+                        srcSet={generatedSrcSet}
+                        type="image/jpeg"
+                        sizes={sizes}
+                    />
+                    <img
+                        src={src}
+                        alt={alt}
+                        onLoad={handleLoad}
+                        onError={handleError}
+                        loading={priority ? 'eager' : 'lazy'}
+                        decoding="async"
+                        className={`lazy-image ${isLoaded ? 'loaded' : 'loading'}`}
+                        style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit,
+                            opacity: isLoaded ? 1 : 0,
+                            transition: 'opacity 0.3s ease-in-out',
+                        }}
+                        sizes={sizes}
+                        {...props}
+                    />
+                </picture>
             )}
         </div>
     );

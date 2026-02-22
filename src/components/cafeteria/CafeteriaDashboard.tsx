@@ -5,7 +5,7 @@ import { MenuItem, Cafeteria, Profile } from '../../lib/supabase';
 import { supabase } from '../../lib/supabase/client';
 import { MenuItemForm } from '../shared/MenuItemForm';
 import { seedCafeteriaMenu } from '../../utils/cafeteriaMenuSeeder';
-import { checkApprovalStatus } from '../../services/supabase/database.service';
+import { databaseService } from '../../services/supabase/database.service';
 
 interface CafeteriaDashboardProps {
   profile: Profile;
@@ -68,7 +68,7 @@ const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ profile, onShow
   const checkVendorApproval = async () => {
     if (profile && profile.role === 'vendor') {
       setLoadingApproval(true);
-      const status = await checkApprovalStatus(profile.id, 'vendor');
+      const status = await databaseService.checkApprovalStatus(profile.id, 'vendor');
       setApprovalStatus(status);
       setLoadingApproval(false);
     }

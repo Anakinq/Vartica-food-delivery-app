@@ -46,9 +46,14 @@ export const AdminApprovalDashboard: React.FC = () => {
       if (result.success) {
         // Refresh the list after successful approval
         fetchApprovalRequests();
+      } else {
+        throw new Error(result.error?.message || 'Failed to update approval');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating approval:', error);
+      alert(`Failed to ${approved ? 'approve' : 'reject'} ${role}: ${error.message || 'An error occurred'}`);
+      // Refresh the list to ensure UI consistency
+      fetchApprovalRequests();
     } finally {
       setApprovingId(null);
     }

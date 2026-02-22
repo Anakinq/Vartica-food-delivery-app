@@ -44,7 +44,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
 
   // Withdrawal action functions
   const approveWithdrawal = async (withdrawalId: string) => {
-    if (!user) return;
+    if (!user) {
+      showToast('You must be logged in as admin to approve withdrawals', 'error');
+      return;
+    }
 
     setProcessingWithdrawal(withdrawalId);
     try {
@@ -64,14 +67,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
       fetchData(); // Refresh data
     } catch (error: any) {
       console.error('Error approving withdrawal:', error);
-      showToast(`Error: ${error.message}`, 'error');
+      showToast(`Error: ${error.message || 'Failed to approve withdrawal'}`, 'error');
     } finally {
       setProcessingWithdrawal(null);
     }
   };
 
   const markAsSent = async (withdrawalId: string) => {
-    if (!user) return;
+    if (!user) {
+      showToast('You must be logged in as admin to mark withdrawals as sent', 'error');
+      return;
+    }
 
     setProcessingWithdrawal(withdrawalId);
     try {
@@ -91,17 +97,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
       fetchData(); // Refresh data
     } catch (error: any) {
       console.error('Error marking withdrawal as sent:', error);
-      showToast(`Error: ${error.message}`, 'error');
+      showToast(`Error: ${error.message || 'Failed to mark withdrawal as sent'}`, 'error');
     } finally {
       setProcessingWithdrawal(null);
     }
   };
 
   const rejectWithdrawal = async (withdrawalId: string) => {
-    if (!user) return;
+    if (!user) {
+      showToast('You must be logged in as admin to reject withdrawals', 'error');
+      return;
+    }
 
     const reason = prompt('Enter rejection reason:');
-    if (!reason) return;
+    if (!reason) {
+      showToast('Rejection requires a reason', 'warning');
+      return;
+    }
 
     setProcessingWithdrawal(withdrawalId);
     try {
@@ -121,7 +133,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
       fetchData(); // Refresh data
     } catch (error: any) {
       console.error('Error rejecting withdrawal:', error);
-      showToast(`Error: ${error.message}`, 'error');
+      showToast(`Error: ${error.message || 'Failed to reject withdrawal'}`, 'error');
     } finally {
       setProcessingWithdrawal(null);
     }
@@ -138,51 +150,69 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
     fetchData();
   }, []);
 
+  const [error, setError] = useState<string | null>(null);
+
   const fetchData = async () => {
-    const [usersRes, vendorsRes, agentsRes, ordersRes, withdrawalsRes, supportRes] = await Promise.all([
-      supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-      supabase.from('vendors').select('*'),
-      supabase.from('delivery_agents').select('*'),
-      supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(50),
-      supabase.from('withdrawals').select('*').order('created_at', { ascending: false }),
-      supabase.from('support_messages').select('*').order('created_at', { ascending: false }),
-    ]);
+    try {
+      setLoading(true);
+      setError(null);
 
-    if (usersRes.data) {
-      setUsers(usersRes.data);
-      setStats(prev => ({ ...prev, totalUsers: usersRes.data.length }));
+      const [usersRes, vendorsRes, agentsRes, ordersRes, withdrawalsRes, supportRes] = await Promise.all([
+        supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+        supabase.from('vendors').select('*'),
+        supabase.from('delivery_agents').select('*'),
+        supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(50),
+        supabase.from('withdrawals').select('*').order('created_at', { ascending: false }),
+        supabase.from('support_messages').select('*').order('created_at', { ascending: false }),
+      ]);
+
+      if (usersRes.error) throw usersRes.error;
+      if (vendorsRes.error) throw vendorsRes.error;
+      if (agentsRes.error) throw agentsRes.error;
+      if (ordersRes.error) throw ordersRes.error;
+      if (withdrawalsRes.error) throw withdrawalsRes.error;
+      if (supportRes.error) throw supportRes.error;
+
+      if (usersRes.data) {
+        setUsers(usersRes.data);
+        setStats(prev => ({ ...prev, totalUsers: usersRes.data.length }));
+      }
+
+      if (vendorsRes.data) {
+        setStats(prev => ({ ...prev, totalVendors: vendorsRes.data.length }));
+      }
+
+      if (agentsRes.data) {
+        setStats(prev => ({ ...prev, totalAgents: agentsRes.data.length }));
+      }
+
+      if (ordersRes.data) {
+        setOrders(ordersRes.data);
+        setStats(prev => ({
+          ...prev,
+          totalOrders: ordersRes.data.length,
+          pendingOrders: ordersRes.data.filter(o => o.status === 'pending').length,
+        }));
+      }
+
+      if (withdrawalsRes.data) {
+        setWithdrawalRequests(withdrawalsRes.data);
+        setStats(prev => ({
+          ...prev,
+          pendingWithdrawals: withdrawalsRes.data.filter(w => w.status === 'pending').length,
+        }));
+      }
+
+      if (supportRes.data) {
+        setSupportMessages(supportRes.data);
+      }
+    } catch (err: any) {
+      console.error('Error fetching data:', err);
+      setError(`Failed to load data: ${err.message || 'Unknown error'}`);
+      showToast(`Failed to load data: ${err.message || 'Unknown error'}`, 'error');
+    } finally {
+      setLoading(false);
     }
-
-    if (vendorsRes.data) {
-      setStats(prev => ({ ...prev, totalVendors: vendorsRes.data.length }));
-    }
-
-    if (agentsRes.data) {
-      setStats(prev => ({ ...prev, totalAgents: agentsRes.data.length }));
-    }
-
-    if (ordersRes.data) {
-      setOrders(ordersRes.data);
-      setStats(prev => ({
-        ...prev,
-        totalOrders: ordersRes.data.length,
-        pendingOrders: ordersRes.data.filter(o => o.status === 'pending').length,
-      }));
-    }
-
-    if (withdrawalsRes.data) {
-      setWithdrawalRequests(withdrawalsRes.data);
-      setStats(prev => ({
-        ...prev,
-        pendingWithdrawals: withdrawalsRes.data.filter(w => w.status === 'pending').length,
-      }));
-    }
-
-    if (supportRes.data) {
-      setSupportMessages(supportRes.data);
-    }
-
-    setLoading(false);
   };
 
   // Function to filter data based on search term and date range
@@ -346,6 +376,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
 
   return (
     <div className="bg-black min-h-screen overflow-x-hidden">
+      {/* Error display */}
+      {error && (
+        <div className="fixed top-4 right-4 z-50 bg-red-500 text-white p-4 rounded-lg shadow-lg">
+          <div className="flex items-center">
+            <AlertTriangle className="h-5 w-5 mr-2" />
+            <span>{error}</span>
+            <button
+              onClick={() => setError(null)}
+              className="ml-4 text-white hover:text-gray-200"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Full-screen food background with dark overlay */}
       <div
         className="fixed inset-0 bg-cover bg-center bg-no-repeat"

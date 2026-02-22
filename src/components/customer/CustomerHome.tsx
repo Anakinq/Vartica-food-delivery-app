@@ -1,7 +1,7 @@
 // src/components/customer/CustomerHome.tsx
 // Abuad Delivery Homepage - Following UI Specification
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { Search, ArrowLeft, Star, MapPin, Clock, ChevronDown, Bell, Home, Package, User, X, Utensils, ShoppingBag, Moon, Bike, Filter, SlidersHorizontal, ArrowLeftRight } from 'lucide-react';
+import { Search, ArrowLeft, Bell, Home, Package, User, X, Utensils, ShoppingBag, Moon, Bike, Filter } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Cafeteria, MenuItem } from '../../lib/supabase';
 import { Vendor } from '../../lib/supabase/types';
@@ -11,12 +11,16 @@ import { MenuItemCard } from './MenuItemCard';
 import { Checkout } from './Checkout';
 import { OrderTracking } from './OrderTracking';
 import { VendorUpgradeModal } from './VendorUpgradeModal';
-import { LazyImage } from '../common/LazyImage';
 import { Skeleton, CardSkeleton } from '../shared/LoadingSkeleton';
 import { useToast } from '../../contexts/ToastContext';
 import { useCart } from '../../contexts/CartContext';
 import { VendorReviewService } from '../../services/supabase/vendor.service';
 import { NotificationsPanel } from '../shared/NotificationsPanel';
+import { dataCache } from '../../utils/dataCache';
+import { measureRenderTime } from '../../utils/performanceMonitoring';
+import { CafeteriaSection } from './CafeteriaSection';
+import { VendorSection } from './VendorSection';
+import { MemoizedSearchAndFilters } from './SearchAndFilters';
 
 interface CustomerHomeProps {
   onShowProfile?: () => void;
@@ -240,16 +244,27 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch banners from database
-      const { data: bannersData, error: bannersError } = await supabase
-        .from('banners')
-        .select('*')
-        .eq('is_active', true)
-        .order('display_order', { ascending: true });
+      // Check cache first
+      const cachedBanners = dataCache.get('banners');
+      const cachedCafeterias = dataCache.get('cafeterias');
+      const cachedVendors = dataCache.get('vendors');
 
-      if (bannersError) {
-        console.error('Error fetching banners:', bannersError);
-      } else if (bannersData && bannersData.length > 0) {
+      // Fetch banners from database or cache
+      let bannersData = cachedBanners;
+      if (!bannersData) {
+        const { data: bannersResult, error: bannersError } = await supabase
+          .from('banners')
+          .select('*')
+          .eq('is_active', true)
+          .order('display_order', { ascending: true });
+
+        if (!bannersError && bannersResult && bannersResult.length > 0) {
+          bannersData = bannersResult;
+          dataCache.set('banners', bannersResult, 600000); // 10 minutes cache
+        }
+      }
+
+      if (bannersData) {
         setBanners(bannersData);
       } else {
         // Fallback to mock data if no banners in database
@@ -279,17 +294,26 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         setBanners(mockBanners);
       }
 
+      // Fetch cafeterias and vendors in parallel with caching
       const [cafeteriasRes, vendorsRes] = await Promise.all([
-        supabase.from('cafeterias').select('*').eq('is_active', true).order('name'),
-        supabase.from('vendors').select('*').eq('is_active', true).order('store_name'),
+        cachedCafeterias
+          ? Promise.resolve({ data: cachedCafeterias, error: null })
+          : supabase.from('cafeterias').select('*').eq('is_active', true).order('name'),
+        cachedVendors
+          ? Promise.resolve({ data: cachedVendors, error: null })
+          : supabase.from('vendors').select('*').eq('is_active', true).order('store_name'),
       ]);
 
       if (cafeteriasRes.error) {
         console.error('Error fetching cafeterias:', cafeteriasRes.error);
       } else if (cafeteriasRes.data) {
-        setCafeterias(cafeteriasRes.data);
+        const cafeteriasData = cafeteriasRes.data;
+        if (!cachedCafeterias) {
+          dataCache.set('cafeterias', cafeteriasData, 300000); // 5 minutes cache
+        }
+        setCafeterias(cafeteriasData);
         const initialStatus: Record<string, boolean> = {};
-        cafeteriasRes.data.forEach(cafeteria => {
+        cafeteriasData.forEach((cafeteria: Cafeteria) => {
           initialStatus[cafeteria.id] = true;
         });
         setCafeteriaStatus(initialStatus);
@@ -298,25 +322,37 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       if (vendorsRes.error) {
         console.error('Error fetching vendors:', vendorsRes.error);
       } else if (vendorsRes.data) {
-        const students = vendorsRes.data.filter(v => v.vendor_type === 'student');
-        const lateNight = vendorsRes.data.filter(v => v.vendor_type === 'late_night');
+        const vendorsData = vendorsRes.data;
+        if (!cachedVendors) {
+          dataCache.set('vendors', vendorsData, 300000); // 5 minutes cache
+        }
+
+        const students = vendorsData.filter(v => v.vendor_type === 'student');
+        const lateNight = vendorsData.filter(v => v.vendor_type === 'late_night');
         setStudentVendors(students);
         setLateNightVendors(lateNight);
 
         const allVendors = [...students, ...lateNight];
         const ratings: Record<string, { avgRating: number; reviewCount: number }> = {};
 
-        for (const vendor of allVendors) {
+        // Batch rating fetches for better performance
+        const ratingPromises = allVendors.map(async (vendor) => {
           try {
             const [avgRating, reviewCount] = await Promise.all([
               VendorReviewService.getVendorAverageRating(vendor.id),
               VendorReviewService.getVendorReviewCount(vendor.id)
             ]);
-            ratings[vendor.id] = { avgRating, reviewCount };
+            return { vendorId: vendor.id, rating: { avgRating, reviewCount } };
           } catch (error) {
-            ratings[vendor.id] = { avgRating: 0, reviewCount: 0 };
+            return { vendorId: vendor.id, rating: { avgRating: 0, reviewCount: 0 } };
           }
-        }
+        });
+
+        const ratingResults = await Promise.all(ratingPromises);
+        ratingResults.forEach(({ vendorId, rating }) => {
+          ratings[vendorId] = rating;
+        });
+
         setVendorRatings(ratings);
       }
     } catch (error) {
@@ -696,76 +732,18 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
             </div>
           </div>
 
-          {/* Search Bar with Filter Toggle */}
-          <div className="px-4 pb-4">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 h-5 w-5" />
-              <input
-                type="text"
-                value={globalSearchQuery}
-                onChange={(e) => setGlobalSearchQuery(e.target.value)}
-                placeholder={selectedSeller ? "Search menu items..." : "Search for food, vendors..."}
-                className="w-full pl-12 pr-14 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm text-slate-100 placeholder-slate-500"
-              />
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-lg transition-colors ${showFilters ? 'bg-green-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
-              >
-                <SlidersHorizontal className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Filter Chips */}
-            {showFilters && (
-              <div className="mt-3 space-y-3">
-                {/* Sort Options */}
-                <div>
-                  <p className="text-xs text-gray-400 mb-2">Sort by</p>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { value: 'popular', label: 'Popular' },
-                      { value: 'newest', label: 'Newest' },
-                      { value: 'name', label: 'Name' },
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        onClick={() => setSortBy(option.value)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${sortBy === option.value
-                          ? 'bg-green-500 text-white'
-                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                          }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Rating Filter */}
-                <div>
-                  <p className="text-xs text-gray-400 mb-2">Minimum Rating</p>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { value: 'all', label: 'All' },
-                      { value: '4', label: '4★+' },
-                      { value: '3', label: '3★+' },
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        onClick={() => setRatingFilter(option.value)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${ratingFilter === option.value
-                          ? 'bg-green-500 text-white'
-                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                          }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Search and Filters */}
+          <MemoizedSearchAndFilters
+            searchQuery={globalSearchQuery}
+            onSearchChange={setGlobalSearchQuery}
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            ratingFilter={ratingFilter}
+            onRatingChange={setRatingFilter}
+            showFilters={showFilters}
+            onToggleFilters={() => setShowFilters(!showFilters)}
+            placeholder={selectedSeller ? "Search menu items..." : "Search for food, vendors..."}
+          />
         </header>
 
         {/* Main Content */}
@@ -813,89 +791,53 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
               {/* Cafeterias Section - Show only when Cafeterias tab is active */}
               {activeTab === 'cafeterias' && (
                 <>
-                  <section className="mb-10">
-                    <div className="flex items-center justify-between px-4 mb-5">
-                      <h2 className="text-xl font-bold text-white">Available Cafeterias</h2>
-                      <button
-                        className="text-green-400 text-sm font-semibold hover:text-green-300"
-                        onClick={() => window.location.hash = '#/cafeterias'}
-                      >
-                        See All
-                      </button>
-                    </div>
-                    {loading ? (
-                      <div className="flex overflow-hidden px-4">
-                        <div className="w-full">
-                          <CardSkeleton />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex overflow-x-auto space-x-4 px-4 hide-scrollbar snap-x snap-mandatory">
-                        {filteredCafeterias.map(cafeteria => (
-                          <div key={cafeteria.id} className="flex-shrink-0 w-[85vw] max-w-sm snap-start">
-                            {renderCafeteriaCard(cafeteria)}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </section>
+                  <CafeteriaSection
+                    cafeterias={cafeterias}
+                    cafeteriaStatus={cafeteriaStatus}
+                    onCafeteriaClick={(id, name) => handleSellerClick(id, 'cafeteria', name)}
+                    globalSearchQuery={globalSearchQuery}
+                    sortBy={sortBy}
+                  />
 
                   {/* Late Night Vendors Section - Show only when Cafeterias tab is active */}
                   {lateNightVendors.length > 0 && (
-                    <section className="mb-10">
-                      <div className="flex items-center space-x-2 px-4 mb-5">
-                        <Moon className="w-5 h-5 text-purple-400" />
-                        <h2 className="text-xl font-bold text-white">Late Night Vendors</h2>
-                      </div>
-                      <div className="flex overflow-x-auto space-x-4 px-4 hide-scrollbar snap-x snap-mandatory">
-                        {lateNightVendors.map(vendor => (
-                          <div key={vendor.id} className="flex-shrink-0 w-[85vw] max-w-sm snap-start">
-                            {renderVendorCard(vendor, true)}
-                          </div>
-                        ))}
-                      </div>
-                    </section>
+                    <VendorSection
+                      vendors={lateNightVendors}
+                      vendorRatings={vendorRatings}
+                      onVendorClick={(id, name) => handleSellerClick(id, 'vendor', name)}
+                      globalSearchQuery={globalSearchQuery}
+                      ratingFilter={ratingFilter}
+                      title="Late Night Vendors"
+                      showLateNightBadge={true}
+                    />
                   )}
                 </>
               )}
 
               {/* Trusted Vendors Section - Show only when Vendors tab is active */}
               {activeTab === 'vendors' && studentVendors.length > 0 && (
-                <section className="mb-10">
-                  <div className="flex items-center justify-between px-4 mb-5">
-                    <h2 className="text-xl font-bold text-white">Trusted Campus Vendors</h2>
-                    <button
-                      className="text-green-400 text-sm font-semibold hover:text-green-300"
-                      onClick={() => window.location.hash = '#/vendors'}
-                    >
-                      See All
-                    </button>
-                  </div>
-                  <div className="flex overflow-x-auto space-x-4 px-4 hide-scrollbar snap-x snap-mandatory">
-                    {studentVendors.map(vendor => (
-                      <div key={vendor.id} className="flex-shrink-0 w-[85vw] max-w-sm snap-start">
-                        {renderVendorCard(vendor, false)}
-                      </div>
-                    ))}
-                  </div>
-                </section>
+                <VendorSection
+                  vendors={studentVendors}
+                  vendorRatings={vendorRatings}
+                  onVendorClick={(id, name) => handleSellerClick(id, 'vendor', name)}
+                  globalSearchQuery={globalSearchQuery}
+                  ratingFilter={ratingFilter}
+                  title="Trusted Campus Vendors"
+                  seeAllLink="#/vendors"
+                />
               )}
 
               {/* Late Night Tab - Show late night vendors only */}
               {activeTab === 'late_night' && lateNightVendors.length > 0 && (
-                <section className="mb-10">
-                  <div className="flex items-center space-x-2 px-4 mb-5">
-                    <Moon className="w-5 h-5 text-purple-400" />
-                    <h2 className="text-xl font-bold text-white">Late Night Vendors</h2>
-                  </div>
-                  <div className="flex overflow-x-auto space-x-4 px-4 hide-scrollbar snap-x snap-mandatory">
-                    {lateNightVendors.map(vendor => (
-                      <div key={vendor.id} className="flex-shrink-0 w-[85vw] max-w-sm snap-start">
-                        {renderVendorCard(vendor, true)}
-                      </div>
-                    ))}
-                  </div>
-                </section>
+                <VendorSection
+                  vendors={lateNightVendors}
+                  vendorRatings={vendorRatings}
+                  onVendorClick={(id, name) => handleSellerClick(id, 'vendor', name)}
+                  globalSearchQuery={globalSearchQuery}
+                  ratingFilter={ratingFilter}
+                  title="Late Night Vendors"
+                  showLateNightBadge={true}
+                />
               )}
 
               {/* Toast Tab - Show toast content */}

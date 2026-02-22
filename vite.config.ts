@@ -1,6 +1,8 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { splitVendorChunkPlugin } from 'vite';
+import { visualizer } from 'rollup-plugin-visualizer';
+import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -12,6 +14,62 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       splitVendorChunkPlugin(), // Add automatic vendor chunk splitting
+      visualizer({
+        filename: 'dist/stats.html',
+        open: true,
+        gzipSize: true
+      }),
+      VitePWA({
+        registerType: 'autoUpdate',
+        workbox: {
+          maximumFileSizeToCacheInBytes: 3000000, // 3MB limit
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,jpg,jpeg}'],
+          runtimeCaching: [
+            {
+              urlPattern: /^https:\/\/.*\.(png|jpg|jpeg|webp|gif|svg)/,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'images-cache',
+                expiration: {
+                  maxEntries: 100,
+                  maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+                },
+              },
+            },
+            {
+              urlPattern: /^https:\/\/.*supabase\.co/,
+              handler: 'StaleWhileRevalidate',
+              options: {
+                cacheName: 'api-cache',
+                expiration: {
+                  maxEntries: 50,
+                  maxAgeSeconds: 5 * 60, // 5 minutes
+                },
+              },
+            },
+          ],
+        },
+        manifest: {
+          name: 'Vartica Food Delivery',
+          short_name: 'Vartica',
+          description: 'University campus food delivery platform',
+          theme_color: '#22c55e',
+          background_color: '#0f172a',
+          display: 'standalone',
+          icons: [
+            {
+              src: 'icon-192.png',
+              sizes: '192x192',
+              type: 'image/png'
+            },
+            {
+              src: 'icon-512.png',
+              sizes: '512x512',
+              type: 'image/png'
+            }
+          ]
+        },
+      }),
     ],
     base: '/', // Keep as '/' for Vercel deployment
     optimizeDeps: {
@@ -34,7 +92,12 @@ export default defineConfig(({ mode }) => {
             'react-vendor': ['react', 'react-dom'],
             'supabase-vendor': ['@supabase/supabase-js'],
             'ui-vendor': ['lucide-react'],
+            'router-vendor': ['react-router-dom'],
           },
+          // Optimize chunk naming
+          chunkFileNames: 'assets/[name]-[hash].js',
+          entryFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash].[ext]',
         },
       },
       minify: 'terser',
@@ -44,6 +107,12 @@ export default defineConfig(({ mode }) => {
             drop_console: true, // Remove console.* in production
             drop_debugger: true,
             pure_funcs: ['console.log', 'console.debug', 'console.info'], // Remove specific console methods
+            passes: 2, // Multiple compression passes
+          },
+          mangle: {
+            properties: {
+              regex: /^__/,
+            },
           },
         }
         : undefined,
@@ -51,6 +120,8 @@ export default defineConfig(({ mode }) => {
       cssCodeSplit: true,
       // Enable asset inlining for small files
       assetsInlineLimit: 4096, // 4kb
+      // Optimize chunk size
+      chunkSizeWarningLimit: 1000,
     },
 
     // Development server configuration

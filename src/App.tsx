@@ -2,6 +2,14 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { RoleProvider, useRole } from './contexts/RoleContext';
+import { initPerformanceMonitoring, monitorMemoryUsage } from './utils/performanceMonitoring';
+
+// Initialize performance monitoring
+if (typeof window !== 'undefined') {
+  initPerformanceMonitoring();
+  // Monitor memory usage periodically
+  setInterval(monitorMemoryUsage, 30000); // Every 30 seconds
+}
 
 // Lazy load route components for better performance (code splitting)
 const CustomerHome = lazy(() => import('./components/customer/CustomerHome').then(module => ({ default: module.CustomerHome })));

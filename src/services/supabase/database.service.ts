@@ -505,116 +505,95 @@ class SupabaseDatabaseService implements IDatabaseService {
   }
 
   async updateApproval(userId: string, role: 'vendor' | 'delivery_agent', approved: boolean, adminId?: string) {
-    if (role === 'vendor' && adminId) {
-      // For vendor approvals, use the dedicated review function
-      // First, get the vendor ID from the user ID
-      const { data: vendorData, error: vendorFetchError } = await supabase
-        .from('vendors')
-        .select('id')
-        .eq('user_id', userId)
-        .single();
+    try {
+      if (role === 'vendor') {
+        // For vendor approvals, ensure proper coordination between profiles and vendors tables
+        // First, get the vendor ID from the user ID
+        const { data: vendorData, error: vendorFetchError } = await supabase
+          .from('vendors')
+          .select('id, application_status')
+          .eq('user_id', userId)
+          .single();
 
-      if (vendorFetchError) {
-        console.error('Error fetching vendor record:', vendorFetchError);
-        // Fall back to direct update
-        const updateData = { vendor_approved: approved };
-        const { error } = await supabase
+        if (vendorFetchError && vendorFetchError.code !== 'PGRST116') { // Record not found error
+          console.error('Error fetching vendor record:', vendorFetchError);
+
+          // If vendor record doesn't exist, create it first
+          const { error: insertError } = await supabase
+            .from('vendors')
+            .insert({
+              user_id: userId,
+              store_name: 'New Vendor', // Placeholder - will be updated later
+              is_active: approved,
+              application_status: approved ? 'approved' : 'rejected'
+            });
+
+          if (insertError) {
+            console.error('Error creating vendor record:', insertError);
+            throw insertError;
+          }
+        } else if (vendorData && vendorData.id) {
+          // If vendor record exists, update it properly
+          const { error: vendorUpdateError } = await supabase
+            .from('vendors')
+            .update({
+              is_active: approved,
+              application_status: approved ? 'approved' : 'rejected',
+              ...(adminId && { reviewed_by: adminId }) // Only set reviewed_by if adminId is provided
+            })
+            .eq('id', vendorData.id);
+
+          if (vendorUpdateError) {
+            console.error('Error updating vendor record:', vendorUpdateError);
+            throw vendorUpdateError;
+          }
+        }
+
+        // Update the profile to reflect the approval status
+        const { error: profileError } = await supabase
           .from('profiles')
-          .update(updateData)
+          .update({
+            vendor_approved: approved,
+            role: approved ? 'vendor' : 'customer' // Change role if approved
+          })
           .eq('id', userId);
 
-        if (error) {
-          console.error('Error updating approval in profiles:', error);
-          throw error;
+        if (profileError) {
+          console.error('Error updating profile approval status:', profileError);
+          throw profileError;
         }
-
-        // Update the vendor's is_active status based on approval status
-        const { error: vendorError } = await supabase
-          .from('vendors')
-          .update({
-            is_active: approved,
-            application_status: approved ? 'approved' : 'rejected'
-          })
-          .eq('user_id', userId);
-
-        if (vendorError) {
-          console.error('Error updating vendor active status:', vendorError);
-          throw vendorError;
-        }
-      } else if (vendorData && vendorData.id) {
-        // Use the RPC function for proper vendor application review
-        const { error: rpcError } = await supabase.rpc('review_vendor_application', {
-          p_vendor_id: vendorData.id,
-          p_action: approved ? 'approve' : 'reject',
-          p_reviewer_id: adminId,
-        });
-
-        if (rpcError) {
-          console.error('Error using review_vendor_application RPC:', rpcError);
-          throw rpcError;
-        }
-      }
-    } else if (role === 'delivery_agent') {
-      // For delivery agents, update both profile and delivery_agents table
-      const updateData = { delivery_approved: approved };
-
-      const { error } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', userId);
-
-      if (error) {
-        console.error('Error updating approval in profiles:', error);
-        throw error;
-      }
-
-      // Also update the delivery_agents table
-      const { error: agentError } = await supabase
-        .from('delivery_agents')
-        .update({ is_approved: approved })
-        .eq('user_id', userId);
-
-      if (agentError) {
-        console.error('Error updating is_approved in delivery_agents:', agentError);
-        // Don't throw here - the profile update succeeded
-      }
-    } else {
-      // For general cases where adminId is not provided
-      let updateData = {};
-      if (role === 'vendor') {
-        updateData = { vendor_approved: approved };
       } else if (role === 'delivery_agent') {
-        updateData = { delivery_approved: approved };
-      }
-
-      const { error } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', userId);
-
-      if (error) {
-        console.error('Error updating approval:', error);
-        throw error;
-      }
-
-      // Update the vendor's is_active status based on approval status
-      if (role === 'vendor') {
-        const { error: vendorError } = await supabase
-          .from('vendors')
+        // For delivery agents, update both profile and delivery_agents table
+        const { error: profileError } = await supabase
+          .from('profiles')
           .update({
-            is_active: approved,
-            application_status: approved ? 'approved' : 'rejected'
+            delivery_approved: approved,
+            role: approved ? 'delivery_agent' : 'customer' // Change role if approved
           })
+          .eq('id', userId);
+
+        if (profileError) {
+          console.error('Error updating delivery agent approval in profiles:', profileError);
+          throw profileError;
+        }
+
+        // Also update the delivery_agents table if record exists
+        const { error: agentError } = await supabase
+          .from('delivery_agents')
+          .update({ is_approved: approved })
           .eq('user_id', userId);
 
-        if (vendorError) {
-          console.error('Error updating vendor active status:', vendorError);
-          throw vendorError;
+        if (agentError && agentError.code !== 'PGRST116') { // Ignore error if record doesn't exist
+          console.error('Error updating is_approved in delivery_agents:', agentError);
+          // Don't throw here - the profile update succeeded
         }
       }
-    }
 
-    return { success: true, error: null };
+      return { success: true, error: null };
+    } catch (error) {
+      console.error('Error in updateApproval:', error);
+      return { success: false, error: error as Error };
+    }
   }
 
   async getVendorStatus(userId: string) {
@@ -810,58 +789,4 @@ class SupabaseDatabaseService implements IDatabaseService {
 
 export const databaseService = new SupabaseDatabaseService();
 
-// Helper function to check approval status
-export const checkApprovalStatus = async (userId: string, role: string) => {
-  try {
-    if (role === 'vendor') {
-      // For vendors, check both profile approval and vendor application status
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('vendor_approved')
-        .eq('id', userId)
-        .single();
 
-      if (profileError) {
-        console.error('Error checking profile approval status:', profileError);
-      }
-
-      const { data: vendorData, error: vendorError } = await supabase
-        .from('vendors')
-        .select('application_status, is_active')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (vendorError) {
-        console.error('Error checking vendor application status:', vendorError);
-      }
-
-      // Vendor is approved if:
-      // 1. Profile has vendor_approved = true, OR
-      // 2. Vendor record exists with application_status = 'approved' and is_active = true
-      const profileApproved = profileData?.vendor_approved ?? false;
-      const vendorApproved = vendorData?.application_status === 'approved' && vendorData?.is_active === true;
-
-      console.log(`[Approval Check] User ${userId}: profileApproved=${profileApproved}, vendorApproved=${vendorApproved}`);
-
-      return profileApproved || vendorApproved;
-    } else if (role === 'delivery_agent') {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('delivery_approved')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.error('Error checking delivery agent approval status:', error);
-        return null;
-      }
-
-      return data.delivery_approved ?? null;
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Error in checkApprovalStatus:', error);
-    return null;
-  }
-};
