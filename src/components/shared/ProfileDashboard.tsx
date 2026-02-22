@@ -89,7 +89,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
 
   // Fetch bank details on mount
   useEffect(() => {
-    if (profile?.id && (profile.role === 'vendor' || (profile as any).role === 'late_night_vendor')) {
+    if (profile?.id && (profile.role === 'vendor' || (profile as any).role === 'late_night_vendor' || profile.role === 'delivery_agent')) {
       fetchBankDetails();
     }
   }, [profile]);
@@ -132,17 +132,35 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
     if (!profile?.id) return;
     try {
       setLoadingBank(true);
-      const { data: payoutData, error } = await supabase
-        .from('vendor_payout_profiles')
-        .select('*')
-        .eq('vendor_id', profile.id)
-        .single();
 
-      if (payoutData && !error) {
-        setBankAccount(payoutData.account_number || '');
-        setBankCode(payoutData.bank_code || '');
-        setBankName(payoutData.account_name || 'Unknown Bank');
-        setIsBankVerified(payoutData.verified || true);
+      if (profile.role === 'delivery_agent') {
+        // Fetch delivery agent bank details
+        const { data: payoutData, error } = await supabase
+          .from('agent_payout_profiles')
+          .select('*')
+          .eq('user_id', profile.id)
+          .single();
+
+        if (payoutData && !error) {
+          setBankAccount(payoutData.account_number || '');
+          setBankCode(payoutData.bank_code || '');
+          setBankName(payoutData.account_name || 'Unknown Bank');
+          setIsBankVerified(payoutData.verified || true);
+        }
+      } else {
+        // Fetch vendor bank details
+        const { data: payoutData, error } = await supabase
+          .from('vendor_payout_profiles')
+          .select('*')
+          .eq('vendor_id', profile.id)
+          .single();
+
+        if (payoutData && !error) {
+          setBankAccount(payoutData.account_number || '');
+          setBankCode(payoutData.bank_code || '');
+          setBankName(payoutData.account_name || 'Unknown Bank');
+          setIsBankVerified(payoutData.verified || true);
+        }
       }
     } catch (error) {
       console.error('Error fetching bank details:', error);
@@ -156,68 +174,89 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
     if (!profile) return;
 
     if (bankAccount.length !== 10 || !bankCode) {
-      showToast({ type: 'error', message: 'Please enter a valid 10-digit account number and select a bank.' });
+      showToast('Please enter a valid 10-digit account number and select a bank.', 'error');
       return;
     }
 
     if (!/^\d{10}$/.test(bankAccount)) {
-      showToast({ type: 'error', message: 'Account number must be exactly 10 digits.' });
+      showToast('Account number must be exactly 10 digits.', 'error');
       return;
     }
 
     setSavingBank(true);
     try {
-      // First check if vendor record exists
-      const { data: vendorData } = await supabase
-        .from('vendors')
-        .select('id')
-        .eq('user_id', profile.id)
-        .single();
-
-      if (!vendorData) {
-        showToast({ type: 'error', message: 'Vendor record not found. Please contact support.' });
-        setSavingBank(false);
-        return;
-      }
-
-      // Check for existing payout profile
-      const { data: existingProfile } = await supabase
-        .from('vendor_payout_profiles')
-        .select('id')
-        .eq('vendor_id', vendorData.id)
-        .single();
-
-      let result;
-      if (existingProfile) {
-        // Update existing profile
-        result = await supabase
-          .from('vendor_payout_profiles')
-          .update({
-            account_number: bankAccount.trim(),
-            account_name: profile.full_name || 'Unknown',
-            bank_code: bankCode,
-            verified: false
-          })
-          .eq('vendor_id', vendorData.id)
-          .select();
-      } else {
-        // Create new profile
-        result = await supabase
-          .from('vendor_payout_profiles')
-          .insert([{
-            vendor_id: vendorData.id,
+      if (profile.role === 'delivery_agent') {
+        // Handle delivery agent bank details
+        const { error: upsertError } = await supabase
+          .from('agent_payout_profiles')
+          .upsert({
             user_id: profile.id,
             account_number: bankAccount.trim(),
             account_name: profile.full_name || 'Unknown',
-            bank_name: bankName || '',
             bank_code: bankCode,
             verified: false
-          }])
-          .select();
-      }
+          }, {
+            onConflict: 'user_id',
+            ignoreDuplicates: false
+          });
 
-      if (result.error) {
-        throw result.error;
+        if (upsertError) {
+          throw upsertError;
+        }
+      } else {
+        // Handle vendor bank details
+        // First check if vendor record exists
+        const { data: vendorData } = await supabase
+          .from('vendors')
+          .select('id')
+          .eq('user_id', profile.id)
+          .single();
+
+        if (!vendorData) {
+          showToast('Vendor record not found. Please contact support.', 'error');
+          setSavingBank(false);
+          return;
+        }
+
+        // Check for existing payout profile
+        const { data: existingProfile } = await supabase
+          .from('vendor_payout_profiles')
+          .select('id')
+          .eq('vendor_id', vendorData.id)
+          .single();
+
+        let result;
+        if (existingProfile) {
+          // Update existing profile
+          result = await supabase
+            .from('vendor_payout_profiles')
+            .update({
+              account_number: bankAccount.trim(),
+              account_name: profile.full_name || 'Unknown',
+              bank_code: bankCode,
+              verified: false
+            })
+            .eq('vendor_id', vendorData.id)
+            .select();
+        } else {
+          // Create new profile
+          result = await supabase
+            .from('vendor_payout_profiles')
+            .insert([{
+              vendor_id: vendorData.id,
+              user_id: profile.id,
+              account_number: bankAccount.trim(),
+              account_name: profile.full_name || 'Unknown',
+              bank_name: bankName || '',
+              bank_code: bankCode,
+              verified: false
+            }])
+            .select();
+        }
+
+        if (result.error) {
+          throw result.error;
+        }
       }
 
       showToast('Bank details saved successfully!', 'success');
@@ -731,8 +770,8 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
                 ))}
               </div>
 
-              {/* Bank Details for Vendors */}
-              {(profile.role === 'vendor' || (profile as any).role === 'late_night_vendor') && (
+              {/* Bank Details for Vendors and Delivery Agents */}
+              {(profile.role === 'vendor' || (profile as any).role === 'late_night_vendor' || profile.role === 'delivery_agent') && (
                 <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden mb-6">
                   <div className="p-6">
                     <div className="flex items-center justify-between mb-4">
@@ -827,7 +866,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
             } catch (error) {
               console.error('Error refreshing profile:', error);
               // Fallback to showing a message to user
-              showToast({ type: 'info', message: 'Please refresh the page to see profile changes.' });
+              showToast('Please refresh the page to see profile changes.', 'info');
             }
           }}
         />

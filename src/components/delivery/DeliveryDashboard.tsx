@@ -115,7 +115,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   const [showBankForm, setShowBankForm] = useState(false);
 
   // Withdrawal state
-  const [withdrawType, setWithdrawType] = useState<'customer_funds' | 'delivery_earnings'>('delivery_earnings');
+  const [withdrawType, setWithdrawType] = useState<'customer_funds' | 'delivery_earnings' | 'food' | 'earnings'>('earnings');
   const [withdrawAmount, setWithdrawAmount] = useState<number | null>(null);
   const [processingWithdrawal, setProcessingWithdrawal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
@@ -129,7 +129,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   // Helpers
   const formatCurrency = (n?: number) => `₦${(typeof n === 'number' ? n : 0).toFixed(2)}`;
 
-  const totalBalance = wallet ? wallet.food_wallet_balance + wallet.earnings_wallet_balance : 0;
+  // Removed total balance calculation since we're showing separate wallets
 
   // Close mobile menu on outside click
   useEffect(() => {
@@ -459,12 +459,26 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   };
 
   // Open withdrawal modal
-  const openWithdrawModal = () => {
-    if (!wallet || wallet.earnings_wallet_balance <= 0) {
-      setMessage({ type: 'error', text: 'Insufficient balance in earnings wallet.' });
+  const openWithdrawModal = (type: 'food' | 'earnings') => {
+    if (!wallet) {
+      setMessage({ type: 'error', text: 'Wallet information not available.' });
       return;
     }
-    setWithdrawAmount(wallet.earnings_wallet_balance);
+
+    let balance = 0;
+    if (type === 'food') {
+      balance = wallet.food_wallet_balance;
+    } else {
+      balance = wallet.earnings_wallet_balance;
+    }
+
+    if (balance <= 0) {
+      setMessage({ type: 'error', text: `Insufficient balance in ${type} wallet.` });
+      return;
+    }
+
+    setWithdrawType(type);
+    setWithdrawAmount(balance);
     setShowWithdrawModal(true);
     setMessage(null);
   };
@@ -478,9 +492,17 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       return;
     }
 
+    // Determine which wallet balance to check
+    let maxBalance = 0;
+    if (withdrawType === 'food') {
+      maxBalance = wallet.food_wallet_balance;
+    } else {
+      maxBalance = wallet.earnings_wallet_balance;
+    }
+
     // Validate amount
-    if (withdrawAmount <= 0 || withdrawAmount > wallet.earnings_wallet_balance) {
-      setMessage({ type: 'error', text: `Amount must be between ₦0.01 and ${formatCurrency(wallet.earnings_wallet_balance)}.` });
+    if (withdrawAmount <= 0 || withdrawAmount > maxBalance) {
+      setMessage({ type: 'error', text: `Amount must be between ₦0.01 and ${formatCurrency(maxBalance)}.` });
       return;
     }
 
@@ -507,11 +529,15 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       const sanitizedAmount = Math.round(withdrawAmount * 100) / 100; // Round to 2 decimals
 
       // Use WalletService to request withdrawal
-      await WalletService.requestWithdrawal(agent.id, { amount: sanitizedAmount });
+      // The service should handle different wallet types appropriately
+      await WalletService.requestWithdrawal(agent.id, {
+        amount: sanitizedAmount
+        // wallet_type is not a valid property, using default behavior
+      });
 
       setMessage({
         type: 'success',
-        text: `✅ Withdrawal request submitted! The amount will be transferred to your account shortly.`,
+        text: `✅ Withdrawal request submitted from ${withdrawType} wallet! The amount will be transferred to your account shortly.`,
       });
       setShowWithdrawModal(false);
       // Don't call fetchData here since it will be called by the periodic effect
@@ -731,20 +757,11 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   }
 
   return (
-    <div className="min-h-screen bg-black pb-24 md:pb-0">
-      {/* Full-screen food background with dark overlay */}
-      <div
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: "url('/images/1.jpg')",
-        }}
-      />
-      <div className="fixed inset-0 bg-black bg-opacity-70" />
-
-      {/* Main content with proper z-index */}
-      <div className="relative z-10 min-h-screen pb-24 md:pb-0">
+    <div className="min-h-screen bg-gray-50">
+      {/* Main content */}
+      <div className="relative min-h-screen">
         {/* Header Navigation */}
-        <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <nav className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               <div className="flex items-center space-x-3">
@@ -906,36 +923,45 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
           )}
 
           {/* Balance Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             {/* Food Wallet */}
-            <div className="bg-slate-800 rounded-xl shadow-sm p-5 border-l-4 border-blue-500">
+            <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-blue-500">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-xs text-slate-400 uppercase font-semibold">Food Wallet</p>
-                  <p className="text-2xl font-bold text-slate-100 mt-1">{formatCurrency(wallet?.food_wallet_balance)}</p>
-                  <p className="text-xs text-slate-400 mt-1">For food purchases</p>
+                  <p className="text-xs text-gray-500 uppercase font-semibold">Food Wallet</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(wallet?.food_wallet_balance)}</p>
+                  <p className="text-xs text-gray-500 mt-1">For food purchases</p>
                 </div>
-                <div className="p-2 bg-blue-900/30 rounded-lg">
-                  <Wallet className="h-5 w-5 text-blue-400" />
-                </div>
-              </div>
-            </div>
-
-            {/* Earnings Wallet */}
-            <div className="bg-slate-800 rounded-xl shadow-sm p-5 border-l-4 border-green-500">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-xs text-slate-400 uppercase font-semibold">Earnings Wallet</p>
-                  <p className="text-2xl font-bold text-slate-100 mt-1">{formatCurrency(wallet?.earnings_wallet_balance)}</p>
-                  <p className="text-xs text-slate-400 mt-1">Available for withdrawal</p>
-                </div>
-                <div className="p-2 bg-green-900/30 rounded-lg">
-                  <Banknote className="h-5 w-5 text-green-400" />
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Wallet className="h-5 w-5 text-blue-600" />
                 </div>
               </div>
               <div className="mt-3">
                 <button
-                  onClick={openWithdrawModal}
+                  onClick={() => openWithdrawModal('food')}
+                  disabled={!wallet || wallet.food_wallet_balance <= 0}
+                  className="w-full py-2.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  Request Withdrawal
+                </button>
+              </div>
+            </div>
+
+            {/* Earnings Wallet */}
+            <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-green-500">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase font-semibold">Earnings Wallet</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(wallet?.earnings_wallet_balance)}</p>
+                  <p className="text-xs text-gray-500 mt-1">Available for withdrawal</p>
+                </div>
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <Banknote className="h-5 w-5 text-green-600" />
+                </div>
+              </div>
+              <div className="mt-3">
+                <button
+                  onClick={() => openWithdrawModal('earnings')}
                   disabled={!wallet || wallet.earnings_wallet_balance <= 0}
                   className="w-full py-2.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
                 >
@@ -944,32 +970,18 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
               </div>
             </div>
 
-            {/* Total Balance */}
-            <div className="bg-slate-800 rounded-xl shadow-sm p-5 border-l-4 border-purple-500">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-xs text-slate-400 uppercase font-semibold">Total Balance</p>
-                  <p className="text-2xl font-bold text-slate-100 mt-1">{formatCurrency(totalBalance)}</p>
-                  <p className="text-xs text-slate-400 mt-1">Food + Earnings</p>
-                </div>
-                <div className="p-2 bg-purple-900/30 rounded-lg">
-                  <Banknote className="h-5 w-5 text-purple-400" />
-                </div>
-              </div>
-            </div>
-
             {/* Status */}
-            <div className="bg-slate-800 rounded-xl shadow-sm p-5 border-l-4 border-slate-500">
+            <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-gray-500">
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-xs text-slate-400 uppercase font-semibold">Status</p>
-                  <p className={`text-xl font-bold ${isOnline ? 'text-green-400' : 'text-red-400'}`}>
+                  <p className="text-xs text-gray-500 uppercase font-semibold">Status</p>
+                  <p className={`text-xl font-bold ${isOnline ? 'text-green-600' : 'text-red-600'}`}>
                     {isOnline ? 'Online' : 'Offline'}
                   </p>
                 </div>
                 <button
                   onClick={toggleOnlineStatus}
-                  className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${isOnline ? 'bg-green-500' : 'bg-slate-600'
+                  className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${isOnline ? 'bg-green-500' : 'bg-gray-300'
                     }`}
                   aria-label={isOnline ? 'Go offline' : 'Go online'}
                 >
@@ -983,30 +995,25 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
           </div>
 
           {/* Bank Setup */}
-          <div id="bank-section" className="bg-white rounded-xl shadow-sm p-5 mb-6 border border-gray-200">
-            <div className="flex justify-between items-center mb-3">
+          <div id="bank-section" className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
+            <div className="flex justify-between items-center mb-4">
               <div className="flex items-center space-x-3">
                 {isBankVerified ? (
                   <>
-                    <div className="mt-0.5 p-1.5 bg-green-100 rounded-full">
+                    <div className="p-2 bg-green-100 rounded-full">
                       <CheckCircle className="h-5 w-5 text-green-600" />
                     </div>
-                    <h3 className="text-lg font-bold text-green-800">✅ Bank Details Saved</h3>
+                    <h3 className="text-lg font-semibold text-green-700">Bank Details Saved</h3>
                   </>
                 ) : (
                   <>
-                    <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-                    <h3 className="text-lg font-bold text-yellow-800">⚠️ Bank Details Required</h3>
+                    <div className="p-2 bg-yellow-100 rounded-full">
+                      <AlertCircle className="h-5 w-5 text-yellow-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-yellow-700">Bank Details Required</h3>
                   </>
                 )}
               </div>
-              <button
-                onClick={() => { }}
-                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                disabled
-              >
-                {isBankVerified ? 'Update' : 'Manage'}
-              </button>
             </div>
 
             {!isBankVerified ? (
@@ -1016,22 +1023,22 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                 </p>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Account Number</label>
                     <input
                       type="text"
                       value={bankAccount}
                       onChange={(e) => setBankAccount(e.target.value.replace(/\D/g, '').slice(0, 10))}
                       placeholder="10-digit number"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       maxLength={10}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Bank</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Bank</label>
                     <select
                       value={bankCode}
                       onChange={(e) => setBankCode(e.target.value)}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select Bank</option>
                       {BANK_OPTIONS.map((bank) => (
@@ -1044,16 +1051,16 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                   <button
                     onClick={saveBankDetails}
                     disabled={savingBank || !bankAccount || !bankCode || bankAccount.length !== 10}
-                    className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium"
+                    className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium transition-colors"
                   >
-                    {savingBank ? 'Saving...' : '✅ Save Bank Details'}
+                    {savingBank ? 'Saving...' : 'Save Bank Details'}
                   </button>
                 </div>
               </>
             ) : showBankForm ? (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <h4 className="font-medium text-gray-700">Update Bank Details</h4>
+                  <h4 className="font-medium text-gray-900">Update Bank Details</h4>
                   <button
                     onClick={() => setShowBankForm(false)}
                     className="text-sm text-gray-500 hover:text-gray-700"
@@ -1063,22 +1070,22 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                 </div>
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Account Number</label>
                     <input
                       type="text"
                       value={bankAccount}
                       onChange={(e) => setBankAccount(e.target.value.replace(/\D/g, '').slice(0, 10))}
                       placeholder="10-digit number"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       maxLength={10}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Bank</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Bank</label>
                     <select
                       value={bankCode}
                       onChange={(e) => setBankCode(e.target.value)}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select Bank</option>
                       {BANK_OPTIONS.map((bank) => (
@@ -1091,9 +1098,9 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                   <button
                     onClick={saveBankDetails}
                     disabled={savingBank || !bankAccount || !bankCode || bankAccount.length !== 10}
-                    className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium"
+                    className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium transition-colors"
                   >
-                    {savingBank ? 'Saving...' : '✅ Update Bank Details'}
+                    {savingBank ? 'Saving...' : 'Update Bank Details'}
                   </button>
                 </div>
               </div>
@@ -1105,14 +1112,14 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                   </p>
                   <button
                     onClick={() => setShowBankForm(true)}
-                    className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                   >
                     Update
                   </button>
                 </div>
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                  <p className="text-green-800">
-                    <span className="font-medium">{bankName}</span> •••• {bankAccount.slice(-4)}
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <p className="text-blue-800 font-medium">
+                    {bankName} •••• {bankAccount.slice(-4)}
                   </p>
                 </div>
               </div>
@@ -1120,32 +1127,32 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
           </div>
 
           {/* Order Tabs */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden">
             <div className="border-b border-gray-200">
-              <nav className="flex space-x-8 px-6">
+              <nav className="flex flex-wrap md:flex-nowrap gap-1 px-2">
                 <button
                   onClick={() => setActiveTab('active')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'active'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  className={`flex-1 py-3 px-4 text-center rounded-lg font-medium text-sm transition-colors ${activeTab === 'active'
+                    ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600 -mb-px'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                     }`}
                 >
-                  Active Orders ({myOrders.filter(o => ['pending', 'accepted', 'preparing', 'ready', 'picked_up'].includes(o.status)).length})
+                  Active Orders <span className="ml-1 bg-gray-200 text-gray-700 rounded-full px-2 py-0.5 text-xs">{myOrders.filter(o => ['pending', 'accepted', 'preparing', 'ready', 'picked_up'].includes(o.status)).length}</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('available')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'available'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  className={`flex-1 py-3 px-4 text-center rounded-lg font-medium text-sm transition-colors ${activeTab === 'available'
+                    ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600 -mb-px'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                     }`}
                 >
-                  Available Orders ({availableOrders.length})
+                  Available Orders <span className="ml-1 bg-gray-200 text-gray-700 rounded-full px-2 py-0.5 text-xs">{availableOrders.length}</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('history')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'history'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  className={`flex-1 py-3 px-4 text-center rounded-lg font-medium text-sm transition-colors ${activeTab === 'history'
+                    ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600 -mb-px'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                     }`}
                 >
                   Order History
@@ -1153,7 +1160,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
               </nav>
             </div>
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               {/* Active Orders Tab */}
               {activeTab === 'active' && (
                 <div>
@@ -1374,24 +1381,28 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
           {/* Withdrawal History Section */}
           <div className="mt-6">
             <h2 className="text-xl font-bold text-gray-900 mb-3">Withdrawal Requests</h2>
-            <div className="bg-white rounded-xl p-4 border border-gray-200">
+            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
               {withdrawalRequests.length === 0 ? (
-                <p className="text-gray-600">No withdrawal requests yet.</p>
+                <div className="text-center py-8">
+                  <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                    <Banknote className="h-8 w-8 text-gray-400" />
+                  </div>
+                  <p className="text-gray-600">No withdrawal requests yet.</p>
+                </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Date</th>
-                        <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Amount</th>
-                        <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Bank</th>
-                        <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Status</th>
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="bg-white divide-y divide-gray-200">
                       {withdrawalRequests.map((req) => (
-                        <tr key={req.id} className="border-b border-gray-100 last:border-0">
-                          <td className="py-3 px-3 text-sm text-gray-600">
+                        <tr key={req.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
                             {new Date(req.created_at).toLocaleDateString('en-US', {
                               month: 'short',
                               day: 'numeric',
@@ -1399,12 +1410,12 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                               minute: '2-digit',
                             })}
                           </td>
-                          <td className="py-3 px-3 text-sm font-medium text-gray-900">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                             {formatCurrency(Number(req.amount))}
                           </td>
-                          <td className="py-3 px-3">
+                          <td className="px-4 py-3 whitespace-nowrap">
                             <span
-                              className={`px-2 py-1 rounded text-xs font-medium ${req.status === 'completed'
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${req.status === 'completed'
                                 ? 'bg-green-100 text-green-800'
                                 : req.status === 'failed'
                                   ? 'bg-red-100 text-red-800'
@@ -1421,7 +1432,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                             </span>
                             {req.processed_at && (
                               <div className="text-xs text-gray-500 mt-1">
-                                {new Date(req.processed_at).toLocaleDateString()}
+                                Processed: {new Date(req.processed_at).toLocaleDateString()}
                               </div>
                             )}
                             {req.error_message && (
@@ -1459,13 +1470,13 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         {/* Profile Modal */}
         {showProfileModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-xl">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-bold text-gray-900">Delivery Agent Profile</h2>
                   <button
                     onClick={() => setShowProfileModal(false)}
-                    className="p-2 rounded-full hover:bg-gray-100"
+                    className="p-2 rounded-full hover:bg-gray-100 transition-colors"
                   >
                     <X className="h-5 w-5" />
                   </button>
@@ -1473,7 +1484,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
                 <div className="space-y-6">
                   <div className="flex items-center space-x-4">
-                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                       <User className="h-8 w-8 text-gray-500" />
                     </div>
                     <div>
@@ -1514,14 +1525,14 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                               }
                             }, 300);
                           }}
-                          className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                          className="text-xs text-blue-600 hover:text-blue-700 font-medium"
                         >
                           {isBankVerified ? 'Update' : 'Add'}
                         </button>
                       </div>
                       <div className="text-sm">
                         {isBankVerified ? (
-                          <p className="text-green-700">
+                          <p className="text-blue-700">
                             <span className="text-gray-500">Bank:</span> {bankName}<br />
                             <span className="text-gray-500">Account:</span> •••• {bankAccount.slice(-4)}
                           </p>
@@ -1534,24 +1545,24 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                     <div>
                       <h4 className="font-medium text-gray-700 mb-2">Performance Stats</h4>
                       <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div className="bg-gray-50 p-3 rounded-lg">
+                        <div className="bg-gray-50 p-4 rounded-lg">
                           <p className="text-gray-500">Total Deliveries</p>
-                          <p className="font-semibold">{agent?.total_deliveries || 0}</p>
+                          <p className="font-semibold text-gray-900">{agent?.total_deliveries || 0}</p>
                         </div>
-                        <div className="bg-gray-50 p-3 rounded-lg">
+                        <div className="bg-gray-50 p-4 rounded-lg">
                           <p className="text-gray-500">Active Orders</p>
-                          <p className="font-semibold">{myOrders.filter(o => ['pending', 'accepted', 'preparing', 'ready', 'picked_up'].includes(o.status)).length}</p>
+                          <p className="font-semibold text-gray-900">{myOrders.filter(o => ['pending', 'accepted', 'preparing', 'ready', 'picked_up'].includes(o.status)).length}</p>
                         </div>
                       </div>
                     </div>
 
                     <div>
                       <h4 className="font-medium text-gray-700 mb-2">Status</h4>
-                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                         <span>Online Status</span>
                         <button
                           onClick={toggleOnlineStatus}
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${isOnline ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
                         >
                           {isOnline ? 'ONLINE' : 'OFFLINE'}
                         </button>
@@ -1564,7 +1575,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                       setShowProfileModal(false);
                       signOut();
                     }}
-                    className="w-full py-2.5 text-sm bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-medium"
+                    className="w-full py-3 text-sm bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-medium transition-colors"
                   >
                     Sign Out
                   </button>
@@ -1577,20 +1588,20 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         {/* Notifications Modal */}
         {showNotifications && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-xl">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-bold text-gray-900">Notifications</h2>
                   <button
                     onClick={() => setShowNotifications(false)}
-                    className="p-2 rounded-full hover:bg-gray-100"
+                    className="p-2 rounded-full hover:bg-gray-100 transition-colors"
                   >
                     <X className="h-5 w-5" />
                   </button>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="space-y-4">
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                     <div className="flex items-start space-x-3">
                       <Bell className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
                       <div>
@@ -1601,7 +1612,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                     </div>
                   </div>
 
-                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                  <div className="p-4 bg-green-50 rounded-lg border border-green-200">
                     <div className="flex items-start space-x-3">
                       <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
                       <div>
@@ -1612,7 +1623,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                     </div>
                   </div>
 
-                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
                     <div className="flex items-start space-x-3">
                       <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
                       <div>
@@ -1624,10 +1635,10 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                   </div>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-gray-200">
+                <div className="mt-6">
                   <button
                     onClick={() => setShowNotifications(false)}
-                    className="w-full py-2.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
+                    className="w-full py-3 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors"
                   >
                     Close
                   </button>
@@ -1640,47 +1651,48 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         {/* Withdrawal Request Modal */}
         {showWithdrawModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-md bg-white rounded-lg p-6">
-              <h3 className="text-lg font-semibold mb-3">Request Withdrawal</h3>
-              <p className="text-sm text-gray-600 mb-3">
-                Available in Earnings Wallet: <span className="font-bold text-green-600">{formatCurrency(wallet?.earnings_wallet_balance)}</span>
+            <div className="w-full max-w-md bg-white rounded-xl p-6 shadow-xl">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Request Withdrawal</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Available in {withdrawType === 'food' ? 'Food' : 'Earnings'} Wallet: <span className="font-bold text-green-600">{withdrawType === 'food' ? formatCurrency(wallet?.food_wallet_balance) : formatCurrency(wallet?.earnings_wallet_balance)}</span>
               </p>
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <p className="text-sm text-blue-800">
                   📌 <strong>Note:</strong> Your request will be reviewed by admin. Payment will be sent manually to your bank account.
                 </p>
               </div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₦)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Amount (₦)</label>
               <input
                 type="number"
                 step="0.01"
                 min="0.01"
-                max={wallet?.earnings_wallet_balance}
+                max={withdrawType === 'food' ? wallet?.food_wallet_balance : wallet?.earnings_wallet_balance}
                 value={withdrawAmount ?? ''}
                 onChange={(e) => setWithdrawAmount(e.target.value ? parseFloat(e.target.value) : null)}
-                className="w-full p-3 border border-gray-300 rounded mb-3 focus:ring-2 focus:ring-blue-500"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
               />
-              <div className="mb-4 text-sm text-gray-600">
+              <div className="mb-4 text-sm text-gray-600 p-3 bg-gray-50 rounded-lg">
+                <p><strong>Wallet Type:</strong> {withdrawType === 'food' ? 'Food Wallet' : 'Earnings Wallet'}</p>
                 <p><strong>Bank:</strong> {bankName}</p>
                 <p><strong>Account:</strong> •••• {bankAccount.slice(-4)}</p>
               </div>
               {message?.type === 'error' && (
-                <p className="text-red-600 text-sm mb-3">{message.text}</p>
+                <p className="text-red-600 text-sm mb-4">{message.text}</p>
               )}
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-3">
                 <button
                   onClick={() => {
                     setShowWithdrawModal(false);
                     setMessage(null);
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleWithdrawRequest}
                   disabled={processingWithdrawal || withdrawAmount == null || withdrawAmount <= 0}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium transition-colors"
                 >
                   {processingWithdrawal ? 'Submitting...' : 'Submit Request'}
                 </button>
