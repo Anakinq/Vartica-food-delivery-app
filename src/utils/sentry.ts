@@ -1,5 +1,4 @@
 import * as Sentry from '@sentry/react';
-import { BrowserTracing } from '@sentry/tracing';
 import { logger } from './logger';
 
 // Initialize Sentry for both development and production (but with different settings)
@@ -11,13 +10,19 @@ if (sentryDsn && sentryDsn !== 'YOUR_SENTRY_DSN_HERE') {
     Sentry.init({
         dsn: sentryDsn,
         integrations: [
-            new BrowserTracing({
+            // Browser tracing is now included in @sentry/react
+            new Sentry.BrowserTracing({
                 // Set 'tracePropagationTargets' to control for which URLs distributed tracing should be enabled
                 tracePropagationTargets: [
                     'localhost',
                     /^https:\/\/.*vercel\.app/,
                     /^https:\/\/.*vartica\.com/
                 ],
+            }),
+            // Add replay integration
+            new Sentry.Replay({
+                maskAllText: false,
+                blockAllMedia: false,
             }),
         ],
         // Performance Monitoring
