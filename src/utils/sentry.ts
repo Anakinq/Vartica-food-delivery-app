@@ -10,15 +10,8 @@ if (sentryDsn && sentryDsn !== 'YOUR_SENTRY_DSN_HERE') {
     Sentry.init({
         dsn: sentryDsn,
         integrations: [
-            // Browser tracing is now included in @sentry/react
-            new Sentry.BrowserTracing({
-                // Set 'tracePropagationTargets' to control for which URLs distributed tracing should be enabled
-                tracePropagationTargets: [
-                    'localhost',
-                    /^https:\/\/.*vercel\.app/,
-                    /^https:\/\/.*vartica\.com/
-                ],
-            }),
+            // Remove BrowserTracing temporarily to avoid React version conflicts
+            // Will add back once the React version compatibility is resolved
             // Add replay integration
             new Sentry.Replay({
                 maskAllText: false,
