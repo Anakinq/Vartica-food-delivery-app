@@ -45,7 +45,7 @@ export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
         }
     }, [isOpen]);
     const { profile, refreshProfile } = useAuth();
-    const { success: showSuccess, error: showError } = useToast();
+    const { showToast } = useToast();
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState<FormData>({
         storeName: '',
@@ -136,7 +136,7 @@ export const VendorUpgradeModal: React.FC<VendorUpgradeModalProps> = ({
                 } catch (error) {
                     console.error('Error refreshing profile:', error);
                     // Fallback to showing a message to user
-                    showSuccess('Application submitted! Please refresh the page to see profile changes.');
+                    showToast('Application submitted! Please refresh the page to see profile changes.', 'success');
                     onSuccess();
                     onClose();
                 }

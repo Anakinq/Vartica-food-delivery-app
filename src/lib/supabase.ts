@@ -43,7 +43,7 @@ export interface Vendor {
 export interface MenuItem {
   id: string;
   seller_id: string;
-  seller_type: 'cafeteria' | 'vendor';
+  seller_type: 'cafeteria' | 'vendor' | 'late_night_vendor';
   name: string;
   description?: string;
   price: number;

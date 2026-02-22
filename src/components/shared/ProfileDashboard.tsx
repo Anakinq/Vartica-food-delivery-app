@@ -220,12 +220,12 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
         throw result.error;
       }
 
-      showToast({ type: 'success', message: 'Bank details saved successfully!' });
+      showToast('Bank details saved successfully!', 'success');
       setIsBankVerified(false);
       setShowBankModal(false);
     } catch (error: any) {
       console.error('Save bank error:', error);
-      showToast({ type: 'error', message: `Failed to save bank details: ${error.message}` });
+      showToast(`Failed to save bank details: ${error.message}`, 'error');
     } finally {
       setSavingBank(false);
     }
@@ -254,11 +254,11 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) { // 2MB limit
-        showToast({ type: 'error', message: 'Image file must be less than 2MB' });
+        showToast('Image file must be less than 2MB', 'error');
         return;
       }
       if (!file.type.startsWith('image/')) {
-        showToast({ type: 'error', message: 'Please upload an image file' });
+        showToast('Please upload an image file', 'error');
         return;
       }
       setAvatarFile(file);
@@ -297,7 +297,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
 
         if (uploadError) {
           console.error('Avatar upload failed:', uploadError);
-          showToast({ type: 'error', message: 'Failed to upload avatar image. Please try again.' });
+          showToast('Failed to upload avatar image. Please try again.', 'error');
           throw uploadError;
         }
 
@@ -329,7 +329,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2000);
     } catch (err) {
-      showToast({ type: 'error', message: 'Failed to update profile' });
+      showToast('Failed to update profile', 'error');
     } finally {
       setLoading(false);
     }
@@ -585,7 +585,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
                             await switchRole('vendor');
                           } catch (error) {
                             console.error('Failed to switch to vendor:', error);
-                            showToast({ type: 'error', message: 'Failed to switch to vendor view' });
+                            showToast('Failed to switch to vendor view', 'error');
                           }
                         }}
                         disabled={isSwitching}
@@ -622,7 +622,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
                               await switchRole('customer');
                             } catch (error) {
                               console.error('Failed to switch to customer:', error);
-                              showToast({ type: 'error', message: 'Failed to switch to customer view' });
+                              showToast('Failed to switch to customer view', 'error');
                             }
                           }}
                           disabled={isSwitching}
@@ -646,7 +646,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
                               await switchRole('vendor');
                             } catch (error) {
                               console.error('Failed to switch to vendor:', error);
-                              showToast({ type: 'error', message: 'Failed to switch to vendor view' });
+                              showToast('Failed to switch to vendor view', 'error');
                             }
                           }}
                           disabled={isSwitching}
@@ -843,16 +843,10 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
             // Refresh the profile to reflect the role change
             try {
               await refreshProfile();
-              showToast({
-                type: 'success',
-                message: 'Application submitted! Your delivery agent account is pending admin approval. You will be notified once approved.'
-              });
+              showToast('Application submitted! Your delivery agent account is pending admin approval. You will be notified once approved.', 'success');
             } catch (error) {
               console.error('Error refreshing profile:', error);
-              showToast({
-                type: 'success',
-                message: 'Application submitted! Awaiting admin approval.'
-              });
+              showToast('Application submitted! Awaiting admin approval.', 'success');
             }
           }}
         />

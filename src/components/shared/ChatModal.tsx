@@ -26,7 +26,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
   onClose
 }) => {
   const { user } = useAuth();
-  const { error: showError, success } = useToast();
+  const { showToast } = useToast();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -148,7 +148,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
 
         if (uploadError) {
           console.error('File upload error:', uploadError);
-          showError('Failed to upload file');
+          showToast('Failed to upload file', 'error');
           return;
         }
 
@@ -181,7 +181,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
       });
 
       if (error) {
-        showError('Failed to send message');
+        showToast('Failed to send message', 'error');
         return;
       }
 

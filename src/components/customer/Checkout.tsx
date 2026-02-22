@@ -128,7 +128,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const handleManualRetry = () => {
     setError('');
     // With npm package, retry is handled automatically
-    showToast({ type: 'info', message: 'Payment system is ready to use' });
+    showToast('Payment system is ready to use', 'info');
   };
 
   const MIN_NGN = 100;
@@ -203,7 +203,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
       }
       setDiscount(calculatedDiscount);
       setDeliveryFeeDiscount(0);
-      showToast({ type: 'success', message: `Discount of ₦${calculatedDiscount.toFixed(2)} applied!` });
+      showToast(`Discount of ₦${calculatedDiscount.toFixed(2)} applied!`, 'success');
       return;
     }
 
@@ -246,7 +246,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
     setDeliveryFeeDiscount(calculatedDeliveryFeeDiscount);
     setDiscount(0);
-    showToast({ type: 'success', message: `Delivery fee discount of ₦${calculatedDeliveryFeeDiscount.toFixed(2)} applied!` });
+    showToast(`Delivery fee discount of ₦${calculatedDeliveryFeeDiscount.toFixed(2)} applied!`, 'success');
   };
 
   const createOrder = async (paymentReference?: string) => {
@@ -342,41 +342,32 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const handlePaystackSuccess = async (response: any) => {
     try {
       setLoading(true);
+
       const orderResult = await createOrder(response.reference);
 
-      if (formData.promoCode && deliveryFeeDiscount > 0) {
-        const { error: incrementError } = await supabase.rpc('increment_promo_code_usage', {
-          p_code: formData.promoCode.toUpperCase()
-        });
-
-        if (incrementError) {
-          console.error('Error incrementing promo code usage:', incrementError);
-        }
-      }
-
       setSuccess(true);
-      showToast({ type: 'success', message: `Order ${orderResult.orderNumber} created successfully!` });
+      showToast(`Order ${orderResult.orderNumber} created successfully!`, 'success');
       setTimeout(() => onSuccess(), 2000);
     } catch (error) {
-      showToast({
-        type: 'error',
-        message: 'Payment successful but order creation failed. Contact support with reference: ' + response.reference
-      });
+      showToast(
+        'Payment successful but order creation failed. Contact support with reference: ' + response.reference,
+        'error'
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const handlePaystackClose = () => {
-    showToast({ type: 'info', message: 'Payment cancelled - your items are still in cart' });
+    showToast('Payment cancelled - your items are still in cart', 'info');
   };
 
-  // Dev mode - Simulate payment success and credit wallets
   const handleDevModePayment = async () => {
     if (!import.meta.env.DEV) {
-      showToast({ type: 'error', message: 'Dev mode only' });
+      showToast('Dev mode only', 'error');
       return;
     }
+
     try {
       setLoading(true);
       const orderResult = await createOrder('DEV_SIMULATED_PAYMENT');
@@ -391,13 +382,10 @@ export const Checkout: React.FC<CheckoutProps> = ({
       }
 
       setSuccess(true);
-      showToast({ type: 'success', message: `DEV: Order ${orderResult.orderNumber} created! (Payment simulated, wallets credited)` });
+      showToast(`DEV: Order ${orderResult.orderNumber} created! (Payment simulated, wallets credited)`, 'success');
       setTimeout(() => onSuccess(), 2000);
     } catch (error) {
-      showToast({
-        type: 'error',
-        message: 'Failed to create order: ' + (error as Error).message
-      });
+      showToast('Failed to create order: ' + (error as Error).message, 'error');
     } finally {
       setLoading(false);
     }

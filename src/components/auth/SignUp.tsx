@@ -337,9 +337,9 @@ export const SignUp: React.FC<SignUpProps> = ({ role, onBack, onSwitchToSignIn }
         email: formData.email,
       });
       if (error) throw error;
-      showToast({ type: 'success', message: '✅ Confirmation email resent! Check your inbox (and spam folder).' });
+      showToast('✅ Confirmation email resent! Check your inbox (and spam folder).', 'success');
     } catch (err) {
-      showToast({ type: 'error', message: '❌ Failed to resend. Please try again later.' });
+      showToast('❌ Failed to resend. Please try again later.', 'error');
       if (process.env.NODE_ENV === 'development') {
         console.error('Resend error:', err);
       }

@@ -1103,7 +1103,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         </div>
       </div>
     </div>
-    );
+  );
 };
 
-    export default CustomerHome;
+export default CustomerHome;

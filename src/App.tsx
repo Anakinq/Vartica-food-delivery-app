@@ -20,7 +20,7 @@ import AuthCallback from './components/auth/AuthCallback';
 const CafeteriaList = lazy(() => import('./components/customer/CafeteriaList').then(module => ({ default: module.CafeteriaList })));
 const VendorList = lazy(() => import('./components/customer/VendorList').then(module => ({ default: module.VendorList })));
 
-import { Analytics } from '@vercel/analytics/react';
+// import { Analytics } from '@vercel/analytics/react'; // Temporarily disabled
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
@@ -480,7 +480,6 @@ function App() {
                   </div>
                   <AppContent />
                   <ToastContainer />
-                  <Analytics />
                 </div>
               </CartProvider>
             </RoleProvider>

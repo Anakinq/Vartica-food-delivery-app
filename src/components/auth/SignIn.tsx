@@ -153,7 +153,7 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
         throw error;
       }
 
-      showToast({ type: 'success', message: '✅ Password reset email sent! Check your inbox (and spam folder).' });
+      showToast('✅ Password reset email sent! Check your inbox (and spam folder).', 'success');
       setForgotPasswordMode(false);
     } catch (err: unknown) {
       if (process.env.NODE_ENV === 'development') {

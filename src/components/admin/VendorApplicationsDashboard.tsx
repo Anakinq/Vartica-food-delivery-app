@@ -24,7 +24,7 @@ interface VendorApplication {
 }
 
 export const VendorApplicationsDashboard: React.FC = () => {
-    const { success: showSuccess, error: showError } = useToast();
+    const { showToast } = useToast();
     const [applications, setApplications] = useState<VendorApplication[]>([]);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState<string | null>(null);
@@ -93,11 +93,11 @@ export const VendorApplicationsDashboard: React.FC = () => {
             ));
 
             // Show success message
-            showSuccess(`${action === 'approve' ? 'Approved' : 'Rejected'} vendor application successfully!`);
+            showToast(`${action === 'approve' ? 'Approved' : 'Rejected'} vendor application successfully!`, 'success');
 
         } catch (err) {
             console.error('Error reviewing application:', err);
-            showError(`Error: ${(err as Error).message}`);
+            showToast(`Error: ${(err as Error).message}`, 'error');
         } finally {
             setProcessing(null);
         }

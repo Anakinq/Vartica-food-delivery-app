@@ -18,7 +18,7 @@ export const DeliveryAgentRating: React.FC<DeliveryAgentRatingProps> = ({
     onRatingSubmit
 }) => {
     const { user } = useAuth();
-    const { success: showSuccess, error: showError } = useToast();
+    const { showToast } = useToast();
     const [rating, setRating] = useState<number>(initialRating);
     const [hover, setHover] = useState<number>(0);
     const [hasRated, setHasRated] = useState<boolean>(false);
@@ -85,7 +85,7 @@ export const DeliveryAgentRating: React.FC<DeliveryAgentRatingProps> = ({
 
             if (error) {
                 console.error('Error submitting rating:', error);
-                showError('Failed to submit rating. Please try again.');
+                showToast('Failed to submit rating. Please try again.', 'error');
                 return;
             }
 
@@ -96,7 +96,7 @@ export const DeliveryAgentRating: React.FC<DeliveryAgentRatingProps> = ({
             }
         } catch (err) {
             console.error('Error submitting rating:', err);
-            showError('Failed to submit rating. Please try again.');
+            showToast('Failed to submit rating. Please try again.', 'error');
         } finally {
             setLoading(false);
         }
@@ -120,8 +120,8 @@ export const DeliveryAgentRating: React.FC<DeliveryAgentRatingProps> = ({
                         >
                             <Star
                                 className={`w-6 h-6 ${ratingValue <= (hover || rating)
-                                        ? 'text-yellow-400 fill-current'
-                                        : 'text-gray-300'
+                                    ? 'text-yellow-400 fill-current'
+                                    : 'text-gray-300'
                                     } ${(!hasRated && user) ? 'hover:text-yellow-300' : ''}`}
                             />
                         </button>
