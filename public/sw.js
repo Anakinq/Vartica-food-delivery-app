@@ -27,14 +27,16 @@ self.addEventListener('install', (event) => {
     );
 });
 
-// Activate event - clean up ALL old caches on every update
+// Activate event - clean up only old version caches
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames.map((cacheName) => {
-                    // Delete ALL old caches on every update
-                    return caches.delete(cacheName);
+                    // Delete only old version caches
+                    if (cacheName !== CACHE_NAME) {
+                        return caches.delete(cacheName);
+                    }
                 })
             );
         })

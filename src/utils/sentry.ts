@@ -10,8 +10,8 @@ if (sentryDsn && sentryDsn !== 'YOUR_SENTRY_DSN_HERE') {
     Sentry.init({
         dsn: sentryDsn,
         integrations: [
-            // Remove BrowserTracing temporarily to avoid React version conflicts
-            // Will add back once the React version compatibility is resolved
+            // Add BrowserTracing for performance monitoring
+            new Sentry.BrowserTracing(),
             // Add replay integration
             new Sentry.Replay({
                 maskAllText: false,

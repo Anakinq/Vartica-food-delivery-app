@@ -271,37 +271,54 @@ function getSupabaseConfig() {
 
 const { url: supabaseUrl, key: supabaseAnonKey } = getSupabaseConfig();
 
-// Validate configuration at build time - never expose config details in browser
-if (!supabaseUrl || !supabaseAnonKey) {
-    if (process.env.NODE_ENV === 'development') {
-        console.error('❌ Missing Supabase configuration. Please check your environment variables.');
-        console.error('Required: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
-    } else {
-        // In production, log a generic error without exposing config details
-        console.error('Application configuration error');
-    }
-    // In production, fail gracefully without exposing config details
-    throw new Error(process.env.NODE_ENV === 'development'
-        ? 'Missing Supabase configuration. Please check your environment variables.'
-        : 'Application configuration error');
-}
-
-// Create Supabase client with secure configuration
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+// Create a mock client for when environment variables are missing
+const createMockSupabaseClient = () => ({
     auth: {
-        persistSession: true,
-        detectSessionInUrl: true,
-        flowType: 'pkce',
-        storage: safeStorage,
-        storageKey: 'vartica-auth-token',
-        autoRefreshToken: true
+        getSession: async () => ({ data: { session: null }, error: null }),
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } }, error: null }),
+        signIn: {
+            email: async () => ({ data: null, error: { message: 'Supabase not configured' } })
+        },
+        signUp: async () => ({ data: null, error: { message: 'Supabase not configured' } }),
+        signOut: async () => ({ error: null })
     },
-    global: {
-        headers: {
-            'X-Client-Info': 'vartica-food-app/1.0.0'
-        }
+    from: () => ({
+        select: () => ({ data: [], error: { message: 'Supabase not configured' } }),
+        insert: async () => ({ data: null, error: { message: 'Supabase not configured' } }),
+        update: () => ({
+            eq: () => ({ data: null, error: { message: 'Supabase not configured' } })
+        }),
+        delete: () => ({
+            eq: () => ({ data: null, error: { message: 'Supabase not configured' } })
+        })
+    }),
+    rpc: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+    storage: {
+        from: () => ({
+            upload: async () => ({ data: null, error: { message: 'Supabase not configured' } }),
+            download: async () => ({ data: null, error: { message: 'Supabase not configured' } })
+        })
     }
 });
+
+// Create Supabase client with secure configuration
+export const supabase = !supabaseUrl || !supabaseAnonKey
+    ? createMockSupabaseClient()
+    : createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+            persistSession: true,
+            detectSessionInUrl: true,
+            flowType: 'pkce',
+            storage: safeStorage,
+            storageKey: 'vartica-auth-token',
+            autoRefreshToken: true
+        },
+        global: {
+            headers: {
+                'X-Client-Info': 'vartica-food-app/1.0.0'
+            }
+        }
+    });
 
 // Export configuration check function for runtime validation
 export function isSupabaseConfigured(): boolean {
