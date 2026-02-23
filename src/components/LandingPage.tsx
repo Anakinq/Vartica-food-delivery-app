@@ -135,6 +135,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
                   {role.title}
                 </button>
               ))}
+              <button
+                onClick={() => window.location.hash = '#/admin-login'}
+                className="px-3 py-2 text-sm font-medium text-blue-300 hover:text-blue-100 hover:bg-blue-500 hover:bg-opacity-20 rounded-md transition-colors border border-blue-500 border-opacity-50"
+              >
+                Admin Access
+              </button>
             </div>
           </div>
         </div>
@@ -154,6 +160,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
                   {role.title}
                 </button>
               ))}
+              <button
+                onClick={() => {
+                  window.location.hash = '#/admin-login';
+                  setMenuOpen(false);
+                }}
+                className="block w-full text-left px-3 py-2 text-base font-medium text-blue-300 hover:text-blue-100 hover:bg-blue-500 hover:bg-opacity-20 rounded-md transition-colors border border-blue-500 border-opacity-50"
+              >
+                Admin Access
+              </button>
             </div>
           </div>
         )}
