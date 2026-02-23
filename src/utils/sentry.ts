@@ -10,10 +10,10 @@ if (sentryDsn && sentryDsn !== 'YOUR_SENTRY_DSN_HERE') {
     Sentry.init({
         dsn: sentryDsn,
         integrations: [
-            // Add BrowserTracing for performance monitoring
-            new Sentry.BrowserTracing(),
+            // Use the updated BrowserTracing integration
+            Sentry.browserTracingIntegration(),
             // Add replay integration
-            new Sentry.Replay({
+            Sentry.replayIntegration({
                 maskAllText: false,
                 blockAllMedia: false,
             }),
