@@ -32,14 +32,24 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [currentRole, setCurrentRole] = useState<UserRole>('customer');
 
     // Determine primary role based on profile
-    const primaryRole = profile?.role === 'vendor' || (profile as any)?.role === 'late_night_vendor'
-        ? 'vendor'
-        : profile?.role === 'delivery_agent'
-            ? 'delivery_agent'
-            : 'customer';
+    const primaryRole = profile?.role === 'admin'
+        ? 'admin'
+        : profile?.role === 'vendor' || (profile as any)?.role === 'late_night_vendor'
+            ? 'vendor'
+            : profile?.role === 'delivery_agent'
+                ? 'delivery_agent'
+                : profile?.role === 'cafeteria'
+                    ? 'cafeteria'
+                    : 'customer';
 
     // Determine available roles
     const availableRoles = ['customer'] as UserRole[];
+    if (profile?.role === 'admin') {
+        availableRoles.push('admin');
+    }
+    if (profile?.role === 'cafeteria') {
+        availableRoles.push('cafeteria');
+    }
     if (profile?.role === 'vendor' || (profile as any)?.role === 'late_night_vendor' || (profile as any)?.is_vendor) {
         availableRoles.push('vendor');
     }
@@ -94,8 +104,14 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Determine target hash
             let targetHash = '';
             switch (targetRole) {
+                case 'admin':
+                    targetHash = '#/admin';
+                    break;
                 case 'vendor':
                     targetHash = '#/vendor';
+                    break;
+                case 'cafeteria':
+                    targetHash = '#/cafeteria';
                     break;
                 case 'delivery_agent':
                     targetHash = '#/delivery';

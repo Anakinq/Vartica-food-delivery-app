@@ -151,11 +151,18 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
     setLoading(true);
     try {
       // 1. Agent
-      const { data: agentData } = await supabase
+      const { data: agentData, error: agentError } = await supabase
         .from('delivery_agents')
         .select('*')
         .eq('user_id', profile.id)
         .maybeSingle();
+
+      if (agentError) {
+        console.error('Error fetching agent data:', agentError);
+        setAgent(null);
+        setLoading(false);
+        return;
+      }
 
       if (!agentData) {
         setAgent(null);
@@ -171,7 +178,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         .from('agent_wallets')
         .select('food_wallet_balance, earnings_wallet_balance')
         .eq('agent_id', agentData.id)
-        .maybeSingle();
+        .single();
 
       if (walletError) {
         console.error('Wallet fetch error:', walletError);
@@ -378,13 +385,14 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
 
   // Save bank details with Paystack verification
   const saveBankDetails = async () => {
-    if (!profile?.id || bankAccount.length !== 10 || !bankCode) {
-      setMessage({ type: 'error', text: 'Please enter a valid 10-digit account number and select a bank.' });
+    if (!profile?.id || !bankCode) {
+      setMessage({ type: 'error', text: 'Please select a bank and enter account number.' });
       return;
     }
 
-    // Validate account number is numeric
-    if (!/^\d{10}$/.test(bankAccount)) {
+    // Validate account number length and format
+    const cleanAccountNumber = bankAccount.toString().replace(/\D/g, '');
+    if (cleanAccountNumber.length !== 10) {
       setMessage({ type: 'error', text: 'Account number must be exactly 10 digits.' });
       return;
     }
@@ -398,7 +406,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         .from('agent_payout_profiles')
         .upsert({
           user_id: profile.id,
-          account_number: bankAccount.trim(),
+          account_number: cleanAccountNumber,
           account_name: profile.full_name || 'Unknown',
           bank_code: bankCode,
           verified: false
@@ -419,8 +427,8 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          agent_id: agent?.id, // This might be needed for the API
-          account_number: bankAccount.trim(),
+          agent_id: agent?.id || '', // Make sure agent_id is provided
+          account_number: cleanAccountNumber,
           bank_code: bankCode
         })
       });
@@ -428,8 +436,10 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       if (!verifyResponse.ok) {
         const errorData = await verifyResponse.json();
         console.warn('Bank verification failed:', errorData);
+        setMessage({ type: 'warning', text: `Bank verification failed: ${errorData.error || 'Please check your account details'}` });
         // Don't throw error for verification - just update the verified status
       } else {
+        const result = await verifyResponse.json();
         // Update the verified status using upsert for safety
         const { error: verifyError } = await supabase
           .from('agent_payout_profiles')
@@ -444,15 +454,16 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         if (verifyError) {
           console.warn('Verification update warning:', verifyError);
         }
+
+        setMessage({ type: 'success', text: result.message || '✅ Bank details saved and verified successfully!' });
       }
 
-      setMessage({ type: 'success', text: '✅ Bank details saved and verified successfully!' });
       setIsBankVerified(true);
       setShowBankForm(false); // Close the form after successful save
       // Don't call fetchData here since it will be called by the periodic effect
     } catch (err: any) {
       console.error('Save bank error:', err);
-      setMessage({ type: 'error', text: `Failed to save bank details: ${err.message}` });
+      setMessage({ type: 'error', text: `Failed to save bank details: ${err.message || 'Please try again later'}` });
     } finally {
       setSavingBank(false);
     }
