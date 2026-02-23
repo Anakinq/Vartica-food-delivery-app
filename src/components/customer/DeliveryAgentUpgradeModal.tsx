@@ -256,7 +256,7 @@ export const DeliveryAgentUpgradeModal: React.FC<DeliveryAgentUpgradeModalProps>
                                 type="text"
                                 value={formData.bankAccountNumber}
                                 onChange={(e) => handleInputChange('bankAccountNumber', e.target.value.replace(/\D/g, '').slice(0, 10))}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
                                 placeholder="Enter your 10-digit bank account number"
                                 maxLength={10}
                             />
@@ -269,7 +269,7 @@ export const DeliveryAgentUpgradeModal: React.FC<DeliveryAgentUpgradeModalProps>
                             <select
                                 value={formData.bankName}
                                 onChange={(e) => handleInputChange('bankName', e.target.value)}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
                             >
                                 <option value="">Select your bank</option>
                                 {BANK_OPTIONS.map((bank) => (

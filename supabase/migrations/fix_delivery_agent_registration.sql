@@ -91,7 +91,7 @@ BEGIN
         0,
         NOW()
     FROM public.delivery_agents 
-    WHERE user_id = user_id
+    WHERE user_id = add_delivery_agent_role.user_id
     ON CONFLICT (agent_id) DO NOTHING;
 
     result := json_build_object(
