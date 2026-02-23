@@ -21,7 +21,6 @@ const SignIn = lazy(() => import('./components/auth/SignIn').then(module => ({ d
 const SignUp = lazy(() => import('./components/auth/SignUp').then(module => ({ default: module.SignUp })));
 import { ProfileDashboard } from './components/shared/ProfileDashboard';
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
-const AdminLogin = lazy(() => import('./components/admin/AdminLogin').then(module => ({ default: module.AdminLogin })));
 const DeliveryDashboard = lazy(() => import('./components/delivery/DeliveryDashboard').then(module => ({ default: module.DeliveryDashboard })));
 import { Cart } from './components/customer/Cart';
 import { Checkout } from './components/customer/Checkout';
@@ -445,23 +444,6 @@ function AppContent() {
           canSignUp ? () => setAuthView('signup') : undefined
         }
       />
-    );
-  }
-
-  // Check for admin login route
-  if (window.location.hash === '#/admin-login') {
-    return (
-      <div className="app-container">
-        {withSuspense(AdminLogin)({
-          onBack: () => {
-            window.location.hash = '#/';
-            setSelectedRole(null);
-          },
-          onLoginSuccess: () => {
-            window.location.hash = '#/admin';
-          }
-        })}
-      </div>
     );
   }
 

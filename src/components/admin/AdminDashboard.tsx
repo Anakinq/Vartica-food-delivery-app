@@ -51,6 +51,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
 
     setProcessingWithdrawal(withdrawalId);
     try {
+      // First check if the withdrawal exists
+      const { data: existingWithdrawal, error: fetchError } = await supabase
+        .from('agent_withdrawals')
+        .select('id, status')
+        .eq('id', withdrawalId)
+        .single();
+
+      if (fetchError) {
+        console.warn('Withdrawal not found:', fetchError.message);
+        showToast('Withdrawal not found or already processed', 'warning');
+        setProcessingWithdrawal(null);
+        return;
+      }
+
+      // Only update if status is pending
+      if (existingWithdrawal.status !== 'pending') {
+        showToast(`Cannot approve withdrawal. Current status: ${existingWithdrawal.status}`, 'warning');
+        setProcessingWithdrawal(null);
+        return;
+      }
+
       const { error } = await supabase
         .from('agent_withdrawals')
         .update({
@@ -81,6 +102,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
 
     setProcessingWithdrawal(withdrawalId);
     try {
+      // First check if the withdrawal exists
+      const { data: existingWithdrawal, error: fetchError } = await supabase
+        .from('agent_withdrawals')
+        .select('id, status')
+        .eq('id', withdrawalId)
+        .single();
+
+      if (fetchError) {
+        console.warn('Withdrawal not found:', fetchError.message);
+        showToast('Withdrawal not found or already processed', 'warning');
+        setProcessingWithdrawal(null);
+        return;
+      }
+
+      // Only update if status is pending_approval
+      if (existingWithdrawal.status !== 'pending_approval') {
+        showToast(`Cannot mark withdrawal as sent. Current status: ${existingWithdrawal.status}`, 'warning');
+        setProcessingWithdrawal(null);
+        return;
+      }
+
       const { error } = await supabase
         .from('agent_withdrawals')
         .update({
@@ -117,6 +159,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
 
     setProcessingWithdrawal(withdrawalId);
     try {
+      // First check if the withdrawal exists
+      const { data: existingWithdrawal, error: fetchError } = await supabase
+        .from('agent_withdrawals')
+        .select('id, status')
+        .eq('id', withdrawalId)
+        .single();
+
+      if (fetchError) {
+        console.warn('Withdrawal not found:', fetchError.message);
+        showToast('Withdrawal not found or already processed', 'warning');
+        setProcessingWithdrawal(null);
+        return;
+      }
+
+      // Only update if status is pending_approval
+      if (existingWithdrawal.status !== 'pending_approval') {
+        showToast(`Cannot reject withdrawal. Current status: ${existingWithdrawal.status}`, 'warning');
+        setProcessingWithdrawal(null);
+        return;
+      }
+
       const { error } = await supabase
         .from('agent_withdrawals')
         .update({
