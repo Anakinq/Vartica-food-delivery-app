@@ -74,7 +74,7 @@ export default defineConfig(({ mode }) => {
     base: '/', // Keep as '/' for Vercel deployment
     optimizeDeps: {
       exclude: ['lucide-react'],
-      include: ['@supabase/supabase-js'], // Pre-bundle dependencies
+      include: ['@supabase/supabase-js', 'react', 'react-dom', 'react-router-dom'], // Pre-bundle dependencies
     },
     define: {
       // Make process.env available in the browser
@@ -87,12 +87,20 @@ export default defineConfig(({ mode }) => {
       sourcemap: !isProduction, // Generate source maps in development
       rollupOptions: {
         output: {
-          manualChunks: {
-            // Split vendor chunks to improve caching
-            'react-vendor': ['react', 'react-dom'],
-            'supabase-vendor': ['@supabase/supabase-js'],
-            'ui-vendor': ['lucide-react'],
-            'router-vendor': ['react-router-dom'],
+          // Simplified chunking to avoid React bundling issues
+          manualChunks: (id) => {
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom')) {
+                return 'react';
+              }
+              if (id.includes('@supabase')) {
+                return 'supabase';
+              }
+              if (id.includes('lucide-react')) {
+                return 'ui';
+              }
+              return 'vendor';
+            }
           },
           // Optimize chunk naming
           chunkFileNames: 'assets/[name]-[hash].js',
@@ -107,13 +115,9 @@ export default defineConfig(({ mode }) => {
             drop_console: true, // Remove console.* in production
             drop_debugger: true,
             pure_funcs: ['console.log', 'console.debug', 'console.info'], // Remove specific console methods
-            passes: 2, // Multiple compression passes
+            passes: 1, // Single compression pass to avoid issues
           },
-          mangle: {
-            properties: {
-              regex: /^__/,
-            },
-          },
+          mangle: false, // Disable mangling to prevent React issues
         }
         : undefined,
       // Enable CSS code splitting
