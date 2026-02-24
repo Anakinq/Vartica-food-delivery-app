@@ -296,7 +296,8 @@ const createMockSupabaseClient = () => ({
     storage: {
         from: () => ({
             upload: async () => ({ data: null, error: { message: 'Supabase not configured' } }),
-            download: async () => ({ data: null, error: { message: 'Supabase not configured' } })
+            download: async () => ({ data: null, error: { message: 'Supabase not configured' } }),
+            getPublicUrl: () => ({ data: { publicUrl: '' } })
         })
     }
 });

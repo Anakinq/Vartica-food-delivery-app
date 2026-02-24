@@ -373,7 +373,6 @@ function AppContent() {
             <div className="main-content">
               {withSuspense(AdminDashboard)({ onShowProfile: () => setShowProfile(true) })}
             </div>
-            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
           </div>
         );
       case 'delivery_agent':

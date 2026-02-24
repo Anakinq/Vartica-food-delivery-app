@@ -648,9 +648,9 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
             </div>
           </div>
 
-          {/* Mobile Menu Dropdown - fixed positioning for proper mobile display */}
+          {/* Mobile Menu Dropdown - improved mobile positioning and sizing */}
           {showMobileMenu && (
-            <div ref={menuRef} className="fixed right-4 top-14 sm:top-16 bg-white shadow-lg rounded-md py-2 w-48 z-[100] border border-gray-200">
+            <div ref={menuRef} className="fixed right-4 top-14 sm:top-16 bg-white shadow-xl rounded-lg py-2 w-64 z-[100] border border-gray-200 md:w-56">
               <div className="flex items-center justify-between px-4 py-2 border-b">
                 <span className="text-sm font-medium text-gray-700">Menu</span>
                 <button
@@ -725,50 +725,50 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto pb-20">
         <div className="px-4 py-4">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 mb-6 sm:mb-8 overflow-hidden">
-            <div className="bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden border border-slate-700">
+          {/* Stats Cards - mobile optimized */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
+            <div className="bg-slate-800 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border border-slate-700">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm text-slate-400 truncate">Orders</p>
-                  <p className="text-lg sm:text-2xl font-bold text-slate-100">{stats.totalOrders}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-slate-100">{stats.totalOrders}</p>
                 </div>
                 <Package className="h-8 w-8 sm:h-10 sm:w-10 text-purple-400 flex-shrink-0" />
               </div>
             </div>
 
-            <div className="bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden border border-slate-700">
+            <div className="bg-slate-800 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border border-slate-700">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm text-slate-400 truncate">Wallet</p>
-                  <p className="text-sm sm:text-xl font-bold text-green-400 truncate">{formatCurrency(walletBalance)}</p>
+                  <p className="text-base sm:text-xl font-bold text-green-400 truncate">{formatCurrency(walletBalance)}</p>
                 </div>
                 <Wallet className="h-8 w-8 sm:h-10 sm:w-10 text-green-400 flex-shrink-0" />
               </div>
               <button
                 onClick={() => setShowWithdrawModal(true)}
                 disabled={walletBalance < 100}
-                className="mt-2 w-full py-1.5 sm:py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm transition-colors"
+                className="mt-3 w-full py-2 sm:py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-sm transition-colors"
               >
                 Withdraw
               </button>
             </div>
 
-            <div className="bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden border border-slate-700">
+            <div className="bg-slate-800 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border border-slate-700">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm text-slate-400 truncate">Revenue</p>
-                  <p className="text-sm sm:text-xl font-bold text-slate-100 truncate">{formatCurrency(stats.totalRevenue)}</p>
+                  <p className="text-base sm:text-xl font-bold text-slate-100 truncate">{formatCurrency(stats.totalRevenue)}</p>
                 </div>
                 <DollarSign className="h-8 w-8 sm:h-10 sm:w-10 text-green-400 flex-shrink-0" />
               </div>
             </div>
 
-            <div className="bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden border border-slate-700">
+            <div className="bg-slate-800 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border border-slate-700">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm text-slate-400 truncate">Rating</p>
-                  <p className="text-sm sm:text-xl font-bold text-slate-100">
+                  <p className="text-base sm:text-xl font-bold text-slate-100">
                     {stats.avgRating > 0 ? stats.avgRating.toFixed(1) : 'N/A'}
                   </p>
                 </div>
@@ -776,11 +776,11 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
               </div>
             </div>
 
-            <div className="bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm overflow-hidden border border-slate-700">
+            <div className="bg-slate-800 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border border-slate-700">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm text-slate-400 truncate">Reviews</p>
-                  <p className="text-lg sm:text-xl font-bold text-slate-100">{stats.reviewCount}</p>
+                  <p className="text-xl sm:text-xl font-bold text-slate-100">{stats.reviewCount}</p>
                 </div>
                 <BarChart3 className="h-8 w-8 sm:h-10 sm:w-10 text-blue-400 flex-shrink-0" />
               </div>
@@ -907,10 +907,10 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                     {vendorProducts.map((product) => (
-                      <div key={product.id} className="bg-white rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm">
-                        <div className="h-20 sm:h-32 rounded-lg bg-gray-100 overflow-hidden mb-2 sm:mb-3">
+                      <div key={product.id} className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border border-gray-100">
+                        <div className="h-32 sm:h-32 rounded-lg bg-gray-100 overflow-hidden mb-3">
                           <img
                             src={product.image_url || '/images/1.jpg'}
                             alt={product.name}
@@ -921,24 +921,24 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
                             }}
                           />
                         </div>
-                        <h4 className="text-xs sm:text-sm font-medium text-gray-900 line-clamp-1">{product.name}</h4>
-                        <p className="text-xs text-gray-500 line-clamp-1">{product.category}</p>
-                        <p className="text-sm sm:text-base font-bold text-purple-600 mt-1">₦{product.price.toLocaleString()}</p>
-                        <div className="flex items-center gap-1 sm:gap-2 mt-2">
+                        <h4 className="text-sm sm:text-sm font-medium text-gray-900 line-clamp-2 min-h-[2.5rem]">{product.name}</h4>
+                        <p className="text-xs text-gray-500 line-clamp-1 mt-1">{product.category}</p>
+                        <p className="text-base sm:text-base font-bold text-purple-600 mt-2">₦{product.price.toLocaleString()}</p>
+                        <div className="flex items-center gap-2 sm:gap-2 mt-3">
                           <button
                             onClick={() => toggleProductAvailability(product)}
-                            className={`flex-1 px-2 py-1 rounded-full text-xs font-medium transition-colors ${product.is_available
+                            className={`flex-1 px-3 py-2 rounded-full text-sm font-medium transition-colors ${product.is_available
                               ? 'bg-green-100 text-green-700 hover:bg-green-200'
                               : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
                           >
-                            {product.is_available ? '✓' : '✗'}
+                            {product.is_available ? 'Available' : 'Out of Stock'}
                           </button>
                           <button
                             onClick={() => setEditingProduct(product)}
-                            className="p-1 sm:p-1.5 text-gray-500 hover:text-purple-600"
+                            className="p-2 sm:p-2 text-gray-500 hover:text-purple-600 bg-gray-50 hover:bg-gray-100 rounded-full"
                             title="Edit Product"
                           >
-                            <Edit2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            <Edit2 className="h-4 w-4 sm:h-4 sm:w-4" />
                           </button>
                         </div>
                       </div>
@@ -962,10 +962,10 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         />
       )}
 
-      {/* Bank Details Modal */}
+      {/* Bank Details Modal - mobile optimized */}
       {showBankModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-white rounded-xl w-full max-w-md p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-gray-900">Bank Details</h2>
               <button onClick={() => setShowBankModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
@@ -1030,10 +1030,10 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         </div>
       )}
 
-      {/* Withdrawal Modal */}
+      {/* Withdrawal Modal - mobile optimized */}
       {showWithdrawModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-white rounded-xl w-full max-w-md p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-gray-900">Withdraw Funds</h2>
               <button onClick={() => setShowWithdrawModal(false)} className="p-2 hover:bg-gray-100 rounded-full">

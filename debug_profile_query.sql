@@ -105,6 +105,6 @@ SELECT
     application_status,
     is_active
 FROM vendors 
-WHERE user_id = '8e08263d-b06d-4eb8-9d71-abaefe8faf1d';
+WHERE vendors.user_id = '8e08263d-b06d-4eb8-9d71-abaefe8faf1d';
 
 SELECT 'Debug script completed' as status;

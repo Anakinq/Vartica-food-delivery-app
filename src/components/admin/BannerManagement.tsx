@@ -1,6 +1,6 @@
 // Banner Management Component for Admin Dashboard
-import React, { useState, useEffect } from 'react';
-import { X, Plus, Edit, Trash2, Image, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Plus, Edit, Trash2, Image, ExternalLink, Upload, X as XIcon } from 'lucide-react';
 import { supabase } from '../../lib/supabase/client';
 
 interface Banner {
@@ -8,6 +8,7 @@ interface Banner {
     title: string;
     subtitle?: string;
     image_url: string;
+    image_path?: string;
     link?: string;
     is_active: boolean;
     display_order: number;
@@ -29,10 +30,15 @@ export const BannerManagement: React.FC<BannerManagementProps> = ({ isOpen, onCl
         title: '',
         subtitle: '',
         image_url: '',
+        image_path: '',
         link: '',
         is_active: true,
         display_order: 0,
     });
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (isOpen) {
@@ -42,61 +48,104 @@ export const BannerManagement: React.FC<BannerManagementProps> = ({ isOpen, onCl
 
     const fetchBanners = async () => {
         setLoading(true);
-        const { data, error } = await supabase
-            .from('banners')
-            .select('*')
-            .order('display_order', { ascending: true });
+        try {
+            const { data, error } = await supabase
+                .from('banners')
+                .select('*');
 
-        if (error) {
-            console.error('Error fetching banners:', error);
-        } else {
-            setBanners(data || []);
+            if (error) {
+                console.error('Error fetching banners:', error);
+            } else {
+                setBanners(data || []);
+            }
+        } catch (err) {
+            console.error('Error fetching banners:', err);
         }
         setLoading(false);
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const uploadImage = async (file: File): Promise<string> => {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
-        if (editingBanner) {
-            // Update existing banner
-            const { error } = await supabase
-                .from('banners')
-                .update({
-                    title: formData.title,
-                    subtitle: formData.subtitle || null,
-                    image_url: formData.image_url,
-                    link: formData.link || null,
-                    is_active: formData.is_active,
-                    display_order: formData.display_order,
-                })
-                .eq('id', editingBanner.id);
+        const { data, error } = await supabase.storage
+            .from('banners')
+            .upload(fileName, file);
 
-            if (error) {
-                console.error('Error updating banner:', error);
-            }
-        } else {
-            // Create new banner
-            const { error } = await supabase
-                .from('banners')
-                .insert([{
-                    title: formData.title,
-                    subtitle: formData.subtitle || null,
-                    image_url: formData.image_url,
-                    link: formData.link || null,
-                    is_active: formData.is_active,
-                    display_order: formData.display_order,
-                }]);
-
-            if (error) {
-                console.error('Error creating banner:', error);
-            }
+        if (error) {
+            throw new Error(`Failed to upload image: ${error.message}`);
         }
 
-        setShowForm(false);
-        setEditingBanner(null);
-        setFormData({ title: '', subtitle: '', image_url: '', link: '', is_active: true, display_order: 0 });
-        fetchBanners();
+        const { data: publicUrlData } = supabase.storage
+            .from('banners')
+            .getPublicUrl(fileName);
+
+        return publicUrlData.publicUrl;
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setUploading(true);
+
+        try {
+            let imageUrl = formData.image_url;
+            let imagePath = formData.image_path;
+
+            // Upload new image if file is selected
+            if (imageFile) {
+                imageUrl = await uploadImage(imageFile);
+                imagePath = imageUrl.split('/').pop() || '';
+            }
+
+            if (editingBanner) {
+                // Update existing banner
+                const { error } = await supabase
+                    .from('banners')
+                    .update({
+                        title: formData.title,
+                        subtitle: formData.subtitle || null,
+                        image_url: imageUrl,
+                        image_path: imagePath || null,
+                        link: formData.link || null,
+                        is_active: formData.is_active,
+                        display_order: formData.display_order,
+                    })
+                    .eq('id', editingBanner.id);
+
+                if (error) {
+                    throw new Error(`Error updating banner: ${error.message}`);
+                }
+            } else {
+                // Create new banner
+                const { error } = await supabase
+                    .from('banners')
+                    .insert([{
+                        title: formData.title,
+                        subtitle: formData.subtitle || null,
+                        image_url: imageUrl,
+                        image_path: imagePath || null,
+                        link: formData.link || null,
+                        is_active: formData.is_active,
+                        display_order: formData.display_order,
+                    }]);
+
+                if (error) {
+                    throw new Error(`Error creating banner: ${error.message}`);
+                }
+            }
+
+            setShowForm(false);
+            setEditingBanner(null);
+            setFormData({ title: '', subtitle: '', image_url: '', image_path: '', link: '', is_active: true, display_order: 0 });
+            setImageFile(null);
+            setImagePreview(null);
+            fetchBanners();
+        } catch (error) {
+            console.error('Error saving banner:', error);
+            alert(error instanceof Error ? error.message : 'Failed to save banner');
+        } finally {
+            setUploading(false);
+        }
     };
 
     const handleEdit = (banner: Banner) => {
@@ -105,32 +154,71 @@ export const BannerManagement: React.FC<BannerManagementProps> = ({ isOpen, onCl
             title: banner.title,
             subtitle: banner.subtitle || '',
             image_url: banner.image_url,
+            image_path: banner.image_path || '',
             link: banner.link || '',
             is_active: banner.is_active,
             display_order: banner.display_order || 0,
         });
+        setImagePreview(banner.image_url);
+        setImageFile(null);
         setShowForm(true);
     };
 
     const handleDelete = async (id: string) => {
         if (!confirm('Are you sure you want to delete this banner?')) return;
 
-        const { error } = await supabase.from('banners').delete().eq('id', id);
-        if (error) {
-            console.error('Error deleting banner:', error);
-        } else {
+        try {
+            const { error } = await supabase.from('banners').delete().eq('id', id);
+            if (error) {
+                throw new Error(`Error deleting banner: ${error.message}`);
+            }
             fetchBanners();
+        } catch (error) {
+            console.error('Error deleting banner:', error);
+            alert(error instanceof Error ? error.message : 'Failed to delete banner');
         }
     };
 
     const toggleActive = async (banner: Banner) => {
-        const { error } = await supabase
-            .from('banners')
-            .update({ is_active: !banner.is_active })
-            .eq('id', banner.id);
+        try {
+            const { error } = await supabase
+                .from('banners')
+                .update({ is_active: !banner.is_active })
+                .eq('id', banner.id);
 
-        if (!error) {
+            if (error) {
+                throw new Error(`Error updating banner: ${error.message}`);
+            }
             fetchBanners();
+        } catch (error) {
+            console.error('Error toggling banner:', error);
+            alert(error instanceof Error ? error.message : 'Failed to update banner');
+        }
+    };
+
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Image size must be less than 5MB');
+                return;
+            }
+
+            setImageFile(file);
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                setImagePreview(e.target?.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const removeImage = () => {
+        setImageFile(null);
+        setImagePreview(null);
+        setFormData({ ...formData, image_url: '' });
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
         }
     };
 
@@ -156,7 +244,9 @@ export const BannerManagement: React.FC<BannerManagementProps> = ({ isOpen, onCl
                         <button
                             onClick={() => {
                                 setEditingBanner(null);
-                                setFormData({ title: '', subtitle: '', image_url: '', link: '', is_active: true, display_order: banners.length + 1 });
+                                setFormData({ title: '', subtitle: '', image_url: '', image_path: '', link: '', is_active: true, display_order: banners.length + 1 });
+                                setImageFile(null);
+                                setImagePreview(null);
                                 setShowForm(true);
                             }}
                             className="flex items-center space-x-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg"
@@ -190,15 +280,43 @@ export const BannerManagement: React.FC<BannerManagementProps> = ({ isOpen, onCl
                                     />
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Image URL *</label>
-                                    <input
-                                        type="url"
-                                        value={formData.image_url}
-                                        onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                                        placeholder="https://..."
-                                        required
-                                    />
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Banner Image *</label>
+                                    <div className="mt-1">
+                                        {imagePreview ? (
+                                            <div className="relative inline-block">
+                                                <img
+                                                    src={imagePreview}
+                                                    alt="Preview"
+                                                    className="h-32 w-32 object-cover rounded-lg border-2 border-gray-300"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={removeImage}
+                                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                                                >
+                                                    <XIcon className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:border-gray-400">
+                                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                                    <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                                                    <p className="text-sm text-gray-600 font-medium">Click to upload image</p>
+                                                    <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 5MB</p>
+                                                </div>
+                                                <input
+                                                    ref={fileInputRef}
+                                                    type="file"
+                                                    className="hidden"
+                                                    accept="image/*"
+                                                    onChange={handleImageChange}
+                                                />
+                                            </label>
+                                        )}
+                                    </div>
+                                    {formData.image_url && !imagePreview && (
+                                        <p className="text-sm text-gray-500 mt-2">Current image: {formData.image_url}</p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Link (optional)</label>
@@ -236,14 +354,16 @@ export const BannerManagement: React.FC<BannerManagementProps> = ({ isOpen, onCl
                                     type="button"
                                     onClick={() => setShowForm(false)}
                                     className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                                    disabled={uploading}
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg"
+                                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg disabled:opacity-50"
+                                    disabled={uploading || (!imageFile && !formData.image_url)}
                                 >
-                                    {editingBanner ? 'Update Banner' : 'Create Banner'}
+                                    {uploading ? 'Uploading...' : (editingBanner ? 'Update Banner' : 'Create Banner')}
                                 </button>
                             </div>
                         </form>

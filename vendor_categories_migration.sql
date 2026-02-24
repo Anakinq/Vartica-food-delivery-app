@@ -19,22 +19,22 @@ DROP POLICY IF EXISTS "Vendors can delete own categories" ON vendor_categories;
 -- Policy: Vendors can only view their own categories
 CREATE POLICY "Vendors can view own categories" ON vendor_categories
   FOR SELECT
-  USING (vendor_id IN (SELECT id FROM vendors WHERE user_id = auth.uid()));
+  USING (vendor_id IN (SELECT id FROM vendors WHERE vendors.user_id = auth.uid()));
 
 -- Policy: Vendors can insert their own categories
 CREATE POLICY "Vendors can insert own categories" ON vendor_categories
   FOR INSERT
-  WITH CHECK (vendor_id IN (SELECT id FROM vendors WHERE user_id = auth.uid()));
+  WITH CHECK (vendor_id IN (SELECT id FROM vendors WHERE vendors.user_id = auth.uid()));
 
 -- Policy: Vendors can update their own categories
 CREATE POLICY "Vendors can update own categories" ON vendor_categories
   FOR UPDATE
-  USING (vendor_id IN (SELECT id FROM vendors WHERE user_id = auth.uid()));
+  USING (vendor_id IN (SELECT id FROM vendors WHERE vendors.user_id = auth.uid()));
 
 -- Policy: Vendors can delete their own categories
 CREATE POLICY "Vendors can delete own categories" ON vendor_categories
   FOR DELETE
-  USING (vendor_id IN (SELECT id FROM vendors WHERE user_id = auth.uid()));
+  USING (vendor_id IN (SELECT id FROM vendors WHERE vendors.user_id = auth.uid()));
 
 -- Create index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_vendor_categories_vendor_id ON vendor_categories(vendor_id);

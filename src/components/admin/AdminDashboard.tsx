@@ -225,7 +225,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
         supabase.from('vendors').select('*'),
         supabase.from('delivery_agents').select('*'),
         supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(50),
-        supabase.from('withdrawals').select('*').order('created_at', { ascending: false }),
+        supabase.from('admin_withdrawals_view').select('*').order('created_at', { ascending: false }),
         supabase.from('support_messages').select('*').order('created_at', { ascending: false }),
       ]);
 
@@ -784,6 +784,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                               <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Amount</th>
                               <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
                               <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Actions</th>
+                              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Bank Details</th>
                               <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Processed At</th>
                             </tr>
                           </thead>
@@ -879,6 +880,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                                       </button>
                                     )}
                                   </div>
+                                </td>
+                                <td className="py-3 px-4 text-sm text-gray-600">
+                                  {req.payout_display_bank_name ? (
+                                    <div>
+                                      <div className="font-medium">{req.payout_display_bank_name}</div>
+                                      <div className="text-xs">
+                                        {req.payout_account_name} ••••{req.payout_account_number?.slice(-4)}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-400">N/A</span>
+                                  )}
                                 </td>
                                 <td className="py-3 px-4 text-sm text-gray-600">
                                   {req.processed_at ? new Date(req.processed_at).toLocaleString() : 'N/A'}

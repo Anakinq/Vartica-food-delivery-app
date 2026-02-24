@@ -59,6 +59,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
 
   // Profile completion state
   const [profileCompletion, setProfileCompletion] = useState(0);
+  const [missingProfileFields, setMissingProfileFields] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'profile' | 'settings'>('profile');
   const [notifications, setNotifications] = useState({
     orderUpdates: true,
@@ -75,15 +76,39 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
       setHostelLocation((profile as ExtendedProfile).hostel_location || '');
       setAvatarUrl((profile as ExtendedProfile).avatar_url || '');
 
-      // Calculate profile completion
-      const fields = [
-        profile.full_name,
-        profile.phone,
-        (profile as ExtendedProfile).hostel_location,
-        (profile as ExtendedProfile).avatar_url
-      ];
-      const completed = fields.filter(field => field).length;
-      setProfileCompletion((completed / fields.length) * 100);
+      // Calculate profile completion with detailed missing items
+      const profileFields = {
+        full_name: profile.full_name,
+        phone: profile.phone,
+        hostel_location: (profile as ExtendedProfile).hostel_location,
+        avatar_url: (profile as ExtendedProfile).avatar_url,
+        email: profile.email
+      };
+
+      const completedFields = Object.entries(profileFields)
+        .filter(([key, value]) => value && value.trim() !== '')
+        .map(([key]) => key);
+
+      const completedCount = completedFields.length;
+      const totalCount = Object.keys(profileFields).length;
+      setProfileCompletion((completedCount / totalCount) * 100);
+
+      // Store missing fields for display
+      const missingFields = Object.entries(profileFields)
+        .filter(([key, value]) => !value || value.trim() === '')
+        .map(([key]) => {
+          const fieldNames: Record<string, string> = {
+            full_name: 'Full Name',
+            phone: 'Phone Number',
+            hostel_location: 'Hostel Location',
+            avatar_url: 'Profile Picture',
+            email: 'Email Address'
+          };
+          return fieldNames[key] || key;
+        });
+
+      // Set missing fields for display in the UI
+      setMissingProfileFields(missingFields);
     }
   }, [profile]);
 
@@ -472,9 +497,14 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
               </div>
             </div>
             {profileCompletion < 100 && (
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Complete your profile to unlock all features
-              </p>
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Complete your profile to unlock all features
+                </p>
+                <div className="text-xs text-orange-600 dark:text-orange-400">
+                  Missing: {missingProfileFields.join(', ')}
+                </div>
+              </div>
             )}
           </div>
 

@@ -241,6 +241,19 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     return () => window.removeEventListener('scroll', handleScroll);
   }, [selectedSeller, handleScroll]);
 
+  // Add event listener for cart modal
+  useEffect(() => {
+    const handleOpenCartModal = () => {
+      openCart();
+    };
+
+    window.addEventListener('open-cart-modal', handleOpenCartModal);
+
+    return () => {
+      window.removeEventListener('open-cart-modal', handleOpenCartModal);
+    };
+  }, [openCart]);
+
   const fetchData = async () => {
     setLoading(true);
     try {

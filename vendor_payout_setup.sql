@@ -64,20 +64,20 @@ DROP POLICY IF EXISTS "Vendors can update own payout profile" ON vendor_payout_p
 -- Policy: Vendors can only view their own payout profile
 CREATE POLICY "Vendors can view own payout profile" ON vendor_payout_profiles
   FOR SELECT
-  USING (vendor_id IN (SELECT id FROM vendors WHERE user_id = auth.uid()) 
-         OR user_id = auth.uid());
+  USING (vendor_id IN (SELECT id FROM vendors WHERE vendors.user_id = auth.uid()) 
+         OR vendor_payout_profiles.user_id = auth.uid());
 
 -- Policy: Vendors can insert their own payout profile
 CREATE POLICY "Vendors can insert own payout profile" ON vendor_payout_profiles
   FOR INSERT
-  WITH CHECK (vendor_id IN (SELECT id FROM vendors WHERE user_id = auth.uid())
-         OR user_id = auth.uid());
+  WITH CHECK (vendor_id IN (SELECT id FROM vendors WHERE vendors.user_id = auth.uid())
+         OR vendor_payout_profiles.user_id = auth.uid());
 
 -- Policy: Vendors can update their own payout profile
 CREATE POLICY "Vendors can update own payout profile" ON vendor_payout_profiles
   FOR UPDATE
-  USING (vendor_id IN (SELECT id FROM vendors WHERE user_id = auth.uid())
-         OR user_id = auth.uid());
+  USING (vendor_id IN (SELECT id FROM vendors WHERE vendors.user_id = auth.uid())
+         OR vendor_payout_profiles.user_id = auth.uid());
 
 -- Enable Row Level Security for vendor_withdrawals
 ALTER TABLE vendor_withdrawals ENABLE ROW LEVEL SECURITY;
@@ -89,7 +89,7 @@ DROP POLICY IF EXISTS "Admin can view all withdrawals" ON vendor_withdrawals;
 -- Policy: Vendors can only view their own withdrawals
 CREATE POLICY "Vendors can view own withdrawals" ON vendor_withdrawals
   FOR SELECT
-  USING (vendor_id IN (SELECT id FROM vendors WHERE user_id = auth.uid()));
+  USING (vendor_id IN (SELECT id FROM vendors WHERE vendors.user_id = auth.uid()));
 
 -- Policy: Admin can view all withdrawals
 CREATE POLICY "Admin can view all withdrawals" ON vendor_withdrawals
@@ -105,7 +105,7 @@ DROP POLICY IF EXISTS "Vendors can view own transactions" ON vendor_wallet_trans
 -- Policy: Vendors can only view their own transactions
 CREATE POLICY "Vendors can view own transactions" ON vendor_wallet_transactions
   FOR SELECT
-  USING (vendor_id IN (SELECT id FROM vendors WHERE user_id = auth.uid()));
+  USING (vendor_id IN (SELECT id FROM vendors WHERE vendors.user_id = auth.uid()));
 
 -- Create RPC function to update vendor wallet
 CREATE OR REPLACE FUNCTION update_vendor_wallet(
