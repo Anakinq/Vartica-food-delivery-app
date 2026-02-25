@@ -100,6 +100,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
 
       if (result.error) {
+        console.error('Profile fetch error:', result.error);
         setProfile(null);
       } else if (result.data) {
         setProfile(result.data);
@@ -126,6 +127,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               }
             } catch (storageError) {
               // Storage access failed, continue without stored data
+              console.warn('Storage access blocked:', storageError);
             }
 
             const basicProfile = {
@@ -167,6 +169,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const result = await databaseService.fetchProfileWithVendor(supabaseUser.id);
 
       if (result.error) {
+        console.error('Profile with vendor fetch error:', result.error);
         // Fallback to existing fetchProfile method
         await fetchProfile(supabaseUser);
       } else if (result.data) {
@@ -178,6 +181,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         await fetchProfile(supabaseUser);
       }
     } catch (err) {
+      console.error('Enhanced fetch profile error:', err);
       setProfile(null);
       // Fallback to existing fetchProfile method
       await fetchProfile(supabaseUser);
@@ -361,6 +365,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) {
+        console.error('Supabase sign in error:', error);
         setLoading(false);
         throw error;
       }

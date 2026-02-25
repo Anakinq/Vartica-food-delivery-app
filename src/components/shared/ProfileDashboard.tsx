@@ -302,6 +302,14 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
       }
     } catch (error) {
       console.warn('Storage access blocked by tracking prevention:', error);
+      // Fallback to cookie or session storage if localStorage is blocked
+      try {
+        if (typeof window !== 'undefined' && window.sessionStorage) {
+          window.sessionStorage.setItem('darkMode', darkMode.toString());
+        }
+      } catch (sessionError) {
+        console.warn('Session storage also blocked:', sessionError);
+      }
     }
     if (darkMode) {
       document.documentElement.classList.add('dark');
@@ -374,26 +382,48 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
         finalAvatarUrl = publicUrlData.publicUrl;
       }
 
+      // Prepare update data with proper null handling
+      const updateData: any = {
+        full_name: formData.full_name,
+        phone: formData.phone || null,
+      };
+
+      // Only add hostel_location if it exists (to prevent overwriting with empty string)
+      if (hostelLocation && hostelLocation.trim() !== '') {
+        updateData.hostel_location = hostelLocation;
+      }
+
+      // Only add avatar_url if it exists
+      if (finalAvatarUrl && finalAvatarUrl !== '') {
+        updateData.avatar_url = finalAvatarUrl;
+      }
+
       const { error } = await supabase
         .from('profiles')
-        .update({
-          full_name: formData.full_name,
-          phone: formData.phone,
-          hostel_location: hostelLocation,
-          avatar_url: finalAvatarUrl,
-        })
+        .update(updateData)
         .eq('id', profile.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Profile update error:', error);
+        throw error;
+      }
 
       // Clear profile cache to ensure fresh data
       sessionStorage.removeItem(`profile_with_vendor_${profile.id}`);
 
       await refreshProfile();
       setSuccess(true);
+      showToast('Profile updated successfully!', 'success');
       setTimeout(() => setSuccess(false), 2000);
-    } catch (err) {
-      showToast('Failed to update profile', 'error');
+    } catch (err: any) {
+      console.error('Failed to update profile:', err);
+      let errorMessage = 'Failed to update profile';
+      if (err.message) {
+        errorMessage = err.message;
+      } else if (err.status === 500) {
+        errorMessage = 'Server error occurred. Please try again later.';
+      }
+      showToast(errorMessage, 'error');
     } finally {
       setLoading(false);
     }
