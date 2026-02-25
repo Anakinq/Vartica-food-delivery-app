@@ -87,7 +87,7 @@ DROP POLICY IF EXISTS "Vendors can update own vendor" ON public.vendors;
 DROP POLICY IF EXISTS "Service role can manage vendors" ON public.vendors;
 
 CREATE POLICY "Anyone can view active vendors" 
-    ON public.vendors FOR SELECT USING (is_active = true);
+    ON public.vendors FOR SELECT USING (is_active = true AND application_status = 'approved');
 
 CREATE POLICY "Vendors can update own vendor" 
     ON public.vendors FOR UPDATE USING (
@@ -119,6 +119,7 @@ CREATE INDEX IF NOT EXISTS idx_cafeterias_name ON public.cafeterias(name);
 CREATE INDEX IF NOT EXISTS idx_vendors_is_active ON public.vendors(is_active);
 CREATE INDEX IF NOT EXISTS idx_vendors_store_name ON public.vendors(store_name);
 CREATE INDEX IF NOT EXISTS idx_vendors_user_id ON public.vendors(user_id);
+CREATE INDEX IF NOT EXISTS idx_vendors_application_status ON public.vendors(application_status);
 
 -- =====================================================
 -- Fix 7: Check and fix function issues
