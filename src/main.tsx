@@ -33,7 +33,6 @@ if ('serviceWorker' in navigator) {
                     console.log('New version available! Refresh to update.');
                     // You could show a custom UI element here instead
                   }
-                  showUpdateNotification();
 
                   // Auto-update after a delay or when user interacts with notification
                   newWorker.postMessage({ type: 'SKIP_WAITING' });
