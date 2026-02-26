@@ -577,8 +577,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       // Call the database function which handles all inserts with SECURITY DEFINER
       const { data, error } = await supabase.rpc('add_delivery_agent_role', {
-        user_id: user.id,
-        vehicle_type: vehicleType
+        p_user_id: user.id,
+        p_vehicle_type: vehicleType
       });
 
       console.log('[DeliveryAgent] RPC result:', { data, error });
@@ -625,9 +625,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     try {
       const { error } = await supabase.rpc('add_vendor_role', {
-        user_id: user.id,
-        store_name: storeName,
-        vendor_type: vendorType
+        p_user_id: user.id,
+        p_store_name: storeName,
+        p_vendor_type: vendorType
       });
 
       if (error) {

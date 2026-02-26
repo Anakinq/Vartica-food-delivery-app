@@ -1,62 +1,94 @@
--- Fix for ambiguous user_id column references
--- Run this in your Supabase SQL Editor to fix all ambiguous column references
+-- Fix for ambiguous user_id column reference
+-- Run this in your Supabase SQL Editor
 
--- Fix 1: Update vendor_payout_profiles RLS policies
-DROP POLICY IF EXISTS "Vendors can view own payout profile" ON vendor_payout_profiles;
-CREATE POLICY "Vendors can view own payout profile" ON vendor_payout_profiles
-  FOR SELECT
-  USING (vendor_id IN (SELECT id FROM vendors WHERE vendors.user_id = auth.uid()) 
-         OR vendor_payout_profiles.user_id = auth.uid());
+-- ============================================
+-- Fix add_delivery_agent_role function
+-- ============================================
+DROP FUNCTION IF EXISTS public.add_delivery_agent_role;
 
-DROP POLICY IF EXISTS "Vendors can insert own payout profile" ON vendor_payout_profiles;
-CREATE POLICY "Vendors can insert own payout profile" ON vendor_payout_profiles
-  FOR INSERT
-  WITH CHECK (vendor_id IN (SELECT id FROM vendors WHERE vendors.user_id = auth.uid())
-         OR vendor_payout_profiles.user_id = auth.uid());
-
-DROP POLICY IF EXISTS "Vendors can update own payout profile" ON vendor_payout_profiles;
-CREATE POLICY "Vendors can update own payout profile" ON vendor_payout_profiles
-  FOR UPDATE
-  USING (vendor_id IN (SELECT id FROM vendors WHERE vendors.user_id = auth.uid())
-         OR vendor_payout_profiles.user_id = auth.uid());
-
--- Fix 2: Update vendor_categories RLS policies
-DROP POLICY IF EXISTS "Vendors can manage own categories" ON vendor_categories;
-CREATE POLICY "Vendors can manage own categories" ON vendor_categories
-  FOR ALL
-  USING (vendor_id IN (SELECT id FROM vendors WHERE vendors.user_id = auth.uid()));
-
--- Fix 3: Update delivery_agent RLS policies
-DROP POLICY IF EXISTS "Delivery agents can manage own profile" ON delivery_agents;
-CREATE POLICY "Delivery agents can manage own profile" ON delivery_agents
-  FOR ALL
-  USING (delivery_agents.user_id = auth.uid());
-
--- Fix 4: Update agent_payout_profiles RLS policies
-DROP POLICY IF EXISTS "Agents can manage own payout profile" ON agent_payout_profiles;
-CREATE POLICY "Agents can manage own payout profile" ON agent_payout_profiles
-  FOR ALL
-  USING (agent_payout_profiles.user_id = auth.uid());
-
--- Fix 5: Update favorites RLS policies
-DROP POLICY IF EXISTS "Users can manage own favorites" ON favorites;
-CREATE POLICY "Users can manage own favorites" ON favorites
-  FOR ALL
-  USING (favorites.user_id = auth.uid());
-
--- Verify the fixes
-SELECT 
-    'RLS Policy Fixes Applied Successfully' as status,
-    tablename,
-    policyname
-FROM pg_policies 
-WHERE policyname IN (
-    'Vendors can view own payout profile',
-    'Vendors can insert own payout profile', 
-    'Vendors can update own payout profile',
-    'Vendors can manage own categories',
-    'Delivery agents can manage own profile',
-    'Agents can manage own payout profile',
-    'Users can manage own favorites'
+CREATE OR REPLACE FUNCTION public.add_delivery_agent_role(
+    p_user_id UUID,
+    p_vehicle_type TEXT DEFAULT 'Foot'
 )
-ORDER BY tablename, policyname;
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    -- Check if already a delivery agent
+    IF EXISTS (
+        SELECT 1 
+        FROM public.delivery_agents da 
+        WHERE da.user_id = p_user_id
+    ) THEN
+        RETURN json_build_object(
+            'success', false,
+            'error', 'ALREADY_DELIVERY_AGENT',
+            'message', 'User is already registered as delivery agent.'
+        );
+    END IF;
+
+    -- Update profile
+    UPDATE public.profiles 
+    SET is_delivery_agent = TRUE,
+        role = COALESCE(NULLIF(role, 'customer'), role),
+        updated_at = NOW()
+    WHERE id = p_user_id;
+
+    -- Insert delivery agent record
+    INSERT INTO public.delivery_agents (user_id, vehicle_type, is_available, is_approved)
+    VALUES (p_user_id, p_vehicle_type, TRUE, FALSE)
+    ON CONFLICT (user_id) DO NOTHING;
+
+    RETURN json_build_object(
+        'success', true,
+        'message', 'Successfully registered as delivery agent'
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.add_delivery_agent_role TO authenticated;
+
+-- ============================================
+-- Fix add_vendor_role function
+-- ============================================
+DROP FUNCTION IF EXISTS public.add_vendor_role;
+
+CREATE OR REPLACE FUNCTION public.add_vendor_role(
+    p_user_id UUID,
+    p_store_name TEXT,
+    p_vendor_type TEXT DEFAULT 'student'
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    -- Check if already a vendor
+    IF EXISTS (
+        SELECT 1 
+        FROM public.profiles p 
+        WHERE p.id = p_user_id AND p.role IN ('vendor', 'late_night_vendor')
+    ) THEN
+        RETURN json_build_object(
+            'success', false,
+            'error', 'ALREADY_VENDOR',
+            'message', 'User is already registered as vendor.'
+        );
+    END IF;
+
+    -- Update profile
+    UPDATE public.profiles 
+    SET is_vendor = TRUE,
+        role = p_vendor_type,
+        updated_at = NOW()
+    WHERE id = p_user_id;
+
+    RETURN json_build_object(
+        'success', true,
+        'message', 'Successfully registered as vendor'
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.add_vendor_role TO authenticated;
