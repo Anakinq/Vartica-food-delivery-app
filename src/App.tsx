@@ -421,17 +421,19 @@ function AppContent() {
     // For late_night_vendor, treat as 'vendor' in SignIn (same role handling)
     const signInRole = selectedRole === 'late_night_vendor' ? 'vendor' : selectedRole;
     // Only allow signup for supported roles
-    const canSignUp = selectedRole === 'vendor' || selectedRole === 'delivery_agent';
+    const canSignUp = selectedRole === 'vendor' || selectedRole === 'delivery_agent' || selectedRole === 'customer';
 
     if (authView === 'signup' && canSignUp) {
       // Safely cast the role - late_night_vendor is already in the union type
       const signupRole = selectedRole as 'customer' | 'vendor' | 'delivery_agent' | 'late_night_vendor';
       return (
-        <SignUp
-          role={signupRole}
-          onBack={() => { setSelectedRole(null); setAuthView('signin'); }}
-          onSwitchToSignIn={() => setAuthView('signin')}
-        />
+        <Suspense fallback={<PageLoader />}>
+          <SignUp
+            role={signupRole}
+            onBack={() => { setSelectedRole(null); setAuthView('signin'); }}
+            onSwitchToSignIn={() => setAuthView('signin')}
+          />
+        </Suspense>
       );
     }
 
