@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, HelpCircle, CreditCard, MapPin, MessageCircle, Camera, Store, ArrowLeftRight, Download, Building2, X } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, HelpCircle, CreditCard, MapPin, MessageCircle, RefreshCw, Store, ArrowLeftRight, Download, Building2, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRole } from '../../contexts/RoleContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -9,6 +9,7 @@ import { ExtendedProfile } from '../../types';
 import { VendorUpgradeModal } from '../customer/VendorUpgradeModal';
 import { DeliveryAgentUpgradeModal } from '../customer/DeliveryAgentUpgradeModal';
 import InstallPrompt from '../InstallPrompt';
+import { getDiceBearAvatarUrl, DICE_BEAR_STYLES, type DiceBearStyle } from '../../utils/avatar';
 
 export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => void; onClose?: () => void }> = ({ onBack, onSignOut, onClose }) => {
   const { profile, refreshProfile } = useAuth();
@@ -43,9 +44,7 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
     phone: profile?.phone || '',
   });
   const [hostelLocation, setHostelLocation] = useState((profile as ExtendedProfile)?.hostel_location || '');
-  const [avatarUrl, setAvatarUrl] = useState((profile as ExtendedProfile)?.avatar_url || '');
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState('');
+  const [avatarStyle, setAvatarStyle] = useState<DiceBearStyle>('initials');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
@@ -321,6 +320,15 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
   };
+const generateAvatarUrl = (style?: DiceBearStyle) => {
+  return getDiceBearAvatarUrl(profile?.full_name || 'user', style || avatarStyle, 200);
+};
+
+const cycleAvatarStyle = () => {
+  const currentIndex = DICE_BEAR_STYLES.findIndex(s => s.value === avatarStyle);
+  const nextIndex = (currentIndex + 1) % DICE_BEAR_STYLES.length;
+  setAvatarStyle(DICE_BEAR_STYLES[nextIndex].value);
+};
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -472,11 +480,10 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
             <div className="flex items-center space-x-4">
               <div className="relative flex-shrink-0">
                 {avatarUrl ? (
-                  <img
-                    src={avatarUrl}
-                    alt="Profile"
-                    className="w-24 h-24 rounded-full object-cover shadow-lg border-2 border-white"
-                    onError={(e) => {
+                  <img src={generateAvatarUrl()} alt="Profile Avatar" className="w-24 h-24 rounded-full..." />
+<button type="button" onClick={cycleAvatarStyle}>
+  <RefreshCw className="h-6 w-6..." />
+</button> {
                       const target = e.currentTarget;
                       target.onerror = null; // prevents looping
                       target.src = 'https://placehold.co/150x150/4ade80/ffffff?text=' + (profile.full_name?.charAt(0).toUpperCase() || 'U');
