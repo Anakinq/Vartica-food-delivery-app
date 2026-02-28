@@ -44,7 +44,21 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
     phone: profile?.phone || '',
   });
   const [hostelLocation, setHostelLocation] = useState((profile as ExtendedProfile)?.hostel_location || '');
-  const [avatarStyle, setAvatarStyle] = useState<DiceBearStyle>('initials');
+  // Avatar style state - load from localStorage if available
+  const [avatarStyle, setAvatarStyle] = useState<DiceBearStyle>(() => {
+    try {
+      const savedStyle = localStorage.getItem('avatar_style');
+      if (savedStyle && DICE_BEAR_STYLES.some(s => s.value === savedStyle)) {
+        return savedStyle as DiceBearStyle;
+      }
+    } catch (error) {
+      console.warn('Could not load avatar style from localStorage:', error);
+    }
+    return 'initials';
+  });
+  const [avatarUrl, setAvatarUrl] = useState((profile as ExtendedProfile)?.avatar_url || '');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
@@ -75,12 +89,11 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
       setHostelLocation((profile as ExtendedProfile).hostel_location || '');
       setAvatarUrl((profile as ExtendedProfile).avatar_url || '');
 
-      // Calculate profile completion with detailed missing items
+      // Calculate profile completion with detailed missing items (excluding avatar_url)
       const profileFields = {
         full_name: profile.full_name,
         phone: profile.phone,
         hostel_location: (profile as ExtendedProfile).hostel_location,
-        avatar_url: (profile as ExtendedProfile).avatar_url,
         email: profile.email
       };
 
@@ -100,7 +113,6 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
             full_name: 'Full Name',
             phone: 'Phone Number',
             hostel_location: 'Hostel Location',
-            avatar_url: 'Profile Picture',
             email: 'Email Address'
           };
           return fieldNames[key] || key;
@@ -327,7 +339,14 @@ const generateAvatarUrl = (style?: DiceBearStyle) => {
 const cycleAvatarStyle = () => {
   const currentIndex = DICE_BEAR_STYLES.findIndex(s => s.value === avatarStyle);
   const nextIndex = (currentIndex + 1) % DICE_BEAR_STYLES.length;
-  setAvatarStyle(DICE_BEAR_STYLES[nextIndex].value);
+  const newStyle = DICE_BEAR_STYLES[nextIndex].value;
+  setAvatarStyle(newStyle);
+  // Persist avatar style to localStorage
+  try {
+    localStorage.setItem('avatar_style', newStyle);
+  } catch (error) {
+    console.warn('Could not save avatar style to localStorage:', error);
+  }
 };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -474,41 +493,35 @@ const cycleAvatarStyle = () => {
           </div>
         </nav>
 
-        <div className="max-w-md mx-auto px-3 sm:px-4 py-6 sm:py-8 overflow-x-hidden">
+        <div className="max-w-md mx-auto px-3 sm:px-4 py-6 sm:py-8 overflow-x-hidden pb-24">
           {/* Profile Header Card */}
           <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
             <div className="flex items-center space-x-4">
-              <div className="relative flex-shrink-0">
-                {avatarUrl ? (
-                  <img src={generateAvatarUrl()} alt="Profile Avatar" className="w-24 h-24 rounded-full..." />
-<button type="button" onClick={cycleAvatarStyle}>
-  <RefreshCw className="h-6 w-6..." />
-</button> {
-                      const target = e.currentTarget;
-                      target.onerror = null; // prevents looping
-                      target.src = 'https://placehold.co/150x150/4ade80/ffffff?text=' + (profile.full_name?.charAt(0).toUpperCase() || 'U');
-                    }}
-                  />
-                ) : (
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold shadow-lg">
-                    {profile.full_name?.charAt(0).toUpperCase() || 'U'}
-                  </div>
-                )}
-                <div className="absolute -bottom-2 -right-2 bg-white dark:bg-gray-800 rounded-full p-1 shadow-lg">
-                  <div className="relative">
-                    <label htmlFor="avatar-upload" className="cursor-pointer">
-                      <Camera className="h-6 w-6 text-gray-600 dark:text-gray-300 hover:text-green-600" />
-                      <input
-                        id="avatar-upload"
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={handleAvatarChange}
-                      />
-                    </label>
-                  </div>
-                </div>
-              </div>
+           <div className="relative flex-shrink-0">
+  {/* DiceBear Auto-generated Avatar */}
+  <img
+    src={generateAvatarUrl()}
+    alt="Profile Avatar"
+    className="w-24 h-24 rounded-full object-cover shadow-lg border-2 border-white dark:border-gray-700"
+    onError={(e) => {
+      const target = e.currentTarget;
+      target.onerror = null;
+      target.src = 'https://placehold.co/150x150/4ade80/ffffff?text=' + (profile.full_name?.charAt(0).toUpperCase() || 'U');
+    }}
+  />
+  {/* Avatar Style Selector */}
+  <div className="absolute -bottom-2 -right-2 bg-white dark:bg-gray-800 rounded-full p-1 shadow-lg">
+    <button
+      type="button"
+      onClick={cycleAvatarStyle}
+      className="cursor-pointer"
+      title="Change avatar style"
+    >
+      <RefreshCw className="h-6 w-6 text-gray-600 dark:text-gray-300 hover:text-green-600" />
+    </button>
+  </div>
+</div>
+
               <div className="flex-1 min-w-0">
                 <h2 className="text-lg sm:text-xl font-bold text-black dark:text-white truncate">{profile.full_name}</h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 truncate">{profile.email}</p>

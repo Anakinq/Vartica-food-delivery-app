@@ -171,31 +171,41 @@ function AppContent() {
     // Handle profile
     if (locationHash === '#/profile') {
       const isVendor = profile.role === 'vendor' || (profile as any).role === 'late_night_vendor';
+
       // Determine back navigation based on previous hash or role
       const getBackHash = () => {
-        // If user is vendor, check if they came from vendor dashboard
-        if (isVendor) {
-          // Try to get previous page from sessionStorage
-          const previousPage = sessionStorage.getItem('previous_page');
-          if (previousPage?.startsWith('#/vendor')) {
+        // Try to get previous page from sessionStorage first
+        const previousPage = sessionStorage.getItem('previous_page');
+
+        if (previousPage && previousPage !== '#/profile') {
+          // Validate the previous page is a valid route
+          const validRoutes = ['#/customer', '#/vendor', '#/vendor-orders', '#/vendor-earnings', '#/delivery', '#/cafeteria', ''];
+          if (validRoutes.includes(previousPage) || previousPage.startsWith('#/')) {
             return previousPage;
           }
+        }
+
+        // Fallback to role-based default
+        if (isVendor) {
           return '#/vendor';
         }
-        return '';
+        // For customers, default to customer view
+        return '#/customer';
       };
+
+      const backHash = getBackHash();
       return (
         <div className="authenticated-view">
           <div className="main-content">
             <ProfileDashboard
               onBack={() => {
                 sessionStorage.removeItem('previous_page');
-                window.location.hash = getBackHash();
+                window.location.hash = backHash || '#/customer';
               }}
               onSignOut={() => signOut()}
               onClose={() => {
                 sessionStorage.removeItem('previous_page');
-                window.location.hash = getBackHash();
+                window.location.hash = backHash || '#/customer';
               }}
             />
           </div>
@@ -271,7 +281,7 @@ function AppContent() {
       // Store previous page before navigating to profile
       const handleProfileClick = () => {
         sessionStorage.setItem('previous_page', locationHash);
-        setShowProfile(true);
+        window.location.hash = '#/profile';
       };
 
       if (locationHash === '#/vendor' || locationHash === '#/vendor-orders' || locationHash === '#/vendor-earnings') {
@@ -290,8 +300,8 @@ function AppContent() {
     if (locationHash === '#/customer') {
       // Store previous page before navigating to profile
       const handleProfileClick = () => {
-        sessionStorage.setItem('previous_page', locationHash);
-        setShowProfile(true);
+        sessionStorage.setItem('previous_page', '#/customer');
+        window.location.hash = '#/profile';
       };
       return (
         <div className="authenticated-view">
@@ -313,6 +323,7 @@ function AppContent() {
           <div className="main-content">
             {withSuspense(CustomerHome)({
               onShowProfile: () => {
+                sessionStorage.setItem('previous_page', '#/customer');
                 window.location.hash = '#/profile';
               }
             })}
@@ -328,7 +339,12 @@ function AppContent() {
         return (
           <div className="authenticated-view">
             <div className="main-content">
-              {withSuspense(VendorDashboard)({ onShowProfile: () => setShowProfile(true) })}
+              {withSuspense(VendorDashboard)({
+                onShowProfile: () => {
+                  sessionStorage.setItem('previous_page', '#/vendor');
+                  window.location.hash = '#/profile';
+                }
+              })}
             </div>
             <VendorBottomNavigation />
           </div>
@@ -337,7 +353,12 @@ function AppContent() {
       return (
         <div className="authenticated-view">
           <div className="main-content">
-            {withSuspense(CustomerHome)({ onShowProfile: () => setShowProfile(true) })}
+            {withSuspense(CustomerHome)({
+              onShowProfile: () => {
+                sessionStorage.setItem('previous_page', '#/vendor');
+                window.location.hash = '#/profile';
+              }
+            })}
           </div>
           <BottomNavigation cartCount={cartCount} notificationCount={0} />
         </div>
@@ -349,7 +370,12 @@ function AppContent() {
         return (
           <div className="authenticated-view">
             <div className="main-content">
-              {withSuspense(DeliveryDashboard)({ onShowProfile: () => setShowProfile(true) })}
+              {withSuspense(DeliveryDashboard)({
+                onShowProfile: () => {
+                  sessionStorage.setItem('previous_page', '#/delivery');
+                  window.location.hash = '#/profile';
+                }
+              })}
             </div>
             <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
           </div>
@@ -358,7 +384,12 @@ function AppContent() {
       return (
         <div className="authenticated-view">
           <div className="main-content">
-            {withSuspense(CustomerHome)({ onShowProfile: () => setShowProfile(true) })}
+            {withSuspense(CustomerHome)({
+              onShowProfile: () => {
+                sessionStorage.setItem('previous_page', '#/delivery');
+                window.location.hash = '#/profile';
+              }
+            })}
           </div>
           <BottomNavigation cartCount={cartCount} notificationCount={0} />
         </div>
@@ -371,7 +402,12 @@ function AppContent() {
         return (
           <div className="authenticated-view">
             <div className="main-content">
-              {withSuspense(AdminDashboard)({ onShowProfile: () => setShowProfile(true) })}
+              {withSuspense(AdminDashboard)({
+                onShowProfile: () => {
+                  sessionStorage.setItem('previous_page', '#/admin');
+                  window.location.hash = '#/profile';
+                }
+              })}
             </div>
           </div>
         );
@@ -379,7 +415,12 @@ function AppContent() {
         return (
           <div className="authenticated-view">
             <div className="main-content">
-              {withSuspense(DeliveryDashboard)({ onShowProfile: () => setShowProfile(true) })}
+              {withSuspense(DeliveryDashboard)({
+                onShowProfile: () => {
+                  sessionStorage.setItem('previous_page', '#/delivery');
+                  window.location.hash = '#/profile';
+                }
+              })}
             </div>
             <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
           </div>
@@ -388,7 +429,12 @@ function AppContent() {
         return (
           <div className="authenticated-view">
             <div className="main-content">
-              {withSuspense(CafeteriaDashboard)({ profile, onShowProfile: () => setShowProfile(true) })}
+              {withSuspense(CafeteriaDashboard)({
+                profile, onShowProfile: () => {
+                  sessionStorage.setItem('previous_page', '#/cafeteria');
+                  window.location.hash = '#/profile';
+                }
+              })}
             </div>
             <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
           </div>
@@ -398,7 +444,12 @@ function AppContent() {
         return (
           <div className="authenticated-view">
             <div className="main-content">
-              {withSuspense(VendorDashboard)({ onShowProfile: () => setShowProfile(true) })}
+              {withSuspense(VendorDashboard)({
+                onShowProfile: () => {
+                  sessionStorage.setItem('previous_page', '#/vendor');
+                  window.location.hash = '#/profile';
+                }
+              })}
             </div>
             <VendorBottomNavigation />
           </div>
@@ -408,7 +459,12 @@ function AppContent() {
         return (
           <div className="authenticated-view">
             <div className="main-content">
-              {withSuspense(CustomerHome)({ onShowProfile: () => setShowProfile(true) })}
+              {withSuspense(CustomerHome)({
+                onShowProfile: () => {
+                  sessionStorage.setItem('previous_page', '#/customer');
+                  window.location.hash = '#/profile';
+                }
+              })}
             </div>
             <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
           </div>
