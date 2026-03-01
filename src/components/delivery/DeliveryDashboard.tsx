@@ -11,6 +11,7 @@ import { LocationTracker } from '../shared/LocationTracker';
 import { WalletService } from '../../services';
 import { RoleSwitcher } from '../shared/RoleSwitcher';
 import { notificationService } from '../../services/notification.service';
+import { BANK_OPTIONS } from '../../utils/constants';
 
 // Interfaces
 interface FullOrder extends Order {
@@ -40,48 +41,6 @@ interface WithdrawalRequest {
 interface DeliveryDashboardProps {
   onShowProfile?: () => void;
 }
-
-// ✅ Full Nigerian bank list (Paystack-compliant bank codes)
-const BANK_OPTIONS = [
-  { code: '044', name: 'Access Bank' },
-  { code: '063', name: 'Access Bank (Diamond)' },
-  { code: '035A', name: 'ALAT by WEMA' },
-  { code: '401', name: 'ASO Savings and Loans' },
-  { code: '023', name: 'Citibank Nigeria' },
-  { code: '050', name: 'Ecobank Nigeria' },
-  { code: '562', name: 'Ekondo Microfinance Bank' },
-  { code: '070', name: 'Fidelity Bank' },
-  { code: '011', name: 'First Bank of Nigeria' },
-  { code: '214', name: 'First City Monument Bank' },
-  { code: '901', name: 'FSDH Merchant Bank Limited' },
-  { code: '00103', name: 'Globus Bank' },
-  { code: '100022', name: 'GoMoney' },
-  { code: '058', name: 'Guaranty Trust Bank' },
-  { code: '030', name: 'Heritage Bank' },
-  { code: '301', name: 'Jaiz Bank' },
-  { code: '082', name: 'Keystone Bank' },
-  { code: '559', name: 'Kuda Bank' },
-  { code: '50211', name: 'Kuda Microfinance Bank' },
-  { code: '999992', name: 'OPay' },
-  { code: '526', name: 'Parallex Bank' },
-  { code: '999991', name: 'PalmPay' },
-  { code: '076', name: 'Polaris Bank' },
-  { code: '101', name: 'Providus Bank' },
-  { code: '125', name: 'Rubies MFB' },
-  { code: '51310', name: 'Sparkle Microfinance Bank' },
-  { code: '221', name: 'Stanbic IBTC Bank' },
-  { code: '068', name: 'Standard Chartered Bank' },
-  { code: '232', name: 'Sterling Bank' },
-  { code: '100', name: 'Suntrust Bank' },
-  { code: '302', name: 'TAJ Bank' },
-  { code: '102', name: 'Titan Bank' },
-  { code: '032', name: 'Union Bank of Nigeria' },
-  { code: '033', name: 'United Bank For Africa' },
-  { code: '215', name: 'Unity Bank' },
-  { code: '566', name: 'VFD Microfinance Bank' },
-  { code: '035', name: 'Wema Bank' },
-  { code: '057', name: 'Zenith Bank' },
-];
 
 export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProfile }) => {
   const { profile, signOut, checkApprovalStatus } = useAuth();

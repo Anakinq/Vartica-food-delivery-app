@@ -4,12 +4,11 @@ import { useAuth } from './contexts/AuthContext';
 import { RoleProvider, useRole } from './contexts/RoleContext';
 import { initPerformanceMonitoring, monitorMemoryUsage } from './utils/performanceMonitoring';
 import { SentryErrorBoundary } from './utils/sentry';
+import { HOSTEL_DELIVERY_FEES, BUSINESS_CONSTANTS } from './utils/constants';
 
 // Initialize performance monitoring
 if (typeof window !== 'undefined') {
   initPerformanceMonitoring();
-  // Monitor memory usage periodically
-  setInterval(monitorMemoryUsage, 30000); // Every 30 seconds
 }
 
 // Lazy load route components for better performance (code splitting)
@@ -132,16 +131,19 @@ function AppContent() {
   if (user && profile) {
     // Handle checkout route
     if (locationHash === '#/checkout') {
-      const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      const deliveryFee = 500;
+      // Get user's hostel location for delivery fee calculation
+      const profileWithHostel = profile as any;
+      const userLocation = profileWithHostel?.hostel_location || 'Abuad Hostel';
+      const calculatedDeliveryFee = HOSTEL_DELIVERY_FEES[userLocation] || BUSINESS_CONSTANTS.DELIVERY_FEE_DEFAULT;
+      const calculatedSubtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
       return (
         <div className="authenticated-view">
           <div className="main-content cart-full-height">
             <Checkout
               items={items}
-              subtotal={subtotal}
-              deliveryFee={deliveryFee}
+              subtotal={calculatedSubtotal}
+              deliveryFee={calculatedDeliveryFee}
               packCount={0}
               onBack={() => { window.location.hash = ''; }}
               onClose={() => { window.location.hash = ''; }}
@@ -185,11 +187,13 @@ function AppContent() {
           }
         }
 
-        // Fallback to role-based default
-        if (isVendor) {
-          return '#/vendor';
+        // Fallback to role-based default - use currentRole from localStorage, not profile.role
+        // This ensures we go back to the view the user was actually using, not their profile role
+        const savedRole = localStorage.getItem('activeRole');
+        if (savedRole === 'vendor' || savedRole === 'delivery_agent' || savedRole === 'admin' || savedRole === 'cafeteria') {
+          return `#/${savedRole === 'delivery_agent' ? 'delivery' : savedRole}`;
         }
-        // For customers, default to customer view
+        // Default to customer view
         return '#/customer';
       };
 

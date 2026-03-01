@@ -29,9 +29,20 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { profile, refreshProfile } = useAuth();
     const { error: showError } = useToast();
     const [isSwitching, setIsSwitching] = useState(false);
-    const [currentRole, setCurrentRole] = useState<UserRole>('customer');
 
-    // Determine primary role based on profile
+    // Initialize currentRole from localStorage if available, otherwise default to 'customer'
+    // This ensures the role persists across navigation and page reloads
+    const [currentRole, setCurrentRole] = useState<UserRole>(() => {
+        if (typeof window !== 'undefined') {
+            const savedRole = localStorage.getItem('activeRole');
+            if (savedRole) {
+                return savedRole as UserRole;
+            }
+        }
+        return 'customer';
+    });
+
+    // Determine primary role based on profile (this is what the user IS, not what they VIEW)
     const primaryRole = profile?.role === 'admin'
         ? 'admin'
         : profile?.role === 'vendor' || (profile as any)?.role === 'late_night_vendor'
@@ -57,28 +68,56 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
         availableRoles.push('delivery_agent');
     }
 
-    // Handle hash-based navigation to sync currentRole
+    // Handle hash-based navigation - ONLY update role if it's a role switch operation
+    // This prevents unwanted role changes when navigating back from Profile or other pages
     useEffect(() => {
+        let hashChangeTimeout: ReturnType<typeof setTimeout>;
+        let isInitialSync = true;
+
         const handleHashChange = () => {
+            const isRoleSwitch = sessionStorage.getItem('role_switching_operation');
             const hash = window.location.hash;
-            if (hash.startsWith('#/vendor')) {
-                setCurrentRole('vendor');
-            } else if (hash.startsWith('#/delivery')) {
-                setCurrentRole('delivery_agent');
-            } else if (hash.startsWith('#/customer')) {
-                setCurrentRole('customer');
-            } else {
-                setCurrentRole(primaryRole);
+
+            let hashRole: UserRole | null = null;
+            if (hash.startsWith('#/vendor')) hashRole = 'vendor';
+            else if (hash.startsWith('#/delivery')) hashRole = 'delivery_agent';
+            else if (hash.startsWith('#/customer')) hashRole = 'customer';
+            else if (hash.startsWith('#/admin')) hashRole = 'admin';
+            else if (hash.startsWith('#/cafeteria')) hashRole = 'cafeteria';
+
+            // On initial load, sync role from hash if no saved role exists
+            if (isInitialSync && hashRole) {
+                const savedRole = localStorage.getItem('activeRole');
+                if (!savedRole) {
+                    setCurrentRole(hashRole);
+                    localStorage.setItem('activeRole', hashRole);
+                }
+                isInitialSync = false;
+            }
+
+            // Clear the sessionStorage flag after handling navigation
+            if (isRoleSwitch) {
+                hashChangeTimeout = setTimeout(() => {
+                    sessionStorage.removeItem('role_switching_operation');
+                    sessionStorage.removeItem('role_switch_target');
+                }, 100);
+            }
+
+            if (isRoleSwitch && hashRole) {
+                setCurrentRole(hashRole);
             }
         };
 
-        // Set initial role based on current hash
+        // Set initial role based on current hash (only on first load)
         handleHashChange();
 
         // Listen for hash changes
         window.addEventListener('hashchange', handleHashChange);
-        return () => window.removeEventListener('hashchange', handleHashChange);
-    }, [primaryRole]);
+        return () => {
+            window.removeEventListener('hashchange', handleHashChange);
+            if (hashChangeTimeout) clearTimeout(hashChangeTimeout);
+        };
+    }, []); // Empty dependency array - this effect should only run once on mount
 
     // Enhanced role switching with proper cache management
     const switchRole = useCallback(async (targetRole: UserRole) => {
@@ -97,6 +136,12 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Mark this as a role switching operation for cache invalidation
             sessionStorage.setItem('role_switching_operation', 'true');
             sessionStorage.setItem('role_switch_target', targetRole);
+
+            // Save the selected role to localStorage so it persists across navigation and page reloads
+            localStorage.setItem('activeRole', targetRole);
+
+            // Update currentRole immediately for responsive UI
+            setCurrentRole(targetRole);
 
             // Clear profile cache to ensure fresh data
             sessionStorage.removeItem(`profile_with_vendor_${profile.id}`);

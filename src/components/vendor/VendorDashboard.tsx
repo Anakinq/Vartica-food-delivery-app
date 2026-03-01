@@ -15,6 +15,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { AddProductModal } from './AddProductModal';
 import { VendorProfileModal } from './VendorProfileModal';
 import { EditProductModal } from './EditProductModal';
+import { BANK_OPTIONS } from '../../utils/constants';
 
 interface VendorDashboardProps {
   onShowProfile?: () => void;
@@ -46,39 +47,6 @@ interface VendorPayoutProfile {
   account_name: string;
   verified: boolean;
 }
-
-// Nigerian banks list
-const BANK_OPTIONS = [
-  { code: '044', name: 'Access Bank' },
-  { code: '063', name: 'Access Bank (Diamond)' },
-  { code: '035A', name: 'ALAT by WEMA' },
-  { code: '401', name: 'ASO Savings and Loans' },
-  { code: '023', name: 'Citibank Nigeria' },
-  { code: '050', name: 'Ecobank Nigeria' },
-  { code: '562', name: 'Ekondo Microfinance Bank' },
-  { code: '070', name: 'Fidelity Bank' },
-  { code: '011', name: 'First Bank of Nigeria' },
-  { code: '214', name: 'First City Monument Bank' },
-  { code: '058', name: 'Guaranty Trust Bank' },
-  { code: '030', name: 'Heritage Bank' },
-  { code: '301', name: 'Jaiz Bank' },
-  { code: '082', name: 'Keystone Bank' },
-  { code: '559', name: 'Kuda Bank' },
-  { code: '50211', name: 'Kuda Microfinance Bank' },
-  { code: '999992', name: 'OPay' },
-  { code: '526', name: 'Parallex Bank' },
-  { code: '999991', name: 'PalmPay' },
-  { code: '076', name: 'Polaris Bank' },
-  { code: '101', name: 'Providus Bank' },
-  { code: '125', name: 'Rubies MFB' },
-  { code: '232', name: 'Sterling Bank' },
-  { code: '068', name: 'Standard Chartered Bank' },
-  { code: '033', name: 'Union Bank of Nigeria' },
-  { code: '032', name: 'United Bank For Africa' },
-  { code: '215', name: 'Unity Bank' },
-  { code: '035', name: 'Wema Bank' },
-  { code: '057', name: 'Zenith Bank' },
-];
 
 export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile }) => {
   const { profile, signOut } = useAuth();
@@ -660,6 +628,19 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
                   <X className="h-4 w-4" />
                 </button>
               </div>
+              {/* Shop Button - visible in mobile menu */}
+              <button
+                onClick={() => {
+                  window.location.hash = '#/customer';
+                  setShowMobileMenu(false);
+                }}
+                className="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 border-b"
+              >
+                <div className="flex items-center space-x-2">
+                  <ShoppingBag className="h-4 w-4" />
+                  <span className="font-medium">Shop</span>
+                </div>
+              </button>
               <button
                 onClick={() => {
                   setShowVendorProfileModal(true);

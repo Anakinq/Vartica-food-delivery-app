@@ -318,7 +318,25 @@ export const Checkout: React.FC<CheckoutProps> = ({
       .select('id')
       .single();
 
-    if (insertError) throw insertError;
+    if (insertError) {
+      // Handle 409 Conflict specifically - multiple possible formats from Supabase
+      const errorMessage = insertError.message || '';
+      const errorCode = insertError.code || '';
+      const errorDetails = insertError.details || '';
+
+      if (
+        errorCode === '409' ||
+        errorMessage.toLowerCase().includes('duplicate') ||
+        errorMessage.toLowerCase().includes('conflict') ||
+        errorDetails.toLowerCase().includes('duplicate') ||
+        errorDetails.toLowerCase().includes('conflict')
+      ) {
+        throw new Error('An order with these details already exists. Please try again or contact support if the issue persists.');
+      }
+      // Log the full error for debugging
+      console.error('Order insert error:', insertError);
+      throw insertError;
+    }
 
     const orderItems = items.map(item => ({
       order_id: orderData.id,
@@ -514,7 +532,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 value={formData.deliveryAddress}
                 onChange={(e) => setFormData({ ...formData, deliveryAddress: e.target.value })}
                 required
-                className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
+                className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white transition-all text-gray-900"
               >
                 <option value="">Select your hostel</option>
                 <option value="New Female Hostel 1">New Female Hostel 1</option>
@@ -576,7 +594,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 value={formData.deliveryNotes}
                 onChange={(e) => setFormData({ ...formData, deliveryNotes: e.target.value })}
                 rows={2}
-                className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
+                className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white transition-all text-gray-900"
                 placeholder="Special instructions for delivery"
               />
             </div>
@@ -588,7 +606,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 type="datetime-local"
                 value={formData.scheduledFor}
                 onChange={(e) => setFormData({ ...formData, scheduledFor: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
+                className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white transition-all text-gray-900"
               />
             </div>
 
@@ -603,7 +621,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
                     setFormData({ ...formData, promoCode: e.target.value.toUpperCase() });
                     setPromoError('');
                   }}
-                  className="flex-1 px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
+                  className="flex-1 px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white transition-all text-gray-900"
                   placeholder="Enter code"
                 />
                 <button
