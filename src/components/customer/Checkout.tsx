@@ -289,7 +289,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
     const orderPayload = {
       order_number: orderNumber,
-      user_id: user.id,
+      user_id: user.id,  // Include user_id for RLS compatibility
+      customer_id: user.id,  // Also set customer_id for schema compatibility
       seller_id: sellerId,
       seller_type: sellerType,
       delivery_agent_id: deliveryAgentId,
@@ -319,6 +320,15 @@ export const Checkout: React.FC<CheckoutProps> = ({
       .single();
 
     if (insertError) {
+      // Log detailed error for debugging
+      console.error('=== ORDER INSERT ERROR DEBUG ===');
+      console.error('Full error object:', JSON.stringify(insertError, null, 2));
+      console.error('Error code:', insertError.code);
+      console.error('Error message:', insertError.message);
+      console.error('Error details:', insertError.details);
+      console.error('Error hint:', insertError.hint);
+      console.error('Order payload:', JSON.stringify(orderPayload, null, 2));
+
       // Handle 409 Conflict specifically - multiple possible formats from Supabase
       const errorMessage = insertError.message || '';
       const errorCode = insertError.code || '';
