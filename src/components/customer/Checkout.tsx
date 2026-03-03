@@ -265,24 +265,21 @@ export const Checkout: React.FC<CheckoutProps> = ({
     const orderNumber = `ORDER_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
     // Marketplace flow: Determine delivery_handler based on vendor's delivery_mode
+    // Note: delivery_agent_id is NOT set here - agent is assigned when they accept the order
     let deliveryHandler: 'vendor' | 'agent' = 'agent';
-    let deliveryAgentId: string | null = null;
 
     if (sellerType === 'vendor' && vendorDeliveryMode) {
       if (vendorDeliveryMode === 'self_delivery') {
         // Vendor delivers themselves
         deliveryHandler = 'vendor';
-        deliveryAgentId = null;
       } else if (vendorDeliveryMode === 'pickup_only') {
         // Agent picks up from vendor
         deliveryHandler = 'agent';
         // Don't assign agent yet - vendor marks as READY_FOR_PICKUP first
-        deliveryAgentId = null;
       } else if (vendorDeliveryMode === 'both') {
         // Customer chose at checkout
         deliveryHandler = deliveryMethod;
         // Don't assign agent yet - vendor marks as READY_FOR_PICKUP first
-        deliveryAgentId = null;
       }
     }
     // Cafeteria orders always use agent delivery
@@ -293,7 +290,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
       customer_id: user.id,  // Also set customer_id for schema compatibility
       seller_id: sellerId,
       seller_type: sellerType,
-      delivery_agent_id: deliveryAgentId,
+      // delivery_agent_id: null,  // REMOVED - Let it default to NULL in database
+      // Agent will be assigned when they accept the order
       status: 'pending',
       subtotal: effectiveSubtotal,
       delivery_fee: hostelBasedDeliveryFee,
