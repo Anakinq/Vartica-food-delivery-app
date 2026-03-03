@@ -262,7 +262,9 @@ export const Checkout: React.FC<CheckoutProps> = ({
     const total = effectiveSubtotal + packTotal + effectiveDeliveryFee - discount;
     const effectiveTotal = Math.max(total + platformCommission, MIN_NGN);
 
-    const orderNumber = `ORDER_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    // Generate a more unique order number using UUID segment
+    const uniqueId = crypto.randomUUID ? crypto.randomUUID().split('-')[0].toUpperCase() : Math.random().toString(36).substr(2, 9).toUpperCase();
+    const orderNumber = `ORDER_${Date.now()}_${uniqueId}`;
 
     // Marketplace flow: Determine delivery_handler based on vendor's delivery_mode
     // Note: delivery_agent_id is NOT set here - agent is assigned when they accept the order
@@ -367,6 +369,11 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
   const handlePaystackSuccess = async (response: any) => {
     try {
+      // Prevent double submission
+      if (loading) {
+        console.log('Order already being processed, ignoring duplicate callback');
+        return;
+      }
       setLoading(true);
 
       const orderResult = await createOrder(response.reference);
