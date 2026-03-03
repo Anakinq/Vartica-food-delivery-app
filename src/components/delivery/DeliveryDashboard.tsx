@@ -32,7 +32,8 @@ interface AgentWallet {
 interface WithdrawalRequest {
   id: string;
   amount: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  type?: 'food_wallet' | 'earnings_wallet' | 'delivery_earnings' | 'customer_funds';
+  status: 'pending' | 'pending_approval' | 'processing' | 'completed' | 'failed';
   created_at: string;
   processed_at?: string;
   error_message?: string;
@@ -151,7 +152,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       // 3. Withdrawal Requests History
       const { data: withdrawals, error: withdrawalsError } = await supabase
         .from('withdrawals')
-        .select('id, amount, status, created_at, processed_at, error_message')
+        .select('id, amount, status, type, created_at, processed_at, error_message')
         .eq('agent_id', agentData.id)
         .order('created_at', { ascending: false })
         .limit(20);
@@ -286,6 +287,26 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       checkAgentApproval();
     }
   }, [profile?.id]);
+
+  // Poll for withdrawal status changes every 30 seconds
+  useEffect(() => {
+    if (!agent?.id) return;
+    
+    const interval = setInterval(async () => {
+      const { data: withdrawals, error } = await supabase
+        .from('withdrawals')
+        .select('id, amount, status, type, created_at, processed_at, error_message')
+        .eq('agent_id', agent.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      
+      if (!error && withdrawals) {
+        setWithdrawalRequests(withdrawals);
+      }
+    }, 30000); // Poll every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [agent?.id]);
 
   // Set up real-time subscriptions after agent data is available
   useEffect(() => {
@@ -499,10 +520,11 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       const sanitizedAmount = Math.round(withdrawAmount * 100) / 100; // Round to 2 decimals
 
       // Use WalletService to request withdrawal
-      // The service should handle different wallet types appropriately
+      // Pass the wallet type to the API so admin knows which wallet
+      const walletType = withdrawType === 'food' ? 'food' : 'earnings';
       await WalletService.requestWithdrawal(agent.id, {
-        amount: sanitizedAmount
-        // wallet_type is not a valid property, using default behavior
+        amount: sanitizedAmount,
+        wallet_type: walletType
       });
 
       setMessage({
@@ -1365,6 +1387,8 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                     <thead className="bg-gray-50">
                       <tr>
                         <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wallet Type</th>
                         <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                         <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                       </tr>
@@ -1380,6 +1404,12 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                               minute: '2-digit',
                             })}
                           </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                            {req.type === 'food_wallet' ? '🍔 Food Wallet' :
+                              req.type === 'earnings_wallet' || req.type === 'delivery_earnings' ? '💰 Earnings' :
+                                req.type === 'customer_funds' ? '💵 Customer Funds' :
+                                  '—'}
+                          </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                             {formatCurrency(Number(req.amount))}
                           </td>
@@ -1391,14 +1421,17 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                                   ? 'bg-red-100 text-red-800'
                                   : req.status === 'processing'
                                     ? 'bg-blue-100 text-blue-800'
-                                    : 'bg-yellow-100 text-yellow-800'
+                                    : req.status === 'pending_approval'
+                                      ? 'bg-purple-100 text-purple-800'
+                                      : 'bg-yellow-100 text-yellow-800'
                                 }`}
                             >
                               {req.status === 'completed' && '✅ '}
                               {req.status === 'failed' && '❌ '}
                               {req.status === 'processing' && '🔄 '}
+                              {req.status === 'pending_approval' && '📋 '}
                               {req.status === 'pending' && '⏳ '}
-                              {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                              {req.status === 'pending_approval' ? 'Pending Approval' : req.status.charAt(0).toUpperCase() + req.status.slice(1)}
                             </span>
                             {req.processed_at && (
                               <div className="text-xs text-gray-500 mt-1">
