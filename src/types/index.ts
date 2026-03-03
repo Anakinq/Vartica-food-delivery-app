@@ -40,9 +40,10 @@ export interface WithdrawalRecord {
     id: string;
     agent_id: string;
     amount: number;
-    status: 'pending' | 'pending_approval' | 'processing' | 'completed' | 'failed';
+    status: 'pending' | 'pending_approval' | 'processing' | 'completed' | 'failed' | 'rejected';
+    withdrawal_type?: 'earnings' | 'food' | 'customer_funds' | 'delivery_earnings';
     created_at: string;
-    updated_at: string;
+    updated_at?: string;
     processed_at?: string;
     error_message?: string;
     paystack_transfer_code?: string;
@@ -51,6 +52,15 @@ export interface WithdrawalRecord {
     approved_at?: string;
     admin_notes?: string;
     sent_at?: string;
+    // Admin view fields
+    agent_name?: string;
+    agent_email?: string;
+    agent_phone?: string;
+    payout_account_name?: string;
+    payout_account_number?: string;
+    payout_bank_code?: string;
+    payout_bank_name?: string;
+    payout_display_bank_name?: string;
 }
 
 // Wallet balance interface

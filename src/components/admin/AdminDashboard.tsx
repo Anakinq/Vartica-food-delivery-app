@@ -53,7 +53,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
     try {
       // First check if the withdrawal exists
       const { data: existingWithdrawal, error: fetchError } = await supabase
-        .from('agent_withdrawals')
+        .from('withdrawals')
         .select('id, status')
         .eq('id', withdrawalId)
         .single();
@@ -73,7 +73,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
       }
 
       const { error } = await supabase
-        .from('agent_withdrawals')
+        .from('withdrawals')
         .update({
           status: 'pending_approval',
           approved_by: user.id,
@@ -104,7 +104,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
     try {
       // First verify the withdrawal exists and get current status
       const { data: existingWithdrawal, error: fetchError } = await supabase
-        .from('agent_withdrawals')
+        .from('withdrawals')
         .select('id, status, amount, agent_id')
         .eq('id', withdrawalId)
         .single();
@@ -125,7 +125,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
 
       // Update the withdrawal status to completed
       const { error } = await supabase
-        .from('agent_withdrawals')
+        .from('withdrawals')
         .update({
           status: 'completed',
           sent_at: new Date().toISOString(),
@@ -162,7 +162,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
     try {
       // First check if the withdrawal exists
       const { data: existingWithdrawal, error: fetchError } = await supabase
-        .from('agent_withdrawals')
+        .from('withdrawals')
         .select('id, status')
         .eq('id', withdrawalId)
         .single();
@@ -182,7 +182,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
       }
 
       const { error } = await supabase
-        .from('agent_withdrawals')
+        .from('withdrawals')
         .update({
           status: 'failed',
           error_message: reason,
