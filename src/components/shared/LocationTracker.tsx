@@ -173,8 +173,8 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                             // Send notification to customer about delivery progress
                             await notificationService.sendOrderStatusUpdate(orderData.order_number, orderData.user_id, 'picked_up');
 
-                            // Send notification to seller
-                            if (orderData.seller_id) {
+                            // Send notification to vendor ONLY (not cafeteria)
+                            if (orderData.seller_id && orderData.seller_type === 'vendor') {
                                 await notificationService.sendOrderStatusUpdate(orderData.order_number, orderData.seller_id, 'picked_up');
                             }
                         }

@@ -198,11 +198,11 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       if (agentData.is_available) {
         // Marketplace flow: Show orders that need agent pickup
         // Cafeteria orders: pending + agent delivery
-        // Vendor orders (pickup_only/both): ready_for_pickup + agent delivery
+        // Vendor orders (pickup_only/both): ready + agent delivery
         const { data: available, error: availableOrdersError } = await supabase
           .from('orders')
           .select('id, order_number, user_id, subtotal, delivery_fee, discount, total, status, payment_method, payment_status, promo_code, delivery_address, delivery_notes, seller_id, seller_type, created_at, updated_at, delivery_handler')
-          .or('and(status.eq.pending,delivery_handler.eq.agent),and(status.eq.ready_for_pickup,delivery_handler.eq.agent)')
+          .or('and(status.eq.pending,delivery_handler.eq.agent),and(status.eq.ready,delivery_handler.eq.agent)')
           .is('delivery_agent_id', null)
           .order('created_at', { ascending: false });
 
@@ -614,8 +614,8 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         // Send notification to customer
         await notificationService.sendOrderStatusUpdate(orderData.order_number, orderData.user_id, newStatus);
 
-        // Send notification to seller (vendor or cafeteria)
-        if (orderData.seller_id) {
+        // Send notification to vendor ONLY (not cafeteria - cafeterias don't need order notifications)
+        if (orderData.seller_id && orderData.seller_type === 'vendor') {
           await notificationService.sendOrderStatusUpdate(orderData.order_number, orderData.seller_id, newStatus);
         }
       }
