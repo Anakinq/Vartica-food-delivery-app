@@ -116,8 +116,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
         return;
       }
 
-      // Prevent double-processing: only allow pending_approval status
-      if (existingWithdrawal.status !== 'pending_approval') {
+      // FIX: Accept BOTH pending and pending_approval statuses
+      if (!['pending', 'pending_approval'].includes(existingWithdrawal.status)) {
         showToast(`Cannot mark withdrawal as sent. Current status: ${existingWithdrawal.status}`, 'warning');
         setProcessingWithdrawal(null);
         return;
@@ -135,6 +135,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
         .eq('id', withdrawalId);
 
       if (error) throw error;
+
+      // FIX: Actually send notification to the delivery agent
+      try {
+        await supabase.from('notifications').insert({
+          user_id: existingWithdrawal.agent_id,
+          title: 'Withdrawal Approved',
+          message: `Your withdrawal request of ₦${Number(existingWithdrawal.amount).toFixed(2)} has been processed and sent to your bank account. It should arrive within 1-2 business days.`,
+          type: 'withdrawal',
+          is_read: false,
+          created_at: new Date().toISOString()
+        });
+      } catch (notifError) {
+        console.error('Failed to send notification:', notifError);
+        // Continue even if notification fails
+      }
 
       showToast('Withdrawal marked as sent! Agent has been notified.', 'success');
       fetchData(); // Refresh data
@@ -781,8 +796,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                           <thead>
                             <tr className="border-b border-gray-200">
                               <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
-                              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Agent ID</th>
+                              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Agent</th>
                               <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Amount</th>
+                              <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Wallet</th>
                               <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
                               <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Actions</th>
                               <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Bank Details</th>
@@ -800,9 +816,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                                     minute: '2-digit',
                                   })}
                                 </td>
-                                <td className="py-3 px-4 text-sm font-medium text-gray-900">{req.agent_id}</td>
+                                <td className="py-3 px-4 text-sm font-medium text-gray-900">{req.agent_name || req.agent_id}</td>
                                 <td className="py-3 px-4 text-sm font-bold text-green-600">
                                   ₦{Number(req.amount).toFixed(2)}
+                                </td>
+                                <td className="py-3 px-4 text-sm text-gray-600">
+                                  {(req.type === 'food_wallet' || req.type === 'food' || req.withdrawal_type === 'food_wallet' || req.withdrawal_type === 'food') ? (
+                                    <span className="inline-flex items-center px-2 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded">
+                                      🍔 Food
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded">
+                                      💰 Earnings
+                                    </span>
+                                  )}
                                 </td>
                                 <td className="py-3 px-4">
                                   <span
@@ -883,12 +910,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                                   </div>
                                 </td>
                                 <td className="py-3 px-4 text-sm text-gray-600">
-                                  {req.payout_display_bank_name ? (
+                                  {req.payout_account_number ? (
                                     <div>
-                                      <div className="font-medium">{req.payout_display_bank_name}</div>
-                                      <div className="text-xs">
-                                        {req.payout_account_name} ••••{req.payout_account_number?.slice(-4)}
-                                      </div>
+                                      <div className="font-medium">{req.payout_bank_name || 'Bank'}</div>
+                                      <div className="text-xs font-mono">{req.payout_account_number}</div>
+                                      <div className="text-xs text-gray-500">{req.payout_account_name}</div>
                                     </div>
                                   ) : (
                                     <span className="text-gray-400">N/A</span>
