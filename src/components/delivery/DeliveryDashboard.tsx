@@ -291,7 +291,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   // Poll for withdrawal status changes every 30 seconds
   useEffect(() => {
     if (!agent?.id) return;
-    
+
     const interval = setInterval(async () => {
       const { data: withdrawals, error } = await supabase
         .from('withdrawals')
@@ -299,12 +299,12 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         .eq('agent_id', agent.id)
         .order('created_at', { ascending: false })
         .limit(20);
-      
+
       if (!error && withdrawals) {
         setWithdrawalRequests(withdrawals);
       }
     }, 30000); // Poll every 30 seconds
-    
+
     return () => clearInterval(interval);
   }, [agent?.id]);
 
@@ -491,9 +491,12 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       maxBalance = wallet.earnings_wallet_balance;
     }
 
-    // Validate amount
-    if (withdrawAmount <= 0 || withdrawAmount > maxBalance) {
-      setMessage({ type: 'error', text: `Amount must be between ₦0.01 and ${formatCurrency(maxBalance)}.` });
+    // Validate amount - use >= to allow withdrawing exact balance
+    // Also handle floating point precision by rounding
+    const roundedAmount = Math.round(withdrawAmount * 100) / 100;
+    const roundedMaxBalance = Math.round(maxBalance * 100) / 100;
+    if (roundedAmount <= 0 || roundedAmount > roundedMaxBalance) {
+      setMessage({ type: 'error', text: `Amount must be between ₦0.01 and ${formatCurrency(roundedMaxBalance)}.` });
       return;
     }
 
@@ -1655,16 +1658,16 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         {showWithdrawModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
             <div className="w-full max-w-md bg-white rounded-xl p-6 shadow-xl">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Request Withdrawal</h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Available in {withdrawType === 'food' ? 'Food' : 'Earnings'} Wallet: <span className="font-bold text-green-600">{withdrawType === 'food' ? formatCurrency(wallet?.food_wallet_balance) : formatCurrency(wallet?.earnings_wallet_balance)}</span>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Request Withdrawal</h3>
+              <p className="text-base text-gray-800 mb-4 font-medium">
+                Available in {withdrawType === 'food' ? 'Food' : 'Earnings'} Wallet: <span className="font-bold text-green-700 text-lg">{withdrawType === 'food' ? formatCurrency(wallet?.food_wallet_balance) : formatCurrency(wallet?.earnings_wallet_balance)}</span>
               </p>
               <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-sm text-blue-800">
+                <p className="text-sm text-blue-900 font-medium">
                   📌 <strong>Note:</strong> Your request will be reviewed by admin. Payment will be sent manually to your bank account.
                 </p>
               </div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Amount (₦)</label>
+              <label className="block text-base font-semibold text-gray-900 mb-2">Amount (₦)</label>
               <input
                 type="number"
                 step="0.01"
@@ -1672,12 +1675,12 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                 max={withdrawType === 'food' ? wallet?.food_wallet_balance : wallet?.earnings_wallet_balance}
                 value={withdrawAmount ?? ''}
                 onChange={(e) => setWithdrawAmount(e.target.value ? parseFloat(e.target.value) : null)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
+                className="w-full p-3 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4 text-gray-900 placeholder-gray-500"
               />
-              <div className="mb-4 text-sm text-gray-600 p-3 bg-gray-50 rounded-lg">
-                <p><strong>Wallet Type:</strong> {withdrawType === 'food' ? 'Food Wallet' : 'Earnings Wallet'}</p>
-                <p><strong>Bank:</strong> {bankName}</p>
-                <p><strong>Account:</strong> •••• {bankAccount.slice(-4)}</p>
+              <div className="mb-4 text-base text-gray-800 p-4 bg-gray-100 rounded-lg border border-gray-300">
+                <p><strong className="text-gray-900">Wallet Type:</strong> {withdrawType === 'food' ? 'Food Wallet' : 'Earnings Wallet'}</p>
+                <p><strong className="text-gray-900">Bank:</strong> {bankName}</p>
+                <p><strong className="text-gray-900">Account:</strong> •••• {bankAccount.slice(-4)}</p>
               </div>
               {message?.type === 'error' && (
                 <p className="text-red-600 text-sm mb-4">{message.text}</p>

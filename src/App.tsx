@@ -38,6 +38,7 @@ import { UserRole } from './types';
 import { Profile } from './lib/supabase/types';
 import { BottomNavigation } from './components/shared/BottomNavigation';
 import NotificationsPanel from './components/shared/NotificationsPanel';
+import { OrderTracking } from './components/customer/OrderTracking';
 import { CartProvider, useCart } from './contexts/CartContext';
 import { RoleSwitcher } from './components/shared/RoleSwitcher';
 
@@ -164,6 +165,43 @@ function AppContent() {
         <div className="authenticated-view">
           <div className="main-content">
             <NotificationsPanel onClose={() => { window.location.hash = ''; }} />
+          </div>
+          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
+        </div>
+      );
+    }
+
+    // Handle orders - Customer order history with back button support
+    if (locationHash === '#/orders') {
+      // Determine back navigation based on previous hash or role
+      const getBackHash = () => {
+        const previousPage = sessionStorage.getItem('previous_page');
+
+        if (previousPage && previousPage !== '#/orders') {
+          const validRoutes = ['#/customer', '#/vendor', '#/vendor-orders', '#/vendor-earnings', '#/delivery', '#/cafeteria', ''];
+          if (validRoutes.includes(previousPage) || previousPage.startsWith('#/')) {
+            return previousPage;
+          }
+        }
+
+        const savedRole = localStorage.getItem('activeRole');
+        if (savedRole === 'vendor' || savedRole === 'delivery_agent' || savedRole === 'admin' || savedRole === 'cafeteria') {
+          return `#/${savedRole === 'delivery_agent' ? 'delivery' : savedRole}`;
+        }
+        return '#/customer';
+      };
+
+      const backHash = getBackHash();
+
+      return (
+        <div className="authenticated-view">
+          <div className="main-content">
+            <OrderTracking
+              onClose={() => {
+                sessionStorage.removeItem('previous_page');
+                window.location.hash = backHash || '#/customer';
+              }}
+            />
           </div>
           <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
         </div>

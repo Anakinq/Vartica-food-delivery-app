@@ -66,6 +66,28 @@ export const DeliveryAgentRating: React.FC<DeliveryAgentRatingProps> = ({
         setLoading(true);
 
         try {
+            // First check if there's already a rating for this order
+            const { data: existingRating } = await databaseService.select<{
+                id: string;
+            }>({
+                table: 'delivery_ratings',
+                match: {
+                    customer_id: user.id,
+                    delivery_agent_id: deliveryAgentId,
+                    order_id: orderId
+                }
+            });
+
+            if (existingRating && existingRating.length > 0) {
+                // Already rated, just update the display
+                setHasRated(true);
+                setRating(rate);
+                showToast('You have already rated this delivery agent.', 'success');
+                setLoading(false);
+                return;
+            }
+
+            // Insert the new rating
             const { error } = await databaseService.insert<{
                 customer_id: string;
                 delivery_agent_id: string;
@@ -79,18 +101,26 @@ export const DeliveryAgentRating: React.FC<DeliveryAgentRatingProps> = ({
                     delivery_agent_id: deliveryAgentId,
                     order_id: orderId,
                     rating: rate,
-                    review: '' // Could be expanded to include text reviews
+                    review: ''
                 }
             });
 
             if (error) {
                 console.error('Error submitting rating:', error);
-                showToast('Failed to submit rating. Please try again.', 'error');
+                // Check if it's a duplicate key error
+                if (error.message && error.message.includes('duplicate')) {
+                    showToast('You have already rated this delivery agent.', 'success');
+                    setHasRated(true);
+                } else {
+                    showToast('Failed to submit rating. Please try again.', 'error');
+                }
                 return;
             }
 
             setRating(rate);
             setHasRated(true);
+            showToast('Thank you for rating the delivery agent!', 'success');
+
             if (onRatingSubmit) {
                 onRatingSubmit(rate);
             }
