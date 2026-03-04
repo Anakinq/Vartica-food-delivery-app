@@ -752,7 +752,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-y-auto">
       {/* Main content */}
       <div className="relative min-h-screen">
         {/* Header Navigation */}
@@ -902,7 +902,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
           </div>
         </nav>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 overflow-y-auto">
           {/* Messages */}
           {message && (
             <div
@@ -1434,7 +1434,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                               {req.status === 'processing' && '🔄 '}
                               {req.status === 'pending_approval' && '📋 '}
                               {req.status === 'pending' && '⏳ '}
-                              {req.status === 'pending_approval' ? 'Pending Approval' : req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                              {req.status === 'pending_approval' ? 'Pending Approval' : req.status === 'completed' ? 'Approved' : req.status.charAt(0).toUpperCase() + req.status.slice(1)}
                             </span>
                             {req.processed_at && (
                               <div className="text-xs text-gray-500 mt-1">

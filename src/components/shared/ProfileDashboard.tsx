@@ -892,6 +892,7 @@ const cycleAvatarStyle = () => {
               {/* Other Settings */}
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
                 {[
+                  { icon: Bell, title: 'Notifications', desc: 'View your notifications and alerts' },
                   { icon: Download, title: 'Download App', desc: 'Install Vartica Food on your device' },
                   { icon: Lock, title: 'Privacy & Security', desc: 'Manage your account security' },
                   { icon: CreditCard, title: 'Payment Methods', desc: 'Manage saved cards' },
@@ -907,6 +908,8 @@ const cycleAvatarStyle = () => {
                           setShowSupportModal(true);
                         } else if (item.title === 'Download App') {
                           setShowDownloadModal(true);
+                        } else if (item.title === 'Notifications') {
+                          window.location.hash = '#/notifications';
                         }
                       }}
                     >
@@ -1068,7 +1071,7 @@ const cycleAvatarStyle = () => {
                   value={bankAccount}
                   onChange={(e) => setBankAccount(e.target.value.replace(/\D/g, '').slice(0, 10))}
                   placeholder="10-digit account number"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-black dark:text-white placeholder-gray-400"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-black dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                   maxLength={10}
                 />
               </div>
@@ -1081,7 +1084,7 @@ const cycleAvatarStyle = () => {
               )}
 
               {!isBankVerified && bankAccount && (
-                <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <div className="p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg">
                   <p className="text-sm text-yellow-700 dark:text-yellow-400">
                     Your bank details will be verified when you make your first withdrawal.
                   </p>

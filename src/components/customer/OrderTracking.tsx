@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MessageCircle, Package, X, Navigation, Star } from 'lucide-react';
+import { MessageCircle, Package, X, Navigation, Star, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { databaseService } from '../../services';
 import { Order } from '../../lib/supabase/types';
@@ -84,8 +84,15 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
       <div className="min-h-screen flex items-end sm:items-center justify-center p-4">
         <div className="bg-white w-full sm:max-w-2xl sm:rounded-2xl max-h-[calc(100vh-2rem)] sm:max-h-[90vh] flex flex-col">
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <h2 className="text-2xl font-bold text-gray-900">My Orders</h2>
+          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-white">
+            <button
+              onClick={onClose}
+              className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              <span>Back</span>
+            </button>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">My Orders</h2>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
               <X className="h-6 w-6" />
             </button>
@@ -160,7 +167,7 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
                             orderId={order.id}
                           />
                         )}
-                        {(order.seller_type === 'vendor' || order.seller_type === 'late_night_vendor' || order.seller_type === 'cafeteria') && (
+                        {(order.seller_type === 'vendor' || order.seller_type === 'late_night_vendor') && (
                           <button
                             onClick={() => setSelectedOrderForReview(order)}
                             className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"

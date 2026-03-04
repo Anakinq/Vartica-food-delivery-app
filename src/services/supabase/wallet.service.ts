@@ -14,6 +14,7 @@ interface PayoutProfile {
 
 interface WithdrawalRequest {
     amount: number;
+    wallet_type?: 'food' | 'earnings';
 }
 
 interface BankVerificationRequest {
@@ -142,8 +143,12 @@ export class WalletService {
                 throw new Error('Wallet not found');
             }
 
-            const earningsBalance = parseFloat(balances.earnings_wallet_balance);
-            if (withdrawal.amount > earningsBalance) {
+            const walletType = withdrawal.wallet_type || 'earnings';
+            const walletBalance = walletType === 'food'
+                ? parseFloat(balances.food_wallet_balance)
+                : parseFloat(balances.earnings_wallet_balance);
+
+            if (withdrawal.amount > walletBalance) {
                 throw new Error('Insufficient balance for withdrawal');
             }
 
@@ -155,7 +160,8 @@ export class WalletService {
                 },
                 body: JSON.stringify({
                     agent_id: agentId,
-                    amount: withdrawal.amount
+                    amount: withdrawal.amount,
+                    wallet_type: walletType
                 })
             });
 

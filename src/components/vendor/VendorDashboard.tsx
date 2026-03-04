@@ -80,6 +80,9 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   const [withdrawAmount, setWithdrawAmount] = useState<number | null>(null);
   const [processingWithdrawal, setProcessingWithdrawal] = useState(false);
 
+  // Order action loading state for optimistic UI
+  const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
+
   // Product management state
   const [showAddProductModal, setShowAddProductModal] = useState(false);
   const [showVendorProfileModal, setShowVendorProfileModal] = useState(false);
@@ -439,6 +442,12 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
   };
 
   const handleAcceptOrder = async (order: FullOrder) => {
+    // Optimistic update - immediately update UI
+    setOrders(prev => prev.map(o => 
+      o.id === order.id ? { ...o, status: 'accepted' } : o
+    ));
+    setProcessingOrderId(order.id);
+    
     try {
       const { error } = await supabase
         .from('orders')
@@ -446,6 +455,10 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         .eq('id', order.id);
 
       if (error) {
+        // Rollback on error
+        setOrders(prev => prev.map(o => 
+          o.id === order.id ? { ...o, status: 'pending' } : o
+        ));
         showToast({ type: 'error', message: 'Failed to accept order' });
         return;
       }
@@ -453,12 +466,24 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       showToast({ type: 'success', message: 'Order accepted!' });
       fetchOrders(vendor?.id);
     } catch (error) {
+      // Rollback on error
+      setOrders(prev => prev.map(o => 
+        o.id === order.id ? { ...o, status: 'pending' } : o
+      ));
       console.error('Error accepting order:', error);
       showToast({ type: 'error', message: 'Failed to accept order' });
+    } finally {
+      setProcessingOrderId(null);
     }
   };
 
   const handleStartPreparing = async (order: FullOrder) => {
+    // Optimistic update - immediately update UI
+    setOrders(prev => prev.map(o => 
+      o.id === order.id ? { ...o, status: 'preparing' } : o
+    ));
+    setProcessingOrderId(order.id);
+    
     try {
       const { error } = await supabase
         .from('orders')
@@ -466,6 +491,10 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         .eq('id', order.id);
 
       if (error) {
+        // Rollback on error
+        setOrders(prev => prev.map(o => 
+          o.id === order.id ? { ...o, status: 'accepted' } : o
+        ));
         showToast({ type: 'error', message: 'Failed to update order' });
         return;
       }
@@ -473,12 +502,24 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       showToast({ type: 'success', message: 'Started preparing order' });
       fetchOrders(vendor?.id);
     } catch (error) {
+      // Rollback on error
+      setOrders(prev => prev.map(o => 
+        o.id === order.id ? { ...o, status: 'accepted' } : o
+      ));
       console.error('Error updating order:', error);
       showToast({ type: 'error', message: 'Failed to update order' });
+    } finally {
+      setProcessingOrderId(null);
     }
   };
 
   const handleMarkReady = async (order: FullOrder) => {
+    // Optimistic update - immediately update UI
+    setOrders(prev => prev.map(o => 
+      o.id === order.id ? { ...o, status: 'ready' } : o
+    ));
+    setProcessingOrderId(order.id);
+    
     try {
       const { error } = await supabase
         .from('orders')
@@ -486,6 +527,10 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         .eq('id', order.id);
 
       if (error) {
+        // Rollback on error
+        setOrders(prev => prev.map(o => 
+          o.id === order.id ? { ...o, status: 'preparing' } : o
+        ));
         showToast({ type: 'error', message: 'Failed to mark order as ready' });
         return;
       }
@@ -493,8 +538,14 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       showToast({ type: 'success', message: 'Order marked as ready for pickup!' });
       fetchOrders(vendor?.id);
     } catch (error) {
+      // Rollback on error
+      setOrders(prev => prev.map(o => 
+        o.id === order.id ? { ...o, status: 'preparing' } : o
+      ));
       console.error('Error marking order ready:', error);
       showToast({ type: 'error', message: 'Failed to mark order as ready' });
+    } finally {
+      setProcessingOrderId(null);
     }
   };
 
@@ -1128,7 +1179,9 @@ const OrderCard: React.FC<{
   order: FullOrder;
   onAccept: () => void;
   onChat: () => void;
-}> = ({ order, onAccept, onChat }) => (
+  processingId?: string | null;
+}> = ({ order, onAccept, onChat, processingId }) => {
+  return (
   <div className="bg-white rounded-xl p-6 shadow-sm">
     <div className="flex justify-between items-start mb-4">
       <div>
@@ -1167,14 +1220,23 @@ const OrderCard: React.FC<{
         </button>
         <button
           onClick={onAccept}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+          disabled={processingId === order.id}
+          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
         >
-          Accept
+          {processingId === order.id ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+              Accepting...
+            </>
+          ) : (
+            'Accept'
+          )}
         </button>
       </div>
     </div>
-  </div>
-);
+    </div>
+  );
+};
 
 const ActiveOrderCard: React.FC<{
   order: FullOrder;

@@ -41,7 +41,9 @@ export interface WithdrawalRecord {
     agent_id: string;
     amount: number;
     status: 'pending' | 'pending_approval' | 'processing' | 'completed' | 'failed' | 'rejected';
-    withdrawal_type?: 'earnings' | 'food' | 'customer_funds' | 'delivery_earnings';
+    // Wallet type - can be either 'type' or 'withdrawal_type' from different sources
+    type?: 'earnings' | 'food' | 'customer_funds' | 'delivery_earnings' | 'food_wallet';
+    withdrawal_type?: 'earnings' | 'food' | 'customer_funds' | 'delivery_earnings' | 'food_wallet';
     created_at: string;
     updated_at?: string;
     processed_at?: string;

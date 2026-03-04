@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Plus, Edit, Trash2, Image, ExternalLink, Upload, X as XIcon } from 'lucide-react';
 import { supabase } from '../../lib/supabase/client';
+import { dataCache } from '../../utils/dataCache';
 
 interface Banner {
     id: string;
@@ -139,6 +140,8 @@ export const BannerManagement: React.FC<BannerManagementProps> = ({ isOpen, onCl
             setFormData({ title: '', subtitle: '', image_url: '', image_path: '', link: '', is_active: true, display_order: 0 });
             setImageFile(null);
             setImagePreview(null);
+            // Clear banner cache so customers see changes immediately
+            dataCache.delete('banners');
             fetchBanners();
         } catch (error) {
             console.error('Error saving banner:', error);
@@ -172,6 +175,8 @@ export const BannerManagement: React.FC<BannerManagementProps> = ({ isOpen, onCl
             if (error) {
                 throw new Error(`Error deleting banner: ${error.message}`);
             }
+            // Clear banner cache so customers see changes immediately
+            dataCache.delete('banners');
             fetchBanners();
         } catch (error) {
             console.error('Error deleting banner:', error);
@@ -189,6 +194,8 @@ export const BannerManagement: React.FC<BannerManagementProps> = ({ isOpen, onCl
             if (error) {
                 throw new Error(`Error updating banner: ${error.message}`);
             }
+            // Clear banner cache so customers see changes immediately
+            dataCache.delete('banners');
             fetchBanners();
         } catch (error) {
             console.error('Error toggling banner:', error);
@@ -249,7 +256,7 @@ export const BannerManagement: React.FC<BannerManagementProps> = ({ isOpen, onCl
                                 setImagePreview(null);
                                 setShowForm(true);
                             }}
-                            className="flex items-center space-x-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg"
+                            className="flex items-center space-x-2 bg-orange-600 hover:bg-orange-700 text-white font-semibold px-4 py-2 rounded-lg"
                         >
                             <Plus className="h-5 w-5" />
                             <span>Add New Banner</span>
@@ -258,36 +265,36 @@ export const BannerManagement: React.FC<BannerManagementProps> = ({ isOpen, onCl
 
                     {/* Form */}
                     {showForm && (
-                        <form onSubmit={handleSubmit} className="p-6 border-b border-gray-200 bg-gray-50">
+                        <form onSubmit={handleSubmit} className="p-6 border-b border-gray-200 bg-gray-50 dark:bg-gray-800">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                                    <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">Title *</label>
                                     <input
                                         type="text"
                                         value={formData.title}
                                         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                                        className="w-full px-3 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600"
                                         required
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Subtitle</label>
+                                    <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">Subtitle</label>
                                     <input
                                         type="text"
                                         value={formData.subtitle}
                                         onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                                        className="w-full px-3 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600"
                                     />
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Banner Image *</label>
+                                    <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">Banner Image *</label>
                                     <div className="mt-1">
                                         {imagePreview ? (
                                             <div className="relative inline-block">
                                                 <img
                                                     src={imagePreview}
                                                     alt="Preview"
-                                                    className="h-32 w-32 object-cover rounded-lg border-2 border-gray-300"
+                                                    className="h-32 w-32 object-cover rounded-lg border-2 border-gray-400"
                                                 />
                                                 <button
                                                     type="button"
@@ -298,11 +305,11 @@ export const BannerManagement: React.FC<BannerManagementProps> = ({ isOpen, onCl
                                                 </button>
                                             </div>
                                         ) : (
-                                            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:border-gray-400">
+                                            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-400 border-dashed rounded-lg cursor-pointer hover:border-gray-500 bg-white dark:bg-gray-700">
                                                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                                    <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                                                    <p className="text-sm text-gray-600 font-medium">Click to upload image</p>
-                                                    <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 5MB</p>
+                                                    <Upload className="h-8 w-8 text-gray-600 dark:text-gray-300 mb-2" />
+                                                    <p className="text-sm text-gray-700 dark:text-gray-200 font-medium">Click to upload image</p>
+                                                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">PNG, JPG up to 5MB</p>
                                                 </div>
                                                 <input
                                                     ref={fileInputRef}
@@ -315,26 +322,26 @@ export const BannerManagement: React.FC<BannerManagementProps> = ({ isOpen, onCl
                                         )}
                                     </div>
                                     {formData.image_url && !imagePreview && (
-                                        <p className="text-sm text-gray-500 mt-2">Current image: {formData.image_url}</p>
+                                        <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">Current image: {formData.image_url}</p>
                                     )}
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Link (optional)</label>
+                                    <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">Link (optional)</label>
                                     <input
                                         type="url"
                                         value={formData.link}
                                         onChange={(e) => setFormData({ ...formData, link: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                                        className="w-full px-3 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600"
                                         placeholder="https://..."
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
+                                    <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">Display Order</label>
                                     <input
                                         type="number"
                                         value={formData.display_order}
                                         onChange={(e) => setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                                        className="w-full px-3 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600"
                                         min="0"
                                     />
                                 </div>
@@ -344,23 +351,23 @@ export const BannerManagement: React.FC<BannerManagementProps> = ({ isOpen, onCl
                                         id="is_active"
                                         checked={formData.is_active}
                                         onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                                        className="h-4 w-4 text-orange-500 focus:ring-orange-500 border-gray-300 rounded"
+                                        className="h-4 w-4 text-orange-500 focus:ring-orange-500 border-gray-400 rounded"
                                     />
-                                    <label htmlFor="is_active" className="ml-2 text-sm text-gray-700">Active</label>
+                                    <label htmlFor="is_active" className="ml-2 text-sm font-semibold text-gray-900 dark:text-white">Active</label>
                                 </div>
                             </div>
                             <div className="flex justify-end space-x-3 mt-4">
                                 <button
                                     type="button"
                                     onClick={() => setShowForm(false)}
-                                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                                    className="px-4 py-2 text-gray-900 hover:bg-gray-200 rounded-lg border border-gray-400"
                                     disabled={uploading}
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg disabled:opacity-50"
+                                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg disabled:opacity-50"
                                     disabled={uploading || (!imageFile && !formData.image_url)}
                                 >
                                     {uploading ? 'Uploading...' : (editingBanner ? 'Update Banner' : 'Create Banner')}

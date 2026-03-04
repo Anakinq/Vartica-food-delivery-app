@@ -849,7 +849,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                                     {req.status === 'processing' && '⏳ '}
                                     {req.status === 'pending_approval' && '📋 '}
                                     {req.status === 'pending' && '📅 '}
-                                    {req.status.toUpperCase().replace('_', ' ')}
+                                    {req.status === 'completed' ? 'APPROVED' : req.status.toUpperCase().replace('_', ' ')}
                                   </span>
                                   {req.processed_at && (
                                     <div className="text-xs text-gray-500 mt-1">
@@ -1153,3 +1153,4 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
     </div>
   );
 };
+

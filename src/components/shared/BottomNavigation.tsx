@@ -85,11 +85,11 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
             onClick: handleCartClick,
         },
         {
-            id: 'notifications',
-            label: 'Alerts',
-            icon: Bell,
-            path: '/notifications',
-            onClick: () => navigateTo('/notifications'),
+            id: 'orders',
+            label: 'Orders',
+            icon: Package,
+            path: '/orders',
+            onClick: () => navigateTo('/orders'),
         },
         {
             id: 'profile',

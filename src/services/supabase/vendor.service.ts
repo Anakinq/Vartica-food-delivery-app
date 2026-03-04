@@ -270,6 +270,18 @@ export class VendorReviewService {
         review_text?: string;
     }): Promise<VendorReview | null> {
         try {
+            // First verify the vendor exists
+            const { data: vendor, error: vendorError } = await supabase
+                .from('vendors')
+                .select('id')
+                .eq('id', reviewData.vendor_id)
+                .maybeSingle();
+
+            if (vendorError || !vendor) {
+                console.error('Vendor not found:', reviewData.vendor_id);
+                throw new Error('Vendor not found. The vendor may no longer be active.');
+            }
+
             const { data, error } = await supabase
                 .from('vendor_reviews')
                 .insert([reviewData])
@@ -278,13 +290,14 @@ export class VendorReviewService {
 
             if (error) {
                 console.error('Error creating review:', error);
-                return null;
+                throw error;
             }
 
             return data;
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error in createReview:', error);
-            return null;
+            // Re-throw the error so the caller can handle it
+            throw error;
         }
     }
 

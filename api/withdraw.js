@@ -16,13 +16,16 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { agent_id, amount } = req.body;
+        const { agent_id, amount, wallet_type } = req.body;
 
         if (!agent_id || !amount || amount <= 0) {
             return res.status(400).json({
                 error: 'Invalid request: agent_id and amount are required'
             });
         }
+
+        // Determine wallet type and adjust balance check
+        const requestedWalletType = wallet_type || 'earnings';
 
         const supabase = createClient(
             process.env.SUPABASE_URL,
@@ -61,10 +64,10 @@ export default async function handler(req, res) {
 
         const user_id = agentData.user_id;
 
-        // Get agent's wallet information
+        // Get agent's wallet information based on wallet_type
         let { data: agentWallet, error: walletError } = await supabase
             .from('agent_wallets')
-            .select('earnings_wallet_balance')
+            .select('food_wallet_balance, earnings_wallet_balance')
             .eq('agent_id', agent_id)
             .single();
 
@@ -87,7 +90,7 @@ export default async function handler(req, res) {
             // Try again
             const { data: newWallet, error: newWalletError } = await supabase
                 .from('agent_wallets')
-                .select('earnings_wallet_balance')
+                .select('food_wallet_balance, earnings_wallet_balance')
                 .eq('agent_id', agent_id)
                 .single();
 
@@ -105,6 +108,7 @@ export default async function handler(req, res) {
 
                 // Use fallback wallet data
                 agentWallet = {
+                    food_wallet_balance: fallbackWallet.food_wallet_balance || fallbackWallet.food_balance || 0,
                     earnings_wallet_balance: fallbackWallet.earnings_wallet_balance || fallbackWallet.earnings_balance || 0
                 };
             } else {
@@ -116,7 +120,11 @@ export default async function handler(req, res) {
             return res.status(404).json({ error: 'Agent wallet not found' });
         }
 
-        const currentBalance = parseFloat(agentWallet.earnings_wallet_balance || agentWallet.earnings_balance || 0);
+        // Check balance based on wallet type
+        const currentBalance = requestedWalletType === 'food'
+            ? parseFloat(agentWallet.food_wallet_balance || 0)
+            : parseFloat(agentWallet.earnings_wallet_balance || agentWallet.earnings_balance || 0);
+
         if (amount > currentBalance) {
             return res.status(400).json({ error: 'Insufficient balance for withdrawal' });
         }
@@ -243,12 +251,13 @@ export default async function handler(req, res) {
         const withdrawalReference = `withdraw_${Date.now()}_${agent_id}`;
 
         // Create withdrawal record - using withdrawals table which has the correct FK relationship
+        // Include wallet_type so admin knows which wallet the withdrawal is from
         let { data: withdrawal, error: withdrawalError } = await supabase
             .from('withdrawals')
             .insert({
                 agent_id,
                 amount,
-                type: 'delivery_earnings',  // Required field for withdrawals table
+                type: requestedWalletType === 'food' ? 'food_wallet' : 'delivery_earnings',
                 status: 'pending_approval'  // Changed to pending approval for manual flow
             })
             .select()
@@ -264,8 +273,8 @@ export default async function handler(req, res) {
                 .insert({
                     agent_id: agent_id,
                     amount: amount,
-                    type: 'delivery_earnings',  // Required field for withdrawals table
-                    status: 'pending_approval'  // Changed to pending approval for manual flow
+                    type: requestedWalletType === 'food' ? 'food_wallet' : 'delivery_earnings',
+                    status: 'pending_approval'
                 })
                 .select('id, agent_id, amount, status, type')
                 .single();
@@ -279,8 +288,8 @@ export default async function handler(req, res) {
                     .insert({
                         agent_id: agent_id,
                         amount: amount,
-                        type: 'delivery_earnings',  // Required field for withdrawals table
-                        status: 'pending_approval'  // Changed to pending approval for manual flow
+                        type: requestedWalletType === 'food' ? 'food_wallet' : 'delivery_earnings',
+                        status: 'pending_approval'
                     })
                     .select('id, agent_id, amount, status, type')
                     .single();
@@ -299,10 +308,10 @@ export default async function handler(req, res) {
             }
         }
 
-        // Update agent wallet to deduct the requested amount
+        // Update agent wallet to deduct the requested amount based on wallet_type
         await supabase.rpc('update_agent_wallet', {
             p_agent_id: agent_id,
-            p_wallet_type: 'earnings_wallet',
+            p_wallet_type: requestedWalletType === 'food' ? 'food_wallet' : 'earnings_wallet',
             p_amount: -amount,
             p_transaction_type: 'withdrawal',
             p_reference_type: 'withdrawal',

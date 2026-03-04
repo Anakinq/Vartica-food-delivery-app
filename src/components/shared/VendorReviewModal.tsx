@@ -92,9 +92,16 @@ export const VendorReviewModal: React.FC<VendorReviewModalProps> = ({
                     showError('Failed to submit review. Please try again.');
                 }
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error submitting review:', error);
-            showError('An error occurred. Please try again.');
+            // Handle different error types
+            if (error?.message?.includes('Vendor not found')) {
+                showError('Unable to submit review. The vendor may no longer be active.');
+            } else if (error?.code === '23503') {
+                showError('Unable to submit review. Invalid vendor information.');
+            } else {
+                showError('An error occurred. Please try again.');
+            }
         } finally {
             setLoading(false);
         }

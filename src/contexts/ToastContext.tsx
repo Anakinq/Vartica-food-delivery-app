@@ -13,6 +13,8 @@ interface ToastContextType {
     toasts: Toast[];
     showToast: (message: string, type?: ToastType) => void;
     hideToast: (id: number) => void;
+    success: (message: string) => void;
+    error: (message: string) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -52,8 +54,12 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }, 300);
     };
 
+    // Convenience methods
+    const success = (message: string) => showToast(message, 'success');
+    const error = (message: string) => showToast(message, 'error');
+
     return (
-        <ToastContext.Provider value={{ toasts, showToast, hideToast }}>
+        <ToastContext.Provider value={{ toasts, showToast, hideToast, success, error }}>
             {children}
         </ToastContext.Provider>
     );

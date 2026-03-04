@@ -54,9 +54,9 @@ export default async function handler(req, res) {
 
         if (error) {
             console.error('Error fetching withdrawal requests:', error);
-            return res.status(500).json({ 
+            return res.status(500).json({
                 error: 'Failed to fetch withdrawal requests',
-                details: error.message 
+                details: error.message
             });
         }
 
@@ -66,6 +66,7 @@ export default async function handler(req, res) {
             agent_id: w.withdrawals.agent_id,
             amount: w.withdrawals.amount,
             type: w.withdrawals.type,
+            wallet_type: w.withdrawals.type, // Include wallet type for admin display
             status: w.withdrawals.status,
             created_at: w.withdrawals.created_at,
             processed_at: w.withdrawals.processed_at,
