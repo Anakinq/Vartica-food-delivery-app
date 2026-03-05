@@ -114,33 +114,50 @@ AFTER INSERT OR UPDATE ON public.orders
 FOR EACH ROW
 EXECUTE FUNCTION public.orders_credit_on_paid_trigger();
 
--- 3) Backfill delivery_agents.delivery_earnings into agent_wallets.earnings_wallet_balance
--- Create a temporary table to log migration actions
-CREATE TEMP TABLE tmp_migrated_agents AS
-SELECT id as agent_id, delivery_earnings FROM public.delivery_agents WHERE COALESCE(delivery_earnings,0) > 0;
+-- 3) Backfill from wallet_transactions - aggregate credits into agent_wallets
+-- This migrates historical earnings from wallet_transactions to agent_wallets
 
--- Migrate: insert earnings into agent_wallets where they don't exist or are zero
+-- Create temp table of earnings from transactions
+CREATE TEMP TABLE tmp_earnings_from_transactions AS
+SELECT 
+    agent_id,
+    SUM(amount) as total_earnings
+FROM public.wallet_transactions
+WHERE wallet_type = 'earnings_wallet' 
+    AND transaction_type = 'credit'
+    AND (reference_type != 'migration' OR reference_type IS NULL)
+GROUP BY agent_id;
+
+-- Upsert earnings into agent_wallets where current balance is 0 or NULL
 INSERT INTO public.agent_wallets (agent_id, earnings_wallet_balance, updated_at)
-SELECT t.agent_id, t.delivery_earnings, now()
-FROM tmp_migrated_agents t
+SELECT 
+    t.agent_id, 
+    t.total_earnings, 
+    now()
+FROM tmp_earnings_from_transactions t
 LEFT JOIN public.agent_wallets aw ON aw.agent_id = t.agent_id
-WHERE (aw.agent_id IS NULL) OR (COALESCE(aw.earnings_wallet_balance,0) = 0);
+WHERE aw.agent_id IS NULL OR COALESCE(aw.earnings_wallet_balance, 0) = 0
+ON CONFLICT (agent_id) DO UPDATE SET
+    earnings_wallet_balance = COALESCE(agent_wallets.earnings_wallet_balance, 0) + t.total_earnings,
+    updated_at = now();
 
--- Insert wallet_transactions for migrated rows (only for those we inserted)
+-- Record migration transactions for audit
 INSERT INTO public.wallet_transactions (agent_id, transaction_type, amount, wallet_type, reference_type, reference_id, description)
-SELECT aw.agent_id, 'credit', t.delivery_earnings, 'earnings_wallet', 'migration', NULL, 'Migrated delivery_earnings from delivery_agents'
-FROM tmp_migrated_agents t
-JOIN public.agent_wallets aw ON aw.agent_id = t.agent_id
-WHERE COALESCE(aw.earnings_wallet_balance,0) >= COALESCE(t.delivery_earnings,0)
-  AND NOT EXISTS (
-    SELECT 1 FROM public.wallet_transactions wt WHERE wt.agent_id = t.agent_id AND wt.reference_type = 'migration' AND wt.description LIKE 'Migrated delivery_earnings%'
-  );
-
--- 4) Zero out delivery_agents.delivery_earnings to prevent future confusion
-UPDATE public.delivery_agents da
-SET delivery_earnings = 0
-FROM tmp_migrated_agents t
-WHERE da.id = t.agent_id;
+SELECT 
+    t.agent_id,
+    'credit',
+    t.total_earnings,
+    'earnings_wallet',
+    'migration',
+    NULL,
+    'Migrated earnings from wallet_transactions'
+FROM tmp_earnings_from_transactions t
+WHERE NOT EXISTS (
+    SELECT 1 FROM public.wallet_transactions wt 
+    WHERE wt.agent_id = t.agent_id 
+    AND wt.reference_type = 'migration' 
+    AND wt.description LIKE 'Migrated earnings from wallet_transactions%'
+);
 
 COMMIT;
 

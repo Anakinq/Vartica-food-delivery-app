@@ -5,24 +5,27 @@ import { useToast } from './ToastContext';
 
 type UserRole = 'customer' | 'vendor' | 'delivery_agent' | 'admin' | 'cafeteria' | 'late_night_vendor';
 
-interface RoleContextType {
+// Define RoleContextType interface
+export interface RoleContextType {
     currentRole: UserRole;
     primaryRole: UserRole;
     availableRoles: UserRole[];
     isSwitching: boolean;
-    switchRole: (targetRole: UserRole) => Promise<void>;
+    switchRole: (role: UserRole) => void;
     canSwitchTo: (role: UserRole) => boolean;
     refreshRoles: () => Promise<void>;
 }
 
+// Create the context with a default value
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
-export const useRole = () => {
-    const context = useContext(RoleContext);
-    if (!context) {
-        throw new Error('useRole must be used within RoleProvider');
-    }
-    return context;
+// Valid roles for type checking
+const VALID_ROLES: UserRole[] = ['customer', 'vendor', 'delivery_agent', 'admin', 'cafeteria', 'late_night_vendor'];
+const ROLE_STORAGE_KEY = 'vartica_active_role';
+
+// Check if a role is valid
+const isValidRole = (role: string): role is UserRole => {
+    return VALID_ROLES.includes(role as UserRole);
 };
 
 export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -30,12 +33,12 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { error: showError } = useToast();
     const [isSwitching, setIsSwitching] = useState(false);
 
-    // Initialize currentRole from localStorage if available, otherwise default to 'customer'
+    // Initialize currentRole from localStorage if available and valid, otherwise default to 'customer'
     // This ensures the role persists across navigation and page reloads
     const [currentRole, setCurrentRole] = useState<UserRole>(() => {
         if (typeof window !== 'undefined') {
-            const savedRole = localStorage.getItem('activeRole');
-            if (savedRole) {
+            const savedRole = localStorage.getItem('vartica_active_role'); // Use prefixed key
+            if (savedRole && isValidRole(savedRole)) {
                 return savedRole as UserRole;
             }
         }
@@ -87,10 +90,12 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             // On initial load, sync role from hash if no saved role exists
             if (isInitialSync && hashRole) {
-                const savedRole = localStorage.getItem('activeRole');
-                if (!savedRole) {
-                    setCurrentRole(hashRole);
-                    localStorage.setItem('activeRole', hashRole);
+                const savedRole = localStorage.getItem('vartica_active_role'); // Use prefixed key
+                if (!savedRole || !isValidRole(savedRole)) {
+                    if (isValidRole(hashRole)) {
+                        setCurrentRole(hashRole);
+                        localStorage.setItem('vartica_active_role', hashRole);
+                    }
                 }
                 isInitialSync = false;
             }
@@ -138,7 +143,10 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
             sessionStorage.setItem('role_switch_target', targetRole);
 
             // Save the selected role to localStorage so it persists across navigation and page reloads
-            localStorage.setItem('activeRole', targetRole);
+            // Use prefixed key and validate before saving
+            if (isValidRole(targetRole)) {
+                localStorage.setItem('vartica_active_role', targetRole);
+            }
 
             // Update currentRole immediately for responsive UI
             setCurrentRole(targetRole);
@@ -218,4 +226,13 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
             {children}
         </RoleContext.Provider>
     );
+};
+
+// Custom hook to use the RoleContext
+export const useRole = (): RoleContextType => {
+    const context = useContext(RoleContext);
+    if (context === undefined) {
+        throw new Error('useRole must be used within a RoleProvider');
+    }
+    return context;
 };

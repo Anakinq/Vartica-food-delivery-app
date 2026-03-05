@@ -101,8 +101,8 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
     ];
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 z-50">
-            <nav className="bottom-nav bg-gray-900 border-t border-gray-800">
+        <div className="fixed bottom-0 left-0 right-0 z-50 pb-safe">
+            <nav className="bottom-nav bg-gray-900 border-t border-gray-800 pb-[env(safe-area-inset-bottom)]">
                 {navItems.map((item) => {
                     const IconComponent = item.icon;
                     const active = isActive(item.path);

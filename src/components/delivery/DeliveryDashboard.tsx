@@ -22,6 +22,7 @@ interface FullOrder extends Order {
     menu_item_id: string;
     menu_item?: { name: string };
   }>;
+  seller_name?: string;
 }
 
 interface AgentWallet {
@@ -764,8 +765,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                   <MapPin className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-bold text-gray-900">Delivery Dashboard</h1>
-                  <p className="text-sm text-gray-600 font-medium">{profile?.full_name}</p>
+                  <p className="text-base font-bold text-gray-900">{profile?.full_name}</p>
                 </div>
               </div>
 
@@ -989,137 +989,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
             </div>
           </div>
 
-          {/* Bank Setup */}
-          <div id="bank-section" className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center space-x-3">
-                {isBankVerified ? (
-                  <>
-                    <div className="p-2 bg-green-100 rounded-full">
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-green-700">Bank Details Saved</h3>
-                  </>
-                ) : (
-                  <>
-                    <div className="p-2 bg-yellow-100 rounded-full">
-                      <AlertCircle className="h-5 w-5 text-yellow-600" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-yellow-700">Bank Details Required</h3>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {!isBankVerified ? (
-              <>
-                <p className="text-gray-600 mb-4">
-                  Please save your bank account details. Admin will use this for manual withdrawals.
-                </p>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Account Number</label>
-                    <input
-                      type="text"
-                      value={bankAccount}
-                      onChange={(e) => setBankAccount(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                      placeholder="10-digit number"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      maxLength={10}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Bank</label>
-                    <select
-                      value={bankCode}
-                      onChange={(e) => setBankCode(e.target.value)}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Select Bank</option>
-                      {BANK_OPTIONS.map((bank) => (
-                        <option key={bank.code} value={bank.code}>
-                          {bank.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <button
-                    onClick={saveBankDetails}
-                    disabled={savingBank || !bankAccount || !bankCode || bankAccount.length !== 10}
-                    className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium transition-colors"
-                  >
-                    {savingBank ? 'Saving...' : 'Save Bank Details'}
-                  </button>
-                </div>
-              </>
-            ) : showBankForm ? (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h4 className="font-medium text-gray-900">Update Bank Details</h4>
-                  <button
-                    onClick={() => setShowBankForm(false)}
-                    className="text-sm text-gray-500 hover:text-gray-700"
-                  >
-                    Cancel
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Account Number</label>
-                    <input
-                      type="text"
-                      value={bankAccount}
-                      onChange={(e) => setBankAccount(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                      placeholder="10-digit number"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      maxLength={10}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Bank</label>
-                    <select
-                      value={bankCode}
-                      onChange={(e) => setBankCode(e.target.value)}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Select Bank</option>
-                      {BANK_OPTIONS.map((bank) => (
-                        <option key={bank.code} value={bank.code}>
-                          {bank.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <button
-                    onClick={saveBankDetails}
-                    disabled={savingBank || !bankAccount || !bankCode || bankAccount.length !== 10}
-                    className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium transition-colors"
-                  >
-                    {savingBank ? 'Saving...' : 'Update Bank Details'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <p className="text-gray-600">
-                    Your bank details are saved and ready for withdrawals.
-                  </p>
-                  <button
-                    onClick={() => setShowBankForm(true)}
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    Update
-                  </button>
-                </div>
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                  <p className="text-blue-800 font-medium">
-                    {bankName} •••• {bankAccount.slice(-4)}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Bank section removed from dashboard - available in profile */}
 
           {/* Order Tabs */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden">
@@ -1174,6 +1044,9 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                             <div className="flex justify-between items-start mb-2">
                               <div>
                                 <h4 className="font-medium text-gray-900">Order #{order.order_number}</h4>
+                                {order.seller_name && (
+                                  <p className="text-sm text-blue-600 font-medium">{order.seller_name}</p>
+                                )}
                                 <p className="text-sm text-gray-500">{new Date(order.created_at).toLocaleString()}</p>
                               </div>
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${order.status === 'delivered' ? 'bg-green-100 text-green-800' :
@@ -1281,6 +1154,9 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                           <div className="flex justify-between items-start mb-2">
                             <div>
                               <h4 className="font-medium text-gray-900">Order #{order.order_number}</h4>
+                              {order.seller_name && (
+                                <p className="text-sm text-blue-600 font-medium">{order.seller_name}</p>
+                              )}
                               <p className="text-sm text-gray-500">{new Date(order.created_at).toLocaleString()}</p>
                             </div>
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">

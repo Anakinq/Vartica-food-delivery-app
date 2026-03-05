@@ -1,11 +1,18 @@
 /**
  * Vartica PWA Service Worker
- * Version: 2.0.0 - Auto-increment on each deploy
+ * Version: Auto-generated from build
  * 
- * IMPORTANT: Change CACHE_VERSION on every deployment to force updates!
+ * This service worker uses cache versioning based on the build timestamp
+ * to ensure users always get the latest version after deployment.
  */
-const CACHE_VERSION = 'v2.0.1'; // CHANGE THIS ON EVERY DEPLOY
+
+// Use a unique cache version based on the current timestamp
+// This ensures the cache is invalidated on each deployment
+const CACHE_VERSION = `v${Date.now()}`;
 const CACHE_NAME = `vartica-${CACHE_VERSION}`;
+
+// Log the cache version for debugging
+console.log('[SW] Cache version:', CACHE_VERSION);
 
 // Files to cache immediately
 const STATIC_ASSETS = [

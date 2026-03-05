@@ -1,6 +1,26 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { MenuItem } from '../lib/supabase';
 import { Cart } from '../components/customer/Cart';
+
+const CART_STORAGE_KEY = 'vartica_cart';
+const CART_PACK_KEY = 'vartica_cart_pack';
+
+// Load cart from localStorage safely
+const loadCartFromStorage = (): { items: CartItem[], packCount: number } => {
+    if (typeof window === 'undefined') return { items: [], packCount: 0 };
+
+    try {
+        const savedItems = localStorage.getItem(CART_STORAGE_KEY);
+        const savedPackCount = localStorage.getItem(CART_PACK_KEY);
+        return {
+            items: savedItems ? JSON.parse(savedItems) : [],
+            packCount: savedPackCount ? parseInt(savedPackCount, 10) : 0
+        };
+    } catch (error) {
+        console.error('Error loading cart from storage:', error);
+        return { items: [], packCount: 0 };
+    }
+};
 
 interface CartItem extends MenuItem {
     quantity: number;
@@ -24,9 +44,32 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [items, setItems] = useState<CartItem[]>([]);
+    // Initialize from localStorage for persistence across page refreshes
+    const [items, setItems] = useState<CartItem[]>(() => loadCartFromStorage().items);
     const [isCartOpen, setIsCartOpen] = useState(false);
-    const [cartPackCount, setCartPackCount] = useState(0);
+    const [cartPackCount, setCartPackCount] = useState<number>(() => loadCartFromStorage().packCount);
+
+    // Persist cart to localStorage whenever it changes
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            try {
+                localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+            } catch (error) {
+                console.error('Error saving cart to storage:', error);
+            }
+        }
+    }, [items]);
+
+    // Persist pack count to localStorage
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            try {
+                localStorage.setItem(CART_PACK_KEY, cartPackCount.toString());
+            } catch (error) {
+                console.error('Error saving pack count to storage:', error);
+            }
+        }
+    }, [cartPackCount]);
 
     const openCart = useCallback(() => setIsCartOpen(true), []);
     const closeCart = useCallback(() => setIsCartOpen(false), []);
@@ -56,6 +99,15 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const clearCart = useCallback(() => {
         setItems([]);
         setCartPackCount(0);
+        // Clear from localStorage
+        if (typeof window !== 'undefined') {
+            try {
+                localStorage.removeItem(CART_STORAGE_KEY);
+                localStorage.removeItem(CART_PACK_KEY);
+            } catch (error) {
+                console.error('Error clearing cart from storage:', error);
+            }
+        }
         closeCart();
     }, [closeCart]);
 
