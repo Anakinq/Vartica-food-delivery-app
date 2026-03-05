@@ -1,7 +1,7 @@
 // src/components/customer/CustomerHome.tsx
 // Abuad Delivery Homepage - Following UI Specification
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { Search, ArrowLeft, Bell, Home, Package, User, X, Utensils, ShoppingBag, Moon, Bike, Filter } from 'lucide-react';
+import { Search, ArrowLeft, Bell, Home, Package, User, X, Utensils, ShoppingBag, Moon, Bike, Filter, MapPin, Star, Clock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Cafeteria, MenuItem } from '../../lib/supabase';
 import { Vendor } from '../../lib/supabase/types';
@@ -21,6 +21,10 @@ import { measureRenderTime } from '../../utils/performanceMonitoring';
 import { CafeteriaSection } from './CafeteriaSection';
 import { VendorSection } from './VendorSection';
 import { MemoizedSearchAndFilters } from './SearchAndFilters';
+import { ToastHome } from './ToastHome';
+import { ToastVendorList } from './ToastVendorList';
+import { ToastOrderPage } from './ToastOrder';
+import { ToastVendor } from '../../services/supabase/toast.service';
 
 interface CustomerHomeProps {
   onShowProfile?: () => void;
@@ -108,6 +112,11 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const [showVendorUpgrade, setShowVendorUpgrade] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+
+  // Toast state
+  const [toastView, setToastView] = useState<'home' | 'vendors' | 'order' | null>(null);
+  const [selectedToastHostel, setSelectedToastHostel] = useState<string | null>(null);
+  const [selectedToastVendor, setSelectedToastVendor] = useState<ToastVendor | null>(null);
 
   // Carousel state
   const [currentBanner, setCurrentBanner] = useState(0);
@@ -855,19 +864,35 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
               {/* Toast Tab - Show toast content */}
               {activeTab === 'toast' && (
-                <section className="mb-10 px-4">
-                  <div className="flex items-center space-x-2 mb-5">
-                    <Bike className="w-5 h-5 text-green-400" />
-                    <h2 className="text-xl font-bold text-white">Toast Services</h2>
-                  </div>
-                  <div className="text-center py-12">
-                    <div className="w-20 h-20 mx-auto mb-4 bg-gray-800 rounded-full flex items-center justify-center">
-                      <Bike className="w-10 h-10 text-gray-600" />
-                    </div>
-                    <h3 className="text-xl font-bold text-white mb-2">Toast Feature Coming Soon</h3>
-                    <p className="text-gray-400">We're working on bringing you toast-related services</p>
-                  </div>
-                </section>
+                !toastView ? (
+                  <ToastHome
+                    onBack={() => setActiveTab('cafeterias')}
+                    onSelectHostel={(hostel) => {
+                      setSelectedToastHostel(hostel);
+                      setToastView('vendors');
+                    }}
+                  />
+                ) : toastView === 'vendors' ? (
+                  <ToastVendorList
+                    hostelLocation={selectedToastHostel || ''}
+                    onBack={() => setToastView(null)}
+                    onSelectVendor={(vendor) => {
+                      setSelectedToastVendor(vendor);
+                      setToastView('order');
+                    }}
+                  />
+                ) : (
+                  <ToastOrderPage
+                    vendor={selectedToastVendor!}
+                    onBack={() => setToastView('vendors')}
+                    onOrderSuccess={() => {
+                      setToastView(null);
+                      setSelectedToastHostel(null);
+                      setSelectedToastVendor(null);
+                      toast.showToast('Order placed successfully!', 'success');
+                    }}
+                  />
+                )
               )}
             </>
           ) : (
