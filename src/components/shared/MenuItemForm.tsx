@@ -1,7 +1,7 @@
 // src/components/MenuItemForm.tsx
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
-import { MenuItem, VendorCategory } from '../../lib/supabase/types';
+import { MenuItem, VendorCategory, CafeteriaCategory } from '../../lib/supabase/types';
 import { uploadVendorImage } from '../../utils/imageUploader';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -33,24 +33,36 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
 
   // Dynamic categories state
   const [vendorCategories, setVendorCategories] = useState<VendorCategory[]>([]);
+  const [cafeteriaCategories, setCafeteriaCategories] = useState<CafeteriaCategory[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
-  const [newCategoryType, setNewCategoryType] = useState<'food' | 'product' | 'service' | 'general'>('general');
+
+  // Determine if this is a cafeteria user
+  const isCafeteria = profile?.role === 'cafeteria';
 
   // Determine if this is a business vendor vs food vendor
-  // Business vendors: late_night_vendor, or any vendor that should show product categories
   const isBusinessVendor = profile?.vendor?.vendor_type === 'late_night' ||
-    profile?.role === 'late_night_vendor' ||
     (profile?.vendor?.vendor_type && !['student'].includes(profile.vendor.vendor_type));
+
+  // Default categories for cafeterias (food-based)
+  const cafeteriaDefaultCategories = [
+    { id: 'breakfast', name: 'Breakfast', category_type: 'food' as const, sort_order: 1, is_active: true, cafeteria_id: '' },
+    { id: 'lunch', name: 'Lunch', category_type: 'food' as const, sort_order: 2, is_active: true, cafeteria_id: '' },
+    { id: 'dinner', name: 'Dinner', category_type: 'food' as const, sort_order: 3, is_active: true, cafeteria_id: '' },
+    { id: 'snacks', name: 'Snacks', category_type: 'food' as const, sort_order: 4, is_active: true, cafeteria_id: '' },
+    { id: 'drinks', name: 'Drinks', category_type: 'food' as const, sort_order: 5, is_active: true, cafeteria_id: '' },
+    { id: 'desserts', name: 'Desserts', category_type: 'food' as const, sort_order: 6, is_active: true, cafeteria_id: '' },
+    { id: 'other', name: 'Other', category_type: 'general' as const, sort_order: 7, is_active: true, cafeteria_id: '' },
+  ];
 
   // Default categories for business vendors
   const businessDefaultCategories = [
-    { id: 'electronics', name: 'Electronics', category_type: 'product', sort_order: 1, is_active: true, vendor_id: profile?.vendor?.id || '' },
-    { id: 'accessories', name: 'Accessories', category_type: 'product', sort_order: 2, is_active: true, vendor_id: profile?.vendor?.id || '' },
-    { id: 'clothing', name: 'Clothing', category_type: 'product', sort_order: 3, is_active: true, vendor_id: profile?.vendor?.id || '' },
-    { id: 'services', name: 'Services', category_type: 'service', sort_order: 4, is_active: true, vendor_id: profile?.vendor?.id || '' },
-    { id: 'other', name: 'Other', category_type: 'general', sort_order: 5, is_active: true, vendor_id: profile?.vendor?.id || '' },
+    { id: 'electronics', name: 'Electronics', category_type: 'product' as const, sort_order: 1, is_active: true, vendor_id: profile?.vendor?.id || '' },
+    { id: 'accessories', name: 'Accessories', category_type: 'product' as const, sort_order: 2, is_active: true, vendor_id: profile?.vendor?.id || '' },
+    { id: 'clothing', name: 'Clothing', category_type: 'product' as const, sort_order: 3, is_active: true, vendor_id: profile?.vendor?.id || '' },
+    { id: 'services', name: 'Services', category_type: 'service' as const, sort_order: 4, is_active: true, vendor_id: profile?.vendor?.id || '' },
+    { id: 'other', name: 'Other', category_type: 'general' as const, sort_order: 5, is_active: true, vendor_id: profile?.vendor?.id || '' },
   ];
 
   // Fetch vendor categories from database
@@ -67,20 +79,49 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
         .order('sort_order', { ascending: true });
 
       if (error) {
-        console.error('Error fetching categories:', error);
+        console.error('Error fetching vendor categories:', error);
       } else if (data) {
         setVendorCategories(data);
       }
     } catch (err) {
-      console.error('Error fetching categories:', err);
+      console.error('Error fetching vendor categories:', err);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  // Fetch cafeteria categories from database
+  const fetchCafeteriaCategories = async (cafeteriaId: string) => {
+    if (!cafeteriaId) return;
+
+    setLoadingCategories(true);
+    try {
+      const { data, error } = await supabase
+        .from('cafeteria_categories')
+        .select('*')
+        .eq('cafeteria_id', cafeteriaId)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching cafeteria categories:', error);
+      } else if (data) {
+        setCafeteriaCategories(data as unknown as CafeteriaCategory[]);
+      }
+    } catch (err) {
+      console.error('Error fetching cafeteria categories:', err);
     } finally {
       setLoadingCategories(false);
     }
   };
 
   useEffect(() => {
-    fetchVendorCategories();
-  }, [profile?.vendor?.id]);
+    if (isCafeteria && profile?.cafeteria?.id) {
+      fetchCafeteriaCategories(profile.cafeteria.id);
+    } else if (profile?.vendor?.id) {
+      fetchVendorCategories();
+    }
+  }, [profile?.vendor?.id, profile?.cafeteria?.id, isCafeteria]);
 
   useEffect(() => {
     setImagePreview(item?.image_url ? decodeURIComponent(item.image_url) : null);
@@ -98,32 +139,61 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
 
   // Add new custom category
   const handleAddCategory = async () => {
-    if (!newCategoryName.trim() || !profile?.vendor?.id) return;
+    if (!newCategoryName.trim()) return;
 
     try {
-      const { data, error } = await supabase
-        .from('vendor_categories')
-        .insert({
-          vendor_id: profile.vendor.id,
-          name: newCategoryName.trim(),
-          category_type: 'general', // All custom categories are general type
-          sort_order: vendorCategories.length + 1,
-          is_active: true,
-        })
-        .select()
-        .single();
+      if (isCafeteria && profile?.cafeteria?.id) {
+        // Add to cafeteria_categories
+        const { data, error } = await supabase
+          .from('cafeteria_categories')
+          .insert({
+            cafeteria_id: profile.cafeteria.id,
+            name: newCategoryName.trim(),
+            category_type: 'food',
+            sort_order: cafeteriaCategories.length + 1,
+            is_active: true,
+          })
+          .select()
+          .single();
 
-      if (error) {
-        showError('Failed to add category: ' + error.message);
-      } else {
-        setVendorCategories([...vendorCategories, data]);
-        setFormData({
-          ...formData,
-          category: data.name,
-          category_id: data.id
-        });
-        setNewCategoryName('');
-        setShowAddCategory(false);
+        if (error) {
+          showError('Failed to add category: ' + error.message);
+        } else {
+          setCafeteriaCategories([...cafeteriaCategories, data]);
+          setFormData({
+            ...formData,
+            category: data.name,
+            category_id: data.id
+          });
+          setNewCategoryName('');
+          setShowAddCategory(false);
+        }
+      } else if (profile?.vendor?.id) {
+        // Add to vendor_categories
+        const { data, error } = await supabase
+          .from('vendor_categories')
+          .insert({
+            vendor_id: profile.vendor.id,
+            name: newCategoryName.trim(),
+            category_type: 'general',
+            sort_order: vendorCategories.length + 1,
+            is_active: true,
+          })
+          .select()
+          .single();
+
+        if (error) {
+          showError('Failed to add category: ' + error.message);
+        } else {
+          setVendorCategories([...vendorCategories, data]);
+          setFormData({
+            ...formData,
+            category: data.name,
+            category_id: data.id
+          });
+          setNewCategoryName('');
+          setShowAddCategory(false);
+        }
       }
     } catch (err) {
       console.error('Error adding category:', err);
@@ -136,18 +206,33 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
     if (!confirm('Are you sure you want to delete this category? Items in this category will not be deleted.')) return;
 
     try {
-      const { error } = await supabase
-        .from('vendor_categories')
-        .update({ is_active: false })
-        .eq('id', categoryId);
+      if (isCafeteria) {
+        const { error } = await supabase
+          .from('cafeteria_categories')
+          .update({ is_active: false })
+          .eq('id', categoryId);
 
-      if (error) {
-        showError('Failed to delete category: ' + error.message);
+        if (error) {
+          showError('Failed to delete category: ' + error.message);
+        } else {
+          setCafeteriaCategories(cafeteriaCategories.filter(c => c.id !== categoryId));
+          if (formData.category_id === categoryId) {
+            setFormData({ ...formData, category: '', category_id: '' });
+          }
+        }
       } else {
-        setVendorCategories(vendorCategories.filter(c => c.id !== categoryId));
-        // Clear category selection if deleted category was selected
-        if (formData.category_id === categoryId) {
-          setFormData({ ...formData, category: '', category_id: '' });
+        const { error } = await supabase
+          .from('vendor_categories')
+          .update({ is_active: false })
+          .eq('id', categoryId);
+
+        if (error) {
+          showError('Failed to delete category: ' + error.message);
+        } else {
+          setVendorCategories(vendorCategories.filter(c => c.id !== categoryId));
+          if (formData.category_id === categoryId) {
+            setFormData({ ...formData, category: '', category_id: '' });
+          }
         }
       }
     } catch (err) {
@@ -169,7 +254,12 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
     }
 
     try {
-      await onSave({ ...formData }, imageFile || undefined);
+      // Convert empty category_id to null for UUID field
+      const dataToSave = {
+        ...formData,
+        category_id: formData.category_id || null
+      };
+      await onSave(dataToSave, imageFile || undefined);
     } catch (err) {
       console.error('Error saving item:', err);
       setError('Failed to save item. Please try again.');
@@ -190,18 +280,34 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
     }
   };
 
-  // Get categories to display
-  // Use database categories if they exist, otherwise use default categories
-  const displayCategories = vendorCategories.length > 0
-    ? vendorCategories
-    : businessDefaultCategories;
+  // Get categories to display based on user type
+  const getDisplayCategories = () => {
+    if (isCafeteria) {
+      return cafeteriaCategories.length > 0 ? cafeteriaCategories : cafeteriaDefaultCategories;
+    } else {
+      return vendorCategories.length > 0 ? vendorCategories : businessDefaultCategories;
+    }
+  };
+
+  const getDefaultCategories = () => isCafeteria ? cafeteriaDefaultCategories : businessDefaultCategories;
+
+  const displayCategories = getDisplayCategories();
+
+  // Check if current category is a custom category
+  const isCustomCategory = () => {
+    if (isCafeteria) {
+      return cafeteriaCategories.some(c => c.id === formData.category_id);
+    } else {
+      return vendorCategories.some(c => c.id === formData.category_id);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl max-w-2xl w-full p-6 max-h-[90vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">
-            {item ? 'Edit Product' : isBusinessVendor ? 'Add Product' : 'Add Menu Item'}
+            {item ? 'Edit Item' : isCafeteria ? 'Add Menu Item' : isBusinessVendor ? 'Add Product' : 'Add Menu Item'}
           </h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
             <X className="h-6 w-6" />
@@ -216,7 +322,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-900 mb-2">
               Item Name *
             </label>
             <input
@@ -224,27 +330,27 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder={isBusinessVendor ? "e.g., Laptop Stand" : "e.g., Cheeseburger"}
+              className="w-full px-4 py-3 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder={isCafeteria ? "e.g., Cheeseburger" : isBusinessVendor ? "e.g., Laptop Stand" : "e.g., Small Fries"}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-900 mb-2">
               Description
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder={isBusinessVendor ? "Describe your product/service..." : "Describe your item..."}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Price *
               </label>
               <input
@@ -254,93 +360,40 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
                 value={formData.price}
                 onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="0.00"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Category *
               </label>
 
               {loadingCategories ? (
-                <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50">
+                <div className="w-full px-4 py-3 border border-gray-400 rounded-lg bg-gray-100">
                   Loading categories...
                 </div>
-              ) : vendorCategories.length === 0 ? (
-                // Default categories shown directly
-                <select
-                  value={formData.category_id || formData.category}
-                  onChange={(e) => {
-                    const selectedCat = businessDefaultCategories.find(c => c.id === e.target.value || c.name === e.target.value);
-                    if (selectedCat) {
-                      setFormData({
-                        ...formData,
-                        category: selectedCat.name,
-                        category_id: selectedCat.id
-                      });
-                    } else {
-                      setFormData({
-                        ...formData,
-                        category: e.target.value,
-                        category_id: ''
-                      });
-                    }
-                  }}
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Select category</option>
-                  {businessDefaultCategories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-              ) : vendorCategories.length === 0 ? (
-                // No categories yet - prompt to add one
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-sm text-blue-700 mb-3">No categories yet. Add your first category to organize your items.</p>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                      placeholder="Category name"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      autoFocus
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddCategory}
-                      disabled={!newCategoryName.trim()}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      Add
-                    </button>
-                  </div>
-                </div>
               ) : (
-                <>
+                <div className="relative">
                   {showAddCategory ? (
                     // Inline add category form
-                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 mb-3">
-                      <p className="text-sm text-blue-700 mb-2">Add New Category</p>
+                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <p className="text-sm text-blue-800 mb-2 font-medium">Add New Category</p>
                       <div className="flex gap-2">
                         <input
                           type="text"
                           value={newCategoryName}
                           onChange={(e) => setNewCategoryName(e.target.value)}
                           placeholder="Category name"
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="flex-1 px-3 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           autoFocus
                         />
                         <button
                           type="button"
                           onClick={handleAddCategory}
                           disabled={!newCategoryName.trim()}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                          className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                         >
                           Add
                         </button>
@@ -350,7 +403,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
                             setShowAddCategory(false);
                             setNewCategoryName('');
                           }}
-                          className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                          className="px-3 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
                         >
                           Cancel
                         </button>
@@ -362,7 +415,10 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
                       <select
                         value={formData.category_id || formData.category}
                         onChange={(e) => {
-                          const selectedCat = vendorCategories.find(c => c.id === e.target.value);
+                          const categories = isCafeteria ? cafeteriaCategories : vendorCategories;
+                          const defaults = getDefaultCategories();
+                          const selectedCat = categories.find(c => c.id === e.target.value || c.name === e.target.value)
+                            || defaults.find(c => c.id === e.target.value || c.name === e.target.value);
                           if (selectedCat) {
                             setFormData({
                               ...formData,
@@ -378,17 +434,16 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
                           }
                         }}
                         required
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="flex-1 px-4 py-3 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
                         <option value="">Select category</option>
                         {displayCategories.map((cat: any) => (
-                          <option key={cat.id || cat.value} value={cat.id || cat.value}>
-                            {cat.name || cat.label}
+                          <option key={cat.id} value={cat.id}>
+                            {cat.name}
                           </option>
                         ))}
                       </select>
 
-                      {/* Add Category Button */}
                       <button
                         type="button"
                         onClick={() => setShowAddCategory(true)}
@@ -401,7 +456,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
                   )}
 
                   {/* Show delete button if it's a custom category */}
-                  {formData.category_id && vendorCategories.find(c => c.id === formData.category_id) && (
+                  {formData.category_id && isCustomCategory() && (
                     <div className="mt-2 flex items-center gap-2">
                       <span className="text-xs text-gray-500">
                         Custom category
@@ -415,59 +470,77 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
                       </button>
                     </div>
                   )}
-                </>
+                </div>
               )}
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {isBusinessVendor ? "Product Image" : "Product Image"}
+            <label className="block text-sm font-medium text-gray-900 mb-2">
+              Image
             </label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            />
-            {imagePreview && (
-              <div className="mt-2">
-                <img
-                  src={imagePreview || ''}
-                  alt="Preview"
-                  className="w-24 h-24 object-cover rounded-md border"
-                />
-              </div>
-            )}
+            <div className="border-2 border-dashed border-gray-400 rounded-lg p-4 text-center">
+              {imagePreview ? (
+                <div className="relative">
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="w-full h-48 object-cover rounded-lg mx-auto"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImageFile(null);
+                      setImagePreview(null);
+                      setFormData({ ...formData, image_url: '' });
+                    }}
+                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <label className="cursor-pointer block">
+                  <Upload className="h-10 w-10 text-gray-500 mx-auto mb-2" />
+                  <p className="text-sm text-gray-600">Click to upload image</p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center">
+          <div className="flex items-center gap-2">
             <input
               type="checkbox"
               id="is_available"
               checked={formData.is_available}
               onChange={(e) => setFormData({ ...formData, is_available: e.target.checked })}
-              className="h-4 w-4 text-blue-600 rounded"
+              className="w-5 h-5 text-blue-600 border-gray-400 rounded focus:ring-blue-500"
             />
-            <label htmlFor="is_available" className="ml-2 text-sm font-medium text-gray-700">
+            <label htmlFor="is_available" className="text-sm font-medium text-gray-900">
               Available for order
             </label>
           </div>
 
-          <div className="flex space-x-3 pt-4">
+          <div className="flex gap-3 pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50"
+              className="flex-1 px-4 py-3 border border-gray-400 text-gray-700 rounded-lg hover:bg-gray-100"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isUploading}
-              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-70"
+              className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
-              {isUploading ? 'Saving...' : item ? 'Update Product' : isBusinessVendor ? 'Add Product' : 'Add Item'}
+              {isUploading ? 'Saving...' : item ? 'Update' : 'Add Item'}
             </button>
           </div>
         </form>
@@ -475,3 +548,13 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
     </div>
   );
 };
+
+function Upload(props: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+    </svg>
+  );
+}
+
+export default MenuItemForm;

@@ -1,5 +1,5 @@
 ﻿// src/App.tsx - Hash-based Routing Implementation with Code Splitting
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { RoleProvider, useRole } from './contexts/RoleContext';
 import { initPerformanceMonitoring, monitorMemoryUsage } from './utils/performanceMonitoring';
@@ -41,6 +41,7 @@ import NotificationsPanel from './components/shared/NotificationsPanel';
 import { OrderTracking } from './components/customer/OrderTracking';
 import { CartProvider, useCart } from './contexts/CartContext';
 import { RoleSwitcher } from './components/shared/RoleSwitcher';
+import { usePrefetch } from './hooks/usePrefetch';
 
 // Loading fallback for Suspense
 const PageLoader = () => (
@@ -72,6 +73,41 @@ function AppContent() {
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [authView, setAuthView] = useState<'signin' | 'signup'>('signin');
   const [locationHash, setLocationHash] = useState(window.location.hash);
+
+  // Instant navigation state - for faster tab switching without hash changes
+  const [activeTab, setActiveTab] = useState('');
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  // Bottom navigation collapsed state
+  const [isNavCollapsed, setIsNavCollapsed] = useState(false);
+
+  // Prefetch hook for faster data loading
+  const { prefetchOrders, prefetchNotifications } = usePrefetch();
+
+  // Handle instant navigation from BottomNavigation (faster than hash changes)
+  const handleInstantNavigate = useCallback((path: string) => {
+    setIsNavigating(true);
+    setActiveTab(path);
+
+    // Prefetch data based on destination
+    if (user?.id) {
+      if (path === '/orders') {
+        prefetchOrders(user.id);
+      } else if (path === '/notifications') {
+        prefetchNotifications(user.id);
+      }
+    }
+
+    // Also update hash for shareability/bookmarking
+    window.location.hash = path;
+    // Reset navigating state after a short delay
+    setTimeout(() => setIsNavigating(false), 150);
+  }, [user?.id, prefetchOrders, prefetchNotifications]);
+
+  // Handle bottom navigation collapse state
+  const handleNavCollapseChange = useCallback((isCollapsed: boolean) => {
+    setIsNavCollapsed(isCollapsed);
+  }, []);
 
   // Track previous hash for profile navigation
   useEffect(() => {
@@ -154,7 +190,13 @@ function AppContent() {
               }}
             />
           </div>
-          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
+          <BottomNavigation
+            cartCount={cartCount}
+            notificationCount={0}
+            userRole={profile?.role}
+            onNavigate={handleInstantNavigate}
+            onCollapseChange={handleNavCollapseChange}
+          />
         </div>
       );
     }

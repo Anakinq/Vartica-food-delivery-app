@@ -60,6 +60,17 @@ export interface VendorCategory {
     updated_at?: string;
 }
 
+export interface CafeteriaCategory {
+    id: string;
+    cafeteria_id: string;
+    name: string;
+    category_type: 'food' | 'product' | 'service' | 'general';
+    sort_order: number;
+    is_active: boolean;
+    created_at?: string;
+    updated_at?: string;
+}
+
 export interface MenuItem {
     id: string;
     seller_id: string;

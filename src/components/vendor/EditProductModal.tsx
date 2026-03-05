@@ -107,10 +107,10 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     {/* Product Image */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-900 mb-1">
                             Product Image
                         </label>
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                        <div className="border-2 border-dashed border-gray-400 rounded-lg p-4 text-center">
                             {formData.image_url ? (
                                 <div className="relative">
                                     <img
@@ -157,7 +157,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
 
                     {/* Product Name */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-900 mb-1">
                             Product Name *
                         </label>
                         <input
@@ -165,14 +165,14 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             placeholder="Product Name"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                            className="w-full px-4 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-purple-500"
                             required
                         />
                     </div>
 
                     {/* Category */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-900 mb-1">
                             Category *
                         </label>
                         <input
@@ -180,14 +180,14 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                             value={formData.category}
                             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                             placeholder="Category"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                            className="w-full px-4 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-purple-500"
                             required
                         />
                     </div>
 
                     {/* Price */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-900 mb-1">
                             Price (₦) *
                         </label>
                         <input
@@ -197,14 +197,14 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                             placeholder="0.00"
                             min="0"
                             step="0.01"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                            className="w-full px-4 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-purple-500"
                             required
                         />
                     </div>
 
                     {/* Description */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-900 mb-1">
                             Description
                         </label>
                         <textarea
@@ -212,7 +212,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                             placeholder="Describe your product..."
                             rows={3}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                            className="w-full px-4 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-purple-500"
                         />
                     </div>
 

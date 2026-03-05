@@ -19,6 +19,13 @@ export interface ProfileWithVendor extends Profile {
     application_status: string;
   } | null;
   delivery_agent?: DeliveryAgent | null;
+  cafeteria?: {
+    id: string;
+    name: string;
+    description?: string;
+    image_url?: string;
+    is_active?: boolean;
+  } | null;
 }
 
 class SupabaseDatabaseService implements IDatabaseService {
@@ -327,9 +334,10 @@ class SupabaseDatabaseService implements IDatabaseService {
       console.log('Raw profile data for user', userId, ':', profileData);
 
       // Fetch related data in parallel for better performance
-      const [vendorData, deliveryAgentData] = await Promise.all([
+      const [vendorData, deliveryAgentData, cafeteriaData] = await Promise.all([
         this.fetchVendorData(userId, profileData),
-        this.fetchDeliveryAgentData(userId, profileData)
+        this.fetchDeliveryAgentData(userId, profileData),
+        this.fetchCafeteriaData(userId, profileData)
       ]);
 
       // Create profile with all related data
@@ -340,7 +348,8 @@ class SupabaseDatabaseService implements IDatabaseService {
           is_active: vendorData.is_active ?? false,
           application_status: vendorData.application_status || 'pending'
         } : null,
-        delivery_agent: deliveryAgentData
+        delivery_agent: deliveryAgentData,
+        cafeteria: cafeteriaData
       };
 
       console.log('Final profile+vendor data for user', userId, ':', profileWithVendor);
@@ -424,6 +433,33 @@ class SupabaseDatabaseService implements IDatabaseService {
       return agentData;
     } catch (error) {
       console.warn('Delivery agent query exception for user', userId, ':', error);
+      return null;
+    }
+  }
+
+  // Helper method to fetch cafeteria data
+  private async fetchCafeteriaData(userId: string, profileData: any) {
+    try {
+      // Check if user is a cafeteria
+      const isCafeteria = profileData.role === 'cafeteria';
+      if (!isCafeteria) {
+        return null;
+      }
+
+      const { data: cafeteriaData, error: cafeteriaError } = await supabase
+        .from('cafeterias')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (cafeteriaError) {
+        console.warn('Cafeteria fetch error for user', userId, ':', cafeteriaError);
+        return null;
+      }
+
+      return cafeteriaData;
+    } catch (error) {
+      console.warn('Cafeteria query exception for user', userId, ':', error);
       return null;
     }
   }
