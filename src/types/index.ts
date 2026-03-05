@@ -135,3 +135,52 @@ export type VendorType = 'student' | 'late_night';
 
 // Delivery option type
 export type DeliveryOption = 'offers_hostel_delivery' | 'does_not_offer_hostel_delivery';
+
+// Analytics types
+export interface OrderAnalytics {
+    totalOrders: number;
+    pendingOrders: number;
+    completedOrders: number;
+    cancelledOrders: number;
+    ordersByStatus: { name: string; value: number; color: string }[];
+    ordersByPaymentMethod: { name: string; value: number; color: string }[];
+    dailyOrders: { date: string; count: number; revenue: number }[];
+    averageOrderValue: number;
+}
+
+export interface UserAnalytics {
+    totalUsers: number;
+    usersByRole: { name: string; value: number; color: string }[];
+    dailyNewUsers: { date: string; count: number }[];
+    activeUsers: number;
+}
+
+export interface VendorAnalytics {
+    totalVendors: number;
+    activeVendors: number;
+    vendorsByCategory: { name: string; value: number; color: string }[];
+    topVendorsByRevenue: { name: string; revenue: number; orders: number }[];
+}
+
+export interface FinancialAnalytics {
+    totalRevenue: number;
+    revenueByPaymentMethod: { name: string; value: number; color: string }[];
+    dailyRevenue: { date: string; revenue: number }[];
+    platformEarnings: number;
+}
+
+export interface WithdrawalAnalytics {
+    totalWithdrawals: number;
+    withdrawalsByStatus: { name: string; value: number; color: string }[];
+    withdrawalsByType: { name: string; value: number; color: string }[];
+    dailyWithdrawals: { date: string; amount: number }[];
+    pendingAmount: number;
+}
+
+export interface DeliveryAnalytics {
+    totalAgents: number;
+    activeAgents: number;
+    agentsByStatus: { name: string; value: number; color: string }[];
+    topAgentsByDeliveries: { name: string; deliveries: number }[];
+    averageDeliveryTime: number;
+}

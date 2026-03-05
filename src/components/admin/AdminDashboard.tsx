@@ -9,6 +9,7 @@ import { BannerManagement } from './BannerManagement';
 import AdminSkeleton from './AdminSkeleton';
 import Pagination from '../common/Pagination';
 import { WithdrawalRecord } from '../../types';
+import AnalyticsDashboard from './AnalyticsDashboard';
 
 interface AdminDashboardProps {
   onShowProfile?: () => void;
@@ -29,7 +30,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
   const [orders, setOrders] = useState<Order[]>([]);
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRecord[]>([]);
   const [supportMessages, setSupportMessages] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'users' | 'orders' | 'withdrawals' | 'approvals' | 'support' | 'promo-codes' | 'banners'>('withdrawals');
+  const [activeTab, setActiveTab] = useState<'users' | 'orders' | 'withdrawals' | 'approvals' | 'support' | 'promo-codes' | 'banners' | 'analytics'>('analytics');
   const [loading, setLoading] = useState(true);
   const [processingWithdrawal, setProcessingWithdrawal] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -576,6 +577,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                   </div>
                 </button>
                 <button
+                  onClick={() => {
+                    setActiveTab('analytics');
+                    setShowMenu(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <div className="flex items-center space-x-2">
+                    <Package className="h-4 w-4" />
+                    <span>📊 Analytics</span>
+                  </div>
+                </button>
+                <button
                   onClick={signOut}
                   className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                 >
@@ -765,10 +778,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                 >
                   Banner Carousel
                 </button>
+                <button
+                  onClick={() => setActiveTab('analytics')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'analytics'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                    }`}
+                >
+                  📊 Analytics
+                </button>
               </nav>
             </div>
 
             <div className="p-6">
+              {activeTab === 'analytics' && (
+                <AnalyticsDashboard dateRange={dateRange} />
+              )}
               {activeTab === 'approvals' && (
                 <AdminApprovalDashboard />
               )}

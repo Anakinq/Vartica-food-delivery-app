@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { X, Send, Paperclip, Image, File, Download, Phone, RefreshCw } from 'lucide-react';
+import { X, Send, Paperclip, Image, File, Download, Phone, RefreshCw, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { databaseService } from '../../services';
@@ -230,6 +230,13 @@ export const ChatModal: React.FC<ChatModalProps> = ({
         <div className="bg-white w-full h-full sm:w-full sm:max-w-md md:max-w-lg sm:h-auto sm:max-h-[85vh] rounded-none sm:rounded-2xl flex flex-col shadow-2xl sm:my-auto">
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <div className="flex items-center gap-2">
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 rounded-full text-gray-600"
+                title="Back"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
               <h2 className="text-lg font-bold text-gray-900">Chat - Order #{orderNumber}</h2>
               <button
                 onClick={fetchMessages}

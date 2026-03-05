@@ -1,8 +1,149 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, Navigation, Clock, User } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { MapPin, Navigation, Clock, User, ArrowLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { notificationService } from '../../services/notification.service';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix for default marker icons in Leaflet with webpack/bundlers
+const defaultIcon = L.icon({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+});
+
+L.Marker.prototype.options.icon = defaultIcon;
+
+// Delivery Map Component using Leaflet
+interface DeliveryMapProps {
+    customerLocation: LocationData | null;
+    agentLocation: LocationData | null;
+}
+
+const DeliveryMap: React.FC<DeliveryMapProps> = ({ customerLocation, agentLocation }) => {
+    const mapRef = useRef<HTMLDivElement>(null);
+    const mapInstanceRef = useRef<L.Map | null>(null);
+    const customerMarkerRef = useRef<L.Marker | null>(null);
+    const agentMarkerRef = useRef<L.Marker | null>(null);
+    const routeLineRef = useRef<L.Polyline | null>(null);
+
+    // Initialize map
+    useEffect(() => {
+        if (!mapRef.current || mapInstanceRef.current) return;
+
+        // Default center (can be updated)
+        const defaultCenter: [number, number] = [6.5244, 3.3792]; // Lagos, Nigeria
+
+        const map = L.map(mapRef.current).setView(defaultCenter, 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        mapInstanceRef.current = map;
+
+        return () => {
+            if (mapInstanceRef.current) {
+                mapInstanceRef.current.remove();
+                mapInstanceRef.current = null;
+            }
+        };
+    }, []);
+
+    // Update markers and route when locations change
+    useEffect(() => {
+        if (!mapInstanceRef.current) return;
+
+        const map = mapInstanceRef.current;
+
+        // Remove existing markers
+        if (customerMarkerRef.current) {
+            map.removeLayer(customerMarkerRef.current);
+            customerMarkerRef.current = null;
+        }
+        if (agentMarkerRef.current) {
+            map.removeLayer(agentMarkerRef.current);
+            agentMarkerRef.current = null;
+        }
+        if (routeLineRef.current) {
+            map.removeLayer(routeLineRef.current);
+            routeLineRef.current = null;
+        }
+
+        const bounds: L.LatLngTuple[] = [];
+
+        // Add customer marker (blue)
+        if (customerLocation) {
+            const customerIcon = L.divIcon({
+                className: 'custom-marker',
+                html: '<div style="background-color: #3B82F6; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+
+            const customerLatLng: L.LatLngTuple = [customerLocation.latitude, customerLocation.longitude];
+            customerMarkerRef.current = L.marker(customerLatLng, { icon: customerIcon })
+                .addTo(map)
+                .bindPopup('<b>Customer Location</b><br>Delivery destination');
+            bounds.push(customerLatLng);
+        }
+
+        // Add agent marker (green)
+        if (agentLocation) {
+            const agentIcon = L.divIcon({
+                className: 'custom-marker',
+                html: '<div style="background-color: #22C55E; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg></div>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+
+            const agentLatLng: L.LatLngTuple = [agentLocation.latitude, agentLocation.longitude];
+            agentMarkerRef.current = L.marker(agentLatLng, { icon: agentIcon })
+                .addTo(map)
+                .bindPopup('<b>Delivery Agent</b><br>Current location');
+            bounds.push(agentLatLng);
+        }
+
+        // Draw route line between agent and customer
+        if (customerLocation && agentLocation) {
+            const routeLine = L.polyline(
+                [
+                    [agentLocation.latitude, agentLocation.longitude] as L.LatLngTuple,
+                    [customerLocation.latitude, customerLocation.longitude] as L.LatLngTuple
+                ],
+                {
+                    color: '#3B82F6',
+                    weight: 4,
+                    opacity: 0.7,
+                    dashArray: '10, 10'
+                }
+            ).addTo(map);
+            routeLineRef.current = routeLine;
+        }
+
+        // Fit map to show all markers
+        if (bounds.length > 0) {
+            if (bounds.length === 1) {
+                map.setView(bounds[0], 15);
+            } else {
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
+        }
+    }, [customerLocation, agentLocation]);
+
+    return (
+        <div
+            ref={mapRef}
+            className="h-64 w-full"
+            style={{ minHeight: '256px' }}
+        />
+    );
+};
 
 interface LocationTrackerProps {
     orderId: string;
@@ -220,124 +361,128 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-hidden">
                 <div className="p-6 border-b border-gray-200">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-xl font-bold text-gray-900">Order Tracking</h2>
+                    <div className="flex items-center gap-3">
                         <button
                             onClick={onClose}
-                            className="p-2 hover:bg-gray-100 rounded-full"
+                            className="p-2 hover:bg-gray-100 rounded-full text-gray-600"
+                            title="Back"
                         >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
+                            <ArrowLeft className="h-5 w-5" />
                         </button>
+                        <h2 className="text-xl font-bold text-gray-900">Order Tracking</h2>
                     </div>
+                    <button
+                        onClick={onClose}
+                        className="p-2 hover:bg-gray-100 rounded-full"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
 
-                    <div className="mt-4 flex items-center justify-between bg-blue-50 p-3 rounded-lg">
-                        <div className="flex items-center">
-                            <Clock className="h-4 w-4 text-blue-600 mr-2" />
-                            <span className="text-sm font-medium text-blue-800">Status: {orderStatus}</span>
+                <div className="mt-4 flex items-center justify-between bg-blue-50 p-3 rounded-lg">
+                    <div className="flex items-center">
+                        <Clock className="h-4 w-4 text-blue-600 mr-2" />
+                        <span className="text-sm font-medium text-blue-800">Status: {orderStatus}</span>
+                    </div>
+                    {distance !== null && (
+                        <div className="text-sm font-medium text-blue-800">
+                            {distance} km away
                         </div>
-                        {distance !== null && (
-                            <div className="text-sm font-medium text-blue-800">
-                                {distance} km away
+                    )}
+                </div>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-96">
+                {error && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                        {error}
+                    </div>
+                )}
+
+                {eta && (
+                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center">
+                            <Clock className="h-5 w-5 text-green-600 mr-2" />
+                            <span className="font-medium text-green-800">Estimated Arrival: {eta}</span>
+                        </div>
+                    </div>
+                )}
+
+                <div className="space-y-4">
+                    {/* Customer Location */}
+                    <div className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center mb-3">
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                                <User className="h-4 w-4 text-blue-600" />
                             </div>
+                            <h3 className="font-medium text-gray-900">Customer Location</h3>
+                        </div>
+
+                        {customerLocation ? (
+                            <div className="text-sm text-gray-600">
+                                <p>Lat: {customerLocation.latitude.toFixed(6)}</p>
+                                <p>Lng: {customerLocation.longitude.toFixed(6)}</p>
+                                <p>Updated: {new Date(customerLocation.timestamp).toLocaleTimeString()}</p>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-gray-500">Location not available</p>
                         )}
                     </div>
-                </div>
 
-                <div className="p-6 overflow-y-auto max-h-96">
-                    {error && (
-                        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-                            {error}
-                        </div>
-                    )}
-
-                    {eta && (
-                        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                            <div className="flex items-center">
-                                <Clock className="h-5 w-5 text-green-600 mr-2" />
-                                <span className="font-medium text-green-800">Estimated Arrival: {eta}</span>
+                    {/* Delivery Agent Location */}
+                    <div className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center mb-3">
+                            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                                <Navigation className="h-4 w-4 text-green-600" />
                             </div>
+                            <h3 className="font-medium text-gray-900">Delivery Agent Location</h3>
                         </div>
-                    )}
 
-                    <div className="space-y-4">
-                        {/* Customer Location */}
-                        <div className="border border-gray-200 rounded-lg p-4">
-                            <div className="flex items-center mb-3">
-                                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                                    <User className="h-4 w-4 text-blue-600" />
-                                </div>
-                                <h3 className="font-medium text-gray-900">Customer Location</h3>
+                        {deliveryAgentLocation ? (
+                            <div className="text-sm text-gray-600">
+                                <p>Lat: {deliveryAgentLocation.latitude.toFixed(6)}</p>
+                                <p>Lng: {deliveryAgentLocation.longitude.toFixed(6)}</p>
+                                <p>Updated: {new Date(deliveryAgentLocation.timestamp).toLocaleTimeString()}</p>
+                                {deliveryAgentLocation.accuracy && (
+                                    <p>Accuracy: ±{Math.round(deliveryAgentLocation.accuracy)}m</p>
+                                )}
                             </div>
+                        ) : (
+                            <p className="text-sm text-gray-500">Location not available</p>
+                        )}
+                    </div>
 
-                            {customerLocation ? (
-                                <div className="text-sm text-gray-600">
-                                    <p>Lat: {customerLocation.latitude.toFixed(6)}</p>
-                                    <p>Lng: {customerLocation.longitude.toFixed(6)}</p>
-                                    <p>Updated: {new Date(customerLocation.timestamp).toLocaleTimeString()}</p>
-                                </div>
-                            ) : (
-                                <p className="text-sm text-gray-500">Location not available</p>
-                            )}
-                        </div>
-
-                        {/* Delivery Agent Location */}
-                        <div className="border border-gray-200 rounded-lg p-4">
-                            <div className="flex items-center mb-3">
-                                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                                    <Navigation className="h-4 w-4 text-green-600" />
-                                </div>
-                                <h3 className="font-medium text-gray-900">Delivery Agent Location</h3>
-                            </div>
-
-                            {deliveryAgentLocation ? (
-                                <div className="text-sm text-gray-600">
-                                    <p>Lat: {deliveryAgentLocation.latitude.toFixed(6)}</p>
-                                    <p>Lng: {deliveryAgentLocation.longitude.toFixed(6)}</p>
-                                    <p>Updated: {new Date(deliveryAgentLocation.timestamp).toLocaleTimeString()}</p>
-                                    {deliveryAgentLocation.accuracy && (
-                                        <p>Accuracy: ±{Math.round(deliveryAgentLocation.accuracy)}m</p>
-                                    )}
-                                </div>
-                            ) : (
-                                <p className="text-sm text-gray-500">Location not available</p>
-                            )}
-                        </div>
-
-                        {/* Map Preview (Placeholder) */}
-                        <div className="border border-gray-200 rounded-lg overflow-hidden">
-                            <div className="bg-gray-100 h-48 flex items-center justify-center">
-                                <div className="text-center">
-                                    <MapPin className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                                    <p className="text-gray-500 text-sm">Interactive Map Preview</p>
-                                    <p className="text-gray-400 text-xs mt-1">Delivery route visualization</p>
-                                </div>
-                            </div>
-                        </div>
+                    {/* Map Preview with Leaflet */}
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                        <DeliveryMap
+                            customerLocation={customerLocation}
+                            agentLocation={deliveryAgentLocation}
+                        />
                     </div>
                 </div>
+            </div>
 
-                <div className="p-6 border-t border-gray-200">
-                    <div className="flex space-x-3">
-                        <button
-                            onClick={updateDeliveryAgentLocation}
-                            disabled={profile?.role !== 'delivery_agent'}
-                            className={`flex-1 py-3 px-4 rounded-lg font-medium ${profile?.role === 'delivery_agent'
-                                ? 'bg-green-600 text-white hover:bg-green-700'
-                                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                }`}
-                        >
-                            {profile?.role === 'delivery_agent' ? 'Update Location' : 'Delivery Only'}
-                        </button>
+            <div className="p-6 border-t border-gray-200">
+                <div className="flex space-x-3">
+                    <button
+                        onClick={updateDeliveryAgentLocation}
+                        disabled={profile?.role !== 'delivery_agent'}
+                        className={`flex-1 py-3 px-4 rounded-lg font-medium ${profile?.role === 'delivery_agent'
+                            ? 'bg-green-600 text-white hover:bg-green-700'
+                            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                            }`}
+                    >
+                        {profile?.role === 'delivery_agent' ? 'Update Location' : 'Delivery Only'}
+                    </button>
 
-                        <button
-                            onClick={onClose}
-                            className="flex-1 py-3 px-4 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300"
-                        >
-                            Close
-                        </button>
-                    </div>
+                    <button
+                        onClick={onClose}
+                        className="flex-1 py-3 px-4 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300"
+                    >
+                        Close
+                    </button>
                 </div>
             </div>
         </div>

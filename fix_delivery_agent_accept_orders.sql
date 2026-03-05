@@ -62,8 +62,35 @@ WITH CHECK (
 GRANT SELECT, UPDATE ON delivery_agents TO authenticated;
 GRANT SELECT ON orders TO authenticated;
 GRANT SELECT ON profiles TO authenticated;
+GRANT SELECT ON cafeterias TO authenticated;
+
+-- RLS policy: Allow delivery agents to read profiles (for customer names)
+DROP POLICY IF EXISTS "Delivery agents can read customer profiles" ON profiles;
+
+CREATE POLICY "Delivery agents can read customer profiles" ON profiles
+FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM delivery_agents 
+    WHERE delivery_agents.user_id = auth.uid()
+  )
+);
+
+-- RLS policy: Allow delivery agents to read cafeterias (for pickup locations)
+DROP POLICY IF EXISTS "Delivery agents can read cafeterias" ON cafeterias;
+
+CREATE POLICY "Delivery agents can read cafeterias" ON cafeterias
+FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM delivery_agents 
+    WHERE delivery_agents.user_id = auth.uid()
+  )
+);
 
 -- Verify the policies were created
-SELECT policyname, cmd, qual, with_check 
+SELECT policyname, cmd, qual 
 FROM pg_policies 
-WHERE tablename = 'orders';
+WHERE tablename IN ('orders', 'profiles', 'cafeterias');

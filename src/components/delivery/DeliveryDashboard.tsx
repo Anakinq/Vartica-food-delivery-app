@@ -23,6 +23,7 @@ interface FullOrder extends Order {
     menu_item?: { name: string };
   }>;
   seller_name?: string;
+  customer_name?: string;
 }
 
 interface AgentWallet {
@@ -256,17 +257,57 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
         }, {} as Record<string, { name: string }>);
       }
 
-      const attachItems = (orders: FullOrder[]) =>
-        orders.map(order => ({
+      const attachItems = async (orders: FullOrder[]) => {
+        // Fetch customer names
+        const userIds = [...new Set(orders.map(o => o.user_id).filter(Boolean))];
+        let customerMap: Record<string, { full_name: string }> = {};
+        if (userIds.length > 0) {
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', userIds);
+
+          if (profilesData) {
+            customerMap = profilesData.reduce((acc, profile) => {
+              acc[profile.id] = profile;
+              return acc;
+            }, {} as Record<string, { full_name: string }>);
+          }
+        }
+
+        // Fetch cafeteria names
+        const sellerIds = [...new Set(orders.map(o => o.seller_id).filter(Boolean))];
+        let cafeteriaMap: Record<string, { name: string }> = {};
+        if (sellerIds.length > 0) {
+          const { data: cafeteriasData } = await supabase
+            .from('cafeterias')
+            .select('id, name')
+            .in('id', sellerIds);
+
+          if (cafeteriasData) {
+            cafeteriaMap = cafeteriasData.reduce((acc, caf) => {
+              acc[caf.id] = caf;
+              return acc;
+            }, {} as Record<string, { name: string }>);
+          }
+        }
+
+        return orders.map(order => ({
           ...order,
+          customer_name: customerMap[order.user_id]?.full_name || 'Customer',
+          seller_name: cafeteriaMap[order.seller_id]?.name || order.seller_name || 'Cafeteria',
           order_items: (orderItemsByOrderId[order.id] || []).map(item => ({
             ...item,
             menu_item: menuItemMap[item.menu_item_id] || { name: 'Unknown Item' }
           }))
         }));
+      };
 
-      setMyOrders(attachItems(myOrdersData || []));
-      setAvailableOrders(attachItems(availableOrdersData));
+      const processedMyOrders = await attachItems(myOrdersData || []);
+      const processedAvailableOrders = await attachItems(availableOrdersData);
+
+      setMyOrders(processedMyOrders);
+      setAvailableOrders(processedAvailableOrders);
     } catch (err) {
       console.error('fetchData error', err);
       setMessage({ type: 'error', text: 'Error loading dashboard data. Please try refreshing the page.' });
@@ -1043,9 +1084,9 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                           <div key={order.id} className="border border-gray-200 rounded-lg p-4">
                             <div className="flex justify-between items-start mb-2">
                               <div>
-                                <h4 className="font-medium text-gray-900">Order #{order.order_number}</h4>
+                                <h4 className="font-medium text-gray-900">{order.customer_name || 'Customer'}</h4>
                                 {order.seller_name && (
-                                  <p className="text-sm text-blue-600 font-medium">{order.seller_name}</p>
+                                  <p className="text-sm text-blue-600 font-medium">📍 Pick up at: {order.seller_name}</p>
                                 )}
                                 <p className="text-sm text-gray-500">{new Date(order.created_at).toLocaleString()}</p>
                               </div>
@@ -1153,9 +1194,9 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                         <div key={order.id} className="border border-gray-200 rounded-lg p-4">
                           <div className="flex justify-between items-start mb-2">
                             <div>
-                              <h4 className="font-medium text-gray-900">Order #{order.order_number}</h4>
+                              <h4 className="font-medium text-gray-900">{order.customer_name || 'Customer'}</h4>
                               {order.seller_name && (
-                                <p className="text-sm text-blue-600 font-medium">{order.seller_name}</p>
+                                <p className="text-sm text-blue-600 font-medium">📍 Pick up at: {order.seller_name}</p>
                               )}
                               <p className="text-sm text-gray-500">{new Date(order.created_at).toLocaleString()}</p>
                             </div>
@@ -1222,7 +1263,10 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                             .filter(o => o.status === 'delivered' || o.status === 'cancelled')
                             .map(order => (
                               <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
-                                <td className="py-3 px-4 text-sm text-gray-900">#{order.order_number}</td>
+                                <td className="py-3 px-4 text-sm text-gray-900">
+                                  <div>{order.customer_name || 'Customer'}</div>
+                                  <div className="text-xs text-blue-600">{order.seller_name}</div>
+                                </td>
                                 <td className="py-3 px-4 text-sm text-gray-600">{new Date(order.created_at).toLocaleDateString()}</td>
                                 <td className="py-3 px-4 text-sm font-medium text-gray-900">{formatCurrency(order.total)}</td>
                                 <td className="py-3 px-4">
