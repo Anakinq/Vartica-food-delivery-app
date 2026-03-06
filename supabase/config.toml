@@ -3,12 +3,7 @@
 enabled = true
 verify_jwt = true
 import_map = "./functions/init-payment/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/init-payment/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/init-payment/*.html" ]
 
 [functions.handleAgentWithdrawal]
 enabled = true
@@ -21,3 +16,15 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/registerPaystackRecipient/deno.json"
 entrypoint = "./functions/registerPaystackRecipient/index.ts"
+
+[functions.init-agent-wallet]
+enabled = true
+verify_jwt = true
+import_map = "./functions/init-agent-wallet/deno.json"
+entrypoint = "./functions/init-agent-wallet/index.ts"
+
+[functions.verify-bank-account]
+enabled = true
+verify_jwt = true
+import_map = "./functions/verify-bank-account/deno.json"
+entrypoint = "./functions/verify-bank-account/index.ts"
