@@ -124,6 +124,13 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({ customerLocation, agentLocati
     useEffect(() => {
         if (!mapInstanceRef.current) return;
 
+        // Get google from window
+        const google = (window as any).google;
+        if (!google || !google.maps) {
+            console.warn('Google Maps not available for marker updates');
+            return;
+        }
+
         const map = mapInstanceRef.current;
 
         // Remove existing markers
