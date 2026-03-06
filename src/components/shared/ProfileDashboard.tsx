@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, HelpCircle, CreditCard, MapPin, MessageCircle, RefreshCw, Store, ArrowLeftRight, Download, Building2, X } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, HelpCircle, CreditCard, MapPin, MessageCircle, RefreshCw, Store, ArrowLeftRight, Download, Building2, X, Bike } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRole } from '../../contexts/RoleContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -19,6 +19,10 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
   const [showVendorUpgrade, setShowVendorUpgrade] = useState(false);
   const [showDeliveryAgentUpgrade, setShowDeliveryAgentUpgrade] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
+  
+  // Toast vendor detection
+  const [isToastVendor, setIsToastVendor] = useState(false);
+  const [loadingToastVendor, setLoadingToastVendor] = useState(false);
 
   // Determine current view based on hash
   const [currentView, setCurrentView] = useState<'customer' | 'vendor'>('customer');
@@ -129,6 +133,37 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
       fetchBankDetails();
     }
   }, [profile]);
+
+  // Check if user is a toast vendor
+  useEffect(() => {
+    const checkToastVendor = async () => {
+      if (!profile?.id) return;
+      
+      setLoadingToastVendor(true);
+      try {
+        const { data, error } = await supabase
+          .from('toast_vendors')
+          .select('id')
+          .eq('user_id', profile.id)
+          .maybeSingle();
+        
+        setIsToastVendor(!!data && !error);
+      } catch (err) {
+        console.error('Error checking toast vendor:', err);
+        setIsToastVendor(false);
+      } finally {
+        setLoadingToastVendor(false);
+      }
+    };
+    
+    checkToastVendor();
+  }, [profile?.id]);
+
+  // Determine if user is a pure customer (no other roles)
+  const isPureCustomer = profile?.role === 'customer' && 
+    !(profile as any)?.is_vendor && 
+    !(profile as any)?.is_delivery_agent && 
+    !isToastVendor;
 
   // Nigerian banks list
   const BANK_OPTIONS = [
@@ -687,31 +722,32 @@ const cycleAvatarStyle = () => {
                   </button>
 
                   {/* Role-related buttons */}
-                  {/* For pure customers: show switch to vendor + become delivery agent */}
-                  {profile?.role === 'customer' && (
+                  {/* For PURE customers: show all upgrade options (become vendor, toast vendor, delivery agent) */}
+                  {isPureCustomer && (
                     <>
                       <button
                         type="button"
-                        onClick={async () => {
-                          try {
-                            // Close the profile dashboard first
-                            if (onClose) {
-                              onClose();
-                            } else if (onBack) {
-                              onBack();
-                            }
-                            // Switch to vendor role using RoleContext
-                            await switchRole('vendor');
-                          } catch (error) {
-                            console.error('Failed to switch to vendor:', error);
-                            showToast('Failed to switch to vendor view', 'error');
-                          }
-                        }}
-                        disabled={isSwitching}
-                        className="flex items-center px-6 py-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-xl font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors w-full justify-center disabled:opacity-50"
+                        onClick={() => setShowVendorUpgrade(true)}
+                        className="flex items-center px-6 py-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-xl font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors w-full justify-center"
                       >
-                        <ArrowLeftRight className="h-5 w-5 mr-2" />
-                        {isSwitching ? 'Switching...' : 'Switch to Vendor View'}
+                        <Store className="h-5 w-5 mr-2" />
+                        Become a Vendor
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Navigate to toast vendor registration
+                          if (onClose) {
+                            onClose();
+                          } else if (onBack) {
+                            onBack();
+                          }
+                          window.location.hash = '#/toast-register';
+                        }}
+                        className="flex items-center px-6 py-3 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-xl font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors w-full justify-center"
+                      >
+                        <Bike className="h-5 w-5 mr-2" />
+                        Become a Toast Vendor
                       </button>
                       <button
                         type="button"
@@ -723,7 +759,7 @@ const cycleAvatarStyle = () => {
                     </>
                   )}
 
-                  {/* For vendors: show switch view button based on current view */}
+                  {/* For users with other roles (vendor, delivery_agent, or toast vendor): show switch buttons instead */}
                   {(profile?.role === 'vendor' || (profile as any)?.role === 'late_night_vendor') && (
                     <>
                       {currentRole === 'vendor' ? (
@@ -776,6 +812,33 @@ const cycleAvatarStyle = () => {
                         </button>
                       )}
                     </>
+                  )}
+
+                  {/* For delivery agents: show switch to customer button */}
+                  {profile?.role === 'delivery_agent' && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          // Close the profile dashboard first
+                          if (onClose) {
+                            onClose();
+                          } else if (onBack) {
+                            onBack();
+                          }
+                          // Switch to customer role using RoleContext
+                          await switchRole('customer');
+                        } catch (error) {
+                          console.error('Failed to switch to customer:', error);
+                          showToast('Failed to switch to customer view', 'error');
+                        }
+                      }}
+                      disabled={isSwitching}
+                      className="flex items-center px-6 py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors w-full justify-center disabled:opacity-50"
+                    >
+                      <ArrowLeftRight className="h-5 w-5 mr-2" />
+                      {isSwitching ? 'Switching...' : 'Switch to Customer View'}
+                    </button>
                   )}
 
                   <div className="flex justify-end">
