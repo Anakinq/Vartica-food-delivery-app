@@ -39,7 +39,11 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({ customerLocation, agentLocati
         // Default center (can be updated)
         const defaultCenter: [number, number] = [6.5244, 3.3792]; // Lagos, Nigeria
 
-        const map = L.map(mapRef.current).setView(defaultCenter, 13);
+        const map = L.map(mapRef.current, {
+            zoomControl: true,
+            dragging: true,
+            scrollWheelZoom: true
+        }).setView(defaultCenter, 13);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
@@ -48,15 +52,41 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({ customerLocation, agentLocati
         mapInstanceRef.current = map;
 
         // Fix: Invalidate map size after container is visible (for modal/popup layouts)
-        setTimeout(() => {
-            map.invalidateSize();
-        }, 200);
+        // Multiple attempts to ensure Leaflet calculates dimensions correctly
+        const invalidateMapSize = () => {
+            if (mapInstanceRef.current) {
+                mapInstanceRef.current.invalidateSize();
+            }
+        };
+
+        // Immediate invalidation
+        setTimeout(invalidateMapSize, 100);
+        // Delayed invalidation for CSS transitions
+        setTimeout(invalidateMapSize, 300);
+        // Additional invalidation for slow-loading modals
+        setTimeout(invalidateMapSize, 500);
+
+        // Set explicit container dimensions to prevent squished map
+        if (mapRef.current) {
+            mapRef.current.style.width = '100%';
+            mapRef.current.style.height = '256px';
+            mapRef.current.style.minHeight = '256px';
+        }
+
+        // Use ResizeObserver to handle dynamic container resizing
+        const resizeObserver = new ResizeObserver(() => {
+            invalidateMapSize();
+        });
+        if (mapRef.current) {
+            resizeObserver.observe(mapRef.current);
+        }
 
         return () => {
             if (mapInstanceRef.current) {
                 mapInstanceRef.current.remove();
                 mapInstanceRef.current = null;
             }
+            resizeObserver.disconnect();
         };
     }, []);
 
@@ -175,6 +205,8 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [distance, setDistance] = useState<number | null>(null);
     const [eta, setEta] = useState<string | null>(null);
+    // Fix Issue 3: Use database status instead of prop for consistency
+    const [currentStatus, setCurrentStatus] = useState<string>(orderStatus);
     const channelRef = useRef<any>(null);
 
     // Calculate distance between two points using Haversine formula
@@ -202,17 +234,43 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
     useEffect(() => {
         const fetchLocationData = async () => {
             try {
+                // Fix Issue 2 & 3: Fetch status and location from database
                 const { data: orderData, error } = await supabase
                     .from('orders')
-                    .select('customer_location, delivery_agent_location')
+                    .select('customer_location, delivery_agent_location, status, user_id')
                     .eq('id', orderId)
                     .single();
 
                 if (error) throw error;
 
+                // Fix Issue 3: Use database status for consistency
+                if (orderData?.status) {
+                    setCurrentStatus(orderData.status);
+                }
+
                 if (orderData?.customer_location) {
                     setCustomerLocation(orderData.customer_location);
+                } else if (orderData?.user_id) {
+                    // Fix Issue 2: Fallback - try to get location from user profile
+                    try {
+                        const { data: profileData } = await supabase
+                            .from('profiles')
+                            .select('latitude, longitude')
+                            .eq('id', orderData.user_id)
+                            .single();
+
+                        if (profileData?.latitude && profileData?.longitude) {
+                            setCustomerLocation({
+                                latitude: profileData.latitude,
+                                longitude: profileData.longitude,
+                                timestamp: new Date().toISOString()
+                            });
+                        }
+                    } catch (profileErr) {
+                        console.warn('Could not fetch customer profile location:', profileErr);
+                    }
                 }
+
                 if (orderData?.delivery_agent_location) {
                     setDeliveryAgentLocation(orderData.delivery_agent_location);
 
@@ -229,7 +287,9 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                     }
                 }
             } catch (err) {
-                setError('Failed to load location data');
+                // Fix Issue 2: More specific error message
+                const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+                setError(`Failed to load location data: ${errorMessage}`);
                 console.error('Location fetch error:', err);
             } finally {
                 setLoading(false);
@@ -238,7 +298,7 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
 
         fetchLocationData();
 
-        // Subscribe to real-time location updates
+        // Subscribe to real-time location and status updates
         channelRef.current = supabase
             .channel(`order-location-${orderId}`)
             .on(
@@ -249,7 +309,11 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                     table: 'orders',
                     filter: `id=eq.${orderId}`,
                 },
-                (payload) => {
+                (payload: any) => {
+                    // Fix Issue 3: Update status in real-time when database changes
+                    if (payload.new.status) {
+                        setCurrentStatus(payload.new.status);
+                    }
                     if (payload.new.customer_location) {
                         setCustomerLocation(payload.new.customer_location);
                     }
@@ -389,7 +453,8 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                 <div className="mt-4 flex items-center justify-between bg-blue-50 p-3 rounded-lg">
                     <div className="flex items-center">
                         <Clock className="h-4 w-4 text-blue-600 mr-2" />
-                        <span className="text-sm font-medium text-blue-800">Status: {orderStatus}</span>
+                        {/* Fix Issue 3: Use database status instead of prop for consistency */}
+                        <span className="text-sm font-medium text-blue-800">Status: {currentStatus}</span>
                     </div>
                     {distance !== null && (
                         <div className="text-sm font-medium text-blue-800">
