@@ -16,62 +16,109 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({ customerLocation, agentLocati
     const customerMarkerRef = useRef<google.maps.Marker | null>(null);
     const agentMarkerRef = useRef<google.maps.Marker | null>(null);
     const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
+    const [mapError, setMapError] = useState<string | null>(null);
+
+    // Check if Google Maps is loaded
+    const isGoogleMapsLoaded = () => {
+        return typeof window !== 'undefined' &&
+            (window as any).google &&
+            (window as any).google.maps;
+    };
 
     // Initialize Google Map
     useEffect(() => {
         if (!mapRef.current || mapInstanceRef.current) return;
 
-        // Check if Google Maps is loaded
-        if (typeof google === 'undefined' || !google.maps) {
-            console.error('Google Maps API not loaded');
-            return;
-        }
-
-        // Default center (Lagos, Nigeria)
-        const defaultCenter = { lat: 6.5244, lng: 3.3792 };
-
-        const map = new google.maps.Map(mapRef.current, {
-            center: defaultCenter,
-            zoom: 13,
-            zoomControl: true,
-            mapTypeControl: false,
-            streetViewControl: false,
-            fullscreenControl: false,
-            styles: [
-                {
-                    featureType: 'poi',
-                    elementType: 'labels',
-                    stylers: [{ visibility: 'off' }]
-                }
-            ]
-        });
-
-        mapInstanceRef.current = map;
-
-        // Initialize DirectionsRenderer for route
-        const directionsRenderer = new google.maps.DirectionsRenderer({
-            suppressMarkers: true,
-            polylineOptions: {
-                strokeColor: '#3B82F6',
-                strokeWeight: 4,
-                strokeOpacity: 0.7
+        // Wait for Google Maps to load with retries
+        const initMap = () => {
+            if (!isGoogleMapsLoaded()) {
+                console.log('Waiting for Google Maps to load...');
+                return;
             }
-        });
-        directionsRenderer.setMap(map);
-        directionsRendererRef.current = directionsRenderer;
 
-        // Set explicit dimensions
-        if (mapRef.current) {
-            mapRef.current.style.width = '100%';
-            mapRef.current.style.height = '256px';
-            mapRef.current.style.minHeight = '256px';
+            const google = (window as any).google;
+
+            // Default center (Lagos, Nigeria)
+            const center = { lat: 6.5244, lng: 3.3792 };
+
+            const map = new google.maps.Map(mapRef.current, {
+                center: center,
+                zoom: 13,
+                zoomControl: true,
+                mapTypeControl: false,
+                streetViewControl: false,
+                fullscreenControl: false,
+                styles: [
+                    {
+                        featureType: 'poi',
+                        elementType: 'labels',
+                        stylers: [{ visibility: 'off' }]
+                    }
+                ]
+            });
+
+            mapInstanceRef.current = map;
+
+            // Initialize DirectionsRenderer for route
+            const directionsRenderer = new google.maps.DirectionsRenderer({
+                suppressMarkers: true,
+                polylineOptions: {
+                    strokeColor: '#3B82F6',
+                    strokeWeight: 4,
+                    strokeOpacity: 0.7
+                }
+            });
+            directionsRenderer.setMap(map);
+            directionsRendererRef.current = directionsRenderer;
+
+            // Set explicit dimensions
+            if (mapRef.current) {
+                mapRef.current.style.width = '100%';
+                mapRef.current.style.height = '256px';
+                mapRef.current.style.minHeight = '256px';
+            }
+        };
+
+        // Try to init immediately, or wait for Google Maps
+        if (isGoogleMapsLoaded()) {
+            initMap();
+        } else {
+            // Retry every 500ms for up to 10 seconds
+            let attempts = 0;
+            const interval = setInterval(() => {
+                attempts++;
+                if (isGoogleMapsLoaded() || attempts >= 20) {
+                    clearInterval(interval);
+                    if (isGoogleMapsLoaded()) {
+                        initMap();
+                    } else {
+                        setMapError('Failed to load maps. Please refresh the page.');
+                    }
+                }
+            }, 500);
         }
 
         return () => {
-            mapInstanceRef.current = null;
-            directionsRendererRef.current = null;
+            if (mapInstanceRef.current) {
+                mapInstanceRef.current = null;
+            }
+            if (directionsRendererRef.current) {
+                directionsRendererRef.current = null;
+            }
         };
     }, []);
+
+    // Show error if map failed to load
+    if (mapError) {
+        return (
+            <div
+                className="w-full flex items-center justify-center bg-gray-100"
+                style={{ height: '256px', minHeight: '256px' }}
+            >
+                <p className="text-gray-500 text-sm">{mapError}</p>
+            </div>
+        );
+    }
 
     // Update markers and route when locations change
     useEffect(() => {
@@ -241,28 +288,11 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                     setCurrentStatus(orderData.status);
                 }
 
+                // Set customer location if available in order
                 if (orderData?.customer_location) {
                     setCustomerLocation(orderData.customer_location);
-                } else if (orderData?.user_id) {
-                    // Fix Issue 2: Fallback - try to get location from user profile
-                    try {
-                        const { data: profileData } = await supabase
-                            .from('profiles')
-                            .select('latitude, longitude')
-                            .eq('id', orderData.user_id)
-                            .single();
-
-                        if (profileData?.latitude && profileData?.longitude) {
-                            setCustomerLocation({
-                                latitude: profileData.latitude,
-                                longitude: profileData.longitude,
-                                timestamp: new Date().toISOString()
-                            });
-                        }
-                    } catch (profileErr) {
-                        console.warn('Could not fetch customer profile location:', profileErr);
-                    }
                 }
+                // Note: Profile location fallback removed - columns don't exist in profiles table
 
                 if (orderData?.delivery_agent_location) {
                     setDeliveryAgentLocation(orderData.delivery_agent_location);
