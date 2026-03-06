@@ -1,229 +1,54 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, Navigation, Clock, User, ArrowLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { notificationService } from '../../services/notification.service';
 
-// Delivery Map Component using Google Maps
+// Simple Delivery Map Component - shows location info without external map API
 interface DeliveryMapProps {
     customerLocation: LocationData | null;
     agentLocation: LocationData | null;
 }
 
 const DeliveryMap: React.FC<DeliveryMapProps> = ({ customerLocation, agentLocation }) => {
-    const mapRef = useRef<HTMLDivElement>(null);
-    const mapInstanceRef = useRef<google.maps.Map | null>(null);
-    const customerMarkerRef = useRef<google.maps.Marker | null>(null);
-    const agentMarkerRef = useRef<google.maps.Marker | null>(null);
-    const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
-    const [mapError, setMapError] = useState<string | null>(null);
-
-    // Check if Google Maps is loaded
-    const isGoogleMapsLoaded = () => {
-        return typeof window !== 'undefined' &&
-            (window as any).google &&
-            (window as any).google.maps;
-    };
-
-    // Initialize Google Map
-    useEffect(() => {
-        if (!mapRef.current || mapInstanceRef.current) return;
-
-        // Wait for Google Maps to load with retries
-        const initMap = () => {
-            if (!isGoogleMapsLoaded()) {
-                console.log('Waiting for Google Maps to load...');
-                return;
-            }
-
-            const google = (window as any).google;
-
-            // Default center (Lagos, Nigeria)
-            const center = { lat: 6.5244, lng: 3.3792 };
-
-            const map = new google.maps.Map(mapRef.current, {
-                center: center,
-                zoom: 13,
-                zoomControl: true,
-                mapTypeControl: false,
-                streetViewControl: false,
-                fullscreenControl: false,
-                styles: [
-                    {
-                        featureType: 'poi',
-                        elementType: 'labels',
-                        stylers: [{ visibility: 'off' }]
-                    }
-                ]
-            });
-
-            mapInstanceRef.current = map;
-
-            // Initialize DirectionsRenderer for route
-            const directionsRenderer = new google.maps.DirectionsRenderer({
-                suppressMarkers: true,
-                polylineOptions: {
-                    strokeColor: '#3B82F6',
-                    strokeWeight: 4,
-                    strokeOpacity: 0.7
-                }
-            });
-            directionsRenderer.setMap(map);
-            directionsRendererRef.current = directionsRenderer;
-
-            // Set explicit dimensions
-            if (mapRef.current) {
-                mapRef.current.style.width = '100%';
-                mapRef.current.style.height = '256px';
-                mapRef.current.style.minHeight = '256px';
-            }
-        };
-
-        // Try to init immediately, or wait for Google Maps
-        if (isGoogleMapsLoaded()) {
-            initMap();
-        } else {
-            // Retry every 500ms for up to 10 seconds
-            let attempts = 0;
-            const interval = setInterval(() => {
-                attempts++;
-                if (isGoogleMapsLoaded() || attempts >= 20) {
-                    clearInterval(interval);
-                    if (isGoogleMapsLoaded()) {
-                        initMap();
-                    } else {
-                        setMapError('Failed to load maps. Please refresh the page.');
-                    }
-                }
-            }, 500);
-        }
-
-        return () => {
-            if (mapInstanceRef.current) {
-                mapInstanceRef.current = null;
-            }
-            if (directionsRendererRef.current) {
-                directionsRendererRef.current = null;
-            }
-        };
-    }, []);
-
-    // Show error if map failed to load
-    if (mapError) {
-        return (
-            <div
-                className="w-full flex items-center justify-center bg-gray-100"
-                style={{ height: '256px', minHeight: '256px' }}
-            >
-                <p className="text-gray-500 text-sm">{mapError}</p>
-            </div>
-        );
-    }
-
-    // Update markers and route when locations change
-    useEffect(() => {
-        if (!mapInstanceRef.current) return;
-
-        // Get google from window
-        const google = (window as any).google;
-        if (!google || !google.maps) {
-            console.warn('Google Maps not available for marker updates');
-            return;
-        }
-
-        const map = mapInstanceRef.current;
-
-        // Remove existing markers
-        if (customerMarkerRef.current) {
-            customerMarkerRef.current.setMap(null);
-            customerMarkerRef.current = null;
-        }
-        if (agentMarkerRef.current) {
-            agentMarkerRef.current.setMap(null);
-            agentMarkerRef.current = null;
-        }
-
-        const bounds = new google.maps.LatLngBounds();
-        let hasMarkers = false;
-
-        // Add customer marker (blue)
-        if (customerLocation) {
-            const customerPos = { lat: customerLocation.latitude, lng: customerLocation.longitude };
-
-            const customerMarker = new google.maps.Marker({
-                position: customerPos,
-                map: map,
-                title: 'Customer Location',
-                icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 12,
-                    fillColor: '#3B82F6',
-                    fillOpacity: 1,
-                    strokeColor: '#ffffff',
-                    strokeWeight: 3
-                }
-            });
-
-            customerMarkerRef.current = customerMarker;
-            bounds.extend(customerPos);
-            hasMarkers = true;
-        }
-
-        // Add agent marker (green)
-        if (agentLocation) {
-            const agentPos = { lat: agentLocation.latitude, lng: agentLocation.longitude };
-
-            const agentMarker = new google.maps.Marker({
-                position: agentPos,
-                map: map,
-                title: 'Delivery Agent',
-                icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 12,
-                    fillColor: '#22C55E',
-                    fillOpacity: 1,
-                    strokeColor: '#ffffff',
-                    strokeWeight: 3
-                }
-            });
-
-            agentMarkerRef.current = agentMarker;
-            bounds.extend(agentPos);
-            hasMarkers = true;
-        }
-
-        // Fit map to show all markers
-        if (hasMarkers) {
-            map.fitBounds(bounds, { padding: 50 });
-        }
-
-        // Draw route between agent and customer
-        if (customerLocation && agentLocation && directionsRendererRef.current) {
-            const directionsService = new google.maps.DirectionsService();
-            const origin = { lat: agentLocation.latitude, lng: agentLocation.longitude };
-            const destination = { lat: customerLocation.latitude, lng: customerLocation.longitude };
-
-            directionsService.route(
-                {
-                    origin: origin,
-                    destination: destination,
-                    travelMode: google.maps.TravelMode.DRIVING
-                },
-                (result, status) => {
-                    if (status === google.maps.DirectionsStatus.OK && result) {
-                        directionsRendererRef.current?.setDirections(result);
-                    }
-                }
-            );
-        }
-    }, [customerLocation, agentLocation]);
-
     return (
         <div
-            ref={mapRef}
             className="w-full"
-            style={{ height: '256px', minHeight: '256px' }}
-        />
+            style={{ height: '200px', minHeight: '200px' }}
+        >
+            {/* Map Preview - Simple visual without external API */}
+            <div className="h-full w-full bg-gradient-to-br from-blue-50 to-green-50 rounded-lg flex flex-col items-center justify-center p-4">
+                <div className="flex items-center gap-8">
+                    {/* Customer marker */}
+                    <div className="flex flex-col items-center">
+                        <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                            <User className="h-5 w-5 text-white" />
+                        </div>
+                        <span className="text-xs mt-1 text-gray-600">Customer</span>
+                    </div>
+
+                    {/* Connection line */}
+                    <div className="flex-1 h-1 bg-gradient-to-r from-blue-500 to-green-500 rounded" style={{ minWidth: '50px' }}></div>
+
+                    {/* Agent marker */}
+                    <div className="flex flex-col items-center">
+                        <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
+                            <Navigation className="h-5 w-5 text-white" />
+                        </div>
+                        <span className="text-xs mt-1 text-gray-600">Driver</span>
+                    </div>
+                </div>
+
+                {/* Location info */}
+                <div className="mt-4 text-center text-sm text-gray-500">
+                    {customerLocation && agentLocation ? (
+                        <p>Tracking delivery in progress</p>
+                    ) : (
+                        <p>Waiting for location data...</p>
+                    )}
+                </div>
+            </div>
+        </div>
     );
 };
 
@@ -299,7 +124,6 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                 if (orderData?.customer_location) {
                     setCustomerLocation(orderData.customer_location);
                 }
-                // Note: Profile location fallback removed - columns don't exist in profiles table
 
                 if (orderData?.delivery_agent_location) {
                     setDeliveryAgentLocation(orderData.delivery_agent_location);
@@ -555,7 +379,7 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                             )}
                         </div>
 
-                        {/* Map Preview with Leaflet */}
+                        {/* Map Preview */}
                         <div className="border border-gray-200 rounded-lg overflow-hidden">
                             <DeliveryMap
                                 customerLocation={customerLocation}
