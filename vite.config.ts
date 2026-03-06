@@ -73,8 +73,12 @@ export default defineConfig(({ mode }) => {
     ],
     base: '/', // Keep as '/' for Vercel deployment
     optimizeDeps: {
-      exclude: ['lucide-react'],
-      include: ['@supabase/supabase-js', 'react', 'react-dom', 'react-router-dom'], // Pre-bundle dependencies
+      include: [
+        'react',
+        'react-dom',
+        'react-router-dom',
+        '@supabase/supabase-js'
+      ],
     },
     define: {
       // Make process.env available in the browser
@@ -87,39 +91,15 @@ export default defineConfig(({ mode }) => {
       sourcemap: !isProduction, // Generate source maps in development
       rollupOptions: {
         output: {
-          // Simplified chunking to avoid React bundling issues
-          manualChunks: (id) => {
-            if (id.includes('node_modules')) {
-              if (id.includes('react') || id.includes('react-dom')) {
-                return 'react';
-              }
-              if (id.includes('@supabase')) {
-                return 'supabase';
-              }
-              if (id.includes('lucide-react')) {
-                return 'ui';
-              }
-              return 'vendor';
-            }
-          },
-          // Optimize chunk naming
+          // Use Vite's default chunking - it handles React properly
+          // Custom manualChunks was causing forwardRef errors
           chunkFileNames: 'assets/[name]-[hash].js',
           entryFileNames: 'assets/[name]-[hash].js',
           assetFileNames: 'assets/[name]-[hash].[ext]',
         },
       },
-      minify: 'terser',
-      terserOptions: isProduction
-        ? {
-          compress: {
-            drop_console: true, // Remove console.* in production
-            drop_debugger: true,
-            pure_funcs: ['console.log', 'console.debug', 'console.info'], // Remove specific console methods
-            passes: 1, // Single compression pass to avoid issues
-          },
-          mangle: false, // Disable mangling to prevent React issues
-        }
-        : undefined,
+      // Use default esbuild minifier - terser can cause React issues
+      minify: 'esbuild',
       // Enable CSS code splitting
       cssCodeSplit: true,
       // Enable asset inlining for small files
