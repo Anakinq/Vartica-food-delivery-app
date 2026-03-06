@@ -16,6 +16,7 @@
     "preview-build": "vite preview --port 4173"
   },
   "dependencies": {
+    "@react-google-maps/api": "^2.20.8",
     "@sentry/browser": "^7.88.0",
     "@sentry/react": "^7.88.0",
     "@supabase/supabase-js": "^2.39.0",

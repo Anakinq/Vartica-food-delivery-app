@@ -1,85 +1,157 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, Navigation, Clock, User, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Navigation, Clock, User, ArrowLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { notificationService } from '../../services/notification.service';
+import { GoogleMap, useJsApiLoader, Marker, Polyline, InfoWindow } from '@react-google-maps/api';
 
-// Simple Delivery Map Component - shows location info without external map API
+// Google Maps configuration
+const mapContainerStyle = {
+  width: '100%',
+  height: '256px'
+};
+
+const defaultCenter = {
+  lat: 6.5244,
+  lng: 3.3792
+};
+
+const mapOptions = {
+  disableDefaultUI: false,
+  zoomControl: true,
+  streetViewControl: false,
+  mapTypeControl: false,
+  fullscreenControl: false,
+  styles: [
+    {
+      featureType: 'poi',
+      elementType: 'labels',
+      stylers: [{ visibility: 'off' }]
+    }
+  ]
+};
+
+// Map Component with Google Maps
 interface DeliveryMapProps {
     customerLocation: LocationData | null;
     agentLocation: LocationData | null;
 }
 
 const DeliveryMap: React.FC<DeliveryMapProps> = ({ customerLocation, agentLocation }) => {
-    const hasCustomer = !!customerLocation;
-    const hasAgent = !!agentLocation;
-    
-    return (
-        <div
-            className="w-full"
-            style={{ height: '240px', minHeight: '240px' }}
-        >
-            {/* Map Preview - Simple visual without external API */}
-            <div className="h-full w-full bg-gradient-to-br from-blue-50 to-green-50 rounded-lg flex flex-col p-4">
-                {/* Map area with markers */}
-                <div className="flex-1 flex items-center justify-center">
-                    <div className="flex items-center gap-4 w-full max-w-xs">
-                        {/* Customer marker */}
-                        <div className="flex flex-col items-center flex-1">
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg ${hasCustomer ? 'bg-blue-500' : 'bg-gray-300'}`}>
-                                <User className="h-6 w-6 text-white" />
-                            </div>
-                            <span className="text-xs mt-2 font-medium text-gray-700">Customer</span>
-                            {customerLocation ? (
-                                <span className="text-xs text-green-600 mt-1">✓ Located</span>
-                            ) : (
-                                <span className="text-xs text-gray-400 mt-1">Waiting...</span>
-                            )}
-                        </div>
-                        
-                        {/* Connection line */}
-                        <div className="flex-1 h-2 bg-gradient-to-r from-blue-500 to-green-500 rounded-full"></div>
-                        
-                        {/* Agent marker */}
-                        <div className="flex flex-col items-center flex-1">
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg ${hasAgent ? 'bg-green-500' : 'bg-gray-300'}`}>
-                                <Navigation className="h-6 w-6 text-white" />
-                            </div>
-                            <span className="text-xs mt-2 font-medium text-gray-700">Driver</span>
-                            {agentLocation ? (
-                                <span className="text-xs text-green-600 mt-1">✓ Active</span>
-                            ) : (
-                                <span className="text-xs text-gray-400 mt-1">Waiting...</span>
-                            )}
-                        </div>
-                    </div>
-                </div>
-                
-                {/* Location details */}
-                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-white/80 rounded p-2">
-                        <div className="font-medium text-gray-700">Customer:</div>
-                        {customerLocation ? (
-                            <div className="text-gray-600">
-                                {customerLocation.latitude.toFixed(4)}, {customerLocation.longitude.toFixed(4)}
-                            </div>
-                        ) : (
-                            <div className="text-gray-400">No location data</div>
-                        )}
-                    </div>
-                    <div className="bg-white/80 rounded p-2">
-                        <div className="font-medium text-gray-700">Driver:</div>
-                        {agentLocation ? (
-                            <div className="text-gray-600">
-                                {agentLocation.latitude.toFixed(4)}, {agentLocation.longitude.toFixed(4)}
-                            </div>
-                        ) : (
-                            <div className="text-gray-400">No location data</div>
-                        )}
-                    </div>
+    const { isLoaded, loadError } = useJsApiLoader({
+        googleMapsApiKey: 'AIzaSyBb8LPZ3bX5MPFSiUj90iyAjCwvWJnzjz0'
+    });
+
+    const [map, setMap] = useState<google.maps.Map | null>(null);
+    const [selectedMarker, setSelectedMarker] = useState<'customer' | 'agent' | null>(null);
+
+    const onLoad = useCallback((map: google.maps.Map) => {
+        setMap(map);
+    }, []);
+
+    const onUnmount = useCallback(() => {
+        setMap(null);
+    }, []);
+
+    // Fit bounds when locations change
+    useEffect(() => {
+        if (!map || !isLoaded) return;
+
+        const bounds = new google.maps.LatLngBounds();
+        let hasPoints = false;
+
+        if (customerLocation) {
+            bounds.extend({ lat: customerLocation.latitude, lng: customerLocation.longitude });
+            hasPoints = true;
+        }
+        if (agentLocation) {
+            bounds.extend({ lat: agentLocation.latitude, lng: agentLocation.longitude });
+            hasPoints = true;
+        }
+
+        if (hasPoints) {
+            map.fitBounds(bounds, { padding: 50 });
+        }
+    }, [map, customerLocation, agentLocation, isLoaded]);
+
+    if (loadError) {
+        return (
+            <div className="w-full flex items-center justify-center bg-gray-100" style={{ height: '256px' }}>
+                <p className="text-gray-500">Error loading maps</p>
+            </div>
+        );
+    }
+
+    if (!isLoaded) {
+        return (
+            <div className="w-full flex items-center justify-center bg-gray-100" style={{ height: '256px' }}>
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                    <p className="text-gray-500 text-sm">Loading map...</p>
                 </div>
             </div>
-        </div>
+        );
+    }
+
+    return (
+        <GoogleMap
+            mapContainerStyle={mapContainerStyle}
+            center={defaultCenter}
+            zoom={13}
+            options={mapOptions}
+            onLoad={onLoad}
+            onUnmount={onUnmount}
+        >
+            {/* Customer Marker */}
+            {customerLocation && (
+                <Marker
+                    position={{ lat: customerLocation.latitude, lng: customerLocation.longitude }}
+                    title="Customer Location"
+                    onClick={() => setSelectedMarker('customer')}
+                    icon={{
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 12,
+                        fillColor: '#3B82F6',
+                        fillOpacity: 1,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 3
+                    }}
+                />
+            )}
+
+            {/* Agent Marker */}
+            {agentLocation && (
+                <Marker
+                    position={{ lat: agentLocation.latitude, lng: agentLocation.longitude }}
+                    title="Delivery Agent"
+                    onClick={() => setSelectedMarker('agent')}
+                    icon={{
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 12,
+                        fillColor: '#22C55E',
+                        fillOpacity: 1,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 3
+                    }}
+                />
+            )}
+
+            {/* Route Line */}
+            {customerLocation && agentLocation && (
+                <Polyline
+                    path={[
+                        { lat: agentLocation.latitude, lng: agentLocation.longitude },
+                        { lat: customerLocation.latitude, lng: customerLocation.longitude }
+                    ]}
+                    options={{
+                        strokeColor: '#3B82F6',
+                        strokeOpacity: 0.7,
+                        strokeWeight: 4,
+                        geodesic: true
+                    }}
+                />
+            )}
+        </GoogleMap>
     );
 };
 
@@ -111,28 +183,23 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
     const [currentStatus, setCurrentStatus] = useState<string>(orderStatus);
     const channelRef = useRef<any>(null);
 
-    // Calculate distance between two points using Haversine formula
     const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-        const R = 6371; // Earth's radius in km
+        const R = 6371;
         const dLat = (lat2 - lat1) * Math.PI / 180;
         const dLon = (lon2 - lon1) * Math.PI / 180;
-        const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
             Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
             Math.sin(dLon / 2) * Math.sin(dLon / 2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c; // Distance in km
+        return R * c;
     };
 
-    // Estimate ETA based on distance and average speed (30 km/h)
     const estimateEta = (dist: number): string => {
         if (dist <= 0) return 'Arriving soon';
-        const timeInHours = dist / 30;
-        const timeInMinutes = Math.round(timeInHours * 60);
+        const timeInMinutes = Math.round((dist / 30) * 60);
         return timeInMinutes > 0 ? `${timeInMinutes} min` : 'Arriving soon';
     };
 
-    // Fetch initial location data
     useEffect(() => {
         const fetchLocationData = async () => {
             try {
@@ -169,7 +236,6 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
             } catch (err) {
                 const errorMessage = err instanceof Error ? err.message : 'Unknown error';
                 setError(`Failed to load location data: ${errorMessage}`);
-                console.error('Location fetch error:', err);
             } finally {
                 setLoading(false);
             }
@@ -177,7 +243,6 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
 
         fetchLocationData();
 
-        // Subscribe to real-time location and status updates
         channelRef.current = supabase
             .channel(`order-location-${orderId}`)
             .on(
@@ -197,7 +262,6 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                     }
                     if (payload.new.delivery_agent_location) {
                         setDeliveryAgentLocation(payload.new.delivery_agent_location);
-
                         if (payload.new.customer_location && payload.new.delivery_agent_location) {
                             const dist = calculateDistance(
                                 payload.new.delivery_agent_location.latitude,
@@ -220,12 +284,11 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
         };
     }, [orderId]);
 
-    // Update delivery agent location
     const updateDeliveryAgentLocation = async () => {
         if (!profile || !profile.id) return;
 
         if (!navigator.geolocation) {
-            setError('Geolocation is not supported by your browser');
+            setError('Geolocation is not supported');
             return;
         }
 
@@ -240,9 +303,7 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
 
                 const { error } = await supabase
                     .from('orders')
-                    .update({
-                        delivery_agent_location: locationData
-                    })
+                    .update({ delivery_agent_location: locationData })
                     .eq('id', orderId)
                     .eq('delivery_agent_id', profile.id);
 
@@ -256,28 +317,25 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
 
                         if (orderData) {
                             await notificationService.sendOrderStatusUpdate(orderData.order_number, orderData.user_id, 'picked_up');
-
                             if (orderData.seller_id && orderData.seller_type === 'vendor') {
                                 await notificationService.sendOrderStatusUpdate(orderData.order_number, orderData.seller_id, 'picked_up');
                             }
                         }
                     } catch (notificationError) {
-                        console.error('Error sending location update notification:', notificationError);
+                        console.error('Error sending notification:', notificationError);
                     }
                 }
 
                 if (error) {
                     setError('Failed to update location');
-                    console.error('Location update error:', error);
                 }
             },
             (err) => {
-                setError(`Unable to retrieve your location: ${err.message}`);
+                setError(`Unable to get location: ${err.message}`);
             }
         );
     };
 
-    // Update location every 30 seconds if user is a delivery agent
     useEffect(() => {
         if (profile?.role === 'delivery_agent') {
             const interval = setInterval(updateDeliveryAgentLocation, 30000);
@@ -301,47 +359,33 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
-                {/* Header */}
                 <div className="p-6 border-b border-gray-200 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <button
-                            onClick={onClose}
-                            className="p-2 hover:bg-gray-100 rounded-full text-gray-600"
-                            title="Back"
-                        >
+                        <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full text-gray-600">
                             <ArrowLeft className="h-5 w-5" />
                         </button>
                         <h2 className="text-xl font-bold text-gray-900">Order Tracking</h2>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 hover:bg-gray-100 rounded-full"
-                    >
+                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
 
-                {/* Status Bar */}
                 <div className="mx-6 mt-4 flex items-center justify-between bg-blue-50 p-3 rounded-lg">
                     <div className="flex items-center">
                         <Clock className="h-4 w-4 text-blue-600 mr-2" />
                         <span className="text-sm font-medium text-blue-800">Status: {currentStatus}</span>
                     </div>
                     {distance !== null && (
-                        <div className="text-sm font-medium text-blue-800">
-                            {distance} km away
-                        </div>
+                        <div className="text-sm font-medium text-blue-800">{distance} km away</div>
                     )}
                 </div>
 
-                {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto p-6">
                     {error && (
-                        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-                            {error}
-                        </div>
+                        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>
                     )}
 
                     {eta && (
@@ -354,7 +398,6 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                     )}
 
                     <div className="space-y-4">
-                        {/* Customer Location */}
                         <div className="border border-gray-200 rounded-lg p-4">
                             <div className="flex items-center mb-3">
                                 <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
@@ -362,7 +405,6 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                                 </div>
                                 <h3 className="font-medium text-gray-900">Customer Location</h3>
                             </div>
-
                             {customerLocation ? (
                                 <div className="text-sm text-gray-600">
                                     <p>Lat: {customerLocation.latitude.toFixed(6)}</p>
@@ -374,7 +416,6 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                             )}
                         </div>
 
-                        {/* Delivery Agent Location */}
                         <div className="border border-gray-200 rounded-lg p-4">
                             <div className="flex items-center mb-3">
                                 <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
@@ -382,22 +423,17 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                                 </div>
                                 <h3 className="font-medium text-gray-900">Delivery Agent Location</h3>
                             </div>
-
                             {deliveryAgentLocation ? (
                                 <div className="text-sm text-gray-600">
                                     <p>Lat: {deliveryAgentLocation.latitude.toFixed(6)}</p>
                                     <p>Lng: {deliveryAgentLocation.longitude.toFixed(6)}</p>
                                     <p>Updated: {new Date(deliveryAgentLocation.timestamp).toLocaleTimeString()}</p>
-                                    {deliveryAgentLocation.accuracy && (
-                                        <p>Accuracy: ±{Math.round(deliveryAgentLocation.accuracy)}m</p>
-                                    )}
                                 </div>
                             ) : (
                                 <p className="text-sm text-gray-500">Location not available</p>
                             )}
                         </div>
 
-                        {/* Map Preview */}
                         <div className="border border-gray-200 rounded-lg overflow-hidden">
                             <DeliveryMap
                                 customerLocation={customerLocation}
@@ -407,7 +443,6 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                     </div>
                 </div>
 
-                {/* Footer Buttons */}
                 <div className="p-6 border-t border-gray-200">
                     <div className="flex space-x-3">
                         <button
@@ -416,11 +451,10 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                             className={`flex-1 py-3 px-4 rounded-lg font-medium ${profile?.role === 'delivery_agent'
                                 ? 'bg-green-600 text-white hover:bg-green-700'
                                 : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                }`}
+                            }`}
                         >
                             {profile?.role === 'delivery_agent' ? 'Update Location' : 'Delivery Only'}
                         </button>
-
                         <button
                             onClick={onClose}
                             className="flex-1 py-3 px-4 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300"
