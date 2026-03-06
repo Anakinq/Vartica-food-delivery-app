@@ -428,8 +428,9 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-hidden">
-                <div className="p-6 border-b border-gray-200">
+            <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
+                {/* Header */}
+                <div className="p-6 border-b border-gray-200 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={onClose}
@@ -450,10 +451,10 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                     </button>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between bg-blue-50 p-3 rounded-lg">
+                {/* Status Bar */}
+                <div className="mx-6 mt-4 flex items-center justify-between bg-blue-50 p-3 rounded-lg">
                     <div className="flex items-center">
                         <Clock className="h-4 w-4 text-blue-600 mr-2" />
-                        {/* Fix Issue 3: Use database status instead of prop for consistency */}
                         <span className="text-sm font-medium text-blue-800">Status: {currentStatus}</span>
                     </div>
                     {distance !== null && (
@@ -462,97 +463,99 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                         </div>
                     )}
                 </div>
-            </div>
 
-            <div className="p-6 overflow-y-auto max-h-96">
-                {error && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-                        {error}
-                    </div>
-                )}
-
-                {eta && (
-                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <div className="flex items-center">
-                            <Clock className="h-5 w-5 text-green-600 mr-2" />
-                            <span className="font-medium text-green-800">Estimated Arrival: {eta}</span>
+                {/* Scrollable Content */}
+                <div className="flex-1 overflow-y-auto p-6">
+                    {error && (
+                        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                            {error}
                         </div>
-                    </div>
-                )}
+                    )}
 
-                <div className="space-y-4">
-                    {/* Customer Location */}
-                    <div className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center mb-3">
-                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                                <User className="h-4 w-4 text-blue-600" />
+                    {eta && (
+                        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <div className="flex items-center">
+                                <Clock className="h-5 w-5 text-green-600 mr-2" />
+                                <span className="font-medium text-green-800">Estimated Arrival: {eta}</span>
                             </div>
-                            <h3 className="font-medium text-gray-900">Customer Location</h3>
                         </div>
+                    )}
 
-                        {customerLocation ? (
-                            <div className="text-sm text-gray-600">
-                                <p>Lat: {customerLocation.latitude.toFixed(6)}</p>
-                                <p>Lng: {customerLocation.longitude.toFixed(6)}</p>
-                                <p>Updated: {new Date(customerLocation.timestamp).toLocaleTimeString()}</p>
+                    <div className="space-y-4">
+                        {/* Customer Location */}
+                        <div className="border border-gray-200 rounded-lg p-4">
+                            <div className="flex items-center mb-3">
+                                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                                    <User className="h-4 w-4 text-blue-600" />
+                                </div>
+                                <h3 className="font-medium text-gray-900">Customer Location</h3>
                             </div>
-                        ) : (
-                            <p className="text-sm text-gray-500">Location not available</p>
-                        )}
-                    </div>
 
-                    {/* Delivery Agent Location */}
-                    <div className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center mb-3">
-                            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                                <Navigation className="h-4 w-4 text-green-600" />
-                            </div>
-                            <h3 className="font-medium text-gray-900">Delivery Agent Location</h3>
+                            {customerLocation ? (
+                                <div className="text-sm text-gray-600">
+                                    <p>Lat: {customerLocation.latitude.toFixed(6)}</p>
+                                    <p>Lng: {customerLocation.longitude.toFixed(6)}</p>
+                                    <p>Updated: {new Date(customerLocation.timestamp).toLocaleTimeString()}</p>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-500">Location not available</p>
+                            )}
                         </div>
 
-                        {deliveryAgentLocation ? (
-                            <div className="text-sm text-gray-600">
-                                <p>Lat: {deliveryAgentLocation.latitude.toFixed(6)}</p>
-                                <p>Lng: {deliveryAgentLocation.longitude.toFixed(6)}</p>
-                                <p>Updated: {new Date(deliveryAgentLocation.timestamp).toLocaleTimeString()}</p>
-                                {deliveryAgentLocation.accuracy && (
-                                    <p>Accuracy: ±{Math.round(deliveryAgentLocation.accuracy)}m</p>
-                                )}
+                        {/* Delivery Agent Location */}
+                        <div className="border border-gray-200 rounded-lg p-4">
+                            <div className="flex items-center mb-3">
+                                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                                    <Navigation className="h-4 w-4 text-green-600" />
+                                </div>
+                                <h3 className="font-medium text-gray-900">Delivery Agent Location</h3>
                             </div>
-                        ) : (
-                            <p className="text-sm text-gray-500">Location not available</p>
-                        )}
-                    </div>
 
-                    {/* Map Preview with Leaflet */}
-                    <div className="border border-gray-200 rounded-lg overflow-hidden">
-                        <DeliveryMap
-                            customerLocation={customerLocation}
-                            agentLocation={deliveryAgentLocation}
-                        />
+                            {deliveryAgentLocation ? (
+                                <div className="text-sm text-gray-600">
+                                    <p>Lat: {deliveryAgentLocation.latitude.toFixed(6)}</p>
+                                    <p>Lng: {deliveryAgentLocation.longitude.toFixed(6)}</p>
+                                    <p>Updated: {new Date(deliveryAgentLocation.timestamp).toLocaleTimeString()}</p>
+                                    {deliveryAgentLocation.accuracy && (
+                                        <p>Accuracy: ±{Math.round(deliveryAgentLocation.accuracy)}m</p>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-500">Location not available</p>
+                            )}
+                        </div>
+
+                        {/* Map Preview with Leaflet */}
+                        <div className="border border-gray-200 rounded-lg overflow-hidden">
+                            <DeliveryMap
+                                customerLocation={customerLocation}
+                                agentLocation={deliveryAgentLocation}
+                            />
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div className="p-6 border-t border-gray-200">
-                <div className="flex space-x-3">
-                    <button
-                        onClick={updateDeliveryAgentLocation}
-                        disabled={profile?.role !== 'delivery_agent'}
-                        className={`flex-1 py-3 px-4 rounded-lg font-medium ${profile?.role === 'delivery_agent'
-                            ? 'bg-green-600 text-white hover:bg-green-700'
-                            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                            }`}
-                    >
-                        {profile?.role === 'delivery_agent' ? 'Update Location' : 'Delivery Only'}
-                    </button>
+                {/* Footer Buttons */}
+                <div className="p-6 border-t border-gray-200">
+                    <div className="flex space-x-3">
+                        <button
+                            onClick={updateDeliveryAgentLocation}
+                            disabled={profile?.role !== 'delivery_agent'}
+                            className={`flex-1 py-3 px-4 rounded-lg font-medium ${profile?.role === 'delivery_agent'
+                                ? 'bg-green-600 text-white hover:bg-green-700'
+                                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                }`}
+                        >
+                            {profile?.role === 'delivery_agent' ? 'Update Location' : 'Delivery Only'}
+                        </button>
 
-                    <button
-                        onClick={onClose}
-                        className="flex-1 py-3 px-4 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300"
-                    >
-                        Close
-                    </button>
+                        <button
+                            onClick={onClose}
+                            className="flex-1 py-3 px-4 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300"
+                        >
+                            Close
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
