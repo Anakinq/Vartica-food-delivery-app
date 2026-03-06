@@ -25,6 +25,18 @@ export default defineConfig(({ mode }) => {
           maximumFileSizeToCacheInBytes: 3000000, // 3MB limit
           globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,jpg,jpeg}'],
           runtimeCaching: [
+            // EXCLUDE OpenStreetMap tiles from caching - always fetch from network
+            {
+              urlPattern: /^https:\/\/[abc]\.tile\.openstreetmap\.org\//,
+              handler: 'NetworkOnly',
+              options: {
+                cacheName: 'openstreetmap-tiles',
+                expiration: {
+                  maxEntries: 0,
+                  maxAgeSeconds: 0,
+                },
+              },
+            },
             {
               urlPattern: /^https:\/\/.*\.(png|jpg|jpeg|webp|gif|svg)/,
               handler: 'CacheFirst',

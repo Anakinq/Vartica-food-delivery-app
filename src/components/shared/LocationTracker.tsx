@@ -47,6 +47,11 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({ customerLocation, agentLocati
 
         mapInstanceRef.current = map;
 
+        // Fix: Invalidate map size after container is visible (for modal/popup layouts)
+        setTimeout(() => {
+            map.invalidateSize();
+        }, 200);
+
         return () => {
             if (mapInstanceRef.current) {
                 mapInstanceRef.current.remove();
