@@ -3,23 +3,8 @@ import { MapPin, Navigation, Clock, User, ArrowLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { notificationService } from '../../services/notification.service';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 
-// Fix for default marker icons in Leaflet with webpack/bundlers
-const defaultIcon = L.icon({
-    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-});
-
-L.Marker.prototype.options.icon = defaultIcon;
-
-// Delivery Map Component using Leaflet
+// Delivery Map Component using Google Maps
 interface DeliveryMapProps {
     customerLocation: LocationData | null;
     agentLocation: LocationData | null;
@@ -27,66 +12,64 @@ interface DeliveryMapProps {
 
 const DeliveryMap: React.FC<DeliveryMapProps> = ({ customerLocation, agentLocation }) => {
     const mapRef = useRef<HTMLDivElement>(null);
-    const mapInstanceRef = useRef<L.Map | null>(null);
-    const customerMarkerRef = useRef<L.Marker | null>(null);
-    const agentMarkerRef = useRef<L.Marker | null>(null);
-    const routeLineRef = useRef<L.Polyline | null>(null);
+    const mapInstanceRef = useRef<google.maps.Map | null>(null);
+    const customerMarkerRef = useRef<google.maps.Marker | null>(null);
+    const agentMarkerRef = useRef<google.maps.Marker | null>(null);
+    const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
 
-    // Initialize map
+    // Initialize Google Map
     useEffect(() => {
         if (!mapRef.current || mapInstanceRef.current) return;
 
-        // Default center (can be updated)
-        const defaultCenter: [number, number] = [6.5244, 3.3792]; // Lagos, Nigeria
+        // Check if Google Maps is loaded
+        if (typeof google === 'undefined' || !google.maps) {
+            console.error('Google Maps API not loaded');
+            return;
+        }
 
-        const map = L.map(mapRef.current, {
+        // Default center (Lagos, Nigeria)
+        const defaultCenter = { lat: 6.5244, lng: 3.3792 };
+
+        const map = new google.maps.Map(mapRef.current, {
+            center: defaultCenter,
+            zoom: 13,
             zoomControl: true,
-            dragging: true,
-            scrollWheelZoom: true
-        }).setView(defaultCenter, 13);
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: false,
+            styles: [
+                {
+                    featureType: 'poi',
+                    elementType: 'labels',
+                    stylers: [{ visibility: 'off' }]
+                }
+            ]
+        });
 
         mapInstanceRef.current = map;
 
-        // Fix: Invalidate map size after container is visible (for modal/popup layouts)
-        // Multiple attempts to ensure Leaflet calculates dimensions correctly
-        const invalidateMapSize = () => {
-            if (mapInstanceRef.current) {
-                mapInstanceRef.current.invalidateSize();
+        // Initialize DirectionsRenderer for route
+        const directionsRenderer = new google.maps.DirectionsRenderer({
+            suppressMarkers: true,
+            polylineOptions: {
+                strokeColor: '#3B82F6',
+                strokeWeight: 4,
+                strokeOpacity: 0.7
             }
-        };
+        });
+        directionsRenderer.setMap(map);
+        directionsRendererRef.current = directionsRenderer;
 
-        // Immediate invalidation
-        setTimeout(invalidateMapSize, 100);
-        // Delayed invalidation for CSS transitions
-        setTimeout(invalidateMapSize, 300);
-        // Additional invalidation for slow-loading modals
-        setTimeout(invalidateMapSize, 500);
-
-        // Set explicit container dimensions to prevent squished map
+        // Set explicit dimensions
         if (mapRef.current) {
             mapRef.current.style.width = '100%';
             mapRef.current.style.height = '256px';
             mapRef.current.style.minHeight = '256px';
         }
 
-        // Use ResizeObserver to handle dynamic container resizing
-        const resizeObserver = new ResizeObserver(() => {
-            invalidateMapSize();
-        });
-        if (mapRef.current) {
-            resizeObserver.observe(mapRef.current);
-        }
-
         return () => {
-            if (mapInstanceRef.current) {
-                mapInstanceRef.current.remove();
-                mapInstanceRef.current = null;
-            }
-            resizeObserver.disconnect();
+            mapInstanceRef.current = null;
+            directionsRendererRef.current = null;
         };
     }, []);
 
@@ -98,84 +81,94 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({ customerLocation, agentLocati
 
         // Remove existing markers
         if (customerMarkerRef.current) {
-            map.removeLayer(customerMarkerRef.current);
+            customerMarkerRef.current.setMap(null);
             customerMarkerRef.current = null;
         }
         if (agentMarkerRef.current) {
-            map.removeLayer(agentMarkerRef.current);
+            agentMarkerRef.current.setMap(null);
             agentMarkerRef.current = null;
         }
-        if (routeLineRef.current) {
-            map.removeLayer(routeLineRef.current);
-            routeLineRef.current = null;
-        }
 
-        const bounds: L.LatLngTuple[] = [];
+        const bounds = new google.maps.LatLngBounds();
+        let hasMarkers = false;
 
         // Add customer marker (blue)
         if (customerLocation) {
-            const customerIcon = L.divIcon({
-                className: 'custom-marker',
-                html: '<div style="background-color: #3B82F6; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>',
-                iconSize: [30, 30],
-                iconAnchor: [15, 15]
+            const customerPos = { lat: customerLocation.latitude, lng: customerLocation.longitude };
+
+            const customerMarker = new google.maps.Marker({
+                position: customerPos,
+                map: map,
+                title: 'Customer Location',
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 12,
+                    fillColor: '#3B82F6',
+                    fillOpacity: 1,
+                    strokeColor: '#ffffff',
+                    strokeWeight: 3
+                }
             });
 
-            const customerLatLng: L.LatLngTuple = [customerLocation.latitude, customerLocation.longitude];
-            customerMarkerRef.current = L.marker(customerLatLng, { icon: customerIcon })
-                .addTo(map)
-                .bindPopup('<b>Customer Location</b><br>Delivery destination');
-            bounds.push(customerLatLng);
+            customerMarkerRef.current = customerMarker;
+            bounds.extend(customerPos);
+            hasMarkers = true;
         }
 
         // Add agent marker (green)
         if (agentLocation) {
-            const agentIcon = L.divIcon({
-                className: 'custom-marker',
-                html: '<div style="background-color: #22C55E; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg></div>',
-                iconSize: [30, 30],
-                iconAnchor: [15, 15]
+            const agentPos = { lat: agentLocation.latitude, lng: agentLocation.longitude };
+
+            const agentMarker = new google.maps.Marker({
+                position: agentPos,
+                map: map,
+                title: 'Delivery Agent',
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 12,
+                    fillColor: '#22C55E',
+                    fillOpacity: 1,
+                    strokeColor: '#ffffff',
+                    strokeWeight: 3
+                }
             });
 
-            const agentLatLng: L.LatLngTuple = [agentLocation.latitude, agentLocation.longitude];
-            agentMarkerRef.current = L.marker(agentLatLng, { icon: agentIcon })
-                .addTo(map)
-                .bindPopup('<b>Delivery Agent</b><br>Current location');
-            bounds.push(agentLatLng);
-        }
-
-        // Draw route line between agent and customer
-        if (customerLocation && agentLocation) {
-            const routeLine = L.polyline(
-                [
-                    [agentLocation.latitude, agentLocation.longitude] as L.LatLngTuple,
-                    [customerLocation.latitude, customerLocation.longitude] as L.LatLngTuple
-                ],
-                {
-                    color: '#3B82F6',
-                    weight: 4,
-                    opacity: 0.7,
-                    dashArray: '10, 10'
-                }
-            ).addTo(map);
-            routeLineRef.current = routeLine;
+            agentMarkerRef.current = agentMarker;
+            bounds.extend(agentPos);
+            hasMarkers = true;
         }
 
         // Fit map to show all markers
-        if (bounds.length > 0) {
-            if (bounds.length === 1) {
-                map.setView(bounds[0], 15);
-            } else {
-                map.fitBounds(bounds, { padding: [50, 50] });
-            }
+        if (hasMarkers) {
+            map.fitBounds(bounds, { padding: 50 });
+        }
+
+        // Draw route between agent and customer
+        if (customerLocation && agentLocation && directionsRendererRef.current) {
+            const directionsService = new google.maps.DirectionsService();
+            const origin = { lat: agentLocation.latitude, lng: agentLocation.longitude };
+            const destination = { lat: customerLocation.latitude, lng: customerLocation.longitude };
+
+            directionsService.route(
+                {
+                    origin: origin,
+                    destination: destination,
+                    travelMode: google.maps.TravelMode.DRIVING
+                },
+                (result, status) => {
+                    if (status === google.maps.DirectionsStatus.OK && result) {
+                        directionsRendererRef.current?.setDirections(result);
+                    }
+                }
+            );
         }
     }, [customerLocation, agentLocation]);
 
     return (
         <div
             ref={mapRef}
-            className="h-64 w-full"
-            style={{ minHeight: '256px' }}
+            className="w-full"
+            style={{ height: '256px', minHeight: '256px' }}
         />
     );
 };
