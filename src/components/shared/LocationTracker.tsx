@@ -11,41 +11,72 @@ interface DeliveryMapProps {
 }
 
 const DeliveryMap: React.FC<DeliveryMapProps> = ({ customerLocation, agentLocation }) => {
+    const hasCustomer = !!customerLocation;
+    const hasAgent = !!agentLocation;
+    
     return (
         <div
             className="w-full"
-            style={{ height: '200px', minHeight: '200px' }}
+            style={{ height: '240px', minHeight: '240px' }}
         >
             {/* Map Preview - Simple visual without external API */}
-            <div className="h-full w-full bg-gradient-to-br from-blue-50 to-green-50 rounded-lg flex flex-col items-center justify-center p-4">
-                <div className="flex items-center gap-8">
-                    {/* Customer marker */}
-                    <div className="flex flex-col items-center">
-                        <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center shadow-lg">
-                            <User className="h-5 w-5 text-white" />
+            <div className="h-full w-full bg-gradient-to-br from-blue-50 to-green-50 rounded-lg flex flex-col p-4">
+                {/* Map area with markers */}
+                <div className="flex-1 flex items-center justify-center">
+                    <div className="flex items-center gap-4 w-full max-w-xs">
+                        {/* Customer marker */}
+                        <div className="flex flex-col items-center flex-1">
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg ${hasCustomer ? 'bg-blue-500' : 'bg-gray-300'}`}>
+                                <User className="h-6 w-6 text-white" />
+                            </div>
+                            <span className="text-xs mt-2 font-medium text-gray-700">Customer</span>
+                            {customerLocation ? (
+                                <span className="text-xs text-green-600 mt-1">✓ Located</span>
+                            ) : (
+                                <span className="text-xs text-gray-400 mt-1">Waiting...</span>
+                            )}
                         </div>
-                        <span className="text-xs mt-1 text-gray-600">Customer</span>
-                    </div>
-
-                    {/* Connection line */}
-                    <div className="flex-1 h-1 bg-gradient-to-r from-blue-500 to-green-500 rounded" style={{ minWidth: '50px' }}></div>
-
-                    {/* Agent marker */}
-                    <div className="flex flex-col items-center">
-                        <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
-                            <Navigation className="h-5 w-5 text-white" />
+                        
+                        {/* Connection line */}
+                        <div className="flex-1 h-2 bg-gradient-to-r from-blue-500 to-green-500 rounded-full"></div>
+                        
+                        {/* Agent marker */}
+                        <div className="flex flex-col items-center flex-1">
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg ${hasAgent ? 'bg-green-500' : 'bg-gray-300'}`}>
+                                <Navigation className="h-6 w-6 text-white" />
+                            </div>
+                            <span className="text-xs mt-2 font-medium text-gray-700">Driver</span>
+                            {agentLocation ? (
+                                <span className="text-xs text-green-600 mt-1">✓ Active</span>
+                            ) : (
+                                <span className="text-xs text-gray-400 mt-1">Waiting...</span>
+                            )}
                         </div>
-                        <span className="text-xs mt-1 text-gray-600">Driver</span>
                     </div>
                 </div>
-
-                {/* Location info */}
-                <div className="mt-4 text-center text-sm text-gray-500">
-                    {customerLocation && agentLocation ? (
-                        <p>Tracking delivery in progress</p>
-                    ) : (
-                        <p>Waiting for location data...</p>
-                    )}
+                
+                {/* Location details */}
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-white/80 rounded p-2">
+                        <div className="font-medium text-gray-700">Customer:</div>
+                        {customerLocation ? (
+                            <div className="text-gray-600">
+                                {customerLocation.latitude.toFixed(4)}, {customerLocation.longitude.toFixed(4)}
+                            </div>
+                        ) : (
+                            <div className="text-gray-400">No location data</div>
+                        )}
+                    </div>
+                    <div className="bg-white/80 rounded p-2">
+                        <div className="font-medium text-gray-700">Driver:</div>
+                        {agentLocation ? (
+                            <div className="text-gray-600">
+                                {agentLocation.latitude.toFixed(4)}, {agentLocation.longitude.toFixed(4)}
+                            </div>
+                        ) : (
+                            <div className="text-gray-400">No location data</div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
@@ -77,7 +108,6 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [distance, setDistance] = useState<number | null>(null);
     const [eta, setEta] = useState<string | null>(null);
-    // Fix Issue 3: Use database status instead of prop for consistency
     const [currentStatus, setCurrentStatus] = useState<string>(orderStatus);
     const channelRef = useRef<any>(null);
 
@@ -97,7 +127,7 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
     // Estimate ETA based on distance and average speed (30 km/h)
     const estimateEta = (dist: number): string => {
         if (dist <= 0) return 'Arriving soon';
-        const timeInHours = dist / 30; // Average speed 30 km/h
+        const timeInHours = dist / 30;
         const timeInMinutes = Math.round(timeInHours * 60);
         return timeInMinutes > 0 ? `${timeInMinutes} min` : 'Arriving soon';
     };
@@ -106,7 +136,6 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
     useEffect(() => {
         const fetchLocationData = async () => {
             try {
-                // Fix Issue 2 & 3: Fetch status and location from database
                 const { data: orderData, error } = await supabase
                     .from('orders')
                     .select('customer_location, delivery_agent_location, status, user_id')
@@ -115,12 +144,10 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
 
                 if (error) throw error;
 
-                // Fix Issue 3: Use database status for consistency
                 if (orderData?.status) {
                     setCurrentStatus(orderData.status);
                 }
 
-                // Set customer location if available in order
                 if (orderData?.customer_location) {
                     setCustomerLocation(orderData.customer_location);
                 }
@@ -128,7 +155,6 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                 if (orderData?.delivery_agent_location) {
                     setDeliveryAgentLocation(orderData.delivery_agent_location);
 
-                    // Calculate distance and ETA if both locations are available
                     if (orderData.customer_location && orderData.delivery_agent_location) {
                         const dist = calculateDistance(
                             orderData.delivery_agent_location.latitude,
@@ -141,7 +167,6 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                     }
                 }
             } catch (err) {
-                // Fix Issue 2: More specific error message
                 const errorMessage = err instanceof Error ? err.message : 'Unknown error';
                 setError(`Failed to load location data: ${errorMessage}`);
                 console.error('Location fetch error:', err);
@@ -164,7 +189,6 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                     filter: `id=eq.${orderId}`,
                 },
                 (payload: any) => {
-                    // Fix Issue 3: Update status in real-time when database changes
                     if (payload.new.status) {
                         setCurrentStatus(payload.new.status);
                     }
@@ -174,7 +198,6 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                     if (payload.new.delivery_agent_location) {
                         setDeliveryAgentLocation(payload.new.delivery_agent_location);
 
-                        // Recalculate distance and ETA
                         if (payload.new.customer_location && payload.new.delivery_agent_location) {
                             const dist = calculateDistance(
                                 payload.new.delivery_agent_location.latitude,
@@ -223,28 +246,23 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                     .eq('id', orderId)
                     .eq('delivery_agent_id', profile.id);
 
-                // Send notification about location update
                 if (!error) {
                     try {
-                        // Fetch order details to get customer and seller IDs
-                        const { data: orderData, error: orderError } = await supabase
+                        const { data: orderData } = await supabase
                             .from('orders')
                             .select('user_id, seller_id, seller_type, order_number')
                             .eq('id', orderId)
                             .single();
 
                         if (orderData) {
-                            // Send notification to customer about delivery progress
                             await notificationService.sendOrderStatusUpdate(orderData.order_number, orderData.user_id, 'picked_up');
 
-                            // Send notification to vendor ONLY (not cafeteria)
                             if (orderData.seller_id && orderData.seller_type === 'vendor') {
                                 await notificationService.sendOrderStatusUpdate(orderData.order_number, orderData.seller_id, 'picked_up');
                             }
                         }
                     } catch (notificationError) {
                         console.error('Error sending location update notification:', notificationError);
-                        // Don't fail the location update if notification fails
                     }
                 }
 
