@@ -1,5 +1,6 @@
 ﻿// src/App.tsx - Hash-based Routing Implementation with Code Splitting
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuth } from './contexts/AuthContext';
 import { RoleProvider, useRole } from './contexts/RoleContext';
 import { initPerformanceMonitoring, monitorMemoryUsage } from './utils/performanceMonitoring';
@@ -479,7 +480,8 @@ function AppContent() {
                 onShowProfile: () => {
                   sessionStorage.setItem('previous_page', '#/delivery');
                   window.location.hash = '#/profile';
-                }
+                },
+                onNavigate: handleInstantNavigate
               })}
             </div>
             <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
@@ -524,7 +526,8 @@ function AppContent() {
                 onShowProfile: () => {
                   sessionStorage.setItem('previous_page', '#/delivery');
                   window.location.hash = '#/profile';
-                }
+                },
+                onNavigate: handleInstantNavigate
               })}
             </div>
             <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
@@ -622,6 +625,18 @@ function AppContent() {
 
 // Main App component with RoleProvider integration
 function App() {
+  // Create a QueryClient for React Query caching
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 30 * 1000, // 30 seconds default stale time
+        gcTime: 5 * 60 * 1000, // 5 minutes garbage collection time
+        retry: 1,
+        refetchOnWindowFocus: false,
+      },
+    },
+  }));
+
   useEffect(() => {
     // Filter out browser extension errors
     const originalError = console.error;
@@ -637,27 +652,29 @@ function App() {
   }, []);
 
   return (
-    <SentryErrorBoundary fallback={<div className="error-page">Something went wrong. Please try refreshing the page.</div>}>
-      <DarkModeProvider>
-        <AuthProvider>
-          <ToastProvider>
-            <RoleProvider>
-              <CartProvider>
-                <div className="app-container">
-                  <div role="status" aria-live="polite" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
-                    Loading application
+    <QueryClientProvider client={queryClient}>
+      <SentryErrorBoundary fallback={<div className="error-page">Something went wrong. Please try refreshing the page.</div>}>
+        <DarkModeProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <RoleProvider>
+                <CartProvider>
+                  <div className="app-container">
+                    <div role="status" aria-live="polite" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
+                      Loading application
+                    </div>
+                    <div role="alert" aria-live="assertive" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
+                    </div>
+                    <AppContent />
+                    <ToastContainer />
                   </div>
-                  <div role="alert" aria-live="assertive" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
-                  </div>
-                  <AppContent />
-                  <ToastContainer />
-                </div>
-              </CartProvider>
-            </RoleProvider>
-          </ToastProvider>
-        </AuthProvider>
-      </DarkModeProvider>
-    </SentryErrorBoundary>
+                </CartProvider>
+              </RoleProvider>
+            </ToastProvider>
+          </AuthProvider>
+        </DarkModeProvider>
+      </SentryErrorBoundary>
+    </QueryClientProvider>
   );
 }
 

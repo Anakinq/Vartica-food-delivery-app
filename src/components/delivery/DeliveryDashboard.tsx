@@ -43,9 +43,10 @@ interface WithdrawalRequest {
 
 interface DeliveryDashboardProps {
   onShowProfile?: () => void;
+  onNavigate?: (path: string) => void;
 }
 
-export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProfile }) => {
+export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProfile, onNavigate }) => {
   const { profile, signOut, checkApprovalStatus } = useAuth();
   const [approvalStatus, setApprovalStatus] = useState<boolean | null>(null);
   const [loadingApproval, setLoadingApproval] = useState(true);
@@ -395,6 +396,49 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       supabase.removeChannel(availableOrdersSubscription);
     };
   }, [agent?.id, fetchData]);
+
+  // Handle navigation from BottomNavigation
+  const handleNavigation = useCallback((path: string) => {
+    // Map bottom nav paths to internal tabs
+    switch (path) {
+      case '':
+      case '/':
+        // Stay on current tab (dashboard)
+        break;
+      case '/orders':
+        setActiveTab('active');
+        break;
+      case '/location':
+        // Could implement location tracking view here
+        // For now, show available orders
+        setActiveTab('available');
+        break;
+      case '/profile':
+        if (onShowProfile) {
+          onShowProfile();
+        } else if (onNavigate) {
+          onNavigate('/profile');
+        }
+        break;
+      default:
+        break;
+    }
+  }, [onShowProfile, onNavigate]);
+
+  // Listen for hash changes from BottomNavigation
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      handleNavigation(hash);
+    };
+
+    // Check initial hash
+    handleHashChange();
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [handleNavigation]);
 
   const checkAgentApproval = async () => {
     if (profile && profile.role === 'delivery_agent') {
