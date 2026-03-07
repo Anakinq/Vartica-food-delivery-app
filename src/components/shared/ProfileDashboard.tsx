@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, HelpCircle, CreditCard, MapPin, MessageCircle, RefreshCw, Store, ArrowLeftRight, Download, Building2, X, Bike } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, HelpCircle, CreditCard, MapPin, MessageCircle, RefreshCw, Store, ArrowLeftRight, Download, Building2, X, Bike, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRole } from '../../contexts/RoleContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -23,6 +23,9 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
   // Toast vendor detection
   const [isToastVendor, setIsToastVendor] = useState(false);
   const [loadingToastVendor, setLoadingToastVendor] = useState(false);
+  
+  // Upgrade options dropdown
+  const [showUpgradeMenu, setShowUpgradeMenu] = useState(false);
 
   // Determine current view based on hash
   const [currentView, setCurrentView] = useState<'customer' | 'vendor'>('customer');
@@ -722,41 +725,81 @@ const cycleAvatarStyle = () => {
                   </button>
 
                   {/* Role-related buttons */}
-                  {/* For PURE customers: show all upgrade options (become vendor, toast vendor, delivery agent) */}
+                  {/* For PURE customers: show upgrade options in a dropdown menu */}
                   {isPureCustomer && (
-                    <>
+                    <div className="w-full">
+                      {/* Dropdown toggle button */}
                       <button
                         type="button"
-                        onClick={() => setShowVendorUpgrade(true)}
-                        className="flex items-center px-6 py-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-xl font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors w-full justify-center"
+                        onClick={() => setShowUpgradeMenu(!showUpgradeMenu)}
+                        className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all w-full shadow-lg"
                       >
-                        <Store className="h-5 w-5 mr-2" />
-                        Become a Vendor
+                        <span className="flex items-center">
+                          <Store className="h-5 w-5 mr-2" />
+                          Become a Vendor / Partner
+                        </span>
+                        {showUpgradeMenu ? (
+                          <ChevronUp className="h-5 w-5" />
+                        ) : (
+                          <ChevronDown className="h-5 w-5" />
+                        )}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          // Navigate to toast vendor registration
-                          if (onClose) {
-                            onClose();
-                          } else if (onBack) {
-                            onBack();
-                          }
-                          window.location.hash = '#/toast-register';
-                        }}
-                        className="flex items-center px-6 py-3 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-xl font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors w-full justify-center"
-                      >
-                        <Bike className="h-5 w-5 mr-2" />
-                        Become a Toast Vendor
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowDeliveryAgentUpgrade(true)}
-                        className="flex items-center px-6 py-3 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-xl font-semibold hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors w-full justify-center"
-                      >
-                        Become a Delivery Agent
-                      </button>
-                    </>
+
+                      {/* Dropdown menu */}
+                      {showUpgradeMenu && (
+                        <div className="mt-2 space-y-2 bg-gray-50 dark:bg-gray-800 rounded-xl p-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowUpgradeMenu(false);
+                              setShowVendorUpgrade(true);
+                            }}
+                            className="flex items-center w-full px-4 py-3 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
+                          >
+                            <Store className="h-5 w-5 mr-3" />
+                            <div className="text-left">
+                              <p className="font-semibold">Become a Vendor</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Sell food to students</p>
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowUpgradeMenu(false);
+                              if (onClose) {
+                                onClose();
+                              } else if (onBack) {
+                                onBack();
+                              }
+                              window.location.hash = '#/toast-register';
+                            }}
+                            className="flex items-center w-full px-4 py-3 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
+                          >
+                            <Bike className="h-5 w-5 mr-3" />
+                            <div className="text-left">
+                              <p className="font-semibold">Become a Toast Vendor</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Sell toast & breakfast</p>
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowUpgradeMenu(false);
+                              setShowDeliveryAgentUpgrade(true);
+                            }}
+                            className="flex items-center w-full px-4 py-3 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                          >
+                            <div className="h-5 w-5 mr-3 flex items-center justify-center">
+                              <Bike className="h-4 w-4" />
+                            </div>
+                            <div className="text-left">
+                              <p className="font-semibold">Become a Delivery Agent</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Deliver orders & earn</p>
+                            </div>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   {/* For users with other roles (vendor, delivery_agent, or toast vendor): show switch buttons instead */}
