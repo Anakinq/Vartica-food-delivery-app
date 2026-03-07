@@ -188,26 +188,6 @@
 
   <!-- Paystack Inline Script -->
   <script src="https://js.paystack.co/v1/inline.js"></script>
-
-  <!-- Google Maps API - loaded with callback for reliability -->
-  <script>
-    // Global callback that will be called when Google Maps loads
-    window.googleMapsLoaded = function () {
-      console.log('Google Maps API loaded successfully');
-    };
-
-    // Load Google Maps
-    (function () {
-      var script = document.createElement('script');
-      script.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyBb8LPZ3bX5MPFSiUj90iyAjCwvWJnzjz0&libraries=places&callback=googleMapsLoaded';
-      script.async = true;
-      script.defer = true;
-      script.onerror = function () {
-        console.error('Failed to load Google Maps API');
-      };
-      document.head.appendChild(script);
-    })();
-  </script>
 </body>
 
 </html>

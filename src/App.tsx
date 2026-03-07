@@ -27,6 +27,7 @@ const CafeteriaDashboard = lazy(() => import('./components/cafeteria/CafeteriaDa
 import AuthCallback from './components/auth/AuthCallback';
 const CafeteriaList = lazy(() => import('./components/customer/CafeteriaList').then(module => ({ default: module.CafeteriaList })));
 const VendorList = lazy(() => import('./components/customer/VendorList').then(module => ({ default: module.VendorList })));
+const ToastVendorRegister = lazy(() => import('./components/vendor/ToastVendorRegister').then(module => ({ default: module.ToastVendorRegister })));
 
 // import { Analytics } from '@vercel/analytics/react'; // Temporarily disabled
 import ErrorBoundary from './components/ErrorBoundary';
@@ -393,6 +394,26 @@ function AppContent() {
             {withSuspense(CustomerHome)({ onShowProfile: handleProfileClick })}
           </div>
           <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
+        </div>
+      );
+    }
+
+    // Handle toast vendor registration route
+    if (locationHash === '#/toast-register') {
+      return (
+        <div className="authenticated-view">
+          <div className="main-content">
+            {withSuspense(ToastVendorRegister)({
+              onBack: () => {
+                // Go back to profile
+                window.location.hash = '#/profile';
+              },
+              onSuccess: () => {
+                // Refresh profile and go back
+                window.location.hash = '#/profile';
+              }
+            })}
+          </div>
         </div>
       );
     }
