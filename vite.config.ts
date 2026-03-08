@@ -117,9 +117,11 @@ export default defineConfig(({ mode }) => {
       // Enable asset inlining for small files
       assetsInlineLimit: 4096, // 4kb
       // Optimize chunk size
-      chunkSizeWarningLimit: 1000,
+      chunkSizeWarningLimit: 1500,
       // Critical CSS optimization - inline critical styles
       inlineStylesheets: 'auto',
+      // Improve tree-shaking
+      treeShaking: true,
     },
 
     // Development server configuration
