@@ -35,21 +35,29 @@ export const VendorList: React.FC<VendorListProps> = ({ onBack }) => {
                     setVendors(students);
                     setLateNightVendors(lateNight);
 
+                    // HAR optimization: Fetch all ratings in a single API call
                     const allVendors = [...students, ...lateNight];
-                    const ratings: Record<string, { avgRating: number; reviewCount: number }> = {};
+                    const vendorIds = allVendors.map(v => v.id);
 
-                    for (const vendor of allVendors) {
-                        try {
-                            const [avgRating, reviewCount] = await Promise.all([
-                                VendorReviewService.getVendorAverageRating(vendor.id),
-                                VendorReviewService.getVendorReviewCount(vendor.id)
-                            ]);
-                            ratings[vendor.id] = { avgRating, reviewCount };
-                        } catch (error) {
-                            ratings[vendor.id] = { avgRating: 0, reviewCount: 0 };
-                        }
+                    try {
+                        const ratingsMap = await VendorReviewService.getMultipleVendorRatings(vendorIds);
+                        const ratings: Record<string, { avgRating: number; reviewCount: number }> = {};
+
+                        vendorIds.forEach(id => {
+                            const ratingData = ratingsMap.get(id);
+                            ratings[id] = ratingData || { avgRating: 0, reviewCount: 0 };
+                        });
+
+                        setVendorRatings(ratings);
+                    } catch (error) {
+                        console.error('Error fetching vendor ratings:', error);
+                        // Fallback to empty ratings
+                        const ratings: Record<string, { avgRating: number; reviewCount: number }> = {};
+                        allVendors.forEach(v => {
+                            ratings[v.id] = { avgRating: 0, reviewCount: 0 };
+                        });
+                        setVendorRatings(ratings);
                     }
-                    setVendorRatings(ratings);
                 }
             } catch (error) {
                 console.error('Error fetching vendors:', error);

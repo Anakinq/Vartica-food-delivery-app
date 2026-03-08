@@ -354,28 +354,28 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         setStudentVendors(students);
         setLateNightVendors(lateNight);
 
+        // HAR optimization: Fetch all ratings in a single API call
         const allVendors = [...students, ...lateNight];
-        const ratings: Record<string, { avgRating: number; reviewCount: number }> = {};
-
-        // Batch rating fetches for better performance
-        const ratingPromises = allVendors.map(async (vendor) => {
-          try {
-            const [avgRating, reviewCount] = await Promise.all([
-              VendorReviewService.getVendorAverageRating(vendor.id),
-              VendorReviewService.getVendorReviewCount(vendor.id)
-            ]);
-            return { vendorId: vendor.id, rating: { avgRating, reviewCount } };
-          } catch (error) {
-            return { vendorId: vendor.id, rating: { avgRating: 0, reviewCount: 0 } };
-          }
-        });
-
-        const ratingResults = await Promise.all(ratingPromises);
-        ratingResults.forEach(({ vendorId, rating }) => {
-          ratings[vendorId] = rating;
-        });
-
-        setVendorRatings(ratings);
+        const vendorIds = allVendors.map(v => v.id);
+        
+        try {
+          const ratingsMap = await VendorReviewService.getMultipleVendorRatings(vendorIds);
+          const ratings: Record<string, { avgRating: number; reviewCount: number }> = {};
+          
+          vendorIds.forEach(id => {
+            const ratingData = ratingsMap.get(id);
+            ratings[id] = ratingData || { avgRating: 0, reviewCount: 0 };
+          });
+          
+          setVendorRatings(ratings);
+        } catch (error) {
+          console.error('Error fetching vendor ratings:', error);
+          const ratings: Record<string, { avgRating: number; reviewCount: number }> = {};
+          allVendors.forEach(v => {
+            ratings[v.id] = { avgRating: 0, reviewCount: 0 };
+          });
+          setVendorRatings(ratings);
+        }
       }
     } catch (error) {
       console.error('Unexpected error in fetchData:', error);

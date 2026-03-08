@@ -419,4 +419,63 @@ export class VendorReviewService {
             };
         }
     }
+
+    // Get ratings and review counts for multiple vendors in a single API call (HAR optimization)
+    static async getMultipleVendorRatings(vendorIds: string[]): Promise<Map<string, { avgRating: number; reviewCount: number }>> {
+        try {
+            if (!vendorIds || vendorIds.length === 0) {
+                return new Map();
+            }
+
+            const { data, error } = await supabase
+                .from('vendor_reviews')
+                .select('vendor_id, rating')
+                .in('vendor_id', vendorIds);
+
+            if (error) {
+                console.error('Error fetching multiple vendor ratings:', error);
+                return new Map();
+            }
+
+            const results = new Map<string, { avgRating: number; reviewCount: number }>();
+
+            if (!data || data.length === 0) {
+                // Initialize with 0 for vendors with no reviews
+                vendorIds.forEach(id => {
+                    results.set(id, { avgRating: 0, reviewCount: 0 });
+                });
+                return results;
+            }
+
+            // Group by vendor_id
+            const grouped: Record<string, number[]> = {};
+            data.forEach(review => {
+                if (!grouped[review.vendor_id]) {
+                    grouped[review.vendor_id] = [];
+                }
+                grouped[review.vendor_id].push(review.rating);
+            });
+
+            // Calculate averages
+            for (const [vendorId, ratings] of Object.entries(grouped)) {
+                const avgRating = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+                results.set(vendorId, {
+                    avgRating,
+                    reviewCount: ratings.length
+                });
+            }
+
+            // Set vendors with no reviews to 0
+            vendorIds.forEach(id => {
+                if (!results.has(id)) {
+                    results.set(id, { avgRating: 0, reviewCount: 0 });
+                }
+            });
+
+            return results;
+        } catch (error) {
+            console.error('Error in getMultipleVendorRatings:', error);
+            return new Map();
+        }
+    }
 }

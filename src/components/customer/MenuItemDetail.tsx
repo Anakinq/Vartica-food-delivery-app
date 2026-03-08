@@ -48,18 +48,19 @@ export const MenuItemDetail: React.FC<MenuItemDetailProps> = ({
     fetchSides();
   }, [item]);
 
-  // Fetch vendor rating
+  // Fetch vendor rating (optimized to use batch method)
   useEffect(() => {
     const fetchVendorRating = async () => {
       if (!item.seller_id) return;
 
-      const [avgRating, count] = await Promise.all([
-        VendorReviewService.getVendorAverageRating(item.seller_id),
-        VendorReviewService.getVendorReviewCount(item.seller_id)
-      ]);
+      // Use batch method for consistency (also works for single vendor)
+      const ratingsMap = await VendorReviewService.getMultipleVendorRatings([item.seller_id]);
+      const ratingData = ratingsMap.get(item.seller_id);
 
-      setVendorRating(avgRating);
-      setReviewCount(count);
+      if (ratingData) {
+        setVendorRating(ratingData.avgRating);
+        setReviewCount(ratingData.reviewCount);
+      }
     };
 
     fetchVendorRating();
