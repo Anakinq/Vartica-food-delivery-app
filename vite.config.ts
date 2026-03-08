@@ -126,11 +126,11 @@ export default defineConfig(({ mode }) => {
       // Enable CSS code splitting
       cssCodeSplit: true,
       // Enable asset inlining for small files
-      assetsInlineLimit: 4096, // 4kb
+      assetsInlineLimit: 8192, // 8kb - inline more small files
       // Optimize chunk size
       chunkSizeWarningLimit: 1500,
-      // Critical CSS optimization - inline critical styles
-      inlineStylesheets: 'auto',
+      // Inline all CSS to avoid render blocking (small app)
+      inlineStylesheets: true,
       // Improve tree-shaking
       treeShaking: true,
     },

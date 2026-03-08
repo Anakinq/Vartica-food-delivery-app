@@ -89,22 +89,6 @@
 
   <!-- ✅ Content Security Policy now managed by server (vercel.json) -->
 
-  <!-- Service Worker for PWA -->
-  <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", function () {
-        // Register service worker with error handling
-        navigator.serviceWorker.register("/sw.js")
-          .then(function (registration) {
-            console.log("ServiceWorker registration successful with scope: ", registration.scope);
-          })
-          .catch(function (error) {
-            console.log("ServiceWorker registration failed: ", error);
-          });
-      });
-    }
-  </script>
-
   <!-- iOS Splash Screens -->
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -281,6 +265,22 @@
 
   <!-- Main React/TypeScript entry -->
   <script type="module" src="/src/main.tsx"></script>
+
+  <!-- Service Worker for PWA - deferred to not block rendering -->
+  <script>
+    // Defer service worker registration to not block initial render
+    setTimeout(function () {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js")
+          .then(function (registration) {
+            console.log("ServiceWorker registration successful with scope: ", registration.scope);
+          })
+          .catch(function (error) {
+            console.log("ServiceWorker registration failed: ", error);
+          });
+      }
+    }, 3000); // Wait 3 seconds after page load
+  </script>
 </body>
 
 </html>
