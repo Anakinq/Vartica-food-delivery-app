@@ -69,16 +69,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
   const { signIn, signInWithGoogle, loading: authLoading } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
 
+    setLoginError(''); // Clear previous errors
+
     try {
       await signIn(email, password);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
+      // Extract user-friendly error message
+      const errorMessage = error?.message || 'Invalid email or password. Please try again.';
+      setLoginError(errorMessage);
     }
   };
 
@@ -199,6 +205,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
                   className="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-xl text-white placeholder-white placeholder-opacity-70 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all"
                 />
               </div>
+
+              {/* Error Message */}
+              {loginError && (
+                <div className="bg-red-500 bg-opacity-20 border border-red-400 border-opacity-50 rounded-lg px-4 py-3 text-red-300 text-sm">
+                  {loginError}
+                </div>
+              )}
 
               {/* OR Divider */}
               <div className="relative">
