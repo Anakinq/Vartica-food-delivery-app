@@ -103,8 +103,19 @@ export default defineConfig(({ mode }) => {
       sourcemap: !isProduction, // Generate source maps in development
       rollupOptions: {
         output: {
-          // Use Vite's default chunking - it handles React properly
-          // Custom manualChunks was causing forwardRef errors
+          // Manual chunk splitting for better caching and lazy loading
+          manualChunks: {
+            // Core React ecosystem - loaded first
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            // Heavy charting library - loaded only on analytics pages
+            'vendor-charts': ['recharts'],
+            // Maps libraries - loaded only on map pages
+            'vendor-maps': ['@react-google-maps/api', 'leaflet', 'react-leaflet'],
+            // Analytics and error tracking - loaded on demand
+            'vendor-analytics': ['@vercel/analytics', '@sentry/react', '@sentry/browser'],
+            // Payment processing - loaded only on checkout
+            'vendor-payment': ['react-paystack'],
+          },
           chunkFileNames: 'assets/[name]-[hash].js',
           entryFileNames: 'assets/[name]-[hash].js',
           assetFileNames: 'assets/[name]-[hash].[ext]',

@@ -14,6 +14,9 @@ interface LazyImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'
     quality?: 'low' | 'medium' | 'high';
     priority?: boolean;
     sizes?: string;
+    // Explicit dimensions for CLS prevention
+    width?: number | string;
+    height?: number | string;
     // Responsive image support
     srcSet?: string;
     webPSrc?: string;

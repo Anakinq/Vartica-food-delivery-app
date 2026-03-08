@@ -34,6 +34,15 @@ const NotificationsPanel = lazy(() => import('./components/shared/NotificationsP
 const OrderTracking = lazy(() => import('./components/customer/OrderTracking').then(module => ({ default: module.OrderTracking })));
 const RoleSwitcher = lazy(() => import('./components/shared/RoleSwitcher').then(module => ({ default: module.RoleSwitcher })));
 
+// Lazy load heavy components (charts, maps) for performance
+// These are loaded only when the user visits specific pages
+const AnalyticsDashboard = lazy(() =>
+  import('./components/admin/AnalyticsDashboard').then(module => ({ default: module.default }))
+);
+const LocationTracker = lazy(() =>
+  import('./components/shared/LocationTracker').then(module => ({ default: module.LocationTracker }))
+);
+
 // import { Analytics } from '@vercel/analytics/react'; // Temporarily disabled
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider } from './contexts/AuthContext';
