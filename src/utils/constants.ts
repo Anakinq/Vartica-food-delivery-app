@@ -144,7 +144,7 @@ export const CATEGORY_PRIORITY = [
 
 // Fallback Images
 export const FALLBACK_IMAGES = {
-    VENDOR: '/images/1.jpg',
-    MENU_ITEM: '/images/1.jpg',
-    CAFETERIA: '/images/1.jpg',
+    VENDOR: '/images/1.webp',
+    MENU_ITEM: '/images/1.webp',
+    CAFETERIA: '/images/1.webp',
 };

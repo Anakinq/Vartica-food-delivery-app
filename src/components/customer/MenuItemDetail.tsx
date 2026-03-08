@@ -82,7 +82,7 @@ export const MenuItemDetail: React.FC<MenuItemDetailProps> = ({
     return stars;
   };
 
-  const imageUrl = item.image_url ? decodeURIComponent(item.image_url) : '/images/1.jpg';
+  const imageUrl = item.image_url ? decodeURIComponent(item.image_url) : '/images/1.webp';
 
   return (
     <>
@@ -177,12 +177,12 @@ export const MenuItemDetail: React.FC<MenuItemDetailProps> = ({
                   <div key={side.id} className="bg-gray-50 rounded-lg p-2 text-center">
                     <div className="h-16 w-full rounded-md bg-gray-200 overflow-hidden mb-2">
                       <img
-                        src={side.image_url ? decodeURIComponent(side.image_url) : '/images/1.jpg'}
+                        src={side.image_url ? decodeURIComponent(side.image_url) : '/images/1.webp'}
                         alt={side.name}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
-                          target.src = '/images/1.jpg';
+                          target.src = '/images/1.webp';
                         }}
                       />
                     </div>

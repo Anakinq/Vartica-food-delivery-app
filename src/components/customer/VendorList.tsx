@@ -72,7 +72,7 @@ export const VendorList: React.FC<VendorListProps> = ({ onBack }) => {
             return `/images/${index + 1}.jpg`;
         }
 
-        return '/images/1.jpg';
+        return '/images/1.webp';
     };
 
     const renderVendorCard = (vendor: Vendor, isLateNight: boolean = false) => {

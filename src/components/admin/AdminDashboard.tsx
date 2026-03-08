@@ -476,7 +476,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
       <div
         className="fixed inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: "url('/images/1.jpg')",
+          backgroundImage: "url('/images/1.webp')",
         }}
       />
       <div className="fixed inset-0 bg-black bg-opacity-70" />

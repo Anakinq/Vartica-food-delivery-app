@@ -944,12 +944,12 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
                       <div key={product.id} className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border border-gray-100">
                         <div className="h-32 sm:h-32 rounded-lg bg-gray-100 overflow-hidden mb-3">
                           <img
-                            src={product.image_url || '/images/1.jpg'}
+                            src={product.image_url || '/images/1.webp'}
                             alt={product.name}
                             className="w-full h-full object-cover"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
-                              target.src = '/images/1.jpg';
+                              target.src = '/images/1.webp';
                             }}
                           />
                         </div>

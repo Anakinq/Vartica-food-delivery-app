@@ -60,12 +60,12 @@ export const CafeteriaList: React.FC<CafeteriaListProps> = ({ onBack }) => {
             const mappedName = nameMap[cafeteriaName];
             if (mappedName) {
                 const extensionMap: Record<string, string> = {
-                    'caf 1': '.png',
-                    'caf 2': '.png',
+                    'caf 1': '.webp',
+                    'caf 2': '.webp',
                     'staff caf': '.png',
                     'captain cook': '.png',
                     'med caf': '.jpeg',
-                    'smoothie shack': '.png'
+                    'smoothie shack': '.webp'
                 };
                 const ext = extensionMap[mappedName] || '.jpg';
                 return `/images/${mappedName}${ext}`;
@@ -77,7 +77,7 @@ export const CafeteriaList: React.FC<CafeteriaListProps> = ({ onBack }) => {
             return `/images/${index + 1}.jpg`;
         }
 
-        return '/images/1.jpg';
+        return '/images/1.webp';
     };
 
     const renderCafeteriaCard = (cafeteria: Cafeteria) => {

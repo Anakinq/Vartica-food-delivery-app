@@ -12,7 +12,7 @@ interface MenuItemCardProps {
 }
 
 // Fallback image URL
-const FALLBACK_IMAGE = '/images/1.jpg';
+const FALLBACK_IMAGE = '/images/1.webp';
 
 // Properly format the image URL to handle special characters and ensure validity
 const getImageUrl = (imageUrl: string | null | undefined): string => {

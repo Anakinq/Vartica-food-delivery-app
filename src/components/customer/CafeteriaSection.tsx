@@ -37,18 +37,18 @@ const CafeteriaCard = React.memo(({
         const mappedName = nameMap[cafeteria.name];
         if (mappedName) {
             const extensionMap: Record<string, string> = {
-                'caf 1': '.png',
-                'caf 2': '.png',
+                'caf 1': '.webp',
+                'caf 2': '.webp',
                 'staff caf': '.png',
                 'captain cook': '.png',
                 'med caf': '.jpeg',
-                'smoothie shack': '.png'
+                'smoothie shack': '.webp'
             };
             const ext = extensionMap[mappedName] || '.jpg';
             return `/images/${mappedName}${ext}`;
         }
 
-        return '/images/1.jpg';
+        return '/images/1.webp';
     };
 
     return (
@@ -66,8 +66,8 @@ const CafeteriaCard = React.memo(({
                 />
                 <div className="absolute top-2 right-2">
                     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${isOpen
-                            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                            : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                        ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                        : 'bg-red-500/20 text-red-400 border border-red-500/30'
                         }`}>
                         {isOpen ? 'Open' : 'Closed'}
                     </span>

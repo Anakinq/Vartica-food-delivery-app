@@ -75,7 +75,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                     description: formData.description.trim(),
                     price: parseFloat(formData.price),
                     category: formData.category.trim(),
-                    image_url: formData.image_url || '/images/1.jpg'
+                    image_url: formData.image_url || '/images/1.webp'
                 })
                 .eq('id', product.id);
 

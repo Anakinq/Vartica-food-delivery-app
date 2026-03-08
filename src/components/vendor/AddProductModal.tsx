@@ -178,7 +178,7 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
                     description: formData.description,
                     price: parseFloat(formData.price),
                     category: formData.category,
-                    image_url: formData.image_url || '/images/1.jpg',
+                    image_url: formData.image_url || '/images/1.webp',
                     is_available: true
                 });
 

@@ -5,7 +5,7 @@ import { LazyImage } from '../common/LazyImage';
 import { Plus, Minus, Heart } from 'lucide-react';
 
 // Fallback image
-const FALLBACK_IMAGE = '/images/1.jpg';
+const FALLBACK_IMAGE = '/images/1.webp';
 
 const getImageUrl = (imageUrl: string | null | undefined): string => {
   if (!imageUrl) return FALLBACK_IMAGE;
@@ -64,7 +64,7 @@ export const MenuItemCardSimple: React.FC<MenuItemCardSimpleProps> = ({
           src={imageUrl}
           alt={item.name}
           className="w-full h-full object-cover"
-          fallback="/images/1.jpg"
+          fallback="/images/1.webp"
         />
 
         {/* Quantity Badge */}
