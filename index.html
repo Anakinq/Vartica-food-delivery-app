@@ -147,57 +147,6 @@
 </head>
 
 <body>
-  <!-- Splash Screen Loading Overlay -->
-  <div id="splash-screen"
-    style="position: fixed; inset: 0; background: white; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-    <div
-      style="width: 300px; height: 300px; animation: bounce 1s ease infinite; display: flex; align-items: center; justify-content: center;">
-      <img src="/images/logo.webp" alt="Vartica Logo" fetchpriority="high"
-        style="width: 100%; height: 100%; object-fit: contain;" />
-    </div>
-    <div style="margin-top: 40px; display: flex; gap: 12px;">
-      <div
-        style="width: 14px; height: 14px; background: #f59e0b; border-radius: 50%; animation: bounce 1.4s ease-in-out infinite; animation-delay: 0s;">
-      </div>
-      <div
-        style="width: 14px; height: 14px; background: #f59e0b; border-radius: 50%; animation: bounce 1.4s ease-in-out infinite; animation-delay: 0.2s;">
-      </div>
-      <div
-        style="width: 14px; height: 14px; background: #f59e0b; border-radius: 50%; animation: bounce 1.4s ease-in-out infinite; animation-delay: 0.4s;">
-      </div>
-    </div>
-  </div>
-
-  <style>
-    @keyframes bounce {
-
-      0%,
-      100% {
-        transform: translateY(0);
-      }
-
-      50% {
-        transform: translateY(-20px);
-      }
-    }
-  </style>
-
-  <!-- Hide splash screen when app loads -->
-  <script>
-    window.addEventListener('load', function () {
-      setTimeout(function () {
-        const splashScreen = document.getElementById('splash-screen');
-        if (splashScreen) {
-          splashScreen.style.transition = 'opacity 0.5s ease-out';
-          splashScreen.style.opacity = '0';
-          setTimeout(function () {
-            splashScreen.style.display = 'none';
-          }, 500);
-        }
-      }, 1500); // Show splash for 1.5 seconds
-    });
-  </script>
-
   <!-- Uber-style Predictive Prefetching -->
   <script>
     (function () {
