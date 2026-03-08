@@ -145,6 +145,81 @@
 </head>
 
 <body>
+  <!-- Deferred loading for third-party scripts - only load when needed -->
+  <script>
+    // Track which scripts have been loaded
+    const loadedScripts = new Set();
+
+    // Load script lazily using requestIdleCallback for non-blocking load
+    function loadScriptWhenNeeded(src, id, priority = false) {
+      if (loadedScripts.has(id)) return;
+
+      const loadNow = () => {
+        if (loadedScripts.has(id)) return;
+        loadedScripts.add(id);
+
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.defer = true;
+        script.id = id;
+        document.head.appendChild(script);
+      };
+
+      if (priority) {
+        loadNow();
+      } else if ('requestIdleCallback' in window) {
+        requestIdleCallback(loadNow, { timeout: 5000 });
+      } else {
+        setTimeout(loadNow, 3000);
+      }
+    }
+
+    // Only load GTM and analytics on admin/dashboard routes (not landing page)
+    function loadAnalyticsOnDashboard() {
+      const hash = window.location.hash || '';
+      const isDashboard = hash.includes('/admin') ||
+        hash.includes('/vendor') ||
+        hash.includes('/delivery') ||
+        hash.includes('/cafeteria') ||
+        hash.includes('/orders') ||
+        hash.includes('/profile');
+
+      if (isDashboard) {
+        // Load Google Tag Manager only on authenticated pages
+        loadScriptWhenNeeded('https://www.googletagmanager.com/gtag/js?id=G-0WCTF5FP66', 'gtm-script');
+      }
+    }
+
+    // Load Pusher only when user is authenticated and on specific pages
+    function loadRealtimeOnAuth() {
+      const hash = window.location.hash || '';
+      const needsRealtime = hash.includes('/orders') ||
+        hash.includes('/delivery') ||
+        hash.includes('/vendor') ||
+        hash.includes('/cafeteria');
+
+      if (needsRealtime) {
+        // Load Pusher/Supabase realtime only when needed
+        loadScriptWhenNeeded('https://js.pusher.com/7.0/pusher.min.js', 'pusher-js');
+      }
+    }
+
+    // Run after page load with slight delay
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        loadAnalyticsOnDashboard();
+        loadRealtimeOnAuth();
+      }, 2000);
+    });
+
+    // Also check on hash change (SPA navigation)
+    window.addEventListener('hashchange', () => {
+      loadAnalyticsOnDashboard();
+      loadRealtimeOnAuth();
+    });
+  </script>
+
   <!-- Uber-style Predictive Prefetching -->
   <script>
     (function () {
