@@ -118,6 +118,8 @@ export default defineConfig(({ mode }) => {
       assetsInlineLimit: 4096, // 4kb
       // Optimize chunk size
       chunkSizeWarningLimit: 1000,
+      // Critical CSS optimization - inline critical styles
+      inlineStylesheets: 'auto',
     },
 
     // Development server configuration

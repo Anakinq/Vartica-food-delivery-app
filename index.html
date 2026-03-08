@@ -4,9 +4,8 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-  <!-- Mobile-first viewport for proper PWA experience -->
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <!-- Mobile-first viewport for proper PWA experience - enabled zoom for accessibility -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -21,13 +20,17 @@
   <link rel="prefetch" href="#/cafeterias" />
   <link rel="prefetch" href="#/vendors" />
 
-  <!-- Preconnect to external services -->
+  <!-- Preload critical LCP image with high priority -->
+  <link rel="preload" href="/images/logo.webp" as="image" fetchpriority="high">
+
+  <!-- Preconnect to external services - including 3rd party CDNs for performance -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://s3-eu-west-1.amazonaws.com">
+  <link rel="preconnect" href="https://js.paystack.co">
+  <link rel="preconnect" href="https://checkout.paystack.com">
 
-  <!-- Preload critical Google Font -->
-  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap"
-    as="style" crossorigin>
+  <!-- Google Fonts loaded via CSS import for CSP compatibility -->
   <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 
   <!-- DNS prefetch for external services -->
@@ -148,7 +151,8 @@
     style="position: fixed; inset: 0; background: white; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center;">
     <div
       style="width: 300px; height: 300px; animation: bounce 1s ease infinite; display: flex; align-items: center; justify-content: center;">
-      <img src="/images/logo.webp" alt="Vartica Logo" style="width: 100%; height: 100%; object-fit: contain;" />
+      <img src="/images/logo.webp" alt="Vartica Logo" fetchpriority="high"
+        style="width: 100%; height: 100%; object-fit: contain;" />
     </div>
     <div style="margin-top: 40px; display: flex; gap: 12px;">
       <div
@@ -255,8 +259,8 @@
   <!-- Main React/TypeScript entry -->
   <script type="module" src="/src/main.tsx"></script>
 
-  <!-- Paystack Inline Script -->
-  <script src="https://js.paystack.co/v1/inline.js"></script>
+  <!-- Paystack Inline Script - deferred for performance -->
+  <script defer src="https://js.paystack.co/v1/inline.js"></script>
 </body>
 
 </html>

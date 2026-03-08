@@ -121,6 +121,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
             <button
               onClick={() => setMenuOpen(!menuOpen)}
               className="md:hidden p-2 rounded-md text-white hover:bg-white hover:bg-opacity-20 transition-colors"
+              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={menuOpen}
             >
               {menuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
