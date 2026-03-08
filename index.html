@@ -23,15 +23,17 @@
   <!-- Preload critical LCP image with high priority -->
   <link rel="preload" href="/images/logo.webp" as="image" fetchpriority="high">
 
-  <!-- Preconnect to external services - including 3rd party CDNs for performance -->
+  <!-- Preconnect to critical external services only (max 4 recommended) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://s3-eu-west-1.amazonaws.com">
   <link rel="preconnect" href="https://js.paystack.co">
-  <link rel="preconnect" href="https://checkout.paystack.com">
 
-  <!-- Google Fonts loaded via CSS import for CSP compatibility -->
-  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Google Fonts - using display=swap for non-blocking render -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap"
+    media="print" onload="this.media='all'">
+  <noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap">
+  </noscript>
 
   <!-- DNS prefetch for external services -->
   <link rel="dns-prefetch" href="https://js.paystack.co">
