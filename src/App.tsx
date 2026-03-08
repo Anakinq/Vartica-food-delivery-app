@@ -15,20 +15,24 @@ if (typeof window !== 'undefined') {
 // Lazy load route components for better performance (code splitting)
 const CustomerHome = lazy(() => import('./components/customer/CustomerHome').then(module => ({ default: module.CustomerHome })));
 const VendorDashboard = lazy(() => import('./components/vendor/VendorDashboard').then(module => ({ default: module.VendorDashboard })));
-import { VendorBottomNavigation } from './components/vendor/VendorBottomNavigation';
-import { LandingPage } from './components/LandingPage';
+const VendorBottomNavigation = lazy(() => import('./components/vendor/VendorBottomNavigation').then(module => ({ default: module.VendorBottomNavigation })));
+const LandingPage = lazy(() => import('./components/LandingPage').then(module => ({ default: module.LandingPage })));
 const SignIn = lazy(() => import('./components/auth/SignIn').then(module => ({ default: module.SignIn })));
 const SignUp = lazy(() => import('./components/auth/SignUp').then(module => ({ default: module.SignUp })));
-import { ProfileDashboard } from './components/shared/ProfileDashboard';
+const ProfileDashboard = lazy(() => import('./components/shared/ProfileDashboard').then(module => ({ default: module.ProfileDashboard })));
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
 const DeliveryDashboard = lazy(() => import('./components/delivery/DeliveryDashboard').then(module => ({ default: module.DeliveryDashboard })));
-import { Cart } from './components/customer/Cart';
-import { Checkout } from './components/customer/Checkout';
+const Cart = lazy(() => import('./components/customer/Cart').then(module => ({ default: module.Cart })));
+const Checkout = lazy(() => import('./components/customer/Checkout').then(module => ({ default: module.Checkout })));
 const CafeteriaDashboard = lazy(() => import('./components/cafeteria/CafeteriaDashboard').then(module => ({ default: module.default })));
-import AuthCallback from './components/auth/AuthCallback';
+const AuthCallback = lazy(() => import('./components/auth/AuthCallback').then(module => ({ default: module.default })));
 const CafeteriaList = lazy(() => import('./components/customer/CafeteriaList').then(module => ({ default: module.CafeteriaList })));
 const VendorList = lazy(() => import('./components/customer/VendorList').then(module => ({ default: module.VendorList })));
 const ToastVendorRegister = lazy(() => import('./components/vendor/ToastVendorRegister').then(module => ({ default: module.ToastVendorRegister })));
+const BottomNavigation = lazy(() => import('./components/shared/BottomNavigation').then(module => ({ default: module.BottomNavigation })));
+const NotificationsPanel = lazy(() => import('./components/shared/NotificationsPanel').then(module => ({ default: module.default })));
+const OrderTracking = lazy(() => import('./components/customer/OrderTracking').then(module => ({ default: module.OrderTracking })));
+const RoleSwitcher = lazy(() => import('./components/shared/RoleSwitcher').then(module => ({ default: module.RoleSwitcher })));
 
 // import { Analytics } from '@vercel/analytics/react'; // Temporarily disabled
 import ErrorBoundary from './components/ErrorBoundary';
@@ -38,11 +42,7 @@ import { ToastContainer } from './components/ToastComponent';
 import { DarkModeProvider } from './contexts/DarkModeContext';
 import { UserRole } from './types';
 import { Profile } from './lib/supabase/types';
-import { BottomNavigation } from './components/shared/BottomNavigation';
-import NotificationsPanel from './components/shared/NotificationsPanel';
-import { OrderTracking } from './components/customer/OrderTracking';
 import { CartProvider, useCart } from './contexts/CartContext';
-import { RoleSwitcher } from './components/shared/RoleSwitcher';
 import { usePrefetch } from './hooks/usePrefetch';
 
 // Loading fallback for Suspense
