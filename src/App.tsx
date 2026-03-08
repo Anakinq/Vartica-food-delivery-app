@@ -237,7 +237,7 @@ function AppContent() {
           }
         }
 
-        const savedRole = localStorage.getItem('activeRole');
+        const savedRole = localStorage.getItem('vartica_active_role');
         if (savedRole === 'vendor' || savedRole === 'delivery_agent' || savedRole === 'admin' || savedRole === 'cafeteria') {
           return `#/${savedRole === 'delivery_agent' ? 'delivery' : savedRole}`;
         }
@@ -280,7 +280,7 @@ function AppContent() {
 
         // Fallback to role-based default - use currentRole from localStorage, not profile.role
         // This ensures we go back to the view the user was actually using, not their profile role
-        const savedRole = localStorage.getItem('activeRole');
+        const savedRole = localStorage.getItem('vartica_active_role');
         if (savedRole === 'vendor' || savedRole === 'delivery_agent' || savedRole === 'admin' || savedRole === 'cafeteria') {
           return `#/${savedRole === 'delivery_agent' ? 'delivery' : savedRole}`;
         }

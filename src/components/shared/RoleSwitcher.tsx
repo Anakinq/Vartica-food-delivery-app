@@ -97,7 +97,7 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
         );
     };
 
-    // Role switch dialog
+    // Role switch dialog with loading state
     const renderDialog = () => {
         if (!showDialog) return null;
 
@@ -106,14 +106,24 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
         return (
             <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
                 <div className="bg-white rounded-2xl max-w-md w-full p-6 relative">
-                    {/* Close button */}
+                    {/* Close button - disabled during switching */}
                     <button
                         onClick={() => setShowDialog(false)}
-                        className="absolute top-4 right-4 p-1 rounded-full hover:bg-gray-100 transition-colors"
+                        disabled={isSwitching}
+                        className="absolute top-4 right-4 p-1 rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50"
                         aria-label="Close dialog"
                     >
                         <X className="h-5 w-5 text-gray-500" />
                     </button>
+
+                    {/* Loading overlay */}
+                    {isSwitching && (
+                        <div className="absolute inset-0 bg-white bg-opacity-90 rounded-2xl flex flex-col items-center justify-center z-10">
+                            <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4"></div>
+                            <p className="text-gray-700 font-medium">Switching roles...</p>
+                            <p className="text-gray-500 text-sm mt-1">Please wait while we update your view</p>
+                        </div>
+                    )}
 
                     <div className="text-center">
                         <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -181,8 +191,8 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
                                             onClick={() => handleRoleSwitch(role as any)}
                                             disabled={!isAvailable || isSwitching}
                                             className={`w-full text-left p-4 rounded-lg border-2 transition-all flex items-center space-x-3 ${isAvailable
-                                                    ? 'border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer'
-                                                    : 'bg-gray-100 border-gray-200 cursor-not-allowed opacity-50'
+                                                ? 'border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer'
+                                                : 'bg-gray-100 border-gray-200 cursor-not-allowed opacity-50'
                                                 }`}
                                         >
                                             {React.createElement(roleInfo.icon, {

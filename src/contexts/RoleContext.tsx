@@ -46,13 +46,15 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     // Determine primary role based on profile (this is what the user IS, not what they VIEW)
-    const primaryRole = profile?.role === 'admin'
+    // Fix: Properly handle late_night_vendor as a vendor role
+    const profileRole = profile?.role as string;
+    const primaryRole = profileRole === 'admin'
         ? 'admin'
-        : profile?.role === 'vendor' || (profile as any)?.role === 'late_night_vendor'
+        : profileRole === 'vendor' || profileRole === 'late_night_vendor'
             ? 'vendor'
-            : profile?.role === 'delivery_agent'
+            : profileRole === 'delivery_agent'
                 ? 'delivery_agent'
-                : profile?.role === 'cafeteria'
+                : profileRole === 'cafeteria'
                     ? 'cafeteria'
                     : 'customer';
 
@@ -64,7 +66,8 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (profile?.role === 'cafeteria') {
         availableRoles.push('cafeteria');
     }
-    if (profile?.role === 'vendor' || (profile as any)?.role === 'late_night_vendor' || (profile as any)?.is_vendor) {
+    // Fix: Properly check for vendor roles including late_night_vendor (using already defined profileRole)
+    if (profileRole === 'vendor' || profileRole === 'late_night_vendor' || (profile as any)?.is_vendor) {
         availableRoles.push('vendor');
     }
     if (profile?.role === 'delivery_agent' || (profile as any)?.is_delivery_agent) {
@@ -73,20 +76,28 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Handle hash-based navigation - ONLY update role if it's a role switch operation
     // This prevents unwanted role changes when navigating back from Profile or other pages
+    // Fix: Added debounce and state sync to prevent race conditions
     useEffect(() => {
         let hashChangeTimeout: ReturnType<typeof setTimeout>;
         let isInitialSync = true;
+        let lastProcessedHash = '';
 
         const handleHashChange = () => {
+            const currentHash = window.location.hash;
+
+            // Debounce: Skip if we've already processed this hash
+            if (currentHash === lastProcessedHash) {
+                return;
+            }
+
             const isRoleSwitch = sessionStorage.getItem('role_switching_operation');
-            const hash = window.location.hash;
 
             let hashRole: UserRole | null = null;
-            if (hash.startsWith('#/vendor')) hashRole = 'vendor';
-            else if (hash.startsWith('#/delivery')) hashRole = 'delivery_agent';
-            else if (hash.startsWith('#/customer')) hashRole = 'customer';
-            else if (hash.startsWith('#/admin')) hashRole = 'admin';
-            else if (hash.startsWith('#/cafeteria')) hashRole = 'cafeteria';
+            if (currentHash.startsWith('#/vendor')) hashRole = 'vendor';
+            else if (currentHash.startsWith('#/delivery')) hashRole = 'delivery_agent';
+            else if (currentHash.startsWith('#/customer')) hashRole = 'customer';
+            else if (currentHash.startsWith('#/admin')) hashRole = 'admin';
+            else if (currentHash.startsWith('#/cafeteria')) hashRole = 'cafeteria';
 
             // On initial load, sync role from hash if no saved role exists
             if (isInitialSync && hashRole) {
@@ -98,19 +109,24 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     }
                 }
                 isInitialSync = false;
+                lastProcessedHash = currentHash;
             }
 
-            // Clear the sessionStorage flag after handling navigation
-            if (isRoleSwitch) {
+            // Only update role during explicit role switching operations
+            // This prevents unwanted role changes from regular navigation
+            if (isRoleSwitch && hashRole) {
+                // Verify this is actually a different role before updating
+                if (currentRole !== hashRole) {
+                    setCurrentRole(hashRole);
+                }
+                // Clear the sessionStorage flag after handling navigation
                 hashChangeTimeout = setTimeout(() => {
                     sessionStorage.removeItem('role_switching_operation');
                     sessionStorage.removeItem('role_switch_target');
                 }, 100);
             }
 
-            if (isRoleSwitch && hashRole) {
-                setCurrentRole(hashRole);
-            }
+            lastProcessedHash = currentHash;
         };
 
         // Set initial role based on current hash (only on first load)
