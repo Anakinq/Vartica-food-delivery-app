@@ -89,8 +89,7 @@ export default defineConfig(({ mode }) => {
         'react',
         'react-dom',
         'react-router-dom',
-        '@supabase/supabase-js',
-        '@supabase/ssr',
+        '@supabase/supabase-js'
       ],
     },
     define: {
@@ -105,43 +104,17 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           // Manual chunk splitting for better caching and lazy loading
-          manualChunks: (id) => {
+          manualChunks: {
             // Core React ecosystem - loaded first
-            if (id.includes('node_modules/react') ||
-              id.includes('node_modules/react-dom') ||
-              id.includes('node_modules/react-router') ||
-              id.includes('node_modules/scheduler')) {
-              return 'vendor-react';
-            }
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
             // Heavy charting library - loaded only on analytics pages
-            if (id.includes('node_modules/recharts') ||
-              id.includes('node_modules/d3')) {
-              return 'vendor-charts';
-            }
+            'vendor-charts': ['recharts'],
             // Maps libraries - loaded only on map pages
-            if (id.includes('node_modules/@react-google-maps') ||
-              id.includes('node_modules/leaflet') ||
-              id.includes('node_modules/react-leaflet')) {
-              return 'vendor-maps';
-            }
+            'vendor-maps': ['@react-google-maps/api', 'leaflet', 'react-leaflet'],
             // Analytics and error tracking - loaded on demand
-            if (id.includes('node_modules/@vercel/analytics') ||
-              id.includes('node_modules/@sentry')) {
-              return 'vendor-analytics';
-            }
+            'vendor-analytics': ['@vercel/analytics', '@sentry/react', '@sentry/browser'],
             // Payment processing - loaded only on checkout
-            if (id.includes('node_modules/react-paystack') ||
-              id.includes('node_modules/@paystack')) {
-              return 'vendor-payment';
-            }
-            // Supabase - lazy loaded
-            if (id.includes('node_modules/@supabase')) {
-              return 'vendor-supabase';
-            }
-            // Other vendor code
-            if (id.includes('node_modules/')) {
-              return 'vendor-misc';
-            }
+            'vendor-payment': ['react-paystack'],
           },
           chunkFileNames: 'assets/[name]-[hash].js',
           entryFileNames: 'assets/[name]-[hash].js',
@@ -152,11 +125,11 @@ export default defineConfig(({ mode }) => {
       minify: 'esbuild',
       // Enable CSS code splitting
       cssCodeSplit: true,
-      // Increase asset inlining limit to inline all CSS and avoid render blocking
-      assetsInlineLimit: 16000, // 16kb - inline CSS to prevent render blocking
+      // Enable asset inlining for small files
+      assetsInlineLimit: 8192, // 8kb - inline more small files
       // Optimize chunk size
       chunkSizeWarningLimit: 1500,
-      // Inline all CSS to avoid render blocking
+      // Inline all CSS to avoid render blocking (small app)
       inlineStylesheets: true,
       // Improve tree-shaking
       treeShaking: true,
