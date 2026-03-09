@@ -330,7 +330,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
-              className="w-full px-4 py-3 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder={isCafeteria ? "e.g., Cheeseburger" : isBusinessVendor ? "e.g., Laptop Stand" : "e.g., Small Fries"}
             />
           </div>
@@ -343,7 +343,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
-              className="w-full px-4 py-3 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder={isBusinessVendor ? "Describe your product/service..." : "Describe your item..."}
             />
           </div>
@@ -360,7 +360,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
                 value={formData.price}
                 onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
                 required
-                className="w-full px-4 py-3 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="0.00"
               />
             </div>
@@ -371,7 +371,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
               </label>
 
               {loadingCategories ? (
-                <div className="w-full px-4 py-3 border border-gray-400 rounded-lg bg-gray-100">
+                <div className="w-full px-4 py-3 border border-gray-500 rounded-lg bg-gray-200">
                   Loading categories...
                 </div>
               ) : (
@@ -386,7 +386,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
                           value={newCategoryName}
                           onChange={(e) => setNewCategoryName(e.target.value)}
                           placeholder="Category name"
-                          className="flex-1 px-3 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="flex-1 px-3 py-2 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           autoFocus
                         />
                         <button
@@ -434,7 +434,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
                           }
                         }}
                         required
-                        className="flex-1 px-4 py-3 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="flex-1 px-4 py-3 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
                         <option value="">Select category</option>
                         {displayCategories.map((cat: any) => (
@@ -479,7 +479,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
             <label className="block text-sm font-medium text-gray-900 mb-2">
               Image
             </label>
-            <div className="border-2 border-dashed border-gray-400 rounded-lg p-4 text-center">
+            <div className="border-2 border-dashed border-gray-500 rounded-lg p-4 text-center">
               {imagePreview ? (
                 <div className="relative">
                   <img
@@ -502,7 +502,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
               ) : (
                 <label className="cursor-pointer block">
                   <Upload className="h-10 w-10 text-gray-500 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">Click to upload image</p>
+                  <p className="text-sm text-gray-700">Click to upload image</p>
                   <input
                     type="file"
                     accept="image/*"
@@ -520,7 +520,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
               id="is_available"
               checked={formData.is_available}
               onChange={(e) => setFormData({ ...formData, is_available: e.target.checked })}
-              className="w-5 h-5 text-blue-600 border-gray-400 rounded focus:ring-blue-500"
+              className="w-5 h-5 text-blue-600 border-gray-500 rounded focus:ring-blue-500"
             />
             <label htmlFor="is_available" className="text-sm font-medium text-gray-900">
               Available for order
@@ -531,7 +531,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-3 border border-gray-400 text-gray-700 rounded-lg hover:bg-gray-100"
+              className="flex-1 px-4 py-3 border border-gray-500 text-gray-800 rounded-lg hover:bg-gray-200"
             >
               Cancel
             </button>
