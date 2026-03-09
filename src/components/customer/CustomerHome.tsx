@@ -112,6 +112,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const [showVendorUpgrade, setShowVendorUpgrade] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(globalSearchQuery);
 
   // Toast state
   const [toastView, setToastView] = useState<'home' | 'vendors' | 'order' | null>(null);
@@ -213,7 +214,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   }, [menuItems]);
 
   // Debounced search
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(globalSearchQuery);
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(globalSearchQuery);
@@ -357,16 +357,16 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         // HAR optimization: Fetch all ratings in a single API call
         const allVendors = [...students, ...lateNight];
         const vendorIds = allVendors.map(v => v.id);
-        
+
         try {
           const ratingsMap = await VendorReviewService.getMultipleVendorRatings(vendorIds);
           const ratings: Record<string, { avgRating: number; reviewCount: number }> = {};
-          
+
           vendorIds.forEach(id => {
             const ratingData = ratingsMap.get(id);
             ratings[id] = ratingData || { avgRating: 0, reviewCount: 0 };
           });
-          
+
           setVendorRatings(ratings);
         } catch (error) {
           console.error('Error fetching vendor ratings:', error);
