@@ -36,6 +36,11 @@ const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ profile, onShow
   const [showProfileModal, setShowProfileModal] = useState(false);
   const { signOut } = useAuth();
 
+  // Track if this is a late night vendor
+  const [isLateNightVendor, setIsLateNightVendor] = useState(false);
+  // Vendor record for late night vendors
+  const [vendorData, setVendorData] = useState<any>(null);
+
   const uploadImage = async (file: File): Promise<string> => {
     const fileExt = file.name.split('.').pop()?.toLowerCase();
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
@@ -59,14 +64,14 @@ const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ profile, onShow
   useEffect(() => {
     fetchData();
 
-    // Check approval status for vendors
-    if (profile && profile.role === 'vendor') {
+    // Check approval status for vendors (including late night vendors)
+    if (profile && (profile.role === 'vendor' || (profile as any).role === 'late_night_vendor')) {
       checkVendorApproval();
     }
   }, [profile]);
 
   const checkVendorApproval = async () => {
-    if (profile && profile.role === 'vendor') {
+    if (profile && (profile.role === 'vendor' || (profile as any).role === 'late_night_vendor')) {
       setLoadingApproval(true);
       const status = await databaseService.checkApprovalStatus(profile.id, 'vendor');
       setApprovalStatus(status);
@@ -91,7 +96,7 @@ const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ profile, onShow
       }
       // Update profile form data when cafeteria data is loaded
       setProfileFormData({
-        name: cafeteria.name,
+        name: isLateNightVendor ? (cafeteria as any).store_name : cafeteria.name,
         description: cafeteria.description || '',
       });
       setProfileImagePreview(cafeteria.image_url || '');
@@ -102,23 +107,60 @@ const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ profile, onShow
     if (!profile) return;
 
     try {
-      const { data: cafeteriaData } = await supabase
-        .from('cafeterias')
-        .select('*')
-        .eq('user_id', profile.id)
-        .maybeSingle();
+      // Check if profile role indicates late night vendor
+      const profileRole = (profile as any).role;
+      const isLateNight = profileRole === 'late_night_vendor' ||
+        (profile.vendor && profile.vendor.vendor_type === 'late_night');
 
-      if (cafeteriaData) {
-        setCafeteria(cafeteriaData);
+      setIsLateNightVendor(isLateNight);
 
-        const { data: items } = await supabase
-          .from('menu_items')
+      if (isLateNight) {
+        // Fetch late night vendor data from vendors table
+        const { data: vendorData, error: vendorError } = await supabase
+          .from('vendors')
           .select('*')
-          .eq('seller_id', cafeteriaData.id)
-          .eq('seller_type', 'cafeteria')
-          .order('name');
+          .eq('user_id', profile.id)
+          .eq('vendor_type', 'late_night')
+          .maybeSingle();
 
-        if (items) setMenuItems(items);
+        if (vendorError) {
+          console.error('Error fetching vendor data:', vendorError);
+        }
+
+        if (vendorData) {
+          setVendorData(vendorData);
+          setCafeteria(vendorData as unknown as Cafeteria);
+
+          // Fetch menu items for late night vendor
+          const { data: items } = await supabase
+            .from('menu_items')
+            .select('*')
+            .eq('seller_id', vendorData.id)
+            .eq('seller_type', 'late_night_vendor')
+            .order('name');
+
+          if (items) setMenuItems(items);
+        }
+      } else {
+        // Original cafeteria logic
+        const { data: cafeteriaData } = await supabase
+          .from('cafeterias')
+          .select('*')
+          .eq('user_id', profile.id)
+          .maybeSingle();
+
+        if (cafeteriaData) {
+          setCafeteria(cafeteriaData);
+
+          const { data: items } = await supabase
+            .from('menu_items')
+            .select('*')
+            .eq('seller_id', cafeteriaData.id)
+            .eq('seller_type', 'cafeteria')
+            .order('name');
+
+          if (items) setMenuItems(items);
+        }
       }
 
       setLoading(false);
@@ -190,7 +232,7 @@ const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ profile, onShow
           .insert({
             ...finalData,
             seller_id: cafeteria.id,
-            seller_type: 'cafeteria',
+            seller_type: isLateNightVendor ? 'late_night_vendor' : 'cafeteria',
           });
 
         if (insertError) {
@@ -281,7 +323,7 @@ const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ profile, onShow
         .from('menu_items')
         .delete()
         .eq('seller_id', cafeteria.id)
-        .eq('seller_type', 'cafeteria');
+        .eq('seller_type', isLateNightVendor ? 'late_night_vendor' : 'cafeteria');
 
       if (!error) {
         console.log('Menu cleared successfully!');
@@ -347,15 +389,29 @@ const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ profile, onShow
         finalImageUrl = publicUrlData?.publicUrl || '';
       }
 
-      // Update cafeteria profile
-      const { error } = await supabase
-        .from('cafeterias')
-        .update({
-          name: profileFormData.name,
-          description: profileFormData.description,
-          image_url: finalImageUrl,
-        })
-        .eq('id', cafeteria.id);
+      // Update cafeteria or vendor profile based on type
+      let error;
+      if (isLateNightVendor) {
+        const result = await supabase
+          .from('vendors')
+          .update({
+            store_name: profileFormData.name,
+            description: profileFormData.description,
+            image_url: finalImageUrl,
+          })
+          .eq('id', cafeteria.id);
+        error = result.error;
+      } else {
+        const result = await supabase
+          .from('cafeterias')
+          .update({
+            name: profileFormData.name,
+            description: profileFormData.description,
+            image_url: finalImageUrl,
+          })
+          .eq('id', cafeteria.id);
+        error = result.error;
+      }
 
       if (error) {
         console.error('Update failed:', error);
@@ -507,7 +563,9 @@ const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ profile, onShow
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center space-x-4">
-                <h1 className="text-2xl font-bold text-gray-900">{cafeteria.name}</h1>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {isLateNightVendor ? (cafeteria as any).store_name : cafeteria.name}
+                </h1>
                 {/* Open/Close Toggle Button */}
                 <button
                   onClick={() => {

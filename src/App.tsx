@@ -557,7 +557,6 @@ function AppContent() {
           </div>
         );
       case 'vendor':
-      case 'late_night_vendor':
         return (
           <div className="authenticated-view">
             <div className="main-content">
@@ -569,6 +568,21 @@ function AppContent() {
               })}
             </div>
             <VendorBottomNavigation />
+          </div>
+        );
+      case 'late_night_vendor':
+        return (
+          <div className="authenticated-view">
+            <div className="main-content">
+              {withSuspense(CafeteriaDashboard)({
+                profile,
+                onShowProfile: () => {
+                  sessionStorage.setItem('previous_page', '#/cafeteria');
+                  window.location.hash = '#/profile';
+                }
+              })}
+            </div>
+            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
           </div>
         );
       case 'customer':

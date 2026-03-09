@@ -100,7 +100,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
         const sellerId = items[0].seller_id;
         const sellerType = items[0].seller_type;
 
-        if (sellerType === 'vendor') {
+        if (sellerType === 'vendor' || sellerType === 'late_night_vendor') {
           const { data: vendorData } = await supabase
             .from('vendors')
             .select('delivery_mode, vendor_type')
@@ -112,9 +112,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
             setVendorType(vendorData.vendor_type || null);
             setShowDeliveryMethodChoice(vendorData.delivery_mode === 'both');
           }
-        } else if (sellerType === 'late_night_vendor') {
-          // Late night vendors have delivery fees like cafeterias
-          setVendorType('late_night_vendor');
         } else if (sellerType === 'cafeteria') {
           setVendorType('cafeteria');
         }
