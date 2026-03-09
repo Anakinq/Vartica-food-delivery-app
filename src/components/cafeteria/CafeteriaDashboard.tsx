@@ -152,7 +152,14 @@ const CafeteriaDashboard: React.FC<CafeteriaDashboardProps> = ({ profile, onShow
     }
 
     try {
-      let finalData = { ...itemData };
+      // Clean up category_id - set to undefined if invalid to avoid FK constraint errors
+      let finalData: Partial<MenuItem> = { ...itemData };
+
+      // If category_id is provided, we'll include it; otherwise let DB handle it as null
+      // This prevents FK errors when stale category IDs are used
+      if (finalData.category_id === '' || finalData.category_id === null) {
+        finalData.category_id = undefined; // Don't send at all - let DB default to null
+      }
 
       if (file) {
         const imageUrl = await uploadImage(file);

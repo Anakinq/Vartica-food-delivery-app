@@ -340,12 +340,10 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
     }
 
     try {
-      // Convert empty category_id to null for UUID field
-      const dataToSave = {
-        ...formData,
-        category_id: formData.category_id || null
-      };
-      await onSave(dataToSave, imageFile || undefined);
+      // Don't send category_id to avoid FK errors with stale IDs
+      // The category name is stored in 'category' field which is text (no FK)
+      const { category_id, ...dataWithoutCategoryId } = formData;
+      await onSave(dataWithoutCategoryId, imageFile || undefined);
     } catch (err) {
       console.error('Error saving item:', err);
       setError('Failed to save item. Please try again.');
