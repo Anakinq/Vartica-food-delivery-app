@@ -275,6 +275,16 @@ input,
 textarea,
 select {
   user-select: text;
+  color: #111827;
+  /* Ensure text is visible - gray-900 */
+  background-color: #ffffff;
+  /* Ensure background is white */
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af;
+  /* gray-400 */
 }
 
 /* Hide scrollbar for category bar (keeps functionality) */

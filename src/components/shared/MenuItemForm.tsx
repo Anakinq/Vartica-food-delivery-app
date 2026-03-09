@@ -143,6 +143,27 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
 
     try {
       if (isCafeteria && profile?.cafeteria?.id) {
+        // First check if category already exists
+        const { data: existingCategory } = await supabase
+          .from('cafeteria_categories')
+          .select('*')
+          .eq('cafeteria_id', profile.cafeteria.id)
+          .ilike('name', newCategoryName.trim())
+          .single();
+
+        if (existingCategory) {
+          // Category already exists, use it
+          setCafeteriaCategories([...cafeteriaCategories, existingCategory]);
+          setFormData({
+            ...formData,
+            category: existingCategory.name,
+            category_id: existingCategory.id
+          });
+          setNewCategoryName('');
+          setShowAddCategory(false);
+          return;
+        }
+
         // Add to cafeteria_categories
         const { data, error } = await supabase
           .from('cafeteria_categories')
@@ -157,8 +178,30 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
           .single();
 
         if (error) {
+          // Check if it's a conflict (category was created by another process)
+          if (error.code === '409' || error.message.includes('duplicate')) {
+            // Try to fetch the category again
+            const { data: retryCategory } = await supabase
+              .from('cafeteria_categories')
+              .select('*')
+              .eq('cafeteria_id', profile.cafeteria.id)
+              .ilike('name', newCategoryName.trim())
+              .single();
+
+            if (retryCategory) {
+              setCafeteriaCategories([...cafeteriaCategories, retryCategory]);
+              setFormData({
+                ...formData,
+                category: retryCategory.name,
+                category_id: retryCategory.id
+              });
+              setNewCategoryName('');
+              setShowAddCategory(false);
+              return;
+            }
+          }
           showError('Failed to add category: ' + error.message);
-        } else {
+        } else if (data) {
           setCafeteriaCategories([...cafeteriaCategories, data]);
           setFormData({
             ...formData,
@@ -169,6 +212,27 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
           setShowAddCategory(false);
         }
       } else if (profile?.vendor?.id) {
+        // First check if category already exists
+        const { data: existingCategory } = await supabase
+          .from('vendor_categories')
+          .select('*')
+          .eq('vendor_id', profile.vendor.id)
+          .ilike('name', newCategoryName.trim())
+          .single();
+
+        if (existingCategory) {
+          // Category already exists, use it
+          setVendorCategories([...vendorCategories, existingCategory]);
+          setFormData({
+            ...formData,
+            category: existingCategory.name,
+            category_id: existingCategory.id
+          });
+          setNewCategoryName('');
+          setShowAddCategory(false);
+          return;
+        }
+
         // Add to vendor_categories
         const { data, error } = await supabase
           .from('vendor_categories')
@@ -183,8 +247,30 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
           .single();
 
         if (error) {
+          // Check if it's a conflict (category was created by another process)
+          if (error.code === '409' || error.message.includes('duplicate')) {
+            // Try to fetch the category again
+            const { data: retryCategory } = await supabase
+              .from('vendor_categories')
+              .select('*')
+              .eq('vendor_id', profile.vendor.id)
+              .ilike('name', newCategoryName.trim())
+              .single();
+
+            if (retryCategory) {
+              setVendorCategories([...vendorCategories, retryCategory]);
+              setFormData({
+                ...formData,
+                category: retryCategory.name,
+                category_id: retryCategory.id
+              });
+              setNewCategoryName('');
+              setShowAddCategory(false);
+              return;
+            }
+          }
           showError('Failed to add category: ' + error.message);
-        } else {
+        } else if (data) {
           setVendorCategories([...vendorCategories, data]);
           setFormData({
             ...formData,
@@ -330,7 +416,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
-              className="w-full px-4 py-3 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
               placeholder={isCafeteria ? "e.g., Cheeseburger" : isBusinessVendor ? "e.g., Laptop Stand" : "e.g., Small Fries"}
             />
           </div>
@@ -343,7 +429,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
-              className="w-full px-4 py-3 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
               placeholder={isBusinessVendor ? "Describe your product/service..." : "Describe your item..."}
             />
           </div>
@@ -360,7 +446,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
                 value={formData.price}
                 onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
                 required
-                className="w-full px-4 py-3 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                 placeholder="0.00"
               />
             </div>
@@ -371,7 +457,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
               </label>
 
               {loadingCategories ? (
-                <div className="w-full px-4 py-3 border border-gray-500 rounded-lg bg-gray-200">
+                <div className="w-full px-4 py-3 border border-gray-500 rounded-lg bg-gray-200 text-gray-900">
                   Loading categories...
                 </div>
               ) : (
@@ -386,7 +472,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
                           value={newCategoryName}
                           onChange={(e) => setNewCategoryName(e.target.value)}
                           placeholder="Category name"
-                          className="flex-1 px-3 py-2 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="flex-1 px-3 py-2 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                           autoFocus
                         />
                         <button
@@ -434,7 +520,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
                           }
                         }}
                         required
-                        className="flex-1 px-4 py-3 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="flex-1 px-4 py-3 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                       >
                         <option value="">Select category</option>
                         {displayCategories.map((cat: any) => (
@@ -531,7 +617,7 @@ export const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onClos
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-3 border border-gray-500 text-gray-800 rounded-lg hover:bg-gray-200"
+              className="flex-1 px-4 py-3 border border-gray-500 text-gray-900 bg-white rounded-lg hover:bg-gray-200"
             >
               Cancel
             </button>
