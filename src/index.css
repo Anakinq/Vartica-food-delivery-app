@@ -108,15 +108,16 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  /* Use dynamic viewport height for mobile - allows proper scrolling */
+  /* Allow natural vertical scrolling */
   height: auto;
   min-height: 100%;
   width: 100%;
-  /* Prevent overscroll bounce on html only when not in modal */
-  overscroll-behavior-y: none;
+  /* Allow overscroll behavior for natural feel */
+  overscroll-behavior-y: contain;
   background-color: #121212;
   margin: 0;
   padding: 0;
+  overflow-y: scroll;
 }
 
 /* App-like mobile behavior */
@@ -128,33 +129,34 @@ body {
   max-width: 100%;
   overflow-x: hidden;
   /* Ensure body allows scrolling */
-  min-height: 100%;
+  min-height: 100vh;
   height: auto;
   margin: 0;
   padding: 0;
   /* Mobile app styling - dark background for app feel */
   background-color: #121212;
   color: #ffffff;
+  overflow-y: scroll;
 }
 
 /* Root container for app-like scrolling */
 #root {
   width: 100%;
-  min-height: 100dvh;
-  height: 100dvh;
+  min-height: 100vh;
+  height: auto;
   overflow-x: hidden;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* App wrapper for proper mobile scrolling - flex column layout */
 .app-container {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
-  height: 100dvh;
-  overflow: hidden;
-  -webkit-overflow-scrolling: auto;
+  min-height: 100vh;
+  height: auto;
+  overflow: visible;
+  -webkit-overflow-scrolling: touch;
   /* Prevent horizontal scrolling */
   width: 100%;
   max-width: 100vw;
@@ -165,24 +167,23 @@ body {
 .authenticated-view {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
-  height: 100dvh;
-  overflow: hidden;
+  min-height: 100vh;
+  height: auto;
+  overflow: visible;
   position: relative;
 }
 
-/* Scrollable main content - ONLY this area scrolls */
+/* Scrollable main content - allows natural scrolling */
 .main-content {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: visible;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  min-height: 0;
+  min-height: auto;
   /* Important for flex scrolling */
   width: 100%;
   max-width: 100%;
-  /* flex: 1 handles height automatically - no calc needed */
-  padding-bottom: 0px;
+  padding-bottom: 80px;
   padding-top: 0px;
   margin-bottom: 0px;
   background-color: #0b0f14;
@@ -226,8 +227,8 @@ body {
 
 /* Cart full height - makes cart page fully visible without scrolling */
 .cart-full-height {
-  min-height: calc(100dvh - 72px);
-  /* Remove safe area from calculation */
+  min-height: calc(100vh - 72px);
+  /* Allow content to expand naturally */
   height: auto;
   overflow-y: visible;
   display: flex;
@@ -249,6 +250,7 @@ body {
 .dashbar-container {
   padding-top: 64px;
   min-height: 100vh;
+  height: auto;
 }
 
 /* Main content area with proper spacing for fixed headers */
@@ -1290,52 +1292,8 @@ select:focus {
 }
 
 /* Ensure proper viewport and body styling */
-html,
-body {
-  margin: 0;
-  padding: 0;
-  height: 100dvh;
-  width: 100%;
-  background-color: #0b0f14;
-  /* Match app dark background */
-  overflow-x: hidden;
-  overflow-y: hidden;
-  overscroll-behavior: none;
-  /* Prevent bounce effect */
-}
-
-#root {
-  min-height: 100dvh;
-  width: 100%;
-  background-color: #0b0f14;
-  /* Same as body */
-  overflow-x: hidden;
-}
-
-/* App container - full height with proper flex layout */
-.app-container {
-  display: flex;
-  flex-direction: column;
-  min-height: 100dvh;
-  height: 100dvh;
-  width: 100%;
-  max-width: 100vw;
-  overflow: hidden;
-  -webkit-overflow-scrolling: auto;
-}
-
-/* Authenticated view wrapper - contains scrollable content + fixed bottom nav */
-.authenticated-view {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  height: 100dvh;
-  overflow: hidden;
-  position: relative;
-  background-color: #0b0f14;
-  /* Match app background */
-}
+/* Legacy duplicate - these rules have been moved to the top of the file */
+/* This section is kept empty to prevent conflicts */
 
 /* Legacy main-content definition - removed to prevent conflicts */
 

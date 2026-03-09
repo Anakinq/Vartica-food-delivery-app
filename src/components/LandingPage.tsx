@@ -168,8 +168,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onRoleSelect }) => {
       </header>
 
       {/* Hero Section with Login Form */}
-      <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md">
+      <div className="relative z-10 min-h-screen w-full px-4 py-12">
+        <div className="w-full max-w-md mx-auto">
           {/* Headline */}
           <div className="text-center mb-6 sm:mb-8">
             <h1 className="text-2xl sm:text-4xl md:text-5xl font-extrabold text-white mb-2">

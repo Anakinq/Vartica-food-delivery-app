@@ -197,8 +197,8 @@ export const SignIn: React.FC<SignInProps> = ({ role, onBack, onSwitchToSignUp }
       <div className="fixed inset-0 bg-black bg-opacity-70" />
 
       {/* Main content with proper z-index */}
-      <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-12">
-        <div className="max-w-md w-full">
+      <div className="relative z-10 min-h-screen w-full px-4 py-12">
+        <div className="max-w-md w-full mx-auto">
           <button
             onClick={onBack}
             className="flex items-center text-white text-opacity-80 hover:text-white mb-6"
