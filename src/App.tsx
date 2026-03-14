@@ -155,10 +155,11 @@ function AppContent() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [user, profile]);
 
-  // Handle empty hash for authenticated users
+  // Handle empty hash for authenticated users - redirect to customer homepage
+  // This fixes the issue where clicking Back from cafeteria page goes to #/ instead of #/customer
   useEffect(() => {
-    if (user && profile && !loading && !locationHash) {
-      window.location.hash = '';
+    if (user && profile && !loading && (locationHash === '' || locationHash === '#/')) {
+      window.location.hash = '#/customer';
     }
   }, [user, profile, loading, locationHash]);
 
@@ -226,6 +227,11 @@ function AppContent() {
 
     // Handle orders - Customer order history with back button support
     if (locationHash === '#/orders') {
+      // Add null check to prevent errors when profile is loading
+      if (!profile) {
+        return <PageLoader />;
+      }
+
       // Determine back navigation based on previous hash or role
       const getBackHash = () => {
         const previousPage = sessionStorage.getItem('previous_page');
@@ -263,7 +269,13 @@ function AppContent() {
 
     // Handle profile
     if (locationHash === '#/profile') {
-      const isVendor = profile.role === 'vendor' || (profile as any).role === 'late_night_vendor';
+      // Add null check to prevent errors when profile is loading
+      const isVendor = profile?.role === 'vendor' || (profile as any)?.role === 'late_night_vendor';
+
+      // If profile is still loading, show loading state
+      if (!profile) {
+        return <PageLoader />;
+      }
 
       // Determine back navigation based on previous hash or role
       const getBackHash = () => {
