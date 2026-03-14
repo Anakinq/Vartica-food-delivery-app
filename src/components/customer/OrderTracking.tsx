@@ -82,8 +82,8 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center p-2 sm:p-4">
-        <div className="bg-white w-full h-[40vh] sm:w-full sm:max-w-lg sm:h-auto sm:max-h-[50vh] rounded-xl sm:rounded-2xl flex flex-col">
+      <div className="min-h-screen flex items-end sm:items-center justify-center p-4">
+        <div className="bg-white w-full sm:max-w-2xl sm:rounded-2xl max-h-[calc(100vh-2rem)] sm:max-h-[90vh] flex flex-col">
           <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-white">
             <button
               onClick={onClose}
@@ -98,7 +98,7 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 sm:p-4 max-h-[25vh] sm:max-h-[30vh]">
+          <div className="flex-1 overflow-y-auto p-6 max-h-[calc(100vh-8rem)] sm:max-h-[60vh]">
             {orders.length === 0 ? (
               <div className="text-center py-12">
                 <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
