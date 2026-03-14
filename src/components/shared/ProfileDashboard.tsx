@@ -10,6 +10,7 @@ import { VendorUpgradeModal } from '../customer/VendorUpgradeModal';
 import { DeliveryAgentUpgradeModal } from '../customer/DeliveryAgentUpgradeModal';
 import InstallPrompt from '../InstallPrompt';
 import { getDiceBearAvatarUrl, DICE_BEAR_STYLES, type DiceBearStyle } from '../../utils/avatar';
+import { ThemeToggle } from '../ui/ThemeToggle';
 
 export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => void; onClose?: () => void }> = ({ onBack, onSignOut, onClose }) => {
   const { profile, refreshProfile } = useAuth();
@@ -47,35 +48,42 @@ export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => v
   const [savingBank, setSavingBank] = useState(false);
   const [loadingBank, setLoadingBank] = useState(false);
   const [formData, setFormData] = useState({
-    full_name: profile?.full_name || '',
-    phone: profile?.phone || '',
+    full_name: '',
+    phone: '',
   });
-  const [hostelLocation, setHostelLocation] = useState((profile as ExtendedProfile)?.hostel_location || '');
+  const [hostelLocation, setHostelLocation] = useState('');
   // Avatar style state - load from localStorage if available
-  const [avatarStyle, setAvatarStyle] = useState<DiceBearStyle>(() => {
-    try {
-      const savedStyle = localStorage.getItem('avatar_style');
-      if (savedStyle && DICE_BEAR_STYLES.some(s => s.value === savedStyle)) {
-        return savedStyle as DiceBearStyle;
-      }
-    } catch (error) {
-      console.warn('Could not load avatar style from localStorage:', error);
-    }
-    return 'initials';
-  });
-  const [avatarUrl, setAvatarUrl] = useState((profile as ExtendedProfile)?.avatar_url || '');
+  // IMPORTANT: Always use a consistent default on server to avoid hydration mismatch
+  const [avatarStyle, setAvatarStyle] = useState<DiceBearStyle>('initials');
+  const [avatarUrl, setAvatarUrl] = useState('');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [darkMode, setDarkMode] = useState(() => {
+  const [darkMode, setDarkMode] = useState(false);
+
+  // Load avatar style and dark mode from localStorage after mount (client-side only)
+  useEffect(() => {
+    // Load avatar style from localStorage
     try {
-      return typeof window !== 'undefined' && window.localStorage && localStorage.getItem('darkMode') === 'true';
+      const savedAvatarStyle = localStorage.getItem('avatar_style');
+      if (savedAvatarStyle && DICE_BEAR_STYLES.some(s => s.value === savedAvatarStyle)) {
+        setAvatarStyle(savedAvatarStyle as DiceBearStyle);
+      }
+    } catch (error) {
+      console.warn('Could not load avatar style from localStorage:', error);
+    }
+
+    // Load dark mode from localStorage
+    try {
+      const savedDarkMode = localStorage.getItem('darkMode');
+      if (savedDarkMode === 'true') {
+        setDarkMode(true);
+      }
     } catch (error) {
       console.warn('Storage access blocked by tracking prevention:', error);
-      return false; // Default to light mode if storage is blocked
     }
-  });
+  }, []);
 
   // Profile completion state
   const [profileCompletion, setProfileCompletion] = useState(0);
