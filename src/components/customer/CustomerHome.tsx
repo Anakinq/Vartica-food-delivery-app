@@ -734,14 +734,14 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     <div className="flex flex-col min-h-full bg-slate-900">
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto">
-        {/* Header Section */}
-        <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
+        {/* Header Section - Glassmorphism */}
+        <header className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50 sticky top-0 z-40">
           <div className="px-4 pt-4">
             {/* Greeting and Quick Actions Row */}
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-sm text-slate-400">{getGreeting()},</p>
-                <h1 className="text-xl font-bold text-slate-100">
+                <h1 className="text-xl font-bold text-white">
                   {profile?.full_name || 'Student'}
                 </h1>
               </div>
@@ -772,13 +772,15 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
         <main className="bg-slate-900">
           {!selectedSeller ? (
             <>
-              {/* Announcement Carousel (Hero) */}
+              {/* Announcement Carousel (Hero) - Enhanced */}
               {banners.length > 0 && (
-                <section className="mb-8">
+                <section className="mb-8 px-4 pt-4">
                   <div
                     ref={carouselRef}
-                    className="relative h-52 sm:h-60 mx-4 rounded-3xl overflow-hidden shadow-xl shadow-black/30"
+                    className="relative h-64 sm:h-72 rounded-3xl overflow-hidden shadow-2xl shadow-black/40 border border-slate-700/50"
                   >
+                    {/* Glow effect behind banner */}
+                    <div className="absolute inset-0 bg-gradient-glow-green opacity-30 pointer-events-none" />
                     {banners.map((banner, index) => (
                       <div
                         key={banner.id}

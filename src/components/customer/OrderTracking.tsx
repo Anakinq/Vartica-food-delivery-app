@@ -121,9 +121,9 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
                     </div>
 
                     <div className="mb-4">
-                      <p className="text-sm text-gray-600">Total: #{order.total.toFixed(2)}</p>
-                      <p className="text-sm text-gray-600">Payment: {order.payment_method}</p>
-                      <p className="text-sm text-gray-600">Address: {order.delivery_address}</p>
+                      <p className="text-sm text-gray-600">Total: #{order.total?.toFixed(2) || '0.00'}</p>
+                      <p className="text-sm text-gray-600">Payment: {order.payment_method || 'N/A'}</p>
+                      <p className="text-sm text-gray-600">Address: {order.delivery_address || 'No address'}</p>
                     </div>
 
                     <div className="flex flex-wrap gap-2 mb-4">

@@ -148,7 +148,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       }
     } catch (error) {
       console.error('Error fetching vendor data:', error);
-      showToast({ type: 'error', message: 'Failed to load vendor data' });
+      showToast('Failed to load vendor data', 'error');
     } finally {
       setLoading(false);
     }
@@ -191,12 +191,12 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     if (!vendor || !profile) return;
 
     if (bankAccount.length !== 10 || !bankCode) {
-      showToast({ type: 'error', message: 'Please enter a valid 10-digit account number and select a bank.' });
+      showToast('Please enter a valid 10-digit account number and select a bank.', 'error');
       return;
     }
 
     if (!/^\d{10}$/.test(bankAccount)) {
-      showToast({ type: 'error', message: 'Account number must be exactly 10 digits.' });
+      showToast('Account number must be exactly 10 digits.', 'error');
       return;
     }
 
@@ -240,12 +240,12 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         throw result.error;
       }
 
-      showToast({ type: 'success', message: 'Bank details saved successfully!' });
+      showToast('Bank details saved successfully!', 'success');
       setIsBankVerified(true);
       setShowBankModal(false);
     } catch (error: any) {
       console.error('Save bank error:', error);
-      showToast({ type: 'error', message: `Failed to save bank details: ${error.message}` });
+      showToast(`Failed to save bank details: ${error.message}`, 'error');
     } finally {
       setSavingBank(false);
     }
@@ -256,17 +256,17 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
     if (!vendor || !withdrawAmount || withdrawAmount <= 0) return;
 
     if (withdrawAmount > walletBalance) {
-      showToast({ type: 'error', message: 'Insufficient balance.' });
+      showToast('Insufficient balance.', 'error');
       return;
     }
 
     if (withdrawAmount < 100) {
-      showToast({ type: 'error', message: 'Minimum withdrawal amount is ₦100.' });
+      showToast('Minimum withdrawal amount is ₦100.', 'error');
       return;
     }
 
     if (!isBankVerified) {
-      showToast({ type: 'error', message: 'Please set up your bank details first.' });
+      showToast('Please set up your bank details first.', 'error');
       return;
     }
 
@@ -285,16 +285,16 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       const result = await response.json();
 
       if (result.success) {
-        showToast({ type: 'success', message: 'Withdrawal request submitted! Funds will be transferred shortly.' });
+        showToast('Withdrawal request submitted! Funds will be transferred shortly.', 'success');
         setShowWithdrawModal(false);
         setWithdrawAmount(null);
         fetchWalletBalance(vendor.id);
       } else {
-        showToast({ type: 'error', message: result.message || 'Withdrawal failed.' });
+        showToast(result.message || 'Withdrawal failed.', 'error');
       }
     } catch (error) {
       console.error('Withdrawal error:', error);
-      showToast({ type: 'error', message: 'Failed to process withdrawal.' });
+      showToast('Failed to process withdrawal.', 'error');
     } finally {
       setProcessingWithdrawal(false);
     }
@@ -437,7 +437,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
       fetchProducts(vendor?.id || '');
     } catch (error: any) {
       console.error('Error toggling product availability:', error);
-      showToast({ type: 'error', message: `Failed to update: ${error.message}` });
+      showToast(`Failed to update: ${error.message}`, 'error');
     }
   };
 
@@ -463,7 +463,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({ onShowProfile 
         return;
       }
 
-      showToast({ type: 'success', message: 'Order accepted!' });
+      showToast('Order accepted!', 'success');
       fetchOrders(vendor?.id);
     } catch (error) {
       // Rollback on error
@@ -1210,7 +1210,7 @@ const OrderCard: React.FC<{
     </div>
 
     <div className="flex justify-between items-center pt-4 border-t">
-      <p className="font-bold text-lg">Total: ₦{order.total.toFixed(2)}</p>
+      <p className="font-bold text-lg">Total: ₦{order.total?.toFixed(2) || '0.00'}</p>
       <div className="flex gap-2">
         <button
           onClick={onChat}
@@ -1272,7 +1272,7 @@ const ActiveOrderCard: React.FC<{
     </div>
 
     <div className="flex justify-between items-center pt-4 border-t">
-      <p className="font-bold text-lg">Total: ₦{order.total.toFixed(2)}</p>
+      <p className="font-bold text-lg">Total: ₦{order.total?.toFixed(2) || '0.00'}</p>
       <div className="flex gap-2">
         <button
           onClick={onChat}
@@ -1328,7 +1328,7 @@ const CompletedOrderCard: React.FC<{ order: FullOrder }> = ({ order }) => (
       ))}
     </div>
 
-    <p className="font-bold text-lg">Total: ₦{order.total.toFixed(2)}</p>
+    <p className="font-bold text-lg">Total: ₦{order.total?.toFixed(2) || '0.00'}</p>
   </div>
 );
 

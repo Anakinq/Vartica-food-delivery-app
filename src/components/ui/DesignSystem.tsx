@@ -1,7 +1,7 @@
 // src/components/ui/DesignSystem.tsx
 // Consistent Design System for Vartica App
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 // Design Tokens
 export const COLORS = {

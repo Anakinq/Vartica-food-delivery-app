@@ -1023,7 +1023,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                         {filterData().paginatedOrders.map(order => (
                           <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
                             <td className="py-3 px-4 text-sm font-medium text-gray-900">{order.order_number}</td>
-                            <td className="py-3 px-4 text-sm font-bold text-gray-900">₦{order.total.toFixed(2)}</td>
+                            <td className="py-3 px-4 text-sm font-bold text-gray-900">₦{order.total?.toFixed(2) || '0.00'}</td>
                             <td className="py-3 px-4">
                               <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${order.status === 'delivered' ? 'bg-green-100 text-green-700' :
                                 order.status === 'cancelled' ? 'bg-red-100 text-red-700' :

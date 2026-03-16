@@ -404,7 +404,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ dateRange }) =>
                         </div>
                         <ShoppingCart className="h-10 w-10 text-green-200" />
                     </div>
-                    <p className="text-green-100 text-xs mt-2">Avg: ₦{orderAnalytics?.averageOrderValue.toFixed(2) || 0}</p>
+                    <p className="text-green-100 text-xs mt-2">Avg: ₦{orderAnalytics?.averageOrderValue?.toFixed(2) || '0.00'}</p>
                 </div>
 
                 <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-5 text-white">

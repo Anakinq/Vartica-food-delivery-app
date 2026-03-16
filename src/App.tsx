@@ -15,7 +15,6 @@ if (typeof window !== 'undefined') {
 // Lazy load route components for better performance (code splitting)
 const CustomerHome = lazy(() => import('./components/customer/CustomerHome').then(module => ({ default: module.CustomerHome })));
 const VendorDashboard = lazy(() => import('./components/vendor/VendorDashboard').then(module => ({ default: module.VendorDashboard })));
-const VendorBottomNavigation = lazy(() => import('./components/vendor/VendorBottomNavigation').then(module => ({ default: module.VendorBottomNavigation })));
 const LandingPage = lazy(() => import('./components/LandingPage').then(module => ({ default: module.LandingPage })));
 const SignIn = lazy(() => import('./components/auth/SignIn').then(module => ({ default: module.SignIn })));
 const SignUp = lazy(() => import('./components/auth/SignUp').then(module => ({ default: module.SignUp })));
@@ -29,7 +28,6 @@ const AuthCallback = lazy(() => import('./components/auth/AuthCallback').then(mo
 const CafeteriaList = lazy(() => import('./components/customer/CafeteriaList').then(module => ({ default: module.CafeteriaList })));
 const VendorList = lazy(() => import('./components/customer/VendorList').then(module => ({ default: module.VendorList })));
 const ToastVendorRegister = lazy(() => import('./components/vendor/ToastVendorRegister').then(module => ({ default: module.ToastVendorRegister })));
-const BottomNavigation = lazy(() => import('./components/shared/BottomNavigation').then(module => ({ default: module.BottomNavigation })));
 const NotificationsPanel = lazy(() => import('./components/shared/NotificationsPanel').then(module => ({ default: module.default })));
 const OrderTracking = lazy(() => import('./components/customer/OrderTracking').then(module => ({ default: module.OrderTracking })));
 const RoleSwitcher = lazy(() => import('./components/shared/RoleSwitcher').then(module => ({ default: module.RoleSwitcher })));
@@ -46,6 +44,8 @@ const LocationTracker = lazy(() =>
 // import { Analytics } from '@vercel/analytics/react'; // Temporarily disabled
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider } from './contexts/AuthContext';
+import { BottomNavigation } from './components/shared/BottomNavigation';
+import { VendorBottomNavigation } from './components/vendor/VendorBottomNavigation';
 import { ToastProvider } from './contexts/ToastContext';
 import { ToastContainer } from './components/ToastComponent';
 import { DarkModeProvider } from './contexts/DarkModeContext';
@@ -77,13 +77,29 @@ const withSuspense = <P extends object>(Component: React.ComponentType<P>) => {
 
 // Enhanced AppContent with RoleContext integration
 function AppContent() {
-  const { user, profile, loading, signOut } = useAuth();
+  const { user, profile, loading: authLoading, signOut } = useAuth();
   const { currentRole } = useRole();
   const [showProfile, setShowProfile] = useState(false);
   const { items, cartCount, clearCart } = useCart();
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [authView, setAuthView] = useState<'signin' | 'signup'>('signin');
-  const [locationHash, setLocationHash] = useState(window.location.hash);
+
+  // Track if component is mounted to prevent state updates on unmounted components
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Set mounted flag after component mounts
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Initialize hash from window on mount to ensure we capture the initial URL
+  const [locationHash, setLocationHash] = useState(() => {
+    // Ensure we capture the initial hash correctly on first render
+    if (typeof window !== 'undefined') {
+      return window.location.hash || '';
+    }
+    return '';
+  });
 
   // Instant navigation state - for faster tab switching without hash changes
   const [activeTab, setActiveTab] = useState('');
@@ -123,13 +139,16 @@ function AppContent() {
   // Track previous hash for profile navigation
   useEffect(() => {
     const handleHashChange = () => {
-      const currentHash = window.location.hash;
+      const currentHash = window.location.hash || '';
       if (currentHash === '#/profile' && locationHash && locationHash !== '#/profile') {
         // Store the previous page before going to profile
         sessionStorage.setItem('previous_page', locationHash);
       }
       setLocationHash(currentHash);
     };
+
+    // Set initial hash immediately
+    handleHashChange();
 
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
@@ -147,7 +166,7 @@ function AppContent() {
   // Check for hash-based routing when component mounts and when location changes
   useEffect(() => {
     const handleHashChange = () => {
-      setLocationHash(window.location.hash);
+      setLocationHash(window.location.hash || '');
     };
 
     handleHashChange();
@@ -157,17 +176,18 @@ function AppContent() {
 
   // Handle empty hash for authenticated users
   useEffect(() => {
-    if (user && profile && !loading && !locationHash) {
+    if (user && profile && !authLoading && !locationHash) {
       window.location.hash = '';
     }
-  }, [user, profile, loading, locationHash]);
+  }, [user, profile, authLoading, locationHash]);
 
-  if (loading) {
+  // Show loading while auth is checking or component is initializing
+  if (authLoading || !isMounted) {
     return <PageLoader />;
   }
 
   // Handle auth callback route
-  const isAuthCallback = locationHash.startsWith('#/auth/callback') ||
+  const isAuthCallback = (locationHash && locationHash.startsWith('#/auth/callback')) ||
     window.location.search.includes('access_token') ||
     window.location.search.includes('type=oauth');
 
@@ -688,7 +708,9 @@ function App() {
                     </div>
                     <div role="alert" aria-live="assertive" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
                     </div>
-                    <AppContent />
+                    <Suspense fallback={<PageLoader />}>
+                      <AppContent />
+                    </Suspense>
                     <ToastContainer />
                   </div>
                 </CartProvider>

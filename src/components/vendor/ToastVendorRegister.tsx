@@ -166,8 +166,8 @@ export const ToastVendorRegister: React.FC<ToastVendorRegisterProps> = ({ onBack
                                         key={hostel}
                                         onClick={() => setFormData({ ...formData, hostel_location: hostel })}
                                         className={`p-3 rounded-lg text-sm font-medium transition-all ${formData.hostel_location === hostel
-                                                ? 'bg-green-500 text-white'
-                                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                            ? 'bg-green-500 text-white'
+                                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                             }`}
                                     >
                                         {hostel}
