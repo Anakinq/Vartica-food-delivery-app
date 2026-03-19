@@ -72,8 +72,8 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-        <div className="bg-white rounded-2xl p-8">
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center">
           <div className="text-center">Loading orders...</div>
         </div>
       </div>
@@ -81,107 +81,105 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
-      <div className="min-h-screen flex items-end sm:items-center justify-center p-4">
-        <div className="bg-white w-full sm:max-w-2xl sm:rounded-2xl max-h-[calc(100vh-2rem)] sm:max-h-[90vh] flex flex-col">
-          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-white">
-            <button
-              onClick={onClose}
-              className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
-            >
-              <ArrowLeft className="h-5 w-5" />
-              <span>Back</span>
-            </button>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">My Orders</h2>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
-              <X className="h-6 w-6" />
-            </button>
-          </div>
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-lg rounded-2xl max-h-[80vh] flex flex-col shadow-2xl">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-white">
+          <button
+            onClick={onClose}
+            className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            <span>Back</span>
+          </button>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">My Orders</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
+            <X className="h-6 w-6" />
+          </button>
+        </div>
 
-          <div className="flex-1 overflow-y-auto p-6 max-h-[calc(100vh-8rem)] sm:max-h-[60vh]">
-            {orders.length === 0 ? (
-              <div className="text-center py-12">
-                <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600">No orders yet</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {orders.map((order) => (
-                  <div key={order.id} className="bg-gray-50 rounded-xl p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="text-lg font-bold text-gray-900">{order.order_number}</h3>
-                        <p className="text-sm text-gray-600">
-                          {order.created_at ? new Date(order.created_at).toLocaleString() : ''}
-                        </p>
-                      </div>
-                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(order.status)}`}>
-                        {order.status}
-                      </span>
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+          {orders.length === 0 ? (
+            <div className="text-center py-12">
+              <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-600">No orders yet</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {orders.map((order) => (
+                <div key={order.id} className="bg-gray-50 rounded-xl p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">{order.order_number}</h3>
+                      <p className="text-sm text-gray-600">
+                        {order.created_at ? new Date(order.created_at).toLocaleString() : ''}
+                      </p>
                     </div>
+                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(order.status)}`}>
+                      {order.status}
+                    </span>
+                  </div>
 
-                    <div className="mb-4">
-                      <p className="text-sm text-gray-600">Total: #{order.total?.toFixed(2) || '0.00'}</p>
-                      <p className="text-sm text-gray-600">Payment: {order.payment_method || 'N/A'}</p>
-                      <p className="text-sm text-gray-600">Address: {order.delivery_address || 'No address'}</p>
-                    </div>
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600">Total: #{order.total?.toFixed(2) || '0.00'}</p>
+                    <p className="text-sm text-gray-600">Payment: {order.payment_method || 'N/A'}</p>
+                    <p className="text-sm text-gray-600">Address: {order.delivery_address || 'No address'}</p>
+                  </div>
 
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {order.delivery_agent_id && (
-                        <button
-                          onClick={() => setSelectedOrderForChat({ order, chatWith: 'delivery' })}
-                          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                        >
-                          <MessageCircle className="h-4 w-4" />
-                          <span>Chat with Delivery</span>
-                        </button>
-                      )}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {order.delivery_agent_id && (
+                      <button
+                        onClick={() => setSelectedOrderForChat({ order, chatWith: 'delivery' })}
+                        className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        <span>Chat with Delivery</span>
+                      </button>
+                    )}
 
-                      {/* Add chat with vendor for vendor orders */}
-                      {(order.seller_type === 'vendor' || order.seller_type === 'late_night_vendor') && (
-                        <button
-                          onClick={() => setSelectedOrderForChat({ order, chatWith: 'vendor' })}
-                          className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                        >
-                          <MessageCircle className="h-4 w-4" />
-                          <span>Chat with Vendor</span>
-                        </button>
-                      )}
+                    {/* Add chat with vendor for vendor orders */}
+                    {(order.seller_type === 'vendor' || order.seller_type === 'late_night_vendor') && (
+                      <button
+                        onClick={() => setSelectedOrderForChat({ order, chatWith: 'vendor' })}
+                        className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        <span>Chat with Vendor</span>
+                      </button>
+                    )}
 
-                      {['accepted', 'preparing', 'ready', 'picked_up'].includes(order.status) && (
-                        <button
-                          onClick={() => setSelectedOrderForTracking(order)}
-                          className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                        >
-                          <Navigation className="h-4 w-4" />
-                          <span>Track</span>
-                        </button>
-                      )}
-                    </div>
-
-                    {order.status === 'delivered' && (
-                      <div className="border-t pt-4 mt-4 space-y-3">
-                        {order.delivery_agent_id && (
-                          <DeliveryAgentRating
-                            deliveryAgentId={order.delivery_agent_id}
-                            orderId={order.id}
-                          />
-                        )}
-                        {(order.seller_type === 'vendor' || order.seller_type === 'late_night_vendor') && (
-                          <button
-                            onClick={() => setSelectedOrderForReview(order)}
-                            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
-                          >
-                            Rate Vendor
-                          </button>
-                        )}
-                      </div>
+                    {['accepted', 'preparing', 'ready', 'picked_up'].includes(order.status) && (
+                      <button
+                        onClick={() => setSelectedOrderForTracking(order)}
+                        className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                      >
+                        <Navigation className="h-4 w-4" />
+                        <span>Track</span>
+                      </button>
                     )}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+
+                  {order.status === 'delivered' && (
+                    <div className="border-t pt-4 mt-4 space-y-3">
+                      {order.delivery_agent_id && (
+                        <DeliveryAgentRating
+                          deliveryAgentId={order.delivery_agent_id}
+                          orderId={order.id}
+                        />
+                      )}
+                      {(order.seller_type === 'vendor' || order.seller_type === 'late_night_vendor') && (
+                        <button
+                          onClick={() => setSelectedOrderForReview(order)}
+                          className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
+                        >
+                          Rate Vendor
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
