@@ -506,11 +506,12 @@ export const Checkout: React.FC<CheckoutProps> = ({
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl max-w-md w-full p-4 sm:p-6 overflow-x-hidden">
           <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <div className="flex items-center">
-              <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                <ArrowLeft className="h-6 w-6" />
+            <div className="flex items-center gap-3">
+              <button onClick={onBack} className="flex items-center gap-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors text-sm font-medium">
+                <ArrowLeft className="h-5 w-5" />
+                <span>Back</span>
               </button>
-              <h2 className="text-xl sm:text-2xl font-bold text-black ml-2 sm:ml-4">Checkout</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-black">Checkout</h2>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
               <X className="h-6 w-6" />

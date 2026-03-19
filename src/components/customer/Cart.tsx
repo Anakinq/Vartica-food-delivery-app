@@ -103,13 +103,14 @@ export const Cart: React.FC<CartProps> = ({
               </div>
               <h2 className="text-xl sm:text-2xl font-bold text-black">Your Cart</h2>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                className="flex items-center gap-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors text-sm font-medium"
                 aria-label="Go back"
               >
-                <ArrowLeft className="h-6 w-6" />
+                <ArrowLeft className="h-5 w-5" />
+                <span>Back</span>
               </button>
               <button
                 onClick={onClose}

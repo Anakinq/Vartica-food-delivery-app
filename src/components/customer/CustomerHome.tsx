@@ -1,7 +1,7 @@
 // src/components/customer/CustomerHome.tsx
 // Abuad Delivery Homepage - Following UI Specification
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { Search, ArrowLeft, Bell, Home, Package, User, X, Utensils, ShoppingBag, Moon, Bike, Filter, MapPin, Star, Clock } from 'lucide-react';
+import { Search, ArrowLeft, Bell, Home, Package, User, X, Utensils, ShoppingBag, Moon, Bike, Filter, MapPin, Star, Clock, Cookie, Coffee } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Cafeteria, MenuItem } from '../../lib/supabase';
 import { Vendor } from '../../lib/supabase/types';
@@ -25,6 +25,7 @@ import { ToastHome } from './ToastHome';
 import { ToastVendorList } from './ToastVendorList';
 import { ToastOrderPage } from './ToastOrder';
 import { ToastVendor } from '../../services/supabase/toast.service';
+import { fetchComingSoonSettings, AppSettings } from '../../config/appConfig';
 
 interface CustomerHomeProps {
   onShowProfile?: () => void;
@@ -130,7 +131,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     { id: '1', name: 'Cafeterias', icon: 'Utensils', key: 'cafeterias' },
     { id: '2', name: 'Vendors', icon: 'ShoppingBag', key: 'vendors' },
     { id: '3', name: 'Late Night', icon: 'Moon', key: 'late_night' },
-    { id: '4', name: 'Toast', icon: 'Bike', key: 'toast' },
+    { id: '4', name: 'Toast', icon: 'Cookie', key: 'toast' },
   ];
 
   const [activeTab, setActiveTab] = useState<'cafeterias' | 'vendors' | 'late_night' | 'toast'>('cafeterias');
@@ -138,6 +139,15 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const [priceFilter, setPriceFilter] = useState<string>('all');
   const [ratingFilter, setRatingFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('popular');
+
+  // Coming Soon settings state
+  const [comingSoonSettings, setComingSoonSettings] = useState<AppSettings>({
+    features: {
+      vendorsComingSoon: false,
+      lateNightComingSoon: false,
+      toastComingSoon: false,
+    }
+  });
 
   // Location options
   const locations = [
@@ -165,6 +175,15 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
     }, 4000);
     return () => clearInterval(interval);
   }, [banners.length]);
+
+  // Fetch Coming Soon settings on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      const settings = await fetchComingSoonSettings();
+      setComingSoonSettings(settings);
+    };
+    loadSettings();
+  }, []);
 
   // Group menu items by category
   const groupMenuItemsByCategory = (itemsToGroup: MenuItem[] = menuItems) => {
@@ -585,6 +604,8 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
       ShoppingBag,
       Moon,
       Bike,
+      Coffee,
+      Cookie,
     };
 
     const IconComponent = iconMap[category.icon] || Utensils;
@@ -814,32 +835,24 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
 
               {/* Cafeterias Section - Show only when Cafeterias tab is active */}
               {activeTab === 'cafeterias' && (
-                <>
-                  <CafeteriaSection
-                    cafeterias={cafeterias}
-                    cafeteriaStatus={cafeteriaStatus}
-                    onCafeteriaClick={(id, name) => handleSellerClick(id, 'cafeteria', name)}
-                    globalSearchQuery={globalSearchQuery}
-                    sortBy={sortBy}
-                  />
-
-                  {/* Late Night Vendors Section - Show only when Cafeterias tab is active */}
-                  {lateNightVendors.length > 0 && (
-                    <VendorSection
-                      vendors={lateNightVendors}
-                      vendorRatings={vendorRatings}
-                      onVendorClick={(id, name) => handleSellerClick(id, 'vendor', name)}
-                      globalSearchQuery={globalSearchQuery}
-                      ratingFilter={ratingFilter}
-                      title="Late Night Vendors"
-                      showLateNightBadge={true}
-                    />
-                  )}
-                </>
+                <CafeteriaSection
+                  cafeterias={cafeterias}
+                  cafeteriaStatus={cafeteriaStatus}
+                  onCafeteriaClick={(id, name) => handleSellerClick(id, 'cafeteria', name)}
+                  globalSearchQuery={globalSearchQuery}
+                  sortBy={sortBy}
+                />
               )}
 
               {/* Trusted Vendors Section - Show only when Vendors tab is active */}
-              {activeTab === 'vendors' && studentVendors.length > 0 && (
+              {activeTab === 'vendors' && comingSoonSettings.features.vendorsComingSoon && (
+                <div className="flex flex-col items-center justify-center py-20 px-4">
+                  <div className="text-5xl mb-4">🚧</div>
+                  <h2 className="text-2xl font-bold text-white mb-2">Coming Soon!</h2>
+                  <p className="text-gray-400 text-center">We're working on bringing you amazing campus vendors.</p>
+                </div>
+              )}
+              {activeTab === 'vendors' && !comingSoonSettings.features.vendorsComingSoon && studentVendors.length > 0 && (
                 <VendorSection
                   vendors={studentVendors}
                   vendorRatings={vendorRatings}
@@ -852,7 +865,14 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
               )}
 
               {/* Late Night Tab - Show late night vendors only */}
-              {activeTab === 'late_night' && lateNightVendors.length > 0 && (
+              {activeTab === 'late_night' && comingSoonSettings.features.lateNightComingSoon && (
+                <div className="flex flex-col items-center justify-center py-20 px-4">
+                  <div className="text-5xl mb-4">🌙</div>
+                  <h2 className="text-2xl font-bold text-white mb-2">Coming Soon!</h2>
+                  <p className="text-gray-400 text-center">Late Night Vendors is coming soon!</p>
+                </div>
+              )}
+              {activeTab === 'late_night' && !comingSoonSettings.features.lateNightComingSoon && lateNightVendors.length > 0 && (
                 <VendorSection
                   vendors={lateNightVendors}
                   vendorRatings={vendorRatings}
@@ -865,7 +885,14 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
               )}
 
               {/* Toast Tab - Show toast content */}
-              {activeTab === 'toast' && (
+              {activeTab === 'toast' && comingSoonSettings.features.toastComingSoon && (
+                <div className="flex flex-col items-center justify-center py-20 px-4">
+                  <div className="text-5xl mb-4">🍞</div>
+                  <h2 className="text-2xl font-bold text-white mb-2">Coming Soon!</h2>
+                  <p className="text-gray-400 text-center">Fresh toast delivery is coming to your hostel soon!</p>
+                </div>
+              )}
+              {activeTab === 'toast' && !comingSoonSettings.features.toastComingSoon && (
                 !toastView ? (
                   <ToastHome
                     onBack={() => setActiveTab('cafeterias')}
