@@ -686,24 +686,10 @@ export const Checkout: React.FC<CheckoutProps> = ({
               )}
 
               {/* Pay Online Button */}
-              <button
-                type="button"
-                onClick={initializePaystackPayment}
-                disabled={scriptLoading}
+              <PaystackButton
+                {...paystackConfig}
                 className="w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-colors shadow-lg disabled:opacity-70 flex items-center justify-center"
-              >
-                {scriptLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Loading payment gateway...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="h-5 w-5 mr-2" />
-                    Pay Now • ₦{effectiveTotal.toFixed(2)}
-                  </>
-                )}
-              </button>
+              />
 
               <p className="text-center text-sm text-gray-500">
                 Secure payment powered by Paystack

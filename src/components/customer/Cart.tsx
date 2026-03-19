@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Minus, Plus, Trash2, ShoppingBag, ShoppingCart } from 'lucide-react';
+import { X, Minus, Plus, Trash2, ShoppingBag, ShoppingCart, ArrowLeft } from 'lucide-react';
 import { MenuItem } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -52,7 +52,7 @@ const QuantityButton: React.FC<{
         <Minus className={`h-4 w-4 ${animating === 'decrease' ? 'scale-75' : ''}`} />
       </button>
       <span
-        className={`w-10 text-center font-bold text-lg transition-all duration-200 ${animating ? 'scale-125 text-orange-500' : ''
+        className={`w-10 text-center font-bold text-lg text-black transition-all duration-200 ${animating ? 'scale-125 text-orange-500' : ''
           }`}
       >
         {quantity}
@@ -103,13 +103,22 @@ export const Cart: React.FC<CartProps> = ({
               </div>
               <h2 className="text-xl sm:text-2xl font-bold text-black">Your Cart</h2>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              aria-label="Close cart"
-            >
-              <X className="h-6 w-6" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                aria-label="Go back"
+              >
+                <ArrowLeft className="h-6 w-6" />
+              </button>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                aria-label="Close cart"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
           </div>
 
           {/* Empty State */}
@@ -204,7 +213,7 @@ export const Cart: React.FC<CartProps> = ({
                         >
                           –
                         </button>
-                        <span className="w-10 text-center font-bold text-lg">{cartPackCount}</span>
+                        <span className="w-10 text-center font-bold text-lg text-black">{cartPackCount}</span>
                         <button
                           onClick={() => onCartPackChange && onCartPackChange(cartPackCount + 1)}
                           className="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center text-xl font-bold hover:bg-orange-600 shadow-sm active:scale-95 transition-all"
