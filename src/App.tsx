@@ -201,7 +201,7 @@ function AppContent() {
     if (locationHash === '#/checkout') {
       // Get user's hostel location for delivery fee calculation
       const profileWithHostel = profile as any;
-      const userLocation = profileWithHostel?.hostel_location || 'Abuad Hostel';
+      const userLocation = profileWithHostel?.hostel_location || 'Male Hall 1';
       const calculatedDeliveryFee = HOSTEL_DELIVERY_FEES[userLocation] || BUSINESS_CONSTANTS.DELIVERY_FEE_DEFAULT;
       const calculatedSubtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 

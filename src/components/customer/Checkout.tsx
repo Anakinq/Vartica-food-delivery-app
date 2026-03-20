@@ -7,8 +7,12 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import {
   HOSTEL_DELIVERY_FEES,
+  HOSTEL_TO_GROUP,
+  CAFETERIA_HOSTEL_PRICING,
+  CAFETERIAS,
   BUSINESS_CONSTANTS,
-  MIN_NGN_VALUE
+  MIN_NGN_VALUE,
+  getDeliveryFeeByCafeteriaAndHostel
 } from '../../utils/constants';
 
 interface CartItem extends MenuItem {
@@ -73,8 +77,20 @@ export const Checkout: React.FC<CheckoutProps> = ({
   // Check if current order is from a student vendor (no hostel delivery fee)
   const isStudentVendor = vendorType === 'student';
 
-  // Function to calculate delivery fee based on hostel location
-  const calculateDeliveryFee = useCallback((hostel: string): number => {
+  // State for cafeteria-specific pricing
+  const [currentCafeteria, setCurrentCafeteria] = useState<string | null>(null);
+
+  // Function to calculate delivery fee based on cafeteria + hostel location
+  const calculateDeliveryFee = useCallback((cafeteria: string | null, hostel: string): number => {
+    // If we have cafeteria info, use the matrix pricing
+    if (cafeteria && CAFETERIA_HOSTEL_PRICING[cafeteria as keyof typeof CAFETERIA_HOSTEL_PRICING]) {
+      const hostelGroup = HOSTEL_TO_GROUP[hostel];
+      if (hostelGroup) {
+        const matrix = CAFETERIA_HOSTEL_PRICING[cafeteria as keyof typeof CAFETERIA_HOSTEL_PRICING];
+        return matrix[hostelGroup] || HOSTEL_DELIVERY_FEES[hostel] || BUSINESS_CONSTANTS.DELIVERY_FEE_DEFAULT;
+      }
+    }
+    // Fallback to legacy hostel-based pricing
     return HOSTEL_DELIVERY_FEES[hostel] || BUSINESS_CONSTANTS.DELIVERY_FEE_DEFAULT;
   }, []);
 
@@ -85,15 +101,16 @@ export const Checkout: React.FC<CheckoutProps> = ({
       if (isStudentVendor) {
         setHostelBasedDeliveryFee(0);
       } else {
-        const fee = calculateDeliveryFee(formData.deliveryAddress);
+        // Use cafeteria-specific pricing if available
+        const fee = calculateDeliveryFee(currentCafeteria, formData.deliveryAddress);
         setHostelBasedDeliveryFee(fee);
       }
     } else {
       setHostelBasedDeliveryFee(effectiveDeliveryFee);
     }
-  }, [formData.deliveryAddress, isStudentVendor]);
+  }, [formData.deliveryAddress, isStudentVendor, currentCafeteria]);
 
-  // Fetch vendor's delivery_mode and vendor_type for marketplace flow
+  // Fetch vendor's delivery_mode, vendor_type, and cafeteria name for pricing
   useEffect(() => {
     const fetchVendorDeliveryMode = async () => {
       if (items.length > 0) {
@@ -103,7 +120,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
         if (sellerType === 'vendor' || sellerType === 'late_night_vendor') {
           const { data: vendorData } = await supabase
             .from('vendors')
-            .select('delivery_mode, vendor_type')
+            .select('delivery_mode, vendor_type, name')
             .eq('id', sellerId)
             .single();
 
@@ -111,8 +128,20 @@ export const Checkout: React.FC<CheckoutProps> = ({
             setVendorDeliveryMode(vendorData.delivery_mode || null);
             setVendorType(vendorData.vendor_type || null);
             setShowDeliveryMethodChoice(vendorData.delivery_mode === 'both');
+            // For cafeteria-specific pricing, use vendor name as fallback
+            // (In a real scenario, you'd want to map this to a cafeteria slug)
           }
         } else if (sellerType === 'cafeteria') {
+          // For cafeteria orders, fetch the cafeteria name for pricing
+          const { data: cafeteriaData } = await supabase
+            .from('cafeterias')
+            .select('name')
+            .eq('id', sellerId)
+            .single();
+
+          if (cafeteriaData) {
+            setCurrentCafeteria(cafeteriaData.name);
+          }
           setVendorType('cafeteria');
         }
       }
@@ -548,24 +577,35 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white transition-all text-gray-900"
               >
                 <option value="">Select your hostel</option>
-                <option value="New Female Hostel 1">New Female Hostel 1</option>
-                <option value="New Female Hostel 2">New Female Hostel 2</option>
-                <option value="Abuad Hostel">Abuad Hostel</option>
-                <option value="Wema Hostel">Wema Hostel</option>
-                <option value="Male Hostel 1">Male Hostel 1</option>
-                <option value="Male Hostel 2">Male Hostel 2</option>
-                <option value="Male Hostel 3">Male Hostel 3</option>
-                <option value="Male Hostel 4">Male Hostel 4</option>
-                <option value="Male Hostel 5">Male Hostel 5</option>
-                <option value="Male Hostel 6">Male Hostel 6</option>
-                <option value="Medical Male Hostel 1">Medical Male Hostel 1</option>
-                <option value="Medical Male Hostel 2">Medical Male Hostel 2</option>
-                <option value="Female Medical Hostel 1">Female Medical Hostel 1</option>
-                <option value="Female Medical Hostel 2">Female Medical Hostel 2</option>
-                <option value="Female Medical Hostel 3">Female Medical Hostel 3</option>
-                <option value="Female Medical Hostel 4">Female Medical Hostel 4</option>
-                <option value="Female Medical Hostel 5">Female Medical Hostel 5</option>
-                <option value="Female Medical Hostel 6">Female Medical Hostel 6</option>
+                <optgroup label="Male Halls">
+                  <option value="Male Hall 1">Male Hall 1</option>
+                  <option value="Male Hall 2">Male Hall 2</option>
+                  <option value="Male Hall 3">Male Hall 3</option>
+                  <option value="Male Hall 4">Male Hall 4</option>
+                  <option value="Male Hall 5">Male Hall 5</option>
+                  <option value="Male Hall 6">Male Hall 6</option>
+                </optgroup>
+                <optgroup label="Male Medical Hall">
+                  <option value="Male Medical Hall">Male Medical Hall</option>
+                </optgroup>
+                <optgroup label="Female Halls 1-4">
+                  <option value="Female Hall 1">Female Hall 1</option>
+                  <option value="Female Hall 2">Female Hall 2</option>
+                  <option value="Female Hall 3">Female Hall 3</option>
+                  <option value="Female Hall 4">Female Hall 4</option>
+                </optgroup>
+                <optgroup label="Female Halls 5A-5D">
+                  <option value="Female Hall 5A">Female Hall 5A</option>
+                  <option value="Female Hall 5B">Female Hall 5B</option>
+                  <option value="Female Hall 5C">Female Hall 5C</option>
+                  <option value="Female Hall 5D">Female Hall 5D</option>
+                </optgroup>
+                <optgroup label="Female Medical Halls">
+                  <option value="Female Medical Hall 1">Female Medical Hall 1</option>
+                  <option value="Female Medical Hall 2">Female Medical Hall 2</option>
+                  <option value="Female Medical Hall 3">Female Medical Hall 3</option>
+                  <option value="Female Medical Hall 4">Female Medical Hall 4</option>
+                </optgroup>
               </select>
             </div>
 

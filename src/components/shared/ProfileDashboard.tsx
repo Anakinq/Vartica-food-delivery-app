@@ -699,24 +699,35 @@ const cycleAvatarStyle = () => {
                       className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-gray-700 border-0 rounded-xl focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 text-black dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-all"
                     >
                       <option value="">Select your hostel</option>
-                      <option value="New Female Hostel 1">New Female Hostel 1</option>
-                      <option value="New Female Hostel 2">New Female Hostel 2</option>
-                      <option value="Abuad Hostel">Abuad Hostel</option>
-                      <option value="Wema Hostel">Wema Hostel</option>
-                      <option value="Male Hostel 1">Male Hostel 1</option>
-                      <option value="Male Hostel 2">Male Hostel 2</option>
-                      <option value="Male Hostel 3">Male Hostel 3</option>
-                      <option value="Male Hostel 4">Male Hostel 4</option>
-                      <option value="Male Hostel 5">Male Hostel 5</option>
-                      <option value="Male Hostel 6">Male Hostel 6</option>
-                      <option value="Medical Male Hostel 1">Medical Male Hostel 1</option>
-                      <option value="Medical Male Hostel 2">Medical Male Hostel 2</option>
-                      <option value="Female Medical Hostel 1">Female Medical Hostel 1</option>
-                      <option value="Female Medical Hostel 2">Female Medical Hostel 2</option>
-                      <option value="Female Medical Hostel 3">Female Medical Hostel 3</option>
-                      <option value="Female Medical Hostel 4">Female Medical Hostel 4</option>
-                      <option value="Female Medical Hostel 5">Female Medical Hostel 5</option>
-                      <option value="Female Medical Hostel 6">Female Medical Hostel 6</option>
+                      <optgroup label="Male Halls">
+                        <option value="Male Hall 1">Male Hall 1</option>
+                        <option value="Male Hall 2">Male Hall 2</option>
+                        <option value="Male Hall 3">Male Hall 3</option>
+                        <option value="Male Hall 4">Male Hall 4</option>
+                        <option value="Male Hall 5">Male Hall 5</option>
+                        <option value="Male Hall 6">Male Hall 6</option>
+                      </optgroup>
+                      <optgroup label="Male Medical Hall">
+                        <option value="Male Medical Hall">Male Medical Hall</option>
+                      </optgroup>
+                      <optgroup label="Female Halls 1-4">
+                        <option value="Female Hall 1">Female Hall 1</option>
+                        <option value="Female Hall 2">Female Hall 2</option>
+                        <option value="Female Hall 3">Female Hall 3</option>
+                        <option value="Female Hall 4">Female Hall 4</option>
+                      </optgroup>
+                      <optgroup label="Female Halls 5A-5D">
+                        <option value="Female Hall 5A">Female Hall 5A</option>
+                        <option value="Female Hall 5B">Female Hall 5B</option>
+                        <option value="Female Hall 5C">Female Hall 5C</option>
+                        <option value="Female Hall 5D">Female Hall 5D</option>
+                      </optgroup>
+                      <optgroup label="Female Medical Halls">
+                        <option value="Female Medical Hall 1">Female Medical Hall 1</option>
+                        <option value="Female Medical Hall 2">Female Medical Hall 2</option>
+                        <option value="Female Medical Hall 3">Female Medical Hall 3</option>
+                        <option value="Female Medical Hall 4">Female Medical Hall 4</option>
+                      </optgroup>
                     </select>
                   </div>
                 </div>

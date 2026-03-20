@@ -9,26 +9,32 @@ interface ToastVendorRegisterProps {
     onSuccess: () => void;
 }
 
-// Hostel options
+// Hostel options - New naming convention
 const HOSTEL_OPTIONS = [
-    'New Female Hostel 1',
-    'New Female Hostel 2',
-    'Abuad Hostel',
-    'Wema Hostel',
-    'Male Hostel 1',
-    'Male Hostel 2',
-    'Male Hostel 3',
-    'Male Hostel 4',
-    'Male Hostel 5',
-    'Male Hostel 6',
-    'Medical Male Hostel 1',
-    'Medical Male Hostel 2',
-    'Female Medical Hostel 1',
-    'Female Medical Hostel 2',
-    'Female Medical Hostel 3',
-    'Female Medical Hostel 4',
-    'Female Medical Hostel 5',
-    'Female Medical Hostel 6',
+    // Male Halls
+    'Male Hall 1',
+    'Male Hall 2',
+    'Male Hall 3',
+    'Male Hall 4',
+    'Male Hall 5',
+    'Male Hall 6',
+    // Male Medical Hall
+    'Male Medical Hall',
+    // Female Halls 1-4
+    'Female Hall 1',
+    'Female Hall 2',
+    'Female Hall 3',
+    'Female Hall 4',
+    // Female Halls 5A-5D
+    'Female Hall 5A',
+    'Female Hall 5B',
+    'Female Hall 5C',
+    'Female Hall 5D',
+    // Female Medical Halls
+    'Female Medical Hall 1',
+    'Female Medical Hall 2',
+    'Female Medical Hall 3',
+    'Female Medical Hall 4',
 ];
 
 export const ToastVendorRegister: React.FC<ToastVendorRegisterProps> = ({ onBack, onSuccess }) => {

@@ -8,6 +8,8 @@ import { useToast } from '../../contexts/ToastContext';
 import { BackButton } from '../shared/BackButton';
 import {
     HOSTEL_DELIVERY_FEES,
+    HOSTEL_TO_GROUP,
+    CAFETERIA_HOSTEL_PRICING,
     BUSINESS_CONSTANTS,
     MIN_NGN_VALUE
 } from '../../utils/constants';
@@ -66,8 +68,51 @@ export const EnhancedCheckout: React.FC<EnhancedCheckoutProps> = ({
     const effectiveDeliveryFeeCalc = Math.max(0, effectiveDeliveryFee - deliveryFeeDiscount);
     const effectiveTotal = Math.max(MIN_NGN_VALUE, effectiveSubtotal + packTotal + effectiveDeliveryFeeCalc - discount);
 
-    // Get delivery fee based on hostel
-    const hostelBasedDeliveryFee = HOSTEL_DELIVERY_FEES[formData.deliveryAddress as keyof typeof HOSTEL_DELIVERY_FEES] || effectiveDeliveryFee;
+    // State for cafeteria-specific pricing
+    const [currentCafeteria, setCurrentCafeteria] = useState<string | null>(null);
+    const [vendorType, setVendorType] = useState<string | null>(null);
+
+    // Get delivery fee based on cafeteria + hostel (new pricing matrix)
+    const getDeliveryFee = useCallback((cafeteria: string | null, hostel: string): number => {
+        // If we have cafeteria info and it's in our pricing matrix, use it
+        if (cafeteria && CAFETERIA_HOSTEL_PRICING[cafeteria as keyof typeof CAFETERIA_HOSTEL_PRICING]) {
+            const hostelGroup = HOSTEL_TO_GROUP[hostel];
+            if (hostelGroup) {
+                const matrix = CAFETERIA_HOSTEL_PRICING[cafeteria as keyof typeof CAFETERIA_HOSTEL_PRICING];
+                return matrix[hostelGroup] || HOSTEL_DELIVERY_FEES[hostel] || effectiveDeliveryFee;
+            }
+        }
+        // Fallback to legacy hostel-based pricing
+        return HOSTEL_DELIVERY_FEES[hostel] || effectiveDeliveryFee;
+    }, [effectiveDeliveryFee]);
+
+    // Calculate hostel-based delivery fee
+    const hostelBasedDeliveryFee = formData.deliveryAddress
+        ? getDeliveryFee(currentCafeteria, formData.deliveryAddress)
+        : effectiveDeliveryFee;
+
+    // Fetch cafeteria info for pricing
+    useEffect(() => {
+        const fetchCafeteriaInfo = async () => {
+            if (items.length > 0) {
+                const sellerId = items[0].seller_id;
+                const sellerType = items[0].seller_type;
+
+                if (sellerType === 'cafeteria') {
+                    const { data: cafeteriaData } = await supabase
+                        .from('cafeterias')
+                        .select('name')
+                        .eq('id', sellerId)
+                        .single();
+
+                    if (cafeteriaData) {
+                        setCurrentCafeteria(cafeteriaData.name);
+                    }
+                }
+            }
+        };
+        fetchCafeteriaInfo();
+    }, [items]);
 
     // Load Paystack script
     useEffect(() => {
@@ -375,24 +420,35 @@ export const EnhancedCheckout: React.FC<EnhancedCheckoutProps> = ({
                                 className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white transition-all"
                             >
                                 <option value="">Select your hostel</option>
-                                <option value="New Female Hostel 1">New Female Hostel 1</option>
-                                <option value="New Female Hostel 2">New Female Hostel 2</option>
-                                <option value="Abuad Hostel">Abuad Hostel</option>
-                                <option value="Wema Hostel">Wema Hostel</option>
-                                <option value="Male Hostel 1">Male Hostel 1</option>
-                                <option value="Male Hostel 2">Male Hostel 2</option>
-                                <option value="Male Hostel 3">Male Hostel 3</option>
-                                <option value="Male Hostel 4">Male Hostel 4</option>
-                                <option value="Male Hostel 5">Male Hostel 5</option>
-                                <option value="Male Hostel 6">Male Hostel 6</option>
-                                <option value="Medical Male Hostel 1">Medical Male Hostel 1</option>
-                                <option value="Medical Male Hostel 2">Medical Male Hostel 2</option>
-                                <option value="Female Medical Hostel 1">Female Medical Hostel 1</option>
-                                <option value="Female Medical Hostel 2">Female Medical Hostel 2</option>
-                                <option value="Female Medical Hostel 3">Female Medical Hostel 3</option>
-                                <option value="Female Medical Hostel 4">Female Medical Hostel 4</option>
-                                <option value="Female Medical Hostel 5">Female Medical Hostel 5</option>
-                                <option value="Female Medical Hostel 6">Female Medical Hostel 6</option>
+                                <optgroup label="Male Halls">
+                                    <option value="Male Hall 1">Male Hall 1</option>
+                                    <option value="Male Hall 2">Male Hall 2</option>
+                                    <option value="Male Hall 3">Male Hall 3</option>
+                                    <option value="Male Hall 4">Male Hall 4</option>
+                                    <option value="Male Hall 5">Male Hall 5</option>
+                                    <option value="Male Hall 6">Male Hall 6</option>
+                                </optgroup>
+                                <optgroup label="Male Medical Hall">
+                                    <option value="Male Medical Hall">Male Medical Hall</option>
+                                </optgroup>
+                                <optgroup label="Female Halls 1-4">
+                                    <option value="Female Hall 1">Female Hall 1</option>
+                                    <option value="Female Hall 2">Female Hall 2</option>
+                                    <option value="Female Hall 3">Female Hall 3</option>
+                                    <option value="Female Hall 4">Female Hall 4</option>
+                                </optgroup>
+                                <optgroup label="Female Halls 5A-5D">
+                                    <option value="Female Hall 5A">Female Hall 5A</option>
+                                    <option value="Female Hall 5B">Female Hall 5B</option>
+                                    <option value="Female Hall 5C">Female Hall 5C</option>
+                                    <option value="Female Hall 5D">Female Hall 5D</option>
+                                </optgroup>
+                                <optgroup label="Female Medical Halls">
+                                    <option value="Female Medical Hall 1">Female Medical Hall 1</option>
+                                    <option value="Female Medical Hall 2">Female Medical Hall 2</option>
+                                    <option value="Female Medical Hall 3">Female Medical Hall 3</option>
+                                    <option value="Female Medical Hall 4">Female Medical Hall 4</option>
+                                </optgroup>
                             </select>
                         </div>
 
@@ -405,8 +461,8 @@ export const EnhancedCheckout: React.FC<EnhancedCheckoutProps> = ({
                                         type="button"
                                         onClick={() => setDeliveryMethod('vendor')}
                                         className={`p-4 border-2 rounded-xl transition-all text-left ${deliveryMethod === 'vendor'
-                                                ? 'border-green-500 bg-green-50 text-green-700'
-                                                : 'border-gray-200 hover:border-gray-300'
+                                            ? 'border-green-500 bg-green-50 text-green-700'
+                                            : 'border-gray-200 hover:border-gray-300'
                                             }`}
                                     >
                                         <Store className="h-5 w-5 mb-2" />
@@ -417,8 +473,8 @@ export const EnhancedCheckout: React.FC<EnhancedCheckoutProps> = ({
                                         type="button"
                                         onClick={() => setDeliveryMethod('agent')}
                                         className={`p-4 border-2 rounded-xl transition-all text-left ${deliveryMethod === 'agent'
-                                                ? 'border-green-500 bg-green-50 text-green-700'
-                                                : 'border-gray-200 hover:border-gray-300'
+                                            ? 'border-green-500 bg-green-50 text-green-700'
+                                            : 'border-gray-200 hover:border-gray-300'
                                             }`}
                                     >
                                         <Truck className="h-5 w-5 mb-2" />
