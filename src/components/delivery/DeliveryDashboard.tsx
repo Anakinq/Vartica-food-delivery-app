@@ -1003,7 +1003,7 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
           )}
 
           {/* Balance Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             {/* Food Wallet */}
             <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-blue-500">
               <div className="flex justify-between items-start">

@@ -75,11 +75,11 @@ export const ToastHome: React.FC<ToastHomeProps> = ({ onBack, onSelectHostel }) 
                 {/* Quick Stats */}
                 <div className="grid grid-cols-2 gap-3">
                     <div className="bg-gray-800 rounded-xl p-3">
-                        <p className="text-2xl font-bold text-green-400">{hostels.length}</p>
+                        <p className="text-xl sm:text-2xl font-bold text-green-400">{hostels.length}</p>
                         <p className="text-xs text-gray-400">Hostels Available</p>
                     </div>
                     <div className="bg-gray-800 rounded-xl p-3">
-                        <p className="text-2xl font-bold text-orange-400">
+                        <p className="text-xl sm:text-2xl font-bold text-orange-400">
                             {hostels.reduce((acc, h) => acc + h.vendor_count, 0)}
                         </p>
                         <p className="text-xs text-gray-400">Toast Vendors</p>

@@ -157,10 +157,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                 : 'px-4 py-2.5 text-base min-h-[44px] min-w-[100px]',
             lg: isIconOnly
                 ? 'w-12 h-12 p-0 text-lg'
-                : 'px-6 py-3 text-lg min-h-[52px] min-w-[120px]',
+                : 'px-6 py-3 text-lg min-h-[52px] min-w-[100px]',
             xl: isIconOnly
                 ? 'w-14 h-14 p-0 text-xl'
-                : 'px-8 py-4 text-xl min-h-[60px] min-w-[140px]',
+                : 'px-8 py-4 text-xl min-h-[60px] min-w-[120px]',
         };
 
         // FAB (Floating Action Button) styles

@@ -173,7 +173,7 @@ export const MenuItemDetail: React.FC<MenuItemDetailProps> = ({
           {recommendedSides.length > 0 && (
             <div className="mt-6">
               <h3 className="font-bold text-gray-900">Recommended sides</h3>
-              <div className="grid grid-cols-3 gap-3 mt-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
                 {recommendedSides.map(side => (
                   <div key={side.id} className="bg-gray-50 rounded-lg p-2 text-center">
                     <div className="h-16 w-full rounded-md bg-gray-200 overflow-hidden mb-2">

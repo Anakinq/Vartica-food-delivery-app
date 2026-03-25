@@ -106,10 +106,10 @@ export const Cart: React.FC<CartProps> = ({
             <div className="flex items-center gap-3">
               <button
                 onClick={onClose}
-                className="flex items-center gap-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors text-sm font-medium"
+                className="flex items-center gap-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors text-sm font-medium text-gray-800"
                 aria-label="Go back"
               >
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-5 w-5 text-gray-700" />
                 <span>Back</span>
               </button>
               <button
@@ -139,7 +139,7 @@ export const Cart: React.FC<CartProps> = ({
             </div>
           ) : (
             <>
-              {/* Cart Items */}
+              {/* Single scroll: Items + Footer */}
               <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
                 {items.map(item => (
                   <div
@@ -189,91 +189,90 @@ export const Cart: React.FC<CartProps> = ({
                     </div>
                   </div>
                 ))}
-              </div>
-
-              {/* Footer */}
-              <div className="border-t border-gray-100 p-6 space-y-4 bg-white">
-                {/* Food Pack Selector - Only show for food vendors */}
-                {!isBusinessVendor && (
-                  <div className="bg-orange-50 rounded-xl p-4">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="font-semibold text-black">Food Pack</span>
-                      <span className="text-sm text-gray-600">₦{packPrice.toLocaleString()} each</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Quantity</span>
-                      <div className="flex items-center space-x-3">
-                        <button
-                          onClick={() => cartPackCount > 0 && onCartPackChange && onCartPackChange(cartPackCount - 1)}
-                          disabled={cartPackCount <= 0}
-                          className={`w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold transition-all ${cartPackCount <= 0
-                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                            : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm active:scale-95'
-                            }`}
-                          aria-label="Decrease food pack quantity"
-                        >
-                          –
-                        </button>
-                        <span className="w-10 text-center font-bold text-lg text-black">{cartPackCount}</span>
-                        <button
-                          onClick={() => onCartPackChange && onCartPackChange(cartPackCount + 1)}
-                          className="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center text-xl font-bold hover:bg-orange-600 shadow-sm active:scale-95 transition-all"
-                          aria-label="Increase food pack quantity"
-                        >
-                          +
-                        </button>
+                {/* Footer as part of single scroll */}
+                <div className="border-t border-gray-100 p-4 sm:p-6 space-y-4 bg-white flex-shrink-0">
+                  {/* Food Pack Selector - Only show for food vendors */}
+                  {!isBusinessVendor && (
+                    <div className="bg-orange-50 rounded-xl p-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="font-semibold text-black">Food Pack</span>
+                        <span className="text-sm text-gray-600">₦{packPrice.toLocaleString()} each</span>
                       </div>
-                    </div>
-                    {cartPackCount > 0 && (
-                      <p className="text-sm text-orange-600 mt-2 font-medium">
-                        Food pack total: ₦{(packPrice * cartPackCount).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Order Summary */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-gray-600">
-                    <span>Subtotal</span>
-                    <span className="font-medium">₦{subtotal.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-600">
-                    <span>Delivery Fee</span>
-                    <span className="font-medium">₦{deliveryFee.toLocaleString()}</span>
-                  </div>
-                  {!isBusinessVendor && cartPackCount > 0 && (
-                    <div className="flex justify-between text-gray-600">
-                      <span>Food Packs ({cartPackCount}x)</span>
-                      <span className="font-medium">₦{(packPrice * cartPackCount).toLocaleString()}</span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">Quantity</span>
+                        <div className="flex items-center space-x-3">
+                          <button
+                            onClick={() => cartPackCount > 0 && onCartPackChange && onCartPackChange(cartPackCount - 1)}
+                            disabled={cartPackCount <= 0}
+                            className={`w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold transition-all ${cartPackCount <= 0
+                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                              : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm active:scale-95'
+                              }`}
+                            aria-label="Decrease food pack quantity"
+                          >
+                            –
+                          </button>
+                          <span className="w-10 text-center font-bold text-lg text-black">{cartPackCount}</span>
+                          <button
+                            onClick={() => onCartPackChange && onCartPackChange(cartPackCount + 1)}
+                            className="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center text-xl font-bold hover:bg-orange-600 shadow-sm active:scale-95 transition-all"
+                            aria-label="Increase food pack quantity"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                      {cartPackCount > 0 && (
+                        <p className="text-sm text-orange-600 mt-2 font-medium">
+                          Food pack total: ₦{(packPrice * cartPackCount).toLocaleString()}
+                        </p>
+                      )}
                     </div>
                   )}
-                  <div className="flex justify-between text-xl font-bold text-black pt-3 border-t border-gray-200">
-                    <span>Total</span>
-                    <span className="text-orange-600">₦{total.toLocaleString()}</span>
-                  </div>
-                </div>
 
-                {/* Action Buttons */}
-                <div className="flex space-x-3">
-                  <button
-                    onClick={onClear}
-                    className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-full font-semibold hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2"
-                    aria-label="Clear all items from cart"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span>Clear</span>
-                  </button>
-                  <button
-                    onClick={onCheckout}
-                    disabled={items.length === 0}
-                    className="flex-1 py-3 bg-green-600 text-white rounded-full font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
-                    aria-label={`Checkout with ${itemCount} items for ₦${total.toLocaleString()}`}
-                  >
-                    <span>Checkout</span>
-                    <span className="text-green-200">•</span>
-                    <span>₦{total.toLocaleString()}</span>
-                  </button>
+                  {/* Order Summary */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-gray-600">
+                      <span>Subtotal</span>
+                      <span className="font-medium">₦{subtotal.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-600">
+                      <span>Delivery Fee</span>
+                      <span className="font-medium">₦{deliveryFee.toLocaleString()}</span>
+                    </div>
+                    {!isBusinessVendor && cartPackCount > 0 && (
+                      <div className="flex justify-between text-gray-600">
+                        <span>Food Packs ({cartPackCount}x)</span>
+                        <span className="font-medium">₦{(packPrice * cartPackCount).toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-xl font-bold text-black pt-3 border-t border-gray-200">
+                      <span>Total</span>
+                      <span className="text-orange-600">₦{total.toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={onClear}
+                      className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-full font-semibold hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2"
+                      aria-label="Clear all items from cart"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span>Clear</span>
+                    </button>
+                    <button
+                      onClick={onCheckout}
+                      disabled={items.length === 0}
+                      className="flex-1 py-3 bg-green-600 text-white rounded-full font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
+                      aria-label={`Checkout with ${itemCount} items for ₦${total.toLocaleString()}`}
+                    >
+                      <span>Checkout</span>
+                      <span className="text-green-200">•</span>
+                      <span>₦{total.toLocaleString()}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </>

@@ -39,7 +39,7 @@ export const FloatingCartButton: React.FC<FloatingCartButtonProps> = ({
     return (
         <button
             onClick={onClick}
-            className={`fixed bottom-20 right-4 z-40 flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 ease-out transform hover:scale-105 active:scale-95 ${isPulsing ? 'animate-pulse' : ''} ${className}`}
+            className={`fixed bottom-24 sm:bottom-20 right-4 z-40 flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 ease-out transform hover:scale-105 active:scale-95 ${isPulsing ? 'animate-pulse' : ''} ${className}`}
             aria-label={`Open cart with ${cartCount} items`}
             style={{
                 padding: '12px 20px',

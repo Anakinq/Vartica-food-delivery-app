@@ -218,7 +218,7 @@ export const ToastVendorRegister: React.FC<ToastVendorRegisterProps> = ({ onBack
                                     >
                                         -
                                     </button>
-                                    <span className="text-4xl font-bold text-green-400 mx-6">₦{formData.price}</span>
+                                    <span className="text-2xl sm:text-3xl md:text-4xl font-bold text-green-400 mx-4 sm:mx-6">₦{formData.price}</span>
                                     <button
                                         onClick={() => setFormData({ ...formData, price: Math.min(2000, formData.price + 50) })}
                                         className="w-12 h-12 bg-gray-700 rounded-lg text-white text-xl font-bold hover:bg-gray-600"

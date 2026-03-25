@@ -59,7 +59,8 @@ export const HOSTELS = {
     MALE_HALL_6: 'Male Hall 6',
 
     // Male Medical Hall
-    MALE_MEDICAL_HALL: 'Male Medical Hall',
+    MALE_MEDICAL_HALL_1: 'Male Medical Hall 1',
+    MALE_MEDICAL_HALL_2: 'Male Medical Hall 2',
 
     // Female Halls 1-4
     FEMALE_HALL_1: 'Female Hall 1',
@@ -136,7 +137,7 @@ export const CAFETERIAS = {
     CAFETERIA_3: 'Cafeteria 3',
     CAPTAIN_COOK: 'Captain Cook',
     SMOOTHIE_SHACK: 'Smoothie Shack',
-    MED_CAFETERIA: 'Medical Cafeteria',
+    MED_CAFETERIA: 'Med Cafeteria',
     SEASONS_DELI: 'Seasons Deli',
 } as const;
 

@@ -227,7 +227,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
       {/* Centered popup modal */}
       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         {/* Modal - Centered popup on all screens */}
-        <div className="bg-white w-full max-w-md rounded-2xl max-h-[80vh] flex flex-col shadow-2xl">
+        <div className="bg-white w-full sm:max-w-md rounded-2xl max-h-[80vh] flex flex-col shadow-2xl max-w-[90vw]">
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <div className="flex items-center gap-2">
               <button

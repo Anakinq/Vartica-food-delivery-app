@@ -66,7 +66,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const [scriptLoading, setScriptLoading] = useState(false);
   // Payment method is always online (Paystack)
   const paymentMethod: 'online' = 'online';
-  const [isDevMode, setIsDevMode] = useState(false);
 
   // Marketplace delivery method state (for BOTH vendors)
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('agent');
@@ -536,7 +535,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
         <div className="bg-white rounded-2xl max-w-md w-full p-4 sm:p-6 overflow-x-hidden">
           <div className="flex items-center justify-between mb-4 sm:mb-6">
             <div className="flex items-center gap-3">
-              <button onClick={onBack} className="flex items-center gap-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors text-sm font-medium">
+              <button onClick={onBack} className="flex items-center gap-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors text-sm font-medium text-gray-800">
                 <ArrowLeft className="h-5 w-5" />
                 <span>Back</span>
               </button>
@@ -613,7 +612,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
             {showDeliveryMethodChoice && (
               <div>
                 <label className="block text-sm font-semibold text-black mb-2">Delivery Method *</label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setDeliveryMethod('vendor')}
@@ -735,17 +734,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
               <p className="text-center text-sm text-gray-500">
                 Secure payment powered by Paystack
               </p>
-              {/* Dev Mode Button */}
-              {import.meta.env.DEV && (
-                <button
-                  type="button"
-                  onClick={handleDevModePayment}
-                  disabled={loading || !formData.deliveryAddress}
-                  className="w-full bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  🔧 DEV: Simulate Payment
-                </button>
-              )}
             </div>
           </form>
         </div>

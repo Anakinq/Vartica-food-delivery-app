@@ -38,7 +38,7 @@ const VendorCard = React.memo(({
     return (
         <div
             onClick={onClick}
-            className="bg-slate-800 rounded-xl overflow-hidden shadow-md border border-slate-700 cursor-pointer transition-all duration-200 hover:shadow-lg hover:shadow-green-500/10 hover:border-green-500/30 w-[85vw] max-w-sm snap-start flex-shrink-0"
+            className="bg-slate-800 rounded-xl overflow-hidden shadow-md border border-slate-700 cursor-pointer transition-all duration-200 hover:shadow-lg hover:shadow-green-500/10 hover:border-green-500/30 w-full sm:max-w-sm snap-start flex-shrink-0"
         >
             <div className="relative h-20">
                 <LazyImage

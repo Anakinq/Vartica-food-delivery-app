@@ -82,7 +82,7 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-lg rounded-2xl max-h-[80vh] flex flex-col shadow-2xl">
+      <div className="bg-white w-full sm:max-w-lg rounded-2xl max-h-[80vh] flex flex-col shadow-2xl max-w-[90vw]">
         <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-white">
           <button
             onClick={onClose}

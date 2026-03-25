@@ -114,6 +114,7 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             // Only update role during explicit role switching operations
             // This prevents unwanted role changes from regular navigation
+            // STRENGTHENED: Never auto-switch based on hash - only explicit role switches
             if (isRoleSwitch && hashRole) {
                 // Verify this is actually a different role before updating
                 if (currentRole !== hashRole) {

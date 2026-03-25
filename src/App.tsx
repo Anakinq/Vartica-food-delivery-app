@@ -45,6 +45,7 @@ const LocationTracker = lazy(() =>
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider } from './contexts/AuthContext';
 import { BottomNavigation } from './components/shared/BottomNavigation';
+import { TopContainer, MainContent } from './components/shared/TopContainer';
 import { VendorBottomNavigation } from './components/vendor/VendorBottomNavigation';
 import { ToastProvider } from './contexts/ToastContext';
 import { ToastContainer } from './components/ToastComponent';
@@ -702,17 +703,12 @@ function App() {
             <ToastProvider>
               <RoleProvider>
                 <CartProvider>
-                  <div className="app-container">
-                    <div role="status" aria-live="polite" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
-                      Loading application
-                    </div>
-                    <div role="alert" aria-live="assertive" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
-                    </div>
+                  <TopContainer>
                     <Suspense fallback={<PageLoader />}>
                       <AppContent />
                     </Suspense>
                     <ToastContainer />
-                  </div>
+                  </TopContainer>
                 </CartProvider>
               </RoleProvider>
             </ToastProvider>

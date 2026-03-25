@@ -456,7 +456,7 @@ export const EnhancedCheckout: React.FC<EnhancedCheckoutProps> = ({
                         {showDeliveryMethodChoice && (
                             <div>
                                 <label className="block text-sm font-semibold text-black mb-3">Delivery Method *</label>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <button
                                         type="button"
                                         onClick={() => setDeliveryMethod('vendor')}
@@ -603,18 +603,6 @@ export const EnhancedCheckout: React.FC<EnhancedCheckoutProps> = ({
                             <p className="text-center text-sm text-gray-500">
                                 Secure payment powered by Paystack
                             </p>
-
-                            {/* Dev Mode Button */}
-                            {import.meta.env.DEV && (
-                                <button
-                                    type="button"
-                                    onClick={handleDevModePayment}
-                                    disabled={loading || !formData.deliveryAddress}
-                                    className="w-full bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    🔧 DEV: Simulate Payment
-                                </button>
-                            )}
                         </div>
                     </form>
                 </div>

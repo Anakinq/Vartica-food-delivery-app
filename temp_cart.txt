@@ -1,0 +1,266 @@
+1:import React, { useState } from 'react';
+2:import { X, Minus, Plus, Trash2, ShoppingBag, ShoppingCart, ArrowLeft } from 'lucide-react';
+3:import { MenuItem } from '../../lib/supabase';
+4:import { useAuth } from '../../contexts/AuthContext';
+6:interface CartItem extends MenuItem {
+7:  quantity: number;
+8:}
+10:interface CartProps {
+11:  items: CartItem[];
+12:  onUpdateQuantity: (itemId: string, quantity: number) => void;
+13:  onClear: () => void;
+14:  onClose: () => void;
+15:  cartPackCount?: number;
+16:  onCartPackChange?: (count: number) => void;
+17:  onCheckout: () => void;
+18:}
+20:// Animated quantity button component
+21:const QuantityButton: React.FC<{
+22:  quantity: number;
+23:  itemName: string;
+24:  onDecrease: () => void;
+25:  onIncrease: () => void;
+26:}> = ({ quantity, itemName, onDecrease, onIncrease }) => {
+27:  const [animating, setAnimating] = useState<'decrease' | 'increase' | null>(null);
+29:  const handleDecrease = () => {
+30:    setAnimating('decrease');
+31:    onDecrease();
+32:    setTimeout(() => setAnimating(null), 200);
+33:  };
+35:  const handleIncrease = () => {
+36:    setAnimating('increase');
+37:    onIncrease();
+38:    setTimeout(() => setAnimating(null), 200);
+39:  };
+41:  return (
+42:    <div className="flex items-center space-x-2">
+43:      <button
+44:        onClick={handleDecrease}
+45:        disabled={quantity <= 1}
+46:        className={`relative p-2 rounded-full transition-all duration-200 ${quantity <= 1
+47:          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+48:          : 'bg-gray-200 text-gray-700 hover:bg-gray-300 active:scale-95'
+49:          }`}
+50:        aria-label={`Decrease ${itemName} quantity`}
+51:      >
+52:        <Minus className={`h-4 w-4 ${animating === 'decrease' ? 'scale-75' : ''}`} />
+53:      </button>
+54:      <span
+55:        className={`w-10 text-center font-bold text-lg text-black transition-all duration-200 ${animating ? 'scale-125 text-orange-500' : ''
+56:          }`}
+57:      >
+58:        {quantity}
+59:      </span>
+60:      <button
+61:        onClick={handleIncrease}
+62:        className="p-2 rounded-full bg-orange-100 text-orange-600 hover:bg-orange-200 active:scale-95 transition-all duration-200"
+63:        aria-label={`Increase ${itemName} quantity`}
+64:      >
+65:        <Plus className={`h-4 w-4 ${animating === 'increase' ? 'scale-75' : ''}`} />
+66:      </button>
+67:    </div>
+68:  );
+69:};
+71:export const Cart: React.FC<CartProps> = ({
+72:  items,
+73:  onUpdateQuantity,
+74:  onClear,
+75:  onClose,
+76:  cartPackCount = 0,
+77:  onCartPackChange,
+78:  onCheckout,
+79:}) => {
+80:  const { profile } = useAuth();
+81:  const isBusinessVendor = profile?.vendor?.vendor_type === 'late_night';
+82:  const isLateNightVendor = profile?.vendor?.vendor_type === 'late_night';
+83:  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+84:  const packPrice = 300.00;
+85:  const total = subtotal + (packPrice * cartPackCount);
+86:  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+88:  return (
+89:    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 fixed-overlay">
+90:      <div className="min-h-screen flex items-center justify-center p-4 pb-safe">
+91:        <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl max-h-[80vh] flex flex-col shadow-2xl">
+92:          {/* Header */}
+93:          <div className="flex-shrink-0 flex items-center justify-between p-4 sm:p-6 border-b border-gray-100">
+94:            <div className="flex items-center space-x-3">
+95:              <div className="relative">
+96:                <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 text-orange-500" />
+97:                {itemCount > 0 && (
+98:                  <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+99:                    {itemCount}
+100:                  </span>
+101:                )}
+102:              </div>
+103:              <h2 className="text-xl sm:text-2xl font-bold text-black">Your Cart</h2>
+104:            </div>
+105:            <div className="flex items-center gap-3">
+106:              <button
+107:                onClick={onClose}
+108:                className="flex items-center gap-1 px-3 py-2 bg-black hover:bg-gray-800 rounded-full transition-colors text-sm font-medium text-white"
+109:                aria-label="Go back"
+110:              >
+111:                <ArrowLeft className="h-5 w-5" />
+112:                <span>Back</span>
+113:              </button>
+114:              <button
+115:                onClick={onClose}
+116:                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+117:                aria-label="Close cart"
+118:              >
+119:                <X className="h-6 w-6" />
+120:              </button>
+121:            </div>
+122:          </div>
+124:          {/* Empty State */}
+125:          {items.length === 0 ? (
+126:            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+127:              <div className="w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mb-4">
+128:                <ShoppingBag className="h-12 w-12 text-orange-400" />
+129:              </div>
+130:              <h3 className="text-xl font-semibold text-black mb-2">Your cart is empty</h3>
+131:              <p className="text-gray-600 mb-6">Add some delicious items to get started!</p>
+132:              <button
+133:                onClick={onClose}
+134:                className="px-8 py-3 bg-black text-white rounded-full font-semibold hover:bg-gray-800 transition-colors shadow-lg hover:shadow-xl"
+135:              >
+136:                Browse Menu
+137:              </button>
+138:            </div>
+139:          ) : (
+140:            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+141:              {items.map(item => (
+142:                <div
+143:                  key={item.id}
+144:                  className="bg-gray-50 rounded-xl p-4 transition-all hover:bg-gray-100"
+145:                >
+146:                  <div className="flex flex-row items-start gap-4">
+147:                    {/* Item Image */}
+148:                    <div className="w-16 h-16 bg-orange-100 rounded-lg flex-shrink-0 flex items-center justify-center">
+149:                      {item.image_url ? (
+150:                        <img
+151:                          src={item.image_url}
+152:                          alt={item.name}
+153:                          className="w-full h-full object-cover rounded-lg"
+154:                          loading="lazy"
+155:                        />
+156:                      ) : (
+157:                        <ShoppingBag className="h-8 w-8 text-orange-400" />
+158:                      )}
+159:                    </div>
+161:                    {/* Item Details */}
+162:                    <div className="flex-1 min-w-0">
+163:                      <h3 className="font-semibold text-black">{item.name}</h3>
+164:                      <p className="text-sm text-gray-600 mt-1">₦{item.price.toLocaleString()} each</p>
+165:                      <p className="text-sm font-bold text-orange-600 mt-1">
+166:                        ₦{(item.price * item.quantity).toLocaleString()}
+167:                      </p>
+168:                    </div>
+169:                  </div>
+171:                  {/* Quantity Controls and Remove */}
+172:                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-200">
+173:                    <QuantityButton
+174:                      quantity={item.quantity}
+175:                      itemName={item.name}
+176:                      onDecrease={() => onUpdateQuantity(item.id, item.quantity - 1)}
+177:                      onIncrease={() => onUpdateQuantity(item.id, item.quantity + 1)}
+178:                    />
+179:                    <button
+180:                      onClick={() => onUpdateQuantity(item.id, 0)}
+181:                      className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+182:                      aria-label={`Remove ${item.name} from cart`}
+183:                    >
+184:                      <Trash2 className="h-5 w-5" />
+185:                    </button>
+186:                  </div>
+187:                </div>
+188:              ))}
+189:              {/* Footer - Part of single scroll */}
+190:              <div className="border-t border-gray-100 p-4 sm:p-6 space-y-4 bg-white flex-shrink-0">
+191:                {/* Food Pack Selector - Only show for food vendors */}
+192:                {!isBusinessVendor && (
+193:                  <div className="bg-orange-50 rounded-xl p-4">
+194:                    <div className="flex justify-between items-center mb-3">
+195:                      <span className="font-semibold text-black">Food Pack</span>
+196:                      <span className="text-sm text-gray-600">₦{packPrice.toLocaleString()} each</span>
+197:                    </div>
+198:                    <div className="flex items-center justify-between">
+199:                      <span className="text-sm text-gray-600">Quantity</span>
+200:                      <div className="flex items-center space-x-3">
+201:                        <button
+202:                          onClick={() => cartPackCount > 0 && onCartPackChange && onCartPackChange(cartPackCount - 1)}
+203:                          disabled={cartPackCount <= 0}
+204:                          className={`w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold transition-all ${cartPackCount <= 0
+205:                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+206:                            : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm active:scale-95'
+207:                            }`}
+208:                          aria-label="Decrease food pack quantity"
+209:                        >
+210:                          –
+211:                        </button>
+212:                        <span className="w-10 text-center font-bold text-lg text-black">{cartPackCount}</span>
+213:                        <button
+214:                          onClick={() => onCartPackChange && onCartPackChange(cartPackCount + 1)}
+215:                          className="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center text-xl font-bold hover:bg-orange-600 shadow-sm active:scale-95 transition-all"
+216:                          aria-label="Increase food pack quantity"
+217:                        >
+218:                          +
+219:                        </button>
+220:                      </div>
+221:                    </div>
+222:                    {cartPackCount > 0 && (
+223:                      <p className="text-sm text-orange-600 mt-2 font-medium">
+224:                        Food pack total: ₦{(packPrice * cartPackCount).toLocaleString()}
+225:                      </p>
+226:                    )}
+227:                  </div>
+228:                )}
+230:                {/* Order Summary */}
+231:                <div className="space-y-2">
+232:                  <div className="flex justify-between text-gray-600">
+233:                    <span>Subtotal</span>
+234:                    <span className="font-medium">₦{subtotal.toLocaleString()}</span>
+235:                  </div>
+236:                  <div className="flex justify-between text-gray-600">
+237:                    <span>Delivery Fee</span>
+238:                    <span className="font-medium text-orange-600">Calculated at checkout</span>
+239:                  </div>
+240:                  {!isBusinessVendor && cartPackCount > 0 && (
+241:                    <div className="flex justify-between text-gray-600">
+242:                      <span>Food Packs ({cartPackCount}x)</span>
+243:                      <span className="font-medium">₦{(packPrice * cartPackCount).toLocaleString()}</span>
+244:                    </div>
+245:                  )}
+246:                  <div className="flex justify-between text-xl font-bold text-black pt-3 border-t border-gray-200">
+247:                    <span>Total</span>
+248:                    <span className="text-orange-600">₦{total.toLocaleString()}</span>
+249:                  </div>
+250:                </div>
+252:                {/* Action Buttons */}
+253:                <div className="flex space-x-3">
+254:                  <button
+255:                    onClick={onClear}
+256:                    className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-full font-semibold hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2"
+257:                    aria-label="Clear all items from cart"
+258:                  >
+259:                    <Trash2 className="h-4 w-4" />
+260:                    <span>Clear</span>
+261:                  </button>
+262:                  <button
+263:                    onClick={onCheckout}
+264:                    disabled={items.length === 0}
+265:                    className="flex-1 py-3 bg-green-600 text-white rounded-full font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
+266:                    aria-label={`Checkout with ${itemCount} items for ₦${total.toLocaleString()}`}
+267:                  >
+268:                    <span>Checkout</span>
+269:                    <span className="text-green-200">•</span>
+270:                    <span>₦{total.toLocaleString()}</span>
+271:                  </button>
+272:                </div>
+273:              </div>
+274:          )}
+275:            </div>
+276:      </div>
+277:      </div>
+278:      );
+279:};

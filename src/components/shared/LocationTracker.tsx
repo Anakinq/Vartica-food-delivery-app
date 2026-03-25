@@ -7,28 +7,28 @@ import { GoogleMap, useJsApiLoader, Marker, Polyline, InfoWindow } from '@react-
 
 // Google Maps configuration
 const mapContainerStyle = {
-  width: '100%',
-  height: '256px'
+    width: '100%',
+    height: '256px'
 };
 
 const defaultCenter = {
-  lat: 6.5244,
-  lng: 3.3792
+    lat: 6.5244,
+    lng: 3.3792
 };
 
 const mapOptions = {
-  disableDefaultUI: false,
-  zoomControl: true,
-  streetViewControl: false,
-  mapTypeControl: false,
-  fullscreenControl: false,
-  styles: [
-    {
-      featureType: 'poi',
-      elementType: 'labels',
-      stylers: [{ visibility: 'off' }]
-    }
-  ]
+    disableDefaultUI: false,
+    zoomControl: true,
+    streetViewControl: false,
+    mapTypeControl: false,
+    fullscreenControl: false,
+    styles: [
+        {
+            featureType: 'poi',
+            elementType: 'labels',
+            stylers: [{ visibility: 'off' }]
+        }
+    ]
 };
 
 // Map Component with Google Maps
@@ -358,7 +358,7 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-white rounded-2xl w-full sm:max-w-lg max-w-[90vw] max-h-[90vh] overflow-hidden flex flex-col">
                 <div className="p-6 border-b border-gray-200 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full text-gray-600">
@@ -451,7 +451,7 @@ export const LocationTracker: React.FC<LocationTrackerProps> = ({
                             className={`flex-1 py-3 px-4 rounded-lg font-medium ${profile?.role === 'delivery_agent'
                                 ? 'bg-green-600 text-white hover:bg-green-700'
                                 : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                            }`}
+                                }`}
                         >
                             {profile?.role === 'delivery_agent' ? 'Update Location' : 'Delivery Only'}
                         </button>

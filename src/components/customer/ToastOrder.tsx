@@ -88,7 +88,7 @@ export const ToastOrderPage: React.FC<ToastOrderPageProps> = ({
                             />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-600 to-orange-600">
-                                <span className="text-6xl">🍞</span>
+                                <span className="text-4xl sm:text-5xl">🍞</span>
                             </div>
                         )}
                         <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-sm font-medium ${vendor.is_open ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
@@ -132,8 +132,8 @@ export const ToastOrderPage: React.FC<ToastOrderPageProps> = ({
                         <button
                             onClick={() => setExtras(prev => ({ ...prev, butter: !prev.butter }))}
                             className={`w-full flex justify-between items-center p-3 rounded-lg border-2 transition-all ${extras.butter
-                                    ? 'border-green-500 bg-green-500/10'
-                                    : 'border-gray-700 bg-gray-700/30'
+                                ? 'border-green-500 bg-green-500/10'
+                                : 'border-gray-700 bg-gray-700/30'
                                 }`}
                         >
                             <div className="flex items-center">
@@ -153,8 +153,8 @@ export const ToastOrderPage: React.FC<ToastOrderPageProps> = ({
                         <button
                             onClick={() => setExtras(prev => ({ ...prev, egg: !prev.egg }))}
                             className={`w-full flex justify-between items-center p-3 rounded-lg border-2 transition-all ${extras.egg
-                                    ? 'border-green-500 bg-green-500/10'
-                                    : 'border-gray-700 bg-gray-700/30'
+                                ? 'border-green-500 bg-green-500/10'
+                                : 'border-gray-700 bg-gray-700/30'
                                 }`}
                         >
                             <div className="flex items-center">
@@ -174,8 +174,8 @@ export const ToastOrderPage: React.FC<ToastOrderPageProps> = ({
                         <button
                             onClick={() => setExtras(prev => ({ ...prev, tea: !prev.tea }))}
                             className={`w-full flex justify-between items-center p-3 rounded-lg border-2 transition-all ${extras.tea
-                                    ? 'border-green-500 bg-green-500/10'
-                                    : 'border-gray-700 bg-gray-700/30'
+                                ? 'border-green-500 bg-green-500/10'
+                                : 'border-gray-700 bg-gray-700/30'
                                 }`}
                         >
                             <div className="flex items-center">
@@ -203,7 +203,7 @@ export const ToastOrderPage: React.FC<ToastOrderPageProps> = ({
                         >
                             <Minus className="w-5 h-5" />
                         </button>
-                        <span className="text-white font-bold text-2xl mx-6">{quantity}</span>
+                        <span className="text-white font-bold text-xl sm:text-2xl mx-4 sm:mx-6">{quantity}</span>
                         <button
                             onClick={() => setQuantity(Math.min(10, quantity + 1))}
                             className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center text-white text-xl hover:bg-gray-600"
@@ -257,8 +257,8 @@ export const ToastOrderPage: React.FC<ToastOrderPageProps> = ({
                     onClick={handleOrder}
                     disabled={ordering || !vendor.is_open}
                     className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${vendor.is_open
-                            ? 'bg-green-500 hover:bg-green-600 text-white'
-                            : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                        ? 'bg-green-500 hover:bg-green-600 text-white'
+                        : 'bg-gray-700 text-gray-500 cursor-not-allowed'
                         }`}
                 >
                     {ordering ? (

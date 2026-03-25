@@ -170,22 +170,22 @@ export const ToastVendorDashboard: React.FC<ToastVendorDashboardProps> = ({ onSh
                         <p className="text-green-100 text-sm">{vendor.hostel_location}</p>
                     </div>
                     <div className="text-right">
-                        <p className="text-3xl font-bold text-white">₦{vendor.price}</p>
+                        <p className="text-2xl sm:text-3xl font-bold text-white">₦{vendor.price}</p>
                         <p className="text-green-100 text-sm">per bread</p>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-3 mt-4">
                     <div className="bg-white/20 rounded-lg p-3 text-center">
-                        <p className="text-2xl font-bold text-white">{pendingOrders}</p>
+                        <p className="text-xl sm:text-2xl font-bold text-white">{pendingOrders}</p>
                         <p className="text-green-100 text-xs">Pending</p>
                     </div>
                     <div className="bg-white/20 rounded-lg p-3 text-center">
-                        <p className="text-2xl font-bold text-white">{activeOrders.length}</p>
+                        <p className="text-xl sm:text-2xl font-bold text-white">{activeOrders.length}</p>
                         <p className="text-green-100 text-xs">Active</p>
                     </div>
                     <div className="bg-white/20 rounded-lg p-3 text-center">
-                        <p className="text-2xl font-bold text-white">{vendor.rating}</p>
+                        <p className="text-xl sm:text-2xl font-bold text-white">{vendor.rating}</p>
                         <p className="text-green-100 text-xs">Rating</p>
                     </div>
                 </div>
@@ -276,8 +276,8 @@ export const ToastVendorDashboard: React.FC<ToastVendorDashboardProps> = ({ onSh
                         onClick={handleToggleOpen}
                         disabled={updating}
                         className={`w-full py-4 rounded-lg font-bold text-lg transition-all flex items-center justify-center ${vendor.is_open
-                                ? 'bg-red-500 hover:bg-red-600 text-white'
-                                : 'bg-green-500 hover:bg-green-600 text-white'
+                            ? 'bg-red-500 hover:bg-red-600 text-white'
+                            : 'bg-green-500 hover:bg-green-600 text-white'
                             }`}
                     >
                         {vendor.is_open ? (
@@ -324,10 +324,10 @@ export const ToastVendorDashboard: React.FC<ToastVendorDashboardProps> = ({ onSh
                                 {/* Status Badge */}
                                 <div className="mb-3">
                                     <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${order.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
-                                            order.status === 'accepted' ? 'bg-blue-500/20 text-blue-400' :
-                                                order.status === 'preparing' ? 'bg-purple-500/20 text-purple-400' :
-                                                    order.status === 'ready' ? 'bg-green-500/20 text-green-400' :
-                                                        'bg-gray-500/20 text-gray-400'
+                                        order.status === 'accepted' ? 'bg-blue-500/20 text-blue-400' :
+                                            order.status === 'preparing' ? 'bg-purple-500/20 text-purple-400' :
+                                                order.status === 'ready' ? 'bg-green-500/20 text-green-400' :
+                                                    'bg-gray-500/20 text-gray-400'
                                         }`}>
                                         {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                                     </span>

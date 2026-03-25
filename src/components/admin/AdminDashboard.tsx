@@ -650,7 +650,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
               <span>Export</span>
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             <div className="bg-white rounded-xl shadow-md p-6">
               <div className="flex items-center space-x-3">
                 <div className="p-3 bg-blue-100 rounded-lg">
