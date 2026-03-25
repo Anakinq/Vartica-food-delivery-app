@@ -22,15 +22,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
     totalUsers: 0,
     totalVendors: 0,
     totalAgents: 0,
+    onlineAgents: 0,
     totalOrders: 0,
     pendingOrders: 0,
     pendingWithdrawals: 0,
   });
   const [users, setUsers] = useState<Profile[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [deliveryAgents, setDeliveryAgents] = useState<any[]>([]);
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRecord[]>([]);
   const [supportMessages, setSupportMessages] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'users' | 'orders' | 'withdrawals' | 'approvals' | 'support' | 'promo-codes' | 'banners' | 'analytics'>('analytics');
+  const [activeTab, setActiveTab] = useState<'users' | 'orders' | 'withdrawals' | 'approvals' | 'support' | 'promo-codes' | 'banners' | 'analytics' | 'agents'>('analytics');
   const [loading, setLoading] = useState(true);
   const [processingWithdrawal, setProcessingWithdrawal] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -263,7 +265,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
       }
 
       if (agentsRes.data) {
-        setStats(prev => ({ ...prev, totalAgents: agentsRes.data.length }));
+        setDeliveryAgents(agentsRes.data);
+        const onlineCount = agentsRes.data.filter((a: any) => a.is_available || a.status === 'active').length;
+        setStats(prev => ({ ...prev, totalAgents: agentsRes.data.length, onlineAgents: onlineCount }));
       }
 
       if (ordersRes.data) {
@@ -589,6 +593,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                   </div>
                 </button>
                 <button
+                  onClick={() => {
+                    setActiveTab('agents');
+                    setShowMenu(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <div className="flex items-center space-x-2">
+                    <Bike className="h-4 w-4" />
+                    <span>🚴 Delivery Agents</span>
+                  </div>
+                </button>
+                <button
                   onClick={signOut}
                   className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                 >
@@ -683,6 +699,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                 <div>
                   <p className="text-sm text-gray-600">Delivery Agents</p>
                   <p className="text-2xl font-bold text-gray-900">{searchTerm ? filterData().filteredUsers.filter(u => u.role === 'delivery_agent').length : stats.totalAgents}</p>
+                  <p className="text-xs text-green-600">{stats.onlineAgents} online</p>
                 </div>
               </div>
             </div>
@@ -787,12 +804,112 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                 >
                   📊 Analytics
                 </button>
+                <button
+                  onClick={() => setActiveTab('agents')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'agents'
+                    ? 'border-orange-600 text-orange-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                    }`}
+                >
+                  🚴 Delivery Agents
+                </button>
               </nav>
             </div>
 
             <div className="p-6">
               {activeTab === 'analytics' && (
                 <AnalyticsDashboard dateRange={dateRange} />
+              )}
+              {activeTab === 'agents' && (
+                <div>
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-bold text-gray-900">Delivery Agents</h2>
+                    <button
+                      onClick={fetchData}
+                      className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Refresh
+                    </button>
+                  </div>
+                  
+                  {/* Online Agents Summary */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                      <div className="flex items-center">
+                        <div className="p-2 bg-green-100 rounded-lg">
+                          <Bike className="h-6 w-6 text-green-600" />
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm text-green-700">Online Agents</p>
+                          <p className="text-2xl font-bold text-green-800">{deliveryAgents.filter(a => a.is_available || a.status === 'active').length}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                      <div className="flex items-center">
+                        <div className="p-2 bg-gray-100 rounded-lg">
+                          <Bike className="h-6 w-6 text-gray-600" />
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm text-gray-600">Offline Agents</p>
+                          <p className="text-2xl font-bold text-gray-800">{deliveryAgents.filter(a => !a.is_available && a.status !== 'active').length}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                      <div className="flex items-center">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                          <Users className="h-6 w-6 text-blue-600" />
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm text-blue-700">Total Agents</p>
+                          <p className="text-2xl font-bold text-blue-800">{deliveryAgents.length}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Agent List */}
+                  <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Phone</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Vehicle</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Total Deliveries</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {deliveryAgents.map((agent) => {
+                            const isOnline = agent.is_available || agent.status === 'active';
+                            return (
+                              <tr key={agent.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center">
+                                    <div className={`h-2 w-2 rounded-full mr-2 ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                                    <span className="font-medium text-gray-900">{agent.full_name || 'N/A'}</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-gray-600">{agent.phone || 'N/A'}</td>
+                                <td className="px-4 py-3 text-gray-600">{agent.vehicle_type || 'N/A'}</td>
+                                <td className="px-4 py-3">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isOnline ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                                    {isOnline ? '🟢 Online' : '⚫ Offline'}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-gray-600">{agent.total_deliveries || 0}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
               )}
               {activeTab === 'approvals' && (
                 <AdminApprovalDashboard />
