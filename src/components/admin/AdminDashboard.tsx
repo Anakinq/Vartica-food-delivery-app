@@ -11,6 +11,52 @@ import Pagination from '../common/Pagination';
 import { WithdrawalRecord } from '../../types';
 import AnalyticsDashboard from './AnalyticsDashboard';
 
+// Helper function to convert bank code to bank name
+const getBankNameFromCode = (bankCode: string | null): string => {
+  if (!bankCode) return 'Bank';
+  const bankNames: Record<string, string> = {
+    '044': 'Access Bank',
+    '063': 'Access Bank (Diamond)',
+    '035A': 'ALAT by WEMA',
+    '401': 'ASO Savings and Loans',
+    '023': 'Citibank Nigeria',
+    '050': 'Ecobank Nigeria',
+    '562': 'Ekondo Microfinance Bank',
+    '070': 'Fidelity Bank',
+    '011': 'First Bank of Nigeria',
+    '214': 'First City Monument Bank',
+    '901': 'FSDH Merchant Bank',
+    '00103': 'Globus Bank',
+    '100022': 'GoMoney',
+    '058': 'Guaranty Trust Bank',
+    '030': 'Heritage Bank',
+    '301': 'Jaiz Bank',
+    '082': 'Keystone Bank',
+    '559': 'Kuda Bank',
+    '50211': 'Kuda Microfinance Bank',
+    '999992': 'OPay',
+    '526': 'Parallex Bank',
+    '999991': 'PalmPay',
+    '076': 'Polaris Bank',
+    '101': 'Providus Bank',
+    '125': 'Rubies MFB',
+    '51310': 'Sparkle Microfinance Bank',
+    '221': 'Stanbic IBTC Bank',
+    '068': 'Standard Chartered Bank',
+    '232': 'Sterling Bank',
+    '100': 'Suntrust Bank',
+    '302': 'TAJ Bank',
+    '102': 'Titan Bank',
+    '032': 'Union Bank of Nigeria',
+    '033': 'United Bank For Africa',
+    '215': 'Unity Bank',
+    '566': 'VFD Microfinance Bank',
+    '035': 'Wema Bank',
+    '057': 'Zenith Bank',
+  };
+  return bankNames[bankCode] || bankCode;
+};
+
 interface AdminDashboardProps {
   onShowProfile?: () => void;
 }
@@ -30,6 +76,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
   const [users, setUsers] = useState<Profile[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [deliveryAgents, setDeliveryAgents] = useState<any[]>([]);
+  const [profilesMap, setProfilesMap] = useState<Map<string, any>>(new Map());
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRecord[]>([]);
   const [supportMessages, setSupportMessages] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'users' | 'orders' | 'withdrawals' | 'approvals' | 'support' | 'promo-codes' | 'banners' | 'analytics' | 'agents'>('analytics');
@@ -239,10 +286,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
       setLoading(true);
       setError(null);
 
-      const [usersRes, vendorsRes, agentsRes, ordersRes, withdrawalsRes, supportRes] = await Promise.all([
+      const [usersRes, vendorsRes, agentsRes, profilesRes, ordersRes, withdrawalsRes, supportRes] = await Promise.all([
         supabase.from('profiles').select('*').order('created_at', { ascending: false }),
         supabase.from('vendors').select('*'),
         supabase.from('delivery_agents').select('*'),
+        supabase.from('profiles').select('id, full_name, phone'),
         supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(50),
         supabase.from('admin_withdrawals_view').select('*').order('created_at', { ascending: false }),
         supabase.from('support_messages').select('*').order('created_at', { ascending: false }),
@@ -251,6 +299,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
       if (usersRes.error) throw usersRes.error;
       if (vendorsRes.error) throw vendorsRes.error;
       if (agentsRes.error) throw agentsRes.error;
+      if (profilesRes.error) throw profilesRes.error;
       if (ordersRes.error) throw ordersRes.error;
       if (withdrawalsRes.error) throw withdrawalsRes.error;
       if (supportRes.error) throw supportRes.error;
@@ -268,6 +317,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
         setDeliveryAgents(agentsRes.data);
         const onlineCount = agentsRes.data.filter((a: any) => a.is_available || a.status === 'active').length;
         setStats(prev => ({ ...prev, totalAgents: agentsRes.data.length, onlineAgents: onlineCount }));
+      }
+
+      // Build profiles map for lookup
+      if (profilesRes.data) {
+        const map = new Map<string, any>();
+        profilesRes.data.forEach((profile: any) => {
+          map.set(profile.id, profile);
+        });
+        setProfilesMap(map);
       }
 
       if (ordersRes.data) {
@@ -886,15 +944,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                         <tbody className="divide-y divide-gray-200">
                           {deliveryAgents.map((agent) => {
                             const isOnline = agent.is_available || agent.status === 'active';
+                            const profile = profilesMap.get(agent.user_id);
+                            const fullName = profile?.full_name || (profile?.first_name || profile?.last_name ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : 'N/A');
+                            const phone = profile?.phone || 'N/A';
                             return (
                               <tr key={agent.id} className="hover:bg-gray-50">
                                 <td className="px-4 py-3">
                                   <div className="flex items-center">
                                     <div className={`h-2 w-2 rounded-full mr-2 ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                                    <span className="font-medium text-gray-900">{agent.full_name || 'N/A'}</span>
+                                    <span className="font-medium text-gray-900">{fullName}</span>
                                   </div>
                                 </td>
-                                <td className="px-4 py-3 text-gray-600">{agent.phone || 'N/A'}</td>
+                                <td className="px-4 py-3 text-gray-600">{phone}</td>
                                 <td className="px-4 py-3 text-gray-600">{agent.vehicle_type || 'N/A'}</td>
                                 <td className="px-4 py-3">
                                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isOnline ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
@@ -1054,7 +1115,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
                                 <td className="py-3 px-4 text-sm text-gray-600">
                                   {req.payout_account_number ? (
                                     <div>
-                                      <div className="font-medium">{req.payout_bank_name || 'Bank'}</div>
+                                      <div className="font-medium">
+                                        {req.payout_bank_name && !/^\d{2,6}[A-Z]?$/i.test(req.payout_bank_name) 
+                                          ? req.payout_bank_name 
+                                          : getBankNameFromCode(req.payout_bank_code || null)}
+                                      </div>
                                       <div className="text-xs font-mono">{req.payout_account_number}</div>
                                       <div className="text-xs text-gray-500">{req.payout_account_name}</div>
                                     </div>
@@ -1295,4 +1360,5 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowProfile })
     </div>
   );
 };
+
 
