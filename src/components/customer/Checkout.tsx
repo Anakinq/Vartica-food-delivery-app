@@ -333,7 +333,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
       delivery_notes: formData.deliveryNotes || null,
       scheduled_for: formData.scheduledFor || null,
       platform_commission: 200.0,
-      agent_earnings: 0.0,
+      agent_earnings: Math.max(hostelBasedDeliveryFee - 200, 0), // Platform takes ₦200 from delivery fee
       // Marketplace delivery handler
       delivery_handler: deliveryHandler,
     };

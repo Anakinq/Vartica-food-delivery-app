@@ -81,7 +81,7 @@ export const Cart: React.FC<CartProps> = ({
   const isBusinessVendor = profile?.vendor?.vendor_type === 'late_night';
   const isLateNightVendor = profile?.vendor?.vendor_type === 'late_night';
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const deliveryFee = 500.00;
+  const deliveryFee = 0; // Let Checkout calculate actual delivery fee based on hostel location
   const packPrice = 300.00;
   const total = subtotal + (packPrice * cartPackCount) + deliveryFee;
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
