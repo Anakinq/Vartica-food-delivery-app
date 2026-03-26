@@ -734,6 +734,9 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
       console.error('Error sending notification:', notificationError);
       // Don't fail the status update if notification fails
     }
+
+    // Refresh the order list to show updated status
+    fetchData();
   };
 
   // ——— RENDER ———
