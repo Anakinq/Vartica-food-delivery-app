@@ -2,6 +2,7 @@
  * Extended type definitions for the application
  */
 
+import React from 'react';
 import { Profile, Vendor } from '../lib/supabase';
 
 // Extended profile with additional fields
@@ -129,6 +130,40 @@ export type SellerType = 'cafeteria' | 'vendor' | 'late_night_vendor';
 
 // Role type
 export type UserRole = 'customer' | 'cafeteria' | 'vendor' | 'late_night_vendor' | 'delivery_agent' | 'admin';
+
+// Onboarding slide interface
+export interface OnboardingSlide {
+    id: string;
+    title: string;
+    description: string;
+    image?: string;
+    icon?: React.ReactNode;
+}
+
+// Onboarding configuration for different roles
+export interface OnboardingConfig {
+    role: UserRole;
+    slides: OnboardingSlide[];
+    showTooltips: boolean;
+    tooltipElements?: TooltipElement[];
+}
+
+// Tooltip element for guided tour
+export interface TooltipElement {
+    id: string;
+    selector: string;
+    title: string;
+    description: string;
+    position: 'top' | 'bottom' | 'left' | 'right';
+}
+
+// Onboarding state
+export interface OnboardingState {
+    hasCompletedOnboarding: boolean;
+    currentSlide: number;
+    showTooltips: boolean;
+    currentTooltip: number;
+}
 
 // Vendor type
 export type VendorType = 'student' | 'late_night';

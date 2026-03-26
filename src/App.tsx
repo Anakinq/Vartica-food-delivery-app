@@ -54,6 +54,10 @@ import { UserRole } from './types';
 import { Profile } from './lib/supabase/types';
 import { CartProvider, useCart } from './contexts/CartContext';
 import { usePrefetch } from './hooks/usePrefetch';
+import { OnboardingModal } from './components/shared/OnboardingModal';
+import { TooltipOverlay } from './components/shared/TooltipOverlay';
+import { OnboardingWrapper } from './components/shared/OnboardingWrapper';
+import { useOnboarding } from './hooks/useOnboarding';
 
 // Loading fallback for Suspense
 const PageLoader = () => (
@@ -84,6 +88,14 @@ function AppContent() {
   const { items, cartCount, clearCart } = useCart();
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [authView, setAuthView] = useState<'signin' | 'signup'>('signin');
+
+  // Onboarding state
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showTooltips, setShowTooltips] = useState(false);
+  const onboarding = useOnboarding({
+    role: currentRole as UserRole || 'customer',
+    onComplete: () => setShowOnboarding(false)
+  });
 
   // Track if component is mounted to prevent state updates on unmounted components
   const [isMounted, setIsMounted] = useState(false);
@@ -181,6 +193,15 @@ function AppContent() {
       window.location.hash = '';
     }
   }, [user, profile, authLoading, locationHash]);
+
+  // Show onboarding on first visit
+  useEffect(() => {
+    if (user && profile && !onboarding.hasCompletedOnboarding && onboarding.isInitialized) {
+      // Small delay to ensure app is ready
+      const timer = setTimeout(() => setShowOnboarding(true), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [user, profile, onboarding.hasCompletedOnboarding, onboarding.isInitialized]);
 
   // Show loading while auth is checking or component is initializing
   if (authLoading || !isMounted) {
@@ -697,6 +718,8 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <OnboardingModal role="customer" isOpen={false} />
+      <TooltipOverlay role="customer" isOpen={false} />
       <SentryErrorBoundary fallback={<div className="error-page">Something went wrong. Please try refreshing the page.</div>}>
         <DarkModeProvider>
           <AuthProvider>
@@ -707,6 +730,12 @@ function App() {
                     <Suspense fallback={<PageLoader />}>
                       <AppContent />
                     </Suspense>
+                    <OnboardingWrapper
+                      showOnboarding={false}
+                      showTooltips={false}
+                      onStartTooltips={() => { }}
+                      onStopTooltips={() => { }}
+                    />
                     <ToastContainer />
                   </TopContainer>
                 </CartProvider>
