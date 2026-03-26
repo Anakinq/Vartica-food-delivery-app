@@ -1,10 +1,11 @@
 // src/components/customer/Checkout.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Check, AlertCircle, X, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Check, AlertCircle, X, RefreshCw, Loader2 } from 'lucide-react';
 import { PaystackButton } from 'react-paystack';
 import { supabase, MenuItem } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
+import { CustomerWalletService } from '../../services/supabase/customer-wallet.service';
 import {
   HOSTEL_DELIVERY_FEES,
   HOSTEL_TO_GROUP,
@@ -62,6 +63,9 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [useWallet, setUseWallet] = useState(false);
+  const [deductingFromWallet, setDeductingFromWallet] = useState(false);
   const [paystackScriptLoaded, setPaystackScriptLoaded] = useState(true); // Always true with npm package
   const [scriptLoading, setScriptLoading] = useState(false);
   // Payment method is always online (Paystack)
@@ -159,6 +163,24 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const MIN_NGN = 100;
   const packPrice = 300.00;
   const packTotal = packPrice * packCount;
+
+  // Fetch wallet balance on mount
+  useEffect(() => {
+    const fetchWalletBalance = async () => {
+      if (profile?.id) {
+        try {
+          const wallet = await CustomerWalletService.getWallet(profile.id);
+          if (wallet) {
+            setWalletBalance(wallet.balance);
+          }
+        } catch (error) {
+          console.error('Error fetching wallet balance:', error);
+        }
+      }
+    };
+
+    fetchWalletBalance();
+  }, [profile?.id]);
   const platformCommission = 200.0;
   const effectiveDeliveryFeeCalc = Math.max(hostelBasedDeliveryFee - deliveryFeeDiscount, 0);
   const total = effectiveSubtotal + packTotal + effectiveDeliveryFeeCalc - discount;
@@ -449,6 +471,64 @@ export const Checkout: React.FC<CheckoutProps> = ({
     }
   };
 
+  const handleWalletPayment = async () => {
+    if (!formData.deliveryAddress) {
+      setError('Please select your hostel');
+      return;
+    }
+    if (walletBalance < effectiveTotal) {
+      setError('Insufficient wallet balance');
+      return;
+    }
+
+    setDeductingFromWallet(true);
+    setError(null);
+
+    try {
+      // Deduct from wallet
+      const { data: { user } } = await (supabase as any).auth.getUser();
+      if (!user) {
+        setError('User not authenticated');
+        return;
+      }
+
+      const deductResult = await CustomerWalletService.deduct(
+        user.id,
+        effectiveTotal,
+        `Order payment - ${items.map(i => i.name).join(', ')}`
+      );
+
+      if (!deductResult.success) {
+        setError('Failed to deduct from wallet: ' + deductResult.message);
+        return;
+      }
+
+      // Create order with wallet payment
+      const orderResult = await createOrder('WALLET_PAYMENT');
+
+      // Update wallet balance
+      setWalletBalance(prev => prev - effectiveTotal);
+
+      // Apply promo code if used
+      if (formData.promoCode && deliveryFeeDiscount > 0) {
+        const { error: incrementError } = await supabase.rpc('increment_promo_code_usage', {
+          p_code: formData.promoCode.toUpperCase()
+        });
+        if (incrementError) {
+          console.error('Error incrementing promo code usage:', incrementError);
+        }
+      }
+
+      setSuccess(true);
+      showToast(`Order ${orderResult.orderNumber} created successfully! Paid from wallet.`, 'success');
+      setTimeout(() => onSuccess(), 2000);
+    } catch (error) {
+      showToast('Failed to process payment: ' + (error as Error).message, 'error');
+    } finally {
+      setDeductingFromWallet(false);
+    }
+  };
+
   const initializePaystackPayment = () => {
     if (!profile?.email) {
       showToast('Email is required for payment. Please update your profile.', 'error');
@@ -585,7 +665,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
                   <option value="Male Hall 6">Male Hall 6</option>
                 </optgroup>
                 <optgroup label="Male Medical Hall">
-                  <option value="Male Medical Hall">Male Medical Hall</option>
+                  <option value="Male Medical Hall 1">Male Medical Hall 1</option>
+                  <option value="Male Medical Hall 2">Male Medical Hall 2</option>
                 </optgroup>
                 <optgroup label="Female Halls 1-4">
                   <option value="Female Hall 1">Female Hall 1</option>
@@ -717,6 +798,55 @@ export const Checkout: React.FC<CheckoutProps> = ({
               <div className="flex justify-between text-xl font-bold text-black pt-3 border-t border-gray-200"><span>Total</span><span>₦{effectiveTotal.toFixed(2)}</span></div>
             </div>
 
+            {/* Payment Method Selection */}
+            <div>
+              <label className="block text-sm font-semibold text-black mb-2">Payment Method</label>
+              <div className="space-y-2">
+                {/* Paystack Online Option */}
+                <label className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${!useWallet ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    checked={!useWallet}
+                    onChange={() => setUseWallet(false)}
+                    className="mr-3"
+                  />
+                  <div className="flex-1">
+                    <span className="font-semibold text-gray-900">Pay Online</span>
+                    <span className="text-sm text-gray-500 ml-2">(Paystack)</span>
+                  </div>
+                </label>
+                {/* Wallet Option - show always */}
+                <label className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${useWallet ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    checked={useWallet}
+                    onChange={() => setUseWallet(true)}
+                    className="mr-3"
+                  />
+                  <div className="flex-1">
+                    <span className="font-semibold text-gray-900">Pay from Wallet</span>
+                    <span className="text-sm text-gray-500 ml-2">(Balance: ₦{walletBalance.toFixed(2)})</span>
+                  </div>
+                </label>
+              </div>
+              {useWallet && walletBalance < effectiveTotal && (
+                <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-700">
+                    Insufficient wallet balance. You need ₦{(effectiveTotal - walletBalance).toFixed(2)} more.
+                    <button
+                      type="button"
+                      onClick={() => showToast('Please top up your wallet from the home page', 'info')}
+                      className="underline font-semibold"
+                    >
+                      Top up
+                    </button>
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* Pay Button */}
             <div className="space-y-3">
               {error && (
@@ -725,14 +855,33 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 </div>
               )}
 
-              {/* Pay Online Button */}
-              <PaystackButton
-                {...paystackConfig}
-                className="w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-colors shadow-lg disabled:opacity-70 flex items-center justify-center"
-              />
+              {/* Show appropriate button based on payment method */}
+              {useWallet ? (
+                <button
+                  type="button"
+                  onClick={handleWalletPayment}
+                  disabled={walletBalance < effectiveTotal || deductingFromWallet || !formData.deliveryAddress}
+                  className="w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-colors shadow-lg disabled:opacity-70 flex items-center justify-center"
+                >
+                  {deductingFromWallet ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>Pay ₦{effectiveTotal.toFixed(2)} from Wallet</>
+                  )}
+                </button>
+              ) : (
+                <PaystackButton
+                  {...paystackConfig}
+                  disabled={!formData.deliveryAddress || loading}
+                  className={`w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-colors shadow-lg ${!formData.deliveryAddress ? 'opacity-50 cursor-not-allowed' : ''} flex items-center justify-center`}
+                />
+              )}
 
               <p className="text-center text-sm text-gray-500">
-                Secure payment powered by Paystack
+                {useWallet ? 'Secure payment from your wallet' : 'Secure payment powered by Paystack'}
               </p>
             </div>
           </form>

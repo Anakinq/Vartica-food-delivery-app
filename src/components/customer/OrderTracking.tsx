@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MessageCircle, Package, X, Navigation, Star, ArrowLeft } from 'lucide-react';
+import { MessageCircle, Package, X, Navigation, Star, ArrowLeft, XCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { databaseService } from '../../services';
 import { Order } from '../../lib/supabase/types';
@@ -49,6 +49,29 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
       setOrders(data);
     }
     setLoading(false);
+  };
+
+  const cancelOrder = async (orderId: string) => {
+    try {
+      const { error } = await databaseService.update({
+        table: 'orders',
+        match: { id: orderId },
+        data: { status: 'cancelled' },
+      });
+
+      if (error) {
+        console.error('Error cancelling order:', error);
+        alert('Failed to cancel order. Please try again.');
+        return;
+      }
+
+      // Refresh orders after cancellation
+      fetchOrders();
+      alert('Order cancelled successfully.');
+    } catch (err) {
+      console.error('Error cancelling order:', err);
+      alert('Failed to cancel order. Please try again.');
+    }
   };
 
   const getStatusColor = (status: Order['status']) => {
@@ -154,6 +177,21 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ onClose }) => {
                       >
                         <Navigation className="h-4 w-4" />
                         <span>Track</span>
+                      </button>
+                    )}
+
+                    {/* Cancel button for orders not yet accepted by delivery agent */}
+                    {['pending', 'paid'].includes(order.status) && (
+                      <button
+                        onClick={() => {
+                          if (confirm('Are you sure you want to cancel this order?')) {
+                            cancelOrder(order.id);
+                          }
+                        }}
+                        className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                      >
+                        <XCircle className="h-4 w-4" />
+                        <span>Cancel Order</span>
                       </button>
                     )}
                   </div>

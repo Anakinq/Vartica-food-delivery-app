@@ -1,11 +1,12 @@
 // Enhanced Checkout Component with Better Mobile Responsiveness
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Check, AlertCircle, X, RefreshCw, MapPin, Truck, Store } from 'lucide-react';
+import { ArrowLeft, Check, AlertCircle, X, RefreshCw, MapPin, Truck, Store, Loader2 } from 'lucide-react';
 import { PaystackButton } from 'react-paystack';
 import { supabase, MenuItem } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { BackButton } from '../shared/BackButton';
+import { CustomerWalletService } from '../../services/supabase/customer-wallet.service';
 import {
     HOSTEL_DELIVERY_FEES,
     HOSTEL_TO_GROUP,
@@ -57,6 +58,9 @@ export const EnhancedCheckout: React.FC<EnhancedCheckoutProps> = ({
     const [loading, setLoading] = useState(false);
     const [scriptLoading, setScriptLoading] = useState(true);
     const [success, setSuccess] = useState(false);
+    const [walletBalance, setWalletBalance] = useState(0);
+    const [useWallet, setUseWallet] = useState(false);
+    const [deductingFromWallet, setDeductingFromWallet] = useState(false);
     const [error, setError] = useState('');
     const [discount, setDiscount] = useState(0);
     const [deliveryFeeDiscount, setDeliveryFeeDiscount] = useState(0);
@@ -146,6 +150,23 @@ export const EnhancedCheckout: React.FC<EnhancedCheckoutProps> = ({
                 });
         }
     }, [items]);
+
+    // Fetch wallet balance on mount
+    useEffect(() => {
+        const fetchWalletBalance = async () => {
+            if (profile?.id) {
+                try {
+                    const wallet = await CustomerWalletService.getWallet(profile.id);
+                    if (wallet) {
+                        setWalletBalance(wallet.balance);
+                    }
+                } catch (error) {
+                    console.error('Error fetching wallet balance:', error);
+                }
+            }
+        };
+        fetchWalletBalance();
+    }, [profile?.id]);
 
     const handleInputChange = (field: string, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -247,6 +268,49 @@ export const EnhancedCheckout: React.FC<EnhancedCheckoutProps> = ({
 
         handler.openIframe();
     }, [profile, effectiveTotal, formData, showToast]);
+
+    const handleWalletPayment = async () => {
+        if (!formData.deliveryAddress) {
+            setError('Please select your hostel');
+            return;
+        }
+        if (walletBalance < effectiveTotal) {
+            setError('Insufficient wallet balance');
+            return;
+        }
+
+        setDeductingFromWallet(true);
+        setError('');
+
+        try {
+            const { data: { user } } = await (supabase as any).auth.getUser();
+            if (!user) {
+                setError('User not authenticated');
+                return;
+            }
+
+            const deductResult = await CustomerWalletService.deduct(
+                user.id,
+                effectiveTotal,
+                `Order payment - ${items.map(i => i.name).join(', ')}`
+            );
+
+            if (!deductResult.success) {
+                setError('Failed to deduct from wallet. Please try again.');
+                return;
+            }
+
+            // Create order
+            await handlePaymentSuccess({ reference: 'WALLET_PAYMENT' });
+
+            // Update wallet balance
+            setWalletBalance(prev => prev - effectiveTotal);
+        } catch (error) {
+            showToast('Failed to process payment: ' + (error as Error).message, 'error');
+        } finally {
+            setDeductingFromWallet(false);
+        }
+    };
 
     const handlePaymentSuccess = async (response: any) => {
         setLoading(true);
@@ -429,7 +493,8 @@ export const EnhancedCheckout: React.FC<EnhancedCheckoutProps> = ({
                                     <option value="Male Hall 6">Male Hall 6</option>
                                 </optgroup>
                                 <optgroup label="Male Medical Hall">
-                                    <option value="Male Medical Hall">Male Medical Hall</option>
+                                    <option value="Male Medical Hall 1">Male Medical Hall 1</option>
+                                    <option value="Male Medical Hall 2">Male Medical Hall 2</option>
                                 </optgroup>
                                 <optgroup label="Female Halls 1-4">
                                     <option value="Female Hall 1">Female Hall 1</option>
@@ -578,31 +643,94 @@ export const EnhancedCheckout: React.FC<EnhancedCheckoutProps> = ({
                             </div>
                         </div>
 
+                        {/* Payment Method Selection */}
+                        <div>
+                            <label className="block text-sm font-semibold text-black mb-2">Payment Method</label>
+                            <div className="space-y-2">
+                                {/* Paystack Online Option */}
+                                <label className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${!useWallet ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                                    <input
+                                        type="radio"
+                                        name="paymentMethod"
+                                        checked={!useWallet}
+                                        onChange={() => setUseWallet(false)}
+                                        className="mr-3"
+                                    />
+                                    <div className="flex-1">
+                                        <span className="font-semibold text-gray-900">Pay Online</span>
+                                        <span className="text-sm text-gray-500 ml-2">(Paystack)</span>
+                                    </div>
+                                </label>
+                                {/* Wallet Option - show always but disable if insufficient */}
+                                <label className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${useWallet ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                                    <input
+                                        type="radio"
+                                        name="paymentMethod"
+                                        checked={useWallet}
+                                        onChange={() => setUseWallet(true)}
+                                        className="mr-3"
+                                    />
+                                    <div className="flex-1">
+                                        <span className="font-semibold text-gray-900">Pay from Wallet</span>
+                                        <span className="text-sm text-gray-500 ml-2">(Balance: ₦{walletBalance.toFixed(2)})</span>
+                                    </div>
+                                </label>
+                            </div>
+                            {useWallet && walletBalance < effectiveTotal && (
+                                <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                    <p className="text-sm text-yellow-700">
+                                        Insufficient wallet balance. You need ₦{(effectiveTotal - walletBalance).toFixed(2)} more.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
                         {/* Payment Buttons */}
                         <div className="space-y-3">
-                            {/* Pay Online Button */}
-                            <button
-                                type="button"
-                                onClick={initializePaystackPayment}
-                                disabled={scriptLoading || loading || !formData.deliveryAddress}
-                                className="w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-colors shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center"
-                            >
-                                {scriptLoading ? (
-                                    <>
-                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                                        Loading payment...
-                                    </>
-                                ) : (
-                                    <>
-                                        <RefreshCw className="h-5 w-5 mr-2" />
-                                        Pay Now • ₦{effectiveTotal.toFixed(2)}
-                                    </>
-                                )}
-                            </button>
+                            {/* Show appropriate button based on payment method */}
+                            {useWallet ? (
+                                <button
+                                    type="button"
+                                    onClick={handleWalletPayment}
+                                    disabled={deductingFromWallet || !formData.deliveryAddress || walletBalance < effectiveTotal}
+                                    className="w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-colors shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center"
+                                >
+                                    {deductingFromWallet ? (
+                                        <>
+                                            <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                                            Processing...
+                                        </>
+                                    ) : (
+                                        <>Pay ₦{effectiveTotal.toFixed(2)} from Wallet</>
+                                    )}
+                                </button>
+                            ) : (
+                                <>
+                                    {/* Pay Online Button */}
+                                    <button
+                                        type="button"
+                                        onClick={initializePaystackPayment}
+                                        disabled={scriptLoading || loading || !formData.deliveryAddress}
+                                        className="w-full bg-green-600 text-white py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-colors shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center"
+                                    >
+                                        {scriptLoading ? (
+                                            <>
+                                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                                                Loading payment...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <RefreshCw className="h-5 w-5 mr-2" />
+                                                Pay Now • ₦{effectiveTotal.toFixed(2)}
+                                            </>
+                                        )}
+                                    </button>
 
-                            <p className="text-center text-sm text-gray-500">
-                                Secure payment powered by Paystack
-                            </p>
+                                    <p className="text-center text-sm text-gray-500">
+                                        Secure payment powered by Paystack
+                                    </p>
+                                </>
+                            )}
                         </div>
                     </form>
                 </div>

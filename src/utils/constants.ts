@@ -101,8 +101,9 @@ export const HOSTEL_TO_GROUP: Record<string, HostelGroup> = {
     [HOSTELS.MALE_HALL_5]: HOSTEL_GROUPS.MALE_HALL,
     [HOSTELS.MALE_HALL_6]: HOSTEL_GROUPS.MALE_HALL,
 
-    // Male Medical Hall
-    [HOSTELS.MALE_MEDICAL_HALL]: HOSTEL_GROUPS.MALE_MEDICAL_HALL,
+    // Male Medical Halls
+    [HOSTELS.MALE_MEDICAL_HALL_1]: HOSTEL_GROUPS.MALE_MEDICAL_HALL,
+    [HOSTELS.MALE_MEDICAL_HALL_2]: HOSTEL_GROUPS.MALE_MEDICAL_HALL,
 
     // Female Halls 1-4
     [HOSTELS.FEMALE_HALL_1]: HOSTEL_GROUPS.FEMALE_HALL_1_4,
@@ -242,8 +243,9 @@ export const HOSTEL_DELIVERY_FEES: Record<string, number> = {
     [HOSTELS.MALE_HALL_5]: 1500,
     [HOSTELS.MALE_HALL_6]: 1500,
 
-    // Male Medical Hall (Base: ₦2000)
-    [HOSTELS.MALE_MEDICAL_HALL]: 2000,
+    // Male Medical Halls (Base: ₦2000)
+    [HOSTELS.MALE_MEDICAL_HALL_1]: 2000,
+    [HOSTELS.MALE_MEDICAL_HALL_2]: 2000,
 
     // Female Halls 1-4 (Base: ₦1000)
     [HOSTELS.FEMALE_HALL_1]: 1000,
@@ -276,6 +278,8 @@ export const HOSTEL_DELIVERY_FEES: Record<string, number> = {
     'Male Hostel 6': 1500,
     'Medical Male Hostel 1': 2000,
     'Medical Male Hostel 2': 2000,
+    'Male Medical Hall 1': 2000,
+    'Male Medical Hall 2': 2000,
     'Female Medical Hostel 1': 1000,
     'Female Medical Hostel 2': 1000,
     'Female Medical Hostel 3': 1000,
@@ -348,9 +352,9 @@ export const LEGACY_HOSTEL_MAPPING: Record<string, string> = {
     'Male Hostel 5': HOSTELS.MALE_HALL_5,
     'Male Hostel 6': HOSTELS.MALE_HALL_6,
 
-    // Medical Male Hostel -> Male Medical Hall
-    'Medical Male Hostel 1': HOSTELS.MALE_MEDICAL_HALL,
-    'Medical Male Hostel 2': HOSTELS.MALE_MEDICAL_HALL,
+    // Medical Male Hostel -> Male Medical Halls
+    'Medical Male Hostel 1': HOSTELS.MALE_MEDICAL_HALL_1,
+    'Medical Male Hostel 2': HOSTELS.MALE_MEDICAL_HALL_2,
 
     // Female Medical Hostel -> Female Medical Hall
     'Female Medical Hostel 1': HOSTELS.FEMALE_MEDICAL_HALL_1,
