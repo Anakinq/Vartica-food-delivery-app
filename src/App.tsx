@@ -1,4 +1,4 @@
-﻿// src/App.tsx - Hash-based Routing Implementation with Code Splitting
+// src/App.tsx - Hash-based Routing Implementation with Code Splitting
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuth } from './contexts/AuthContext';
@@ -58,6 +58,7 @@ import { OnboardingModal } from './components/shared/OnboardingModal';
 import { TooltipOverlay } from './components/shared/TooltipOverlay';
 import { OnboardingWrapper } from './components/shared/OnboardingWrapper';
 import { useOnboarding } from './hooks/useOnboarding';
+import WalletDashboard from './components/shared/WalletDashboard';
 
 // Loading fallback for Suspense
 const PageLoader = () => (
@@ -92,6 +93,9 @@ function AppContent() {
   // Onboarding state
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showTooltips, setShowTooltips] = useState(false);
+
+  // Wallet state
+  const [showWallet, setShowWallet] = useState(false);
   const onboarding = useOnboarding({
     role: currentRole as UserRole || 'customer',
     onComplete: () => setShowOnboarding(false)
@@ -167,14 +171,15 @@ function AppContent() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [locationHash]);
 
-  // Force re-evaluation of routing when auth state changes
+  // Sync wallet state with location hash - ensures wallet opens when navigating to /wallet
   useEffect(() => {
-    if (user && profile) {
-      setLocationHash(window.location.hash || '');
-      // Don't auto-redirect based on preferredRole - let user choose their view
-      // The RoleSwitcher component handles role switching
+    if (locationHash === '#/wallet' && !showWallet) {
+      setShowWallet(true);
     }
-  }, [user, profile]);
+  }, [locationHash, showWallet]);
+
+  // Force re-render when showWallet changes to ensure immediate UI update
+  const [, forceUpdate] = useState(0);
 
   // Check for hash-based routing when component mounts and when location changes
   useEffect(() => {
@@ -249,6 +254,7 @@ function AppContent() {
             userRole={profile?.role}
             onNavigate={handleInstantNavigate}
             onCollapseChange={handleNavCollapseChange}
+            onWalletClick={() => setShowWallet(true)}
           />
         </div>
       );
@@ -261,7 +267,7 @@ function AppContent() {
           <div className="main-content">
             <NotificationsPanel onClose={() => { window.location.hash = ''; }} />
           </div>
-          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
+          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} onWalletClick={() => setShowWallet(true)} />
         </div>
       );
     }
@@ -298,7 +304,38 @@ function AppContent() {
               }}
             />
           </div>
-          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
+          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} onWalletClick={() => setShowWallet(true)} />
+        </div>
+      );
+    }
+
+    // Handle wallet - show wallet dashboard as overlay
+    if (locationHash === '#/wallet') {
+      // Auto-show wallet when navigating to /wallet
+      if (!showWallet) {
+        setShowWallet(true);
+      }
+      return (
+        <div className="authenticated-view">
+          <div className="main-content">
+            {/* Show customer home as background when wallet is open */}
+            {withSuspense(CustomerHome)({
+              onShowProfile: () => window.location.hash = '#/profile'
+            })}
+          </div>
+          <WalletDashboard
+            isOpen={showWallet}
+            onClose={() => {
+              setShowWallet(false);
+              window.location.hash = '';
+            }}
+          />
+          <BottomNavigation
+            cartCount={cartCount}
+            notificationCount={0}
+            userRole={profile?.role}
+            onWalletClick={() => setShowWallet(true)}
+          />
         </div>
       );
     }
@@ -344,12 +381,19 @@ function AppContent() {
                 sessionStorage.removeItem('previous_page');
                 window.location.hash = backHash || '#/customer';
               }}
+              onShowWallet={() => setShowWallet(true)}
             />
           </div>
+          {showWallet && (
+            <WalletDashboard
+              isOpen={showWallet}
+              onClose={() => setShowWallet(false)}
+            />
+          )}
           {isVendor ? (
             <VendorBottomNavigation />
           ) : (
-            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
+            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} onWalletClick={() => setShowWallet(true)} />
           )}
         </div>
       );
@@ -362,7 +406,7 @@ function AppContent() {
           <div className="main-content">
             {withSuspense(CafeteriaList)({ onBack: () => window.location.hash = '' })}
           </div>
-          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
+          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} onWalletClick={() => setShowWallet(true)} />
         </div>
       );
     }
@@ -374,7 +418,7 @@ function AppContent() {
           <div className="main-content">
             {withSuspense(VendorList)({ onBack: () => window.location.hash = '' })}
           </div>
-          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
+          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} onWalletClick={() => setShowWallet(true)} />
         </div>
       );
     }
@@ -445,7 +489,7 @@ function AppContent() {
           <div className="main-content">
             {withSuspense(CustomerHome)({ onShowProfile: handleProfileClick })}
           </div>
-          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
+          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} onWalletClick={() => setShowWallet(true)} />
         </div>
       );
     }
@@ -485,7 +529,7 @@ function AppContent() {
               }
             })}
           </div>
-          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
+          <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} onWalletClick={() => setShowWallet(true)} />
         </div>
       );
     }
@@ -535,7 +579,7 @@ function AppContent() {
                 onNavigate: handleInstantNavigate
               })}
             </div>
-            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
+            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} onWalletClick={() => setShowWallet(true)} />
           </div>
         );
       }
@@ -581,7 +625,7 @@ function AppContent() {
                 onNavigate: handleInstantNavigate
               })}
             </div>
-            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
+            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} onWalletClick={() => setShowWallet(true)} />
           </div>
         );
       case 'cafeteria':
@@ -595,7 +639,7 @@ function AppContent() {
                 }
               })}
             </div>
-            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
+            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} onWalletClick={() => setShowWallet(true)} />
           </div>
         );
       case 'vendor':
@@ -624,7 +668,7 @@ function AppContent() {
                 }
               })}
             </div>
-            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
+            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} onWalletClick={() => setShowWallet(true)} />
           </div>
         );
       case 'customer':
@@ -639,7 +683,7 @@ function AppContent() {
                 }
               })}
             </div>
-            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} />
+            <BottomNavigation cartCount={cartCount} notificationCount={0} userRole={profile?.role} onWalletClick={() => setShowWallet(true)} />
           </div>
         );
     }

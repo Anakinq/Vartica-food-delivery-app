@@ -148,15 +148,38 @@ export function useDeliveryOrders(agentId: string | null) {
     });
 }
 
-// ==================== WALLET QUERIES ====================
+// ==================== CUSTOMER WALLET QUERIES ====================
 
 /**
- * Get user's wallet
+ * Get customer's wallet (new customer wallet system)
  */
-export function useWallet(userId: string | null) {
+export function useCustomerWallet(userId: string | null) {
     return useQuery({
-        queryKey: ['wallet', userId],
-        queryFn: () => dbWallet.getByUser(userId!),
+        queryKey: ['customer-wallet', userId],
+        queryFn: () => {
+            if (!userId) return Promise.resolve(null);
+            // Import dynamically to avoid circular dependencies
+            return import('../../services/supabase/customer-wallet.service').then(
+                m => m.CustomerWalletService.getWallet(userId)
+            );
+        },
+        enabled: !!userId,
+        staleTime: CACHE_TIMES.wallet,
+    });
+}
+
+/**
+ * Get customer's wallet transactions
+ */
+export function useCustomerWalletTransactions(userId: string | null, limit: number = 20) {
+    return useQuery({
+        queryKey: ['customer-wallet-transactions', userId, limit],
+        queryFn: () => {
+            if (!userId) return Promise.resolve([]);
+            return import('../../services/supabase/customer-wallet.service').then(
+                m => m.CustomerWalletService.getTransactions(userId, limit, 0)
+            );
+        },
         enabled: !!userId,
         staleTime: CACHE_TIMES.wallet,
     });

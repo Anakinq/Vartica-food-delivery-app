@@ -7,6 +7,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, Order, DeliveryAgent, Profile } from '../../lib/supabase';
 import { ChatModal } from '../shared/ChatModal';
+import { CustomerWalletService } from '../../services/supabase/customer-wallet.service';
 import { LocationTracker } from '../shared/LocationTracker';
 import { WalletService } from '../../services';
 import { RoleSwitcher } from '../shared/RoleSwitcher';
@@ -694,6 +695,22 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
   const handleUpdateStatus = async (orderId: string, newStatus: Order['status']) => {
     console.log('[handleUpdateStatus] Attempting to update order:', { orderId, newStatus });
 
+    // If marking as returned, process refund first
+    if (newStatus === 'returned') {
+      try {
+        const refundResult = await CustomerWalletService.refundOrder(orderId, 'Order marked as returned by delivery agent');
+        if (!refundResult.success) {
+          setMessage({ type: 'error', text: `Failed to process refund: ${refundResult.message}` });
+          return;
+        }
+        setMessage({ type: 'success', text: `Order marked as returned. ₦${refundResult.refunded_amount.toLocaleString()} refunded to customer.` });
+      } catch (refundError) {
+        console.error('Error processing refund:', refundError);
+        setMessage({ type: 'error', text: 'Failed to process refund. Please try again.' });
+        return;
+      }
+    }
+
     const { error } = await supabase
       .from('orders')
       .update({ status: newStatus, updated_at: new Date().toISOString() })
@@ -1197,12 +1214,20 @@ export const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onShowProf
                                 </button>
                               )}
                               {order.status === 'picked_up' && (
-                                <button
-                                  onClick={() => handleUpdateStatus(order.id, 'delivered')}
-                                  className="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700"
-                                >
-                                  Mark Delivered
-                                </button>
+                                <>
+                                  <button
+                                    onClick={() => handleUpdateStatus(order.id, 'delivered' as any)}
+                                    className="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                                  >
+                                    Mark Delivered
+                                  </button>
+                                  <button
+                                    onClick={() => handleUpdateStatus(order.id, 'returned' as any)}
+                                    className="px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                                  >
+                                    Mark as Returned
+                                  </button>
+                                </>
                               )}
                               <button
                                 onClick={() => setSelectedOrderForChat(order)}

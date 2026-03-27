@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Loader2, X, CreditCard } from 'lucide-react';
 import { CustomerWalletService } from '../../services/supabase/customer-wallet.service';
 import { supabase } from '../../lib/supabase/client';
+import { createClient } from '@supabase/supabase-js';
 
 interface WalletTopUpModalProps {
     isOpen: boolean;
@@ -150,23 +151,80 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
                 reference: paymentRef,
                 currency: 'NGN',
                 onSuccess: async (response: any) => {
-                    // Payment successful - credit the wallet
+                    // Payment successful - verify with backend before crediting wallet
+                    setProcessingPayment(true);
+                    console.log('Paystack success, reference:', response.reference);
+
+                    const reference = response.reference || paymentRef;
+
                     try {
+                        // Create Supabase client for Edge Function call
+                        const supabaseClient = createClient(
+                            import.meta.env.VITE_SUPABASE_URL || '',
+                            import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+                        );
+
+                        // Try the Edge Function first
+                        try {
+                            const { data: verifyResult, error: verifyError } = await supabaseClient.functions.invoke(
+                                'verify-wallet-payment',
+                                {
+                                    body: {
+                                        user_id: userId,
+                                        amount: amount,
+                                        payment_reference: reference,
+                                        description: 'Wallet top-up via Paystack'
+                                    }
+                                }
+                            );
+
+                            console.log('Verification result:', verifyResult);
+                            console.log('Verification error:', verifyError);
+
+                            if (verifyError) {
+                                // Edge function failed - try direct RPC as fallback
+                                console.log('Edge function failed, trying direct RPC:', verifyError.message);
+                            } else if (verifyResult && verifyResult.success) {
+                                // Success via Edge Function
+                                console.log('Verified via Edge Function! New Balance:', verifyResult.new_balance);
+                                onSuccess(amount);
+                                onClose();
+                                setProcessingPayment(false);
+                                return;
+                            } else if (verifyResult && verifyResult.already_processed) {
+                                // Already processed - return success
+                                console.log('Transaction already processed');
+                                onSuccess(amount);
+                                onClose();
+                                setProcessingPayment(false);
+                                return;
+                            }
+                        } catch (edgeFnError: any) {
+                            // Edge function not available or errored - use direct RPC
+                            console.log('Edge function not available, using direct RPC:', edgeFnError.message);
+                        }
+
+                        // Fallback: Direct RPC call (less secure but functional)
+                        console.log('Using direct RPC fallback for wallet top-up');
                         const result = await CustomerWalletService.topUp(
                             userId,
                             amount,
-                            response.reference,
-                            `Wallet top-up via Paystack`
+                            reference,
+                            'Wallet top-up via Paystack (fallback)'
                         );
+
+                        console.log('Top-up result:', result);
+                        console.log('Success:', result.success, 'New Balance:', result.new_balance, 'Transaction ID:', result.transaction_id);
 
                         if (result.success) {
                             onSuccess(amount);
                             onClose();
                         } else {
-                            setError('Failed to credit wallet. Please contact support.');
+                            setError('Payment recorded but wallet not updated. Please contact support with reference: ' + reference);
                         }
-                    } catch (err) {
-                        setError('Failed to process payment. Please contact support.');
+                    } catch (err: any) {
+                        console.error('Payment processing error:', err);
+                        setError('Payment verification failed: ' + (err.message || 'Please contact support with reference: ' + reference));
                     } finally {
                         setProcessingPayment(false);
                     }

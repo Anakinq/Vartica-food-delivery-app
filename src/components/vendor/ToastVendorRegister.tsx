@@ -18,8 +18,9 @@ const HOSTEL_OPTIONS = [
     'Male Hall 4',
     'Male Hall 5',
     'Male Hall 6',
-    // Male Medical Hall
-    'Male Medical Hall',
+    // Male Medical Halls
+    'Male Medical Hall 1',
+    'Male Medical Hall 2',
     // Female Halls 1-4
     'Female Hall 1',
     'Female Hall 2',

@@ -1,5 +1,5 @@
 import React, { useState, useTransition } from 'react';
-import { Home, ShoppingCart, User, Bell, Package, MapPin, ChevronUp, ChevronDown } from 'lucide-react';
+import { Home, ShoppingCart, User, Bell, Package, MapPin, ChevronUp, ChevronDown, Wallet } from 'lucide-react';
 import { RoleSwitcher } from './RoleSwitcher';
 
 interface BottomNavigationProps {
@@ -12,6 +12,8 @@ interface BottomNavigationProps {
     onCollapseChange?: (isCollapsed: boolean) => void;
     // Initial collapsed state (optional)
     defaultCollapsed?: boolean;
+    // Callback for wallet click
+    onWalletClick?: () => void;
 }
 
 export const BottomNavigation: React.FC<BottomNavigationProps> = ({
@@ -20,7 +22,8 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
     userRole = 'customer',
     onNavigate,
     onCollapseChange,
-    defaultCollapsed = false
+    defaultCollapsed = false,
+    onWalletClick
 }) => {
     // Use React state for active tab
     const [activeTab, setActiveTab] = useState(() => {
@@ -129,6 +132,21 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
             icon: Package,
             path: '/orders',
             onClick: () => navigateTo('/orders'),
+        },
+        {
+            id: 'wallet',
+            label: 'Wallet',
+            icon: Wallet,
+            path: '/wallet',
+            onClick: (e: React.MouseEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (onWalletClick) {
+                    onWalletClick();
+                } else {
+                    navigateTo('/wallet');
+                }
+            },
         },
         {
             id: 'profile',

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, HelpCircle, CreditCard, MapPin, MessageCircle, RefreshCw, Store, ArrowLeftRight, Download, Building2, X, Bike, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, Save, LogOut, Moon, Sun, Bell, Lock, HelpCircle, CreditCard, MapPin, MessageCircle, RefreshCw, Store, ArrowLeftRight, Download, Building2, X, Bike, ChevronDown, ChevronUp, Wallet } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRole } from '../../contexts/RoleContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -12,7 +12,7 @@ import InstallPrompt from '../InstallPrompt';
 import { getDiceBearAvatarUrl, DICE_BEAR_STYLES, type DiceBearStyle } from '../../utils/avatar';
 import { ThemeToggle } from '../ui/ThemeToggle';
 
-export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => void; onClose?: () => void }> = ({ onBack, onSignOut, onClose }) => {
+export const ProfileDashboard: React.FC<{ onBack: () => void; onSignOut: () => void; onClose?: () => void; onShowWallet?: () => void }> = ({ onBack, onSignOut, onClose, onShowWallet }) => {
   const { profile, refreshProfile } = useAuth();
   const { currentRole, switchRole, isSwitching } = useRole();
   const { showToast } = useToast();
@@ -1017,6 +1017,7 @@ const cycleAvatarStyle = () => {
               {/* Other Settings */}
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
                 {[
+                  { icon: Wallet, title: 'My Wallet', desc: 'View balance and transactions' },
                   { icon: Bell, title: 'Notifications', desc: 'View your notifications and alerts' },
                   { icon: Download, title: 'Download App', desc: 'Install Vartica Food on your device' },
                   { icon: Lock, title: 'Privacy & Security', desc: 'Manage your account security' },
@@ -1029,7 +1030,9 @@ const cycleAvatarStyle = () => {
                     <button
                       className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       onClick={() => {
-                        if (item.title === 'Contact Support') {
+                        if (item.title === 'My Wallet') {
+                          onShowWallet?.();
+                        } else if (item.title === 'Contact Support') {
                           setShowSupportModal(true);
                         } else if (item.title === 'Download App') {
                           setShowDownloadModal(true);
