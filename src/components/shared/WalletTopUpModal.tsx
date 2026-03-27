@@ -38,9 +38,13 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
 
     const loadPaystack = async () => {
         setLoading(true);
+        setError(null);
         try {
+            console.log('Loading Paystack payment system...');
+
             // Check if Paystack is already loaded
             if ((window as any).PaystackPop) {
+                console.log('Paystack already loaded from cache');
                 setPaystackLoaded(true);
                 setLoading(false);
                 return;
@@ -48,31 +52,54 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
 
             // Check if paystack is available through global scope
             if ((window as any).paystackpop) {
+                console.log('Paystack already loaded (lowercase)');
                 setPaystackLoaded(true);
                 setLoading(false);
                 return;
             }
 
+            // Check if script is already being loaded
+            const existingScript = document.querySelector('script[src*="paystack"]');
+            if (existingScript) {
+                console.log('Paystack script already in DOM, waiting for load...');
+                // Wait for existing script to finish loading
+                await new Promise((resolve) => setTimeout(resolve, 500));
+                if ((window as any).PaystackPop || (window as any).paystackpop) {
+                    setPaystackLoaded(true);
+                    setLoading(false);
+                    return;
+                }
+            }
+
             // Load Paystack script
+            console.log('Loading Paystack from CDN...');
             const script = document.createElement('script');
             script.src = 'https://js.paystack.co/v1/inline.js';
             script.async = true;
+
             script.onload = () => {
+                console.log('Paystack script loaded successfully');
                 // Give a small delay for initialization
                 setTimeout(() => {
                     if ((window as any).PaystackPop || (window as any).paystackpop) {
+                        console.log('Paystack initialized successfully');
                         setPaystackLoaded(true);
                     } else {
-                        setError('Payment system not ready. Please try again.');
+                        console.error('Paystack loaded but not initialized');
+                        setError('Payment system not ready. Please refresh and try again.');
                     }
-                }, 100);
+                }, 200);
             };
-            script.onerror = () => {
-                setError('Failed to load payment system. Please try again.');
+
+            script.onerror = (e) => {
+                console.error('Failed to load Paystack script:', e);
+                setError('Failed to load payment system. Please check your internet connection and try again.');
             };
+
             document.body.appendChild(script);
         } catch (err) {
-            setError('Failed to initialize payment system');
+            console.error('Error in loadPaystack:', err);
+            setError('Failed to initialize payment system. Please refresh and try again.');
         } finally {
             setLoading(false);
         }
@@ -112,20 +139,39 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
     };
 
     const initiatePayment = async () => {
+        console.log('=== INITIATE PAYMENT STARTED ===');
+        console.log('Amount:', amount);
+        console.log('Paystack loaded:', paystackLoaded);
+        console.log('Processing:', processingPayment);
+
         if (amount < 100) {
+            console.log('ERROR: Minimum amount not met');
             setError('Minimum amount is ₦100');
             return;
         }
 
+        if (!paystackLoaded) {
+            console.log('ERROR: Paystack not loaded yet');
+            setError('Payment system still loading. Please wait a moment.');
+            return;
+        }
+
+        console.log('Setting processing to true...');
         setProcessingPayment(true);
         setError(null);
 
         try {
+            console.log('Getting user email...');
             const userEmail = await getUserEmail();
+            console.log('User email:', userEmail);
+
+            console.log('Getting user session...');
             const { data: { session } } = await (supabase as any).auth.getSession();
             const userId = session?.user?.id;
+            console.log('User ID:', userId);
 
             if (!userId) {
+                console.log('ERROR: User not authenticated');
                 setError('User not authenticated');
                 setProcessingPayment(false);
                 return;
@@ -133,17 +179,22 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
 
             // Get public key from env
             const publicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_xxxxx';
+            console.log('Public key exists:', !!publicKey);
 
             if (!(window as any).PaystackPop) {
+                console.log('ERROR: PaystackPop not available');
                 setError('Payment system not loaded. Please refresh and try again.');
                 setProcessingPayment(false);
                 return;
             }
 
+            console.log('Paystack available, generating payment reference...');
             // Generate a unique reference
             const paymentRef = `WALLET_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            console.log('Payment reference:', paymentRef);
 
             // Use the correct Paystack setup method
+            console.log('Opening Paystack modal...');
             const handler = (window as any).PaystackPop.setup({
                 key: publicKey,
                 email: userEmail,
@@ -235,7 +286,15 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
             });
 
             // Open the Paystack payment modal
-            handler.openIframe();
+            console.log('Opening Paystack modal...');
+            try {
+                handler.openIframe();
+                console.log('Paystack modal opened - waiting for payment completion');
+            } catch (openError: any) {
+                console.error('ERROR opening Paystack modal:', openError);
+                setError('Failed to open payment window. Please check your internet connection and try again.');
+                setProcessingPayment(false);
+            }
 
         } catch (err: any) {
             setError(err.message || 'Payment failed. Please try again.');
@@ -273,6 +332,16 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
                     {error && (
                         <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
                             <p className="text-sm text-red-600">{error}</p>
+                            <button
+                                onClick={() => {
+                                    setError(null);
+                                    setPaystackLoaded(false);
+                                    loadPaystack();
+                                }}
+                                className="mt-2 text-sm text-green-600 hover:text-green-700 font-medium"
+                            >
+                                Retry loading payment system
+                            </button>
                         </div>
                     )}
 
@@ -323,8 +392,8 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
                             {/* Pay Button */}
                             <button
                                 onClick={initiatePayment}
-                                disabled={amount < 100 || processingPayment}
-                                className={`w-full py-3 rounded-lg font-semibold transition-colors flex items-center justify-center ${amount >= 100 && !processingPayment
+                                disabled={amount < 100 || processingPayment || !paystackLoaded}
+                                className={`w-full py-3 rounded-lg font-semibold transition-colors flex items-center justify-center ${amount >= 100 && !processingPayment && paystackLoaded
                                     ? 'bg-green-500 text-white hover:bg-green-600'
                                     : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                                     }`}
@@ -333,6 +402,11 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
                                     <>
                                         <Loader2 className="h-5 w-5 animate-spin mr-2" />
                                         Processing...
+                                    </>
+                                ) : !paystackLoaded ? (
+                                    <>
+                                        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                                        Loading payment system...
                                     </>
                                 ) : (
                                     <>
