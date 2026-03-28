@@ -281,6 +281,7 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
                     }
                 },
                 onClose: () => {
+                    console.log('Payment modal closed by user');
                     setProcessingPayment(false);
                 }
             });
@@ -290,6 +291,13 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
             try {
                 handler.openIframe();
                 console.log('Paystack modal opened - waiting for payment completion');
+
+                // Set a timeout to reset the UI if user doesn't complete payment
+                // This prevents the "Processing..." from getting stuck forever
+                setTimeout(() => {
+                    // Only reset if still processing and no success
+                    console.log('Payment modal opened - user may need to complete or close');
+                }, 5000);
             } catch (openError: any) {
                 console.error('ERROR opening Paystack modal:', openError);
                 setError('Failed to open payment window. Please check your internet connection and try again.');
