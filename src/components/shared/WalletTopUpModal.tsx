@@ -204,9 +204,12 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
                 onSuccess: async (response: any) => {
                     // Payment successful - verify with backend before crediting wallet
                     setProcessingPayment(true);
-                    console.log('Paystack success, reference:', response.reference);
+                    console.log('=== PAYSTACK SUCCESS CALLBACK ===');
+                    console.log('Paystack response:', response);
+                    console.log('Reference:', response.reference);
 
                     const reference = response.reference || paymentRef;
+                    console.log('Using reference for verification:', reference);
 
                     try {
                         // Create Supabase client for Edge Function call
@@ -215,8 +218,11 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
                             import.meta.env.VITE_SUPABASE_ANON_KEY || ''
                         );
 
+                        console.log('Attempting to verify payment via Edge Function...');
+
                         // Try the Edge Function first
                         try {
+                            console.log('Calling verify-wallet-payment Edge Function...');
                             const { data: verifyResult, error: verifyError } = await supabaseClient.functions.invoke(
                                 'verify-wallet-payment',
                                 {
@@ -229,49 +235,60 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
                                 }
                             );
 
-                            console.log('Verification result:', verifyResult);
-                            console.log('Verification error:', verifyError);
+                            console.log('Edge Function response - data:', verifyResult);
+                            console.log('Edge Function response - error:', verifyError);
 
                             if (verifyError) {
+                                console.error('Edge function call failed:', verifyError);
                                 // Edge function failed - try direct RPC as fallback
-                                console.log('Edge function failed, trying direct RPC:', verifyError.message);
+                                console.log('Edge function failed, trying direct RPC...');
                             } else if (verifyResult && verifyResult.success) {
                                 // Success via Edge Function
-                                console.log('Verified via Edge Function! New Balance:', verifyResult.new_balance);
+                                console.log('✅ Verified via Edge Function! New Balance:', verifyResult.new_balance);
                                 onSuccess(amount);
                                 onClose();
                                 setProcessingPayment(false);
                                 return;
                             } else if (verifyResult && verifyResult.already_processed) {
                                 // Already processed - return success
-                                console.log('Transaction already processed');
+                                console.log('✅ Transaction already processed');
                                 onSuccess(amount);
                                 onClose();
                                 setProcessingPayment(false);
                                 return;
+                            } else {
+                                console.warn('Edge Function returned no success:', verifyResult);
                             }
                         } catch (edgeFnError: any) {
                             // Edge function not available or errored - use direct RPC
-                            console.log('Edge function not available, using direct RPC:', edgeFnError.message);
+                            console.error('❌ Edge function error:', edgeFnError);
+                            console.log('Falling back to direct RPC...');
                         }
 
                         // Fallback: Direct RPC call (less secure but functional)
-                        console.log('Using direct RPC fallback for wallet top-up');
-                        const result = await CustomerWalletService.topUp(
-                            userId,
-                            amount,
-                            reference,
-                            'Wallet top-up via Paystack (fallback)'
-                        );
+                        console.log('Attempting direct RPC top-up...');
+                        try {
+                            const result = await CustomerWalletService.topUp(
+                                userId,
+                                amount,
+                                reference,
+                                'Wallet top-up via Paystack (fallback)'
+                            );
 
-                        console.log('Top-up result:', result);
-                        console.log('Success:', result.success, 'New Balance:', result.new_balance, 'Transaction ID:', result.transaction_id);
+                            console.log('RPC result:', result);
+                            console.log('Success:', result.success, 'New Balance:', result.new_balance, 'Transaction ID:', result.transaction_id);
 
-                        if (result.success) {
-                            onSuccess(amount);
-                            onClose();
-                        } else {
-                            setError('Payment recorded but wallet not updated. Please contact support with reference: ' + reference);
+                            if (result.success) {
+                                console.log('✅ Wallet credited successfully via RPC!');
+                                onSuccess(amount);
+                                onClose();
+                            } else {
+                                console.error('❌ RPC top-up returned failure:', result);
+                                setError('Payment recorded but wallet not updated. Please contact support with reference: ' + reference);
+                            }
+                        } catch (rpcError: any) {
+                            console.error('❌ RPC call failed with exception:', rpcError);
+                            setError('Payment verification failed: ' + (rpcError.message || 'Unknown error'));
                         }
                     } catch (err: any) {
                         console.error('Payment processing error:', err);
