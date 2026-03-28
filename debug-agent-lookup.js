@@ -69,7 +69,7 @@ async function debugAgentLookup() {
 
         // Test verify-bank-account API
         console.log('Testing verify-bank-account API...');
-        const verifyResponse = await fetch('https://vartica-food-delivery-app.vercel.app/api/verify-bank-account', {
+        const verifyResponse = await fetch('https://varticafooddeliveryapp.vercel.app/api/verify-bank-account', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

@@ -28,3 +28,9 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/verify-bank-account/deno.json"
 entrypoint = "./functions/verify-bank-account/index.ts"
+
+[functions.verify-wallet-payment]
+enabled = true
+verify_jwt = true
+import_map = "./functions/verify-wallet-payment/deno.json"
+entrypoint = "./functions/verify-wallet-payment/index.ts"

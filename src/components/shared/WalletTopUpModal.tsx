@@ -195,6 +195,7 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
 
             // Use the correct Paystack setup method
             console.log('Opening Paystack modal...');
+            alert('📝 About to create Paystack handler with setup()');
             const handler = (window as any).PaystackPop.setup({
                 key: publicKey,
                 email: userEmail,
@@ -203,25 +204,36 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
                 currency: 'NGN',
                 onSuccess: async (response: any) => {
                     // Payment successful - verify with backend before crediting wallet
+                    alert('🎉 PAYSTACK SUCCESS CALLBACK TRIGGERED! Reference: ' + (response.reference || 'N/A'));
+                    console.log('===========================================');
+                    console.log('PAYSTACK onSuccess CALLBACK TRIGGERED!');
+                    console.log('===========================================');
                     setProcessingPayment(true);
                     console.log('=== PAYSTACK SUCCESS CALLBACK ===');
                     console.log('Paystack response:', response);
+                    console.log('Full response:', JSON.stringify(response, null, 2));
                     console.log('Reference:', response.reference);
 
                     const reference = response.reference || paymentRef;
                     console.log('Using reference for verification:', reference);
 
+                    alert('🔧 About to enter try block for verification...');
+                    console.log('🔧 About to enter try block for verification...');
+                    
                     try {
+                        alert('📡 Creating Supabase client...');
+                        console.log('Creating Supabase client...');
                         // Create Supabase client for Edge Function call
                         const supabaseClient = createClient(
                             import.meta.env.VITE_SUPABASE_URL || '',
                             import.meta.env.VITE_SUPABASE_ANON_KEY || ''
                         );
-
+                        alert('✅ Supabase client created');
                         console.log('Attempting to verify payment via Edge Function...');
 
                         // Try the Edge Function first
                         try {
+                            alert('🚀 Now calling verify-wallet-payment Edge Function...');
                             console.log('Calling verify-wallet-payment Edge Function...');
                             const { data: verifyResult, error: verifyError } = await supabaseClient.functions.invoke(
                                 'verify-wallet-payment',
@@ -237,13 +249,16 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
 
                             console.log('Edge Function response - data:', verifyResult);
                             console.log('Edge Function response - error:', verifyError);
+                            console.log('Edge Function response - full:', JSON.stringify(verifyResult, null, 2));
 
                             if (verifyError) {
+                                alert('Edge function error: ' + verifyError.message + '. Trying RPC fallback...');
                                 console.error('Edge function call failed:', verifyError);
                                 // Edge function failed - try direct RPC as fallback
                                 console.log('Edge function failed, trying direct RPC...');
                             } else if (verifyResult && verifyResult.success) {
                                 // Success via Edge Function
+                                alert('✅ Edge Function Success! New Balance: ₦' + verifyResult.new_balance);
                                 console.log('✅ Verified via Edge Function! New Balance:', verifyResult.new_balance);
                                 onSuccess(amount);
                                 onClose();
@@ -251,12 +266,14 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
                                 return;
                             } else if (verifyResult && verifyResult.already_processed) {
                                 // Already processed - return success
+                                alert('✅ Transaction already processed!');
                                 console.log('✅ Transaction already processed');
                                 onSuccess(amount);
                                 onClose();
                                 setProcessingPayment(false);
                                 return;
                             } else {
+                                alert('Edge function returned no success. Trying RPC fallback...');
                                 console.warn('Edge Function returned no success:', verifyResult);
                             }
                         } catch (edgeFnError: any) {
@@ -276,9 +293,11 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
                             );
 
                             console.log('RPC result:', result);
+                            console.log('RPC result full:', JSON.stringify(result, null, 2));
                             console.log('Success:', result.success, 'New Balance:', result.new_balance, 'Transaction ID:', result.transaction_id);
 
                             if (result.success) {
+                                alert('✅ Wallet credited successfully via RPC! New balance: ₦' + result.new_balance);
                                 console.log('✅ Wallet credited successfully via RPC!');
                                 onSuccess(amount);
                                 onClose();
@@ -291,6 +310,7 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
                             setError('Payment verification failed: ' + (rpcError.message || 'Unknown error'));
                         }
                     } catch (err: any) {
+                        alert('❌ Payment processing error: ' + err.message);
                         console.error('Payment processing error:', err);
                         setError('Payment verification failed: ' + (err.message || 'Please contact support with reference: ' + reference));
                     } finally {
@@ -298,15 +318,40 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
                     }
                 },
                 onClose: () => {
+                    alert('⚠️ Paystack onClose called - payment may have been cancelled or failed');
                     console.log('Payment modal closed by user');
+                    console.log('⚠️ Paystack onClose called - payment may have been cancelled or failed');
                     setProcessingPayment(false);
                 }
             });
 
             // Open the Paystack payment modal
             console.log('Opening Paystack modal...');
+            console.log('Handler:', handler);
+            console.log('Handler type:', typeof handler);
+            console.log('Handler methods:', handler ? Object.keys(handler) : 'N/A');
+            console.log('Handler openIframe:', typeof handler?.openIframe);
+            console.log('Handler open:', typeof handler?.open);
+
+            // Check if handler has valid methods
+            if (!handler || (typeof handler.openIframe !== 'function' && typeof handler.open !== 'function')) {
+                console.error('ERROR: Invalid handler - Paystack may not have loaded correctly');
+                setError('Payment system not ready. Please refresh and try again.');
+                setProcessingPayment(false);
+                return;
+            }
+
             try {
-                handler.openIframe();
+                // Try openIframe first, fallback to open
+                if (typeof handler.openIframe === 'function') {
+                    console.log('Calling handler.openIframe()...');
+                    handler.openIframe();
+                    alert('✅ handler.openIframe() returned - waiting for payment completion');
+                    console.log('✅ handler.openIframe() called successfully');
+                } else if (typeof handler.open === 'function') {
+                    console.log('Calling handler.open()...');
+                    handler.open();
+                }
                 console.log('Paystack modal opened - waiting for payment completion');
 
                 // Set a timeout to reset the UI if user doesn't complete payment
@@ -322,6 +367,7 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
             }
 
         } catch (err: any) {
+            alert('❌ Outer catch error: ' + err.message);
             setError(err.message || 'Payment failed. Please try again.');
             setProcessingPayment(false);
         }
@@ -440,6 +486,48 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
                                     </>
                                 )}
                             </button>
+
+                            {/* Manual Verification Button - appears when payment is processing */}
+                            {processingPayment && (
+                                <div className="mt-3">
+                                    <p className="text-xs text-center text-gray-500 mb-2">
+                                        Having trouble with automatic verification?
+                                    </p>
+                                    <button
+                                        onClick={async () => {
+                                            const ref = prompt('Enter your Paystack transaction reference (check your email/SMS for confirmation):');
+                                            if (ref) {
+                                                try {
+                                                    const { data: { session } } = await (supabase as any).auth.getSession();
+                                                    const userId = session?.user?.id;
+                                                    if (!userId) {
+                                                        alert('Please log in first');
+                                                        return;
+                                                    }
+                                                    const result = await CustomerWalletService.topUp(
+                                                        userId,
+                                                        amount,
+                                                        ref,
+                                                        'Manual wallet top-up verification'
+                                                    );
+                                                    if (result.success) {
+                                                        alert('✅ Wallet credited successfully! New balance: ₦' + result.new_balance);
+                                                        onSuccess(amount);
+                                                        onClose();
+                                                    } else {
+                                                        alert('❌ Verification failed: ' + (result.transaction_id || 'Unknown error'));
+                                                    }
+                                                } catch (err: any) {
+                                                    alert('Error: ' + err.message);
+                                                }
+                                            }
+                                        }}
+                                        className="w-full py-2 border-2 border-green-500 text-green-600 rounded-lg font-medium hover:bg-green-50 transition-colors"
+                                    >
+                                        I've completed payment - manually verify
+                                    </button>
+                                </div>
+                            )}
 
                             {/* Security Note */}
                             <p className="text-xs text-center text-gray-500 mt-3">
