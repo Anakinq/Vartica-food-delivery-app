@@ -492,10 +492,12 @@ export const Checkout: React.FC<CheckoutProps> = ({
         return;
       }
 
+      // Use placeholder UUID for order
       const deductResult = await CustomerWalletService.deduct(
         user.id,
         effectiveTotal,
-        `Order payment - ${items.map(i => i.name).join(', ')}`
+        '00000000-0000-0000-0000-000000000000',
+        `Order payment: ${items.slice(0, 2).map(i => i.name).join(', ')}${items.length > 2 ? '...' : ''}`
       );
 
       if (!deductResult.success) {

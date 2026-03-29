@@ -289,10 +289,13 @@ export const EnhancedCheckout: React.FC<EnhancedCheckoutProps> = ({
                 return;
             }
 
+            // Use a placeholder order ID (empty UUID for wallet payments)
+            // The order will be created after payment succeeds
             const deductResult = await CustomerWalletService.deduct(
                 user.id,
                 effectiveTotal,
-                `Order payment - ${items.map(i => i.name).join(', ')}`
+                '00000000-0000-0000-0000-000000000000',
+                `Order payment: ${items.slice(0, 2).map(i => i.name).join(', ')}${items.length > 2 ? '...' : ''}`
             );
 
             if (!deductResult.success) {
