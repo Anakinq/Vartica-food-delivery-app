@@ -134,21 +134,6 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
             onClick: () => navigateTo('/orders'),
         },
         {
-            id: 'wallet',
-            label: 'Wallet',
-            icon: Wallet,
-            path: '/wallet',
-            onClick: (e: React.MouseEvent) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (onWalletClick) {
-                    onWalletClick();
-                } else {
-                    navigateTo('/wallet');
-                }
-            },
-        },
-        {
             id: 'profile',
             label: 'Profile',
             icon: User,

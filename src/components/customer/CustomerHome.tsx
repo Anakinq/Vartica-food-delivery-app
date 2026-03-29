@@ -1,7 +1,7 @@
 // src/components/customer/CustomerHome.tsx
 // Abuad Delivery Homepage - Following UI Specification
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { Search, ArrowLeft, Bell, Home, Package, User, X, Utensils, ShoppingBag, Moon, Bike, Filter, MapPin, Star, Clock, Cookie, Coffee } from 'lucide-react';
+import { Search, ArrowLeft, Bell, Home, Package, User, X, Utensils, ShoppingBag, Moon, Bike, Filter, MapPin, Star, Clock, Cookie, Coffee, Wallet, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Cafeteria, MenuItem } from '../../lib/supabase';
 import { Vendor } from '../../lib/supabase/types';
@@ -26,6 +26,7 @@ import { ToastVendorList } from './ToastVendorList';
 import { ToastOrderPage } from './ToastOrder';
 import { ToastVendor } from '../../services/supabase/toast.service';
 import { fetchComingSoonSettings, AppSettings } from '../../config/appConfig';
+import { CustomerWalletService, CustomerWallet } from '../../services/supabase/customer-wallet.service';
 
 interface CustomerHomeProps {
   onShowProfile?: () => void;
@@ -114,6 +115,19 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
   const [favorites, setFavorites] = useState<string[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(globalSearchQuery);
+
+  // Wallet balance state
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [showWalletBalance, setShowWalletBalance] = useState(true);
+
+  // Load wallet balance when profile is available
+  useEffect(() => {
+    if (profile?.id) {
+      CustomerWalletService.getWallet(profile.id).then(wallet => {
+        setWalletBalance(wallet?.balance || 0);
+      }).catch(console.error);
+    }
+  }, [profile?.id]);
 
   // Toast state
   const [toastView, setToastView] = useState<'home' | 'vendors' | 'order' | null>(null);
@@ -767,6 +781,36 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onShowProfile }) => 
                 </h1>
               </div>
               <div className="flex items-center space-x-3">
+                {/* Wallet Quick Access Button */}
+                <button
+                  onClick={() => window.location.hash = '#/wallet'}
+                  className="flex items-center space-x-1.5 bg-slate-800/50 hover:bg-slate-700/50 
+                             border border-slate-600/30 rounded-full px-3 py-1.5 transition-all duration-200"
+                >
+                  <Wallet className="h-4 w-4 text-green-400" />
+                  <span className="text-sm font-semibold text-white">
+                    {walletBalance !== null ?
+                      showWalletBalance
+                        ? `₦${walletBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
+                        : '****'
+                      : '...'
+                    }
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      setShowWalletBalance(!showWalletBalance);
+                    }}
+                    className="p-1 hover:bg-slate-600/50 rounded-full transition-colors"
+                  >
+                    {showWalletBalance ? (
+                      <EyeOff className="h-3 w-3 text-slate-400" />
+                    ) : (
+                      <Eye className="h-3 w-3 text-green-400" />
+                    )}
+                  </button>
+                </button>
                 {/* Role Switcher - Show only for users with multiple roles */}
                 <div className="relative">
                   <RoleSwitcher variant="compact" />
